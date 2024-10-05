@@ -22,5 +22,5 @@ build_cmake:
   stage: test
   script:
     - mkdir build && cd build
-    - cmake -DCLIENT=OFF -DTOOLS=OFF DMYSQL=ON -GNinja ..
-    - ninja
+    - cmake -DCLIENT=OFF -DTOOLS=OFF DMYSQL=OFF ..
+    - make game-server
