@@ -13,6 +13,11 @@
 
 #include <optional>
 
+
+#include <game/server/blockworlds/accounts.h>
+
+
+
 bool CheckClientId(int ClientId);
 
 void CGameContext::ConCredits(IConsole::IResult *pResult, void *pUserData)
@@ -20,54 +25,18 @@ void CGameContext::ConCredits(IConsole::IResult *pResult, void *pUserData)
 	CGameContext *pSelf = (CGameContext *)pUserData;
 
 	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"DDNet is run by the DDNet staff (DDNet.org/staff)");
+		"This server has been developped by Nouaa.");
 	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"Great maps and many ideas from the great community");
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"Help and code by eeeee, HMH, east, CookieMichal, Learath2,");
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"Savander, laxa, Tobii, BeaR, Wohoo, nuborn, timakro, Shiki,");
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"trml, Soreu, hi_leute_gll, Lady Saavik, Chairn, heinrich5991,");
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"swick, oy, necropotame, Ryozuki, Redix, d3fault, marcelherd,");
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"BannZay, ACTom, SiuFuWong, PathosEthosLogos, TsFreddie,");
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"Jupeyy, noby, ChillerDragon, ZombieToad, weez15, z6zzz,");
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"Piepow, QingGo, RafaelFF, sctt, jao, daverck, fokkonaut,");
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"Bojidar, FallenKN, ardadem, archimede67, sirius1242, Aerll,");
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"trafilaw, Zwelf, Patiga, Konsti, ElXreno, MikiGamer,");
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"Fireball, Banana090, axblk, yangfl, Kaffeine, Zodiac,");
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"c0d3d3v, GiuCcc, Ravie, Robyt3, simpygirl, sjrc6, Cellegen,");
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"srdante, Nouaa, Voxel, luk51, Vy0x2, Avolicious, louis,");
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"Marmare314, hus3h, ArijanJ, tarunsamanta2k20, Possseidon,");
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"M0REKZ, Teero, furo, dobrykafe, Moiman, JSaurusRex,");
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"Steinchen, ewancg, gerdoe-jr, BlaiZephyr, KebsCS, bencie,");
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"DynamoFox, MilkeeyCat, iMilchshake, SchrodingerZhu,");
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"catseyenebulous, Rei-Tw, Matodor, Emilcha, art0007i & others");
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"Based on DDRace by the DDRace developers,");
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"which is a mod of Teeworlds by the Teeworlds developers.");
+		"Thanks to contributors.");
 }
 
 void CGameContext::ConInfo(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
 	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"DDraceNetwork Mod. Version: " GAME_VERSION);
+		"Blockworlds Modification of DDNet by Nouaa");
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
+		"Version: " BLOCKWORLDS_VERSION );
 	if(GIT_SHORTREV_HASH)
 	{
 		char aBuf[64];
@@ -75,11 +44,7 @@ void CGameContext::ConInfo(IConsole::IResult *pResult, void *pUserData)
 		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp", aBuf);
 	}
 	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"Official site: DDNet.org");
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"For more info: /cmdlist");
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"Or visit DDNet.org");
+		"Official website: blockworlds.tw");
 }
 
 void CGameContext::ConList(IConsole::IResult *pResult, void *pUserData)
@@ -2261,4 +2226,308 @@ void CGameContext::ConTimeCP(IConsole::IResult *pResult, void *pUserData)
 
 	const char *pName = pResult->GetString(0);
 	pSelf->Score()->LoadPlayerTimeCp(pResult->m_ClientId, pName);
+}
+
+
+
+
+
+
+
+//Blockworlds
+
+
+
+inline bool CheckValidChars(const char *pStr)
+{
+	int Len = str_length(pStr);
+	for(int i = 0; i < Len; i++)
+		if((pStr[i] < 'a' || pStr[i] > 'z') &&
+			(pStr[i] < 'A' || pStr[i] > 'Z') &&
+			(pStr[i] < '0' || pStr[i] > '9'))
+			return false;
+	return true;
+}
+
+void CGameContext::ConRegister(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+
+	int ClientId = pResult->m_ClientId;
+	CPlayer *pPlayer = pSelf->m_apPlayers[ClientId];
+	if(!pPlayer)
+		return;
+
+	if(pSelf->m_apPlayers[pResult->m_ClientId]->m_Account.m_Id)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You can't create an account while being logged in!");
+
+	const char *pUsername = pResult->GetString(0);
+	const char *pPassword = pResult->GetString(1);
+
+	int NameLength = str_length(pUsername);
+	int PasswordLength = str_length(pPassword);
+
+	if(NameLength <= 2)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Your name must be at least 3 characters long!");
+
+	if(PasswordLength < 5)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Your password must be at least 5 characters long!");
+
+	if(str_comp(pUsername, pPassword) == 0)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Password must be different from username!");
+
+	if(NameLength * sizeof(char) >= 11)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Account name too long!");
+
+	if(!CheckValidChars(pUsername) || !CheckValidChars(pPassword))
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Only the characters A-Z and 0-9 are allowed!");
+
+	pSelf->Accounts()->Register(pResult->m_ClientId, pUsername, pPassword);
+}
+
+void CGameContext::ConLogin(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+
+	int ClientId = pResult->m_ClientId;
+	CPlayer *pPlayer = pSelf->m_apPlayers[ClientId];
+	if(!pPlayer)
+		return;
+
+	if(pSelf->m_apPlayers[pResult->m_ClientId]->m_Account.m_Id > 0)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You are already logged in!");
+
+	const char *pUsername = pResult->GetString(0);
+	const char *pPassword = pResult->GetString(1);
+
+	pSelf->Accounts()->Login(pResult->m_ClientId, pUsername, pPassword);
+}
+
+void CGameContext::ConAccountLogout(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+
+	int ClientId = pResult->m_ClientId;
+	CPlayer *pPlayer = pSelf->m_apPlayers[ClientId];
+	if(!pPlayer)
+		return;
+
+	if(!pSelf->m_apPlayers[pResult->m_ClientId]->m_Account.m_Id)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You are not logged in!");
+
+	pPlayer->OnPlayerLogout();
+	pSelf->SendChatTarget(pResult->m_ClientId, "you have been logged out!");
+}
+
+void CGameContext::ConDisplayBlockpoints(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+
+	int ClientId = pResult->m_ClientId;
+	CPlayer *pPlayer = pSelf->m_apPlayers[ClientId];
+	if(!pPlayer)
+		return;
+
+	if(!pSelf->m_apPlayers[pResult->m_ClientId]->m_Account.m_Id)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You are not logged in!");
+
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "You currently have %d blockpoint%s!",
+		pSelf->m_apPlayers[pResult->m_ClientId]->m_Account.m_Blockpoints,
+		pSelf->m_apPlayers[pResult->m_ClientId]->m_Account.m_Blockpoints != 1 ? "s" : "");
+	pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+}
+
+void CGameContext::ConChangePassword(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+
+	int ClientId = pResult->m_ClientId;
+	CPlayer *pPlayer = pSelf->m_apPlayers[ClientId];
+	if(!pPlayer)
+		return;
+
+	if(!pSelf->m_apPlayers[pResult->m_ClientId]->m_Account.m_Id)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You are not logged in!");
+
+	const char *pOldPassword = pResult->GetString(0);
+	const char *pNewPassword = pResult->GetString(1);
+
+	int OldLength = str_length(pOldPassword);
+	int NewLenght = str_length(pNewPassword);
+
+	if(OldLength < 5)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Old password incorrect (must be at least 5 chars long).");
+
+	if(NewLenght < 5)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Your password must be at least 5 characters long!");
+
+	if(str_comp(pOldPassword, pNewPassword) == 0)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Password must be different from each other!");
+
+	if(!CheckValidChars(pOldPassword) || !CheckValidChars(pNewPassword))
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Only the characters A-Z and 0-9 are allowed!");
+
+	pSelf->Accounts()->ChangePassword(pResult->m_ClientId, pSelf->m_apPlayers[pResult->m_ClientId]->m_Account.m_aName, pOldPassword, pNewPassword);
+}
+
+void CGameContext::ConDisplayProfile(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+
+	int ClientId = pResult->m_ClientId;
+	CPlayer *pPlayer = pSelf->m_apPlayers[ClientId];
+	if(!pPlayer)
+		return;
+
+	CPlayer *pTargetPlayer = pPlayer;
+
+	if(pResult->NumArguments() == 1)
+	{
+		const char *pTargetName = pResult->GetString(0);
+		bool FoundTarget = false;
+
+		for(int i = 0; i < MAX_CLIENTS; i++)
+		{
+			if(pSelf->m_apPlayers[i] && !str_comp(pTargetName, pSelf->Server()->ClientName(i)))
+			{
+				pTargetPlayer = pSelf->m_apPlayers[i];
+				FoundTarget = true;
+				break;
+			}
+		}
+
+		if(!FoundTarget)
+		{
+			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp", "Player not found");
+			return;
+		}
+	}
+
+	if(!pTargetPlayer->m_Account.m_Id)
+	{
+		pSelf->SendChatTarget(ClientId, "The target player is not logged in.");
+		return;
+	}
+
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "*** Profile of %s (%s)",
+		pTargetPlayer->GetPlayerName(),
+		pTargetPlayer->m_Account.m_aName);
+	pSelf->SendChatTarget(ClientId, aBuf);
+
+	pSelf->SendChatTarget(ClientId, "*** ------Global------");
+
+	// global stats: Kills, Deaths, Max Kill Streak
+	str_format(aBuf, sizeof(aBuf), "*** Kills: %d", pTargetPlayer->m_Account.m_Kills);
+	pSelf->SendChatTarget(ClientId, aBuf);
+
+	str_format(aBuf, sizeof(aBuf), "*** Deaths: %d", pTargetPlayer->m_Account.m_Deaths);
+	pSelf->SendChatTarget(ClientId, aBuf);
+
+	str_format(aBuf, sizeof(aBuf), "*** Max Kill Streak: %d", pTargetPlayer->m_Account.m_Killstreak);
+	pSelf->SendChatTarget(ClientId, aBuf);
+
+	// global K/D ratio
+	float KD = pTargetPlayer->m_Account.m_Deaths > 0 ? (float)pTargetPlayer->m_Account.m_Kills / pTargetPlayer->m_Account.m_Deaths : (float)pTargetPlayer->m_Account.m_Kills;
+	str_format(aBuf, sizeof(aBuf), "*** K/D: %.2f", KD);
+	pSelf->SendChatTarget(ClientId, aBuf);
+
+	// LMB Wins
+	str_format(aBuf, sizeof(aBuf), "*** LMB Wins: %d", pTargetPlayer->m_Account.m_TourneyWin);
+	pSelf->SendChatTarget(ClientId, aBuf);
+
+	// playtime in hours and minutes
+	int Hours = pTargetPlayer->m_Account.m_Playtime / 3600;
+	int Minutes = (pTargetPlayer->m_Account.m_Playtime % 3600) / 60;
+	str_format(aBuf, sizeof(aBuf), "*** PlayTime: %d hours %d minutes", Hours, Minutes);
+	pSelf->SendChatTarget(ClientId, aBuf);
+
+	pSelf->SendChatTarget(ClientId, "*** ------Ranked------");
+
+	// ranked stats: Games, Kills, Deaths, Wins
+	str_format(aBuf, sizeof(aBuf), "*** Games: %d", pTargetPlayer->m_Account.m_RankedGames);
+	pSelf->SendChatTarget(ClientId, aBuf);
+
+	str_format(aBuf, sizeof(aBuf), "*** Rating: %d", pTargetPlayer->m_Account.m_Ranking);
+	pSelf->SendChatTarget(ClientId, aBuf);
+
+	str_format(aBuf, sizeof(aBuf), "*** Kills: %d", pTargetPlayer->m_Account.m_RankedKills);
+	pSelf->SendChatTarget(ClientId, aBuf);
+
+	str_format(aBuf, sizeof(aBuf), "*** Deaths: %d", pTargetPlayer->m_Account.m_RankedDeaths);
+	pSelf->SendChatTarget(ClientId, aBuf);
+
+	// ranked K/D ratio
+	float RankedKD = pTargetPlayer->m_Account.m_RankedDeaths > 0 ? (float)pTargetPlayer->m_Account.m_RankedKills / pTargetPlayer->m_Account.m_RankedDeaths : (float)pTargetPlayer->m_Account.m_RankedKills;
+	str_format(aBuf, sizeof(aBuf), "*** K/D: %.2f", RankedKD);
+	pSelf->SendChatTarget(ClientId, aBuf);
+
+	// ranked Wins and Win Rate
+	str_format(aBuf, sizeof(aBuf), "*** Wins: %d", pTargetPlayer->m_Account.m_RankedWins);
+	pSelf->SendChatTarget(ClientId, aBuf);
+
+	float WinRate = pTargetPlayer->m_Account.m_RankedGames > 0 ? (float)pTargetPlayer->m_Account.m_RankedWins / pTargetPlayer->m_Account.m_RankedGames * 100.0f : 0.0f;
+	str_format(aBuf, sizeof(aBuf), "*** Win Rate: %.2f%%", WinRate);
+	pSelf->SendChatTarget(ClientId, aBuf);
+}
+
+void CGameContext::ConDisplayTopLevel(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+
+	int ClientId = pResult->m_ClientId;
+	CPlayer *pPlayer = pSelf->m_apPlayers[ClientId];
+	if(!pPlayer)
+		return;
+	pSelf->Accounts()->ShowTopLevel(ClientId);
+}
+
+void CGameContext::ConDisplayTopBlockpoints(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+
+	int ClientId = pResult->m_ClientId;
+	CPlayer *pPlayer = pSelf->m_apPlayers[ClientId];
+	if(!pPlayer)
+		return;
+	pSelf->Accounts()->ShowTopBlockpoints(ClientId);
+}
+
+void CGameContext::ConDisplayTopKillStreak(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+
+	int ClientId = pResult->m_ClientId;
+	CPlayer *pPlayer = pSelf->m_apPlayers[ClientId];
+	if(!pPlayer)
+		return;
+	pSelf->Accounts()->ShowTopKillStreak(ClientId);
 }

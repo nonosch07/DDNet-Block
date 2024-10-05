@@ -15,6 +15,11 @@
 #include <game/gamecore.h>
 #include <game/teamscore.h>
 
+
+#include <game/server/blockworlds/accounts.h>
+
+
+
 MACRO_ALLOC_POOL_ID_IMPL(CPlayer, MAX_CLIENTS)
 
 IServer *CPlayer::Server() const { return m_pGameServer->Server(); }
@@ -170,6 +175,17 @@ void CPlayer::Tick()
 	{
 		ProcessScoreResult(*m_ScoreFinishResult);
 		m_ScoreFinishResult = nullptr;
+	}
+
+	if(m_AccountQueryResult != nullptr && m_AccountQueryResult->m_Completed)
+	{
+		BWProcessScoreResult(*m_AccountQueryResult);
+		m_AccountQueryResult = nullptr;
+	}
+	if(m_AdminCommandQueryResult != nullptr && m_AdminCommandQueryResult->m_Completed)
+	{
+		BWProcessAdminCommandResult(*m_AdminCommandQueryResult);
+		m_AdminCommandQueryResult = nullptr;
 	}
 
 	if(!Server()->ClientIngame(m_ClientId))
@@ -352,6 +368,17 @@ void CPlayer::Snap(int SnappingClient)
 	if(SnappingClient != m_ClientId && g_Config.m_SvHideScore)
 		Score = -9999;
 
+	if(IsLoggedIn())
+	{
+		m_Score = Score = GetPlayerLevel();
+		Server()->SetClientScore(m_ClientId, Score);
+	}
+	else
+	{
+		m_Score = Score = 0;
+		Server()->SetClientScore(m_ClientId, Score);
+	}
+
 	if(!Server()->IsSixup(SnappingClient))
 	{
 		CNetObj_PlayerInfo *pPlayerInfo = Server()->SnapNewItem<CNetObj_PlayerInfo>(id);
@@ -497,6 +524,7 @@ void CPlayer::FakeSnap()
 void CPlayer::OnDisconnect()
 {
 	KillCharacter();
+	OnPlayerLogout();
 
 	m_Moderating = false;
 }
@@ -953,4 +981,218 @@ void CPlayer::ProcessScoreResult(CScorePlayerResult &Result)
 			break;
 		}
 	}
+}
+
+
+
+
+//Blockworlds
+
+void CPlayer::BWProcessScoreResult(CAccountResult &Result)
+{
+	if(Result.m_Success)
+	{
+		switch(Result.m_MessageKind)
+		{
+		case CAccountResult::DIRECT:
+			for(auto &aMessage : Result.m_aaMessages)
+			{
+				if(aMessage[0] == 0)
+					break;
+				GameServer()->SendChatTarget(m_ClientId, aMessage);
+			}
+			break;
+
+		case CAccountResult::ALL:
+		{
+			bool PrimaryMessage = true;
+			for(auto &aMessage : Result.m_aaMessages)
+			{
+				if(aMessage[0] == 0)
+					break;
+
+				if(GameServer()->ProcessSpamProtection(m_ClientId) && PrimaryMessage)
+					break;
+
+				GameServer()->SendChat(-1, TEAM_ALL, aMessage, -1);
+				PrimaryMessage = false;
+			}
+			break;
+		}
+
+		case CAccountResult::TOP_MESSAGES:
+			for(auto &aMessage : Result.m_aaMessages)
+			{
+				if(aMessage[0] == 0)
+					break;
+
+				GameServer()->SendChatTarget(m_ClientId, aMessage);
+			}
+			break;
+
+		case CAccountResult::BROADCAST:
+			break;
+
+		case CAccountResult::LOGGED_IN_ALREADY:
+			GameServer()->SendChatTarget(m_ClientId, "Account is already being used.");
+			break;
+
+		case CAccountResult::LOGIN_WRONG_PASS:
+			GameServer()->SendChatTarget(m_ClientId, "Wrong username or password.");
+			break;
+
+		case CAccountResult::LOGIN_INFO:
+			m_Account = Result.m_Account;
+			OnPlayerLogin(); // Call the login handler
+			break;
+
+		case CAccountResult::REGISTER:
+			for(auto &aMessage : Result.m_aaMessages)
+			{
+				if(aMessage[0] == 0)
+					continue;
+				GameServer()->SendChatTarget(m_ClientId, aMessage);
+			}
+			// GameServer()->RegisterBanCheck(m_ClientId);
+			break;
+
+		case CAccountResult::LOG_ONLY:
+			for(auto &aMessage : Result.m_aaMessages)
+			{
+				if(aMessage[0] == 0)
+					break;
+				dbg_msg("account", "%s", aMessage);
+			}
+			break;
+		}
+	}
+}
+
+void CPlayer::BWProcessAdminCommandResult(CAdminCommandResult &Result)
+{
+	if(Result.m_Success) // SQL request was successful
+	{
+		switch(Result.m_MessageKind)
+		{
+		case CAdminCommandResult::FREEZE_ACC:
+		{
+			break;
+		}
+		case CAdminCommandResult::MODERATOR:
+		{
+			break;
+		}
+		case CAdminCommandResult::SUPER_MODERATOR:
+		{
+			break;
+		}
+		case CAdminCommandResult::SUPPORTER:
+		{
+			break;
+		}
+		case CAdminCommandResult::DIRECT:
+			for(auto &aMessage : Result.m_aaMessages)
+			{
+				if(aMessage[0] == 0)
+					break;
+				GameServer()->SendChatTarget(m_ClientId, aMessage);
+			}
+			break;
+		case CAdminCommandResult::ALL:
+		{
+			bool PrimaryMessage = true;
+			for(auto &aMessage : Result.m_aaMessages)
+			{
+				if(aMessage[0] == 0)
+					break;
+
+				if(GameServer()->ProcessSpamProtection(m_ClientId) && PrimaryMessage)
+					break;
+
+				GameServer()->SendChat(-1, TEAM_ALL, aMessage, -1);
+				PrimaryMessage = false;
+			}
+			break;
+		}
+		case CAdminCommandResult::BROADCAST:
+			// if(Result.m_aBroadcast[0] != 0)
+			// 	GameServer()->SendBroadcast(Result.m_aBroadcast, -1);
+			break;
+		case CAdminCommandResult::LOG_ONLY:
+			for(auto &aMessage : Result.m_aaMessages)
+			{
+				if(aMessage[0] == 0)
+					break;
+				dbg_msg("account", "%s", aMessage);
+			}
+			break;
+		}
+	}
+}
+
+void CPlayer::OnPlayerLogin()
+{
+	GameServer()->SendChatTarget(m_ClientId, "Login successfully");
+
+	GameServer()->Accounts()->SetLoggedIn(m_ClientId, 1, m_Account.m_Id);
+}
+
+void CPlayer::OnPlayerSave(int SetLoggedIn)
+{
+	dbg_msg("account", "saving account '%s' CID=%d AccountId=%d SetLoggedIn=%d", Server()->ClientName(GetCid()), GetCid(), m_Account.m_Id, SetLoggedIn);
+
+	if(!m_Account.m_Id)
+		return;
+
+	m_Account.m_IsLoggedIn = SetLoggedIn;
+
+	char aName[32];
+	str_copy(aName, Server()->ClientName(m_ClientId), sizeof(aName));
+
+	if(str_comp(aName, m_Account.m_aLastName) != 0)
+	{
+		str_format(m_Account.m_aLastName, sizeof(m_Account.m_aLastName), "%s", aName);
+	}
+
+	char aIp[48];
+	Server()->GetClientAddr(GetCid(), aIp, sizeof(aIp));
+
+	if(str_comp(aIp, m_Account.m_aAddress) != 0)
+	{
+		str_format(m_Account.m_aAddress, sizeof(m_Account.m_aAddress), "%s", aIp);
+	}
+
+	int ColorFeet = GameServer()->m_apPlayers[m_ClientId]->m_TeeInfos.m_ColorFeet;
+
+	if(ColorFeet != m_Account.m_LastFeetColor)
+	{
+		m_Account.m_LastFeetColor = ColorFeet;
+	}
+
+	int ColorBody = GameServer()->m_apPlayers[m_ClientId]->m_TeeInfos.m_ColorBody;
+
+	if(ColorBody != m_Account.m_LastBodyColor)
+	{
+		m_Account.m_LastBodyColor = ColorBody;
+	}
+
+	const char *aSkinName = GameServer()->m_apPlayers[m_ClientId]->m_TeeInfos.m_aSkinName;
+
+	if(str_comp(aSkinName, m_Account.m_aLastSkin) != 0)
+	{
+		str_format(m_Account.m_aLastSkin, sizeof(m_Account.m_aLastSkin), "%s", aSkinName);
+	}
+
+	GameServer()->Accounts()->Save(GetCid(), &m_Account);
+}
+
+void CPlayer::OnPlayerLogout(int SetLoggedIn)
+{
+	if(!IsLoggedIn())
+		return;
+
+	OnPlayerSave(SetLoggedIn);
+	dbg_msg("account", "logging out AccountId=%d SetLoggedIn=%d", GetAccId(), SetLoggedIn);
+
+	m_Account = CAccountData();
 }

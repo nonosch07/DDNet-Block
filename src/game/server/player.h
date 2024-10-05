@@ -15,11 +15,18 @@
 #include <memory>
 #include <optional>
 
+#include <game/server/blockworlds/accounts.h>
+
+
 class CCharacter;
 class CGameContext;
 class IServer;
 struct CNetObj_PlayerInput;
 struct CScorePlayerResult;
+
+
+class Accounts;
+
 
 enum
 {
@@ -230,6 +237,106 @@ public:
 	int m_RescueMode;
 
 	CSaveTee m_LastTeleTee;
+
+
+
+
+	// Blockworlds
+
+	void BWProcessScoreResult(CAccountResult &Result);
+	void BWProcessAdminCommandResult(CAdminCommandResult &Result);
+	std::shared_ptr<CAccountResult> m_AccountQueryResult;
+	std::shared_ptr<CAdminCommandResult> m_AdminCommandQueryResult;
+
+	void OnPlayerLogin();
+	void OnPlayerLogout(int SetLoggedIn = 0);
+	void OnPlayerSave(int SetLoggedIn);
+
+	//helper functions:
+	int GetAccId() { return m_Account.m_Id; }
+	bool IsLoggedIn() { return GetAccId() != 0; }
+	void SetAccId(int Id);
+
+	// Setters
+	void SetPlayerId(int id) { m_Account.m_Id = id; }
+	void SetPlayerName(const char *name) { strncpy(m_Account.m_aName, name, sizeof(m_Account.m_aName) - 1); }
+	void SetPlayerPassword(const char *password) { strncpy(m_Account.m_aPassword, password, sizeof(m_Account.m_aPassword) - 1); }
+	void SetPlayerAddress(const char *address) { strncpy(m_Account.m_aAddress, address, sizeof(m_Account.m_aAddress) - 1); }
+	void SetPlayerIsLoggedIn(int isLoggedIn) { m_Account.m_IsLoggedIn = isLoggedIn; }
+	void SetPlayerVip(int vip) { m_Account.m_Vip = vip; }
+	void SetPlayerPages(int pages) { m_Account.m_Pages = pages; }
+	void SetPlayerLevel(int level) { m_Account.m_Level = level; }
+	void SetPlayerExperience(int experience) { m_Account.m_Experience = experience; }
+	void SetPlayerWeaponkits(int weaponkits) { m_Account.m_Weaponkits = weaponkits; }
+	void SetPlayerClan(const char *ClanName)
+	{
+		std::strncpy(m_Account.m_aClan, ClanName, sizeof(m_Account.m_aClan) - 1);
+		m_Account.m_aClan[sizeof(m_Account.m_aClan) - 1] = '\0';
+	}
+	void SetPlayerRanking(int ranking) { m_Account.m_Ranking = ranking; }
+	void SetPlayerBlockpoints(int blockpoints) { m_Account.m_Blockpoints = blockpoints; }
+	void SetPlayerKnockouts(const char *knockouts) { strncpy(m_Account.m_aKnockouts, knockouts, sizeof(m_Account.m_aKnockouts) - 1); }
+	void SetPlayerGundesign(const char *gundesign) { strncpy(m_Account.m_aGundesign, gundesign, sizeof(m_Account.m_aGundesign) - 1); }
+	void SetPlayerSkinmani(const char *skinmani) { strncpy(m_Account.m_aSkinmani, skinmani, sizeof(m_Account.m_aSkinmani) - 1); }
+	void SetPlayerExtras(const char *extras) { strncpy(m_Account.m_aExtras, extras, sizeof(m_Account.m_aExtras) - 1); }
+	void SetPlayerRegisterDate(const char *registerDate) { strncpy(m_Account.m_RegisterDate, registerDate, sizeof(m_Account.m_RegisterDate) - 1); }
+	void SetPlayerRankedGames(int rankedGames) { m_Account.m_RankedGames = rankedGames; }
+	void SetPlayerRankedKills(int rankedKills) { m_Account.m_RankedKills = rankedKills; }
+	void SetPlayerRankedDeaths(int rankedDeaths) { m_Account.m_RankedDeaths = rankedDeaths; }
+	void SetPlayerRankedWins(int RankedWins) { m_Account.m_RankedWins = RankedWins; }
+	void SetPlayerKills(int kills) { m_Account.m_Kills = kills; }
+	void SetPlayerDeaths(int deaths) { m_Account.m_Deaths = deaths; }
+	void SetPlayerTourneyWin(int tourneyWin) { m_Account.m_TourneyWin = tourneyWin; }
+	void SetPlayerPlaytime(long long playtime) { m_Account.m_Playtime = playtime; }
+	void SetPlayerKillstreak(int killstreak) { m_Account.m_Killstreak = killstreak; }
+	void SetPlayerLastName(const char *lastName) { strncpy(m_Account.m_aLastName, lastName, sizeof(m_Account.m_aLastName) - 1); }
+	void SetPlayerLastSkin(const char *lastSkin) { strncpy(m_Account.m_aLastSkin, lastSkin, sizeof(m_Account.m_aLastSkin) - 1); }
+	void SetPlayerLastBodyColor(int lastBodyColor) { m_Account.m_LastBodyColor = lastBodyColor; }
+	void SetPlayerLastFeetColor(int lastFeetColor) { m_Account.m_LastFeetColor = lastFeetColor; }
+
+	// Getters
+	int GetPlayerId() { return m_Account.m_Id; }
+	const char *GetPlayerName() { return m_Account.m_aName; }
+	const char *GetPlayerPassword() { return m_Account.m_aPassword; }
+	const char *GetPlayerAddress() { return m_Account.m_aAddress; }
+	int GetPlayerIsLoggedIn() { return m_Account.m_IsLoggedIn; }
+	int GetPlayerVip() { return m_Account.m_Vip; }
+	int GetPlayerPages() { return m_Account.m_Pages; }
+	int GetPlayerLevel() { return m_Account.m_Level; }
+	int GetPlayerExperience() { return m_Account.m_Experience; }
+	int GetPlayerWeaponkits() { return m_Account.m_Weaponkits; }
+	int GetPlayerRanking() { return m_Account.m_Ranking; }
+	const char *GetPlayerClan() { return m_Account.m_aClan; }
+	int GetPlayerBlockpoints() { return m_Account.m_Blockpoints; }
+	const char *GetPlayerKnockouts() { return m_Account.m_aKnockouts; }
+	const char *GetPlayerGundesign() { return m_Account.m_aGundesign; }
+	const char *GetPlayerSkinmani() { return m_Account.m_aSkinmani; }
+	const char *GetPlayerExtras() { return m_Account.m_aExtras; }
+	const char *GetPlayerRegisterDate() { return m_Account.m_RegisterDate; }
+	int GetPlayerRankedGames() { return m_Account.m_RankedGames; }
+	int GetPlayerRankedKills() { return m_Account.m_RankedKills; }
+	int GetPlayerRankedDeaths() { return m_Account.m_RankedDeaths; }
+	int GetPlayerRankedWins() { return m_Account.m_RankedWins; }
+	int GetPlayerKills() { return m_Account.m_Kills; }
+	int GetPlayerDeaths() { return m_Account.m_Deaths; }
+	int GetPlayerTourneyWin() { return m_Account.m_TourneyWin; }
+	long long GetPlayerPlaytime() { return m_Account.m_Playtime; }
+	int GetPlayerKillstreak() { return m_Account.m_Killstreak; }
+	const char *GetPlayerLastName() { return m_Account.m_aLastName; }
+	const char *GetPlayerLastSkin() { return m_Account.m_aLastSkin; }
+	int GetPlayerLastBodyColor() { return m_Account.m_LastBodyColor; }
+	int GetPlayerLastFeetColor() { return m_Account.m_LastFeetColor; }
+
+	CAccountData m_Account;
+
+	bool m_allowDeath;
+	int sent1on1InviteTo;
+	bool m_HideInfo = false;
+	bool m_ShowLevel = true;
+	bool m_EventWinner = false;
+	int m_EventWTick = -1;
+	bool m_IsDummy = false;
+	bool m_HideInfoInScoreboard;
 };
 
 #endif

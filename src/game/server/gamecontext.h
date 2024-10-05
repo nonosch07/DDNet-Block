@@ -60,6 +60,9 @@ class IStorage;
 struct CAntibotRoundData;
 struct CScoreRandomMapResult;
 
+
+class CAccounts;
+
 struct CSnapContext
 {
 	CSnapContext(int Version, bool Sixup = false) :
@@ -589,6 +592,34 @@ public:
 	void OnSetAuthed(int ClientId, int Level) override;
 
 	void ResetTuning();
+
+
+
+
+
+
+
+	//Blockworlds
+
+public:
+	void RegisterBlockworldsChatCommands();
+	static SHA256_DIGEST HashPassword(const char *pPassword);
+	CAccounts *Accounts() { return m_pAccounts; }
+
+private:
+	CAccounts *m_pAccounts;
+
+	static void ConRegister(IConsole::IResult *pResult, void *pUserData);
+	static void ConLogin(IConsole::IResult *pResult, void *pUserData);
+	static void ConAccountLogout(IConsole::IResult *pResult, void *pUserData);
+	static void ConChangePassword(IConsole::IResult *pResult, void *pUserData);
+
+	static void ConDisplayBlockpoints(IConsole::IResult *pResult, void *pUserData);
+	static void ConDisplayProfile(IConsole::IResult *pResult, void *pUserData);
+
+	static void ConDisplayTopLevel(IConsole::IResult *pResult, void *pUserData);
+	static void ConDisplayTopBlockpoints(IConsole::IResult *pResult, void *pUserData);
+	static void ConDisplayTopKillStreak(IConsole::IResult *pResult, void *pUserData);
 };
 
 #endif
