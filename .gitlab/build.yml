@@ -17,10 +17,9 @@ build_cmake:
       libx264-dev libpng-dev
       libcurl4 libcurl3-gnutls libcurl4-openssl-dev libcurlpp-dev
       libogg-dev libopus-dev libopusfile-dev
-      valgrind
-      mariadb-server -y
+      valgrind -y
   stage: test
   script:
     - mkdir build && cd build
-    - cmake -DCLIENT=OFF -DTOOLS=OFF DMYSQL=OFF ..
+    - cmake -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON ..
     - make game-server
