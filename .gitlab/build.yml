@@ -17,9 +17,10 @@ build_cmake:
       libx264-dev libpng-dev
       libcurl4 libcurl3-gnutls libcurl4-openssl-dev libcurlpp-dev
       libogg-dev libopus-dev libopusfile-dev
-      valgrind -y
+      valgrind
+      mariadb-server -y
   stage: test
   script:
     - mkdir build && cd build
-    - cmake ..
-    - make -j$(nproc)
+    - cmake -DCLIENT=OFF -DTOOLS=OFF DMYSQL=ON -GNinja ..
+    - ninja
