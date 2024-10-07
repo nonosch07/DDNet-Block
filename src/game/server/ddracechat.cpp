@@ -2613,3 +2613,120 @@ void CGameContext::ConDisplayTopKillStreak(IConsole::IResult *pResult, void *pUs
 		return;
 	pSelf->Accounts()->ShowTopKillStreak(ClientId);
 }
+
+void CGameContext::ConWeaponKit(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+	CCharacter *pChr = pPlayer->GetCharacter();
+
+	if(!g_Config.m_SvAccountsystem)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+
+	if(!pPlayer->IsLoggedIn())
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You are not logged in.");
+
+	if(pPlayer->GetPlayerWeaponkits() < 1)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You don't have any weapon kits, make a trip to the store and purchase some!");
+
+	// check if the player has all weapons
+	bool hasAllWeapons = true;
+	for (int i = WEAPON_GUN; i < NUM_WEAPONS - 1; i++)
+	{
+	    if (!pChr->BWCore().m_aWeapons[i].m_Got)
+	    {
+	        hasAllWeapons = false;
+	        break;
+	    }
+	}
+	
+	if (hasAllWeapons)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You already have all weapons.");
+
+	pPlayer->SetPlayerWeaponkits(pPlayer->GetPlayerWeaponkits() - 1);
+	pSelf->ModifyWeapons(pResult, pUserData, -1, false);
+
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "You have successfuly used one of your weapon kits! you now have %d kits left.", pPlayer->GetPlayerWeaponkits());
+	return pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+}
+
+void CGameContext::ConDeathnote(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	if(!g_Config.m_SvAccountsystem)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+	IServer *pServer = pSelf->Server();
+
+	if(!pPlayer->IsLoggedIn())
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You are not logged in.");
+
+	if(!pResult->NumArguments())
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Invalid arguments... Usage: deathnote [player]");
+
+	CPlayer *pTarget = pSelf->GetPlayerByName(pResult->GetString(0));
+
+	if(!pTarget)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "This player doesn't exist.");
+
+	if(pPlayer->GetPlayerPages() < 1)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You don't have any deathnotes, make a trip to the store and purchase some!");
+
+	int CurrentTick = pServer->Tick();
+	int CooldownTick = pPlayer->m_LastDeathnote + (pServer->TickSpeed() * g_Config.m_SvDeathNoteCoolDown);
+	if(CurrentTick < CooldownTick)
+	{
+		int RemainingTicks = CooldownTick - CurrentTick;
+		int cooldownTime = (RemainingTicks + pServer->TickSpeed() - 1) / pServer->TickSpeed();
+		int CooldownMinutes = cooldownTime / 60;
+		int CooldownSeconds = cooldownTime % 60;
+
+		char aBuf[256];
+		str_copy(aBuf, "You have to wait ", sizeof(aBuf));
+		if(CooldownMinutes > 0)
+		{
+			if(CooldownMinutes == 1)
+				str_format(aBuf + str_length(aBuf), sizeof(aBuf) - str_length(aBuf), "%d minute ", CooldownMinutes);
+			else
+				str_format(aBuf + str_length(aBuf), sizeof(aBuf) - str_length(aBuf), "%d minutes ", CooldownMinutes);
+		}
+
+		if(CooldownSeconds > 0)
+		{
+			if(CooldownSeconds == 1)
+				str_format(aBuf + str_length(aBuf), sizeof(aBuf) - str_length(aBuf), "%d second ", CooldownSeconds);
+			else
+				str_format(aBuf + str_length(aBuf), sizeof(aBuf) - str_length(aBuf), "%d seconds ", CooldownSeconds);
+		}
+
+		str_append(aBuf, "until you can write down a player in your deathnote.", sizeof(aBuf));
+		return pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+	}
+
+	pPlayer->SetPlayerPages(pPlayer->GetPlayerPages() - 1);
+	pTarget->KillCharacter();
+
+	char aBuff_From[128], aBuff_To[128];
+	str_format(aBuff_From, sizeof(aBuff_From), "Successfully killed %s. %d pages remaining.", pSelf->Server()->ClientName(pTarget->GetCid()), pPlayer->GetPlayerPages());
+	str_format(aBuff_To, sizeof(aBuff_To), "'%s' used a deathnote to kill you!", pSelf->Server()->ClientName(pResult->m_ClientId));
+	pSelf->SendChatTarget(pResult->m_ClientId, aBuff_From);
+	pSelf->SendChatTarget(pTarget->GetCid(), aBuff_To);
+	pPlayer->m_LastDeathnote = pServer->Tick();
+}
+
+CPlayer *CGameContext::GetPlayerByName(const char *pName)
+{
+	CPlayer *pPlayer = 0;
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		if(m_apPlayers[i] && !str_comp(pName, Server()->ClientName(i)))
+		{
+			pPlayer = m_apPlayers[i];
+			break;
+		}
+	}
+	return pPlayer;
+}

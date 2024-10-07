@@ -611,6 +611,7 @@ public:
 
 public:
 	void RegisterBlockworldsChatCommands();
+	CPlayer *GetPlayerByName(const char *pName);
 	static SHA256_DIGEST HashPassword(const char *pPassword);
 	CAccounts *Accounts() { return m_pAccounts; }
 
@@ -625,6 +626,9 @@ private:
 	static void ConDisplayBlockpoints(IConsole::IResult *pResult, void *pUserData);
 	static void ConDisplayProfile(IConsole::IResult *pResult, void *pUserData);
 
+	static void ConDeathnote(IConsole::IResult *pResult, void *pUserData);
+	static void ConWeaponKit(IConsole::IResult *pResult, void *pUserData);
+	
 	static void ConDisplayTopLevel(IConsole::IResult *pResult, void *pUserData);
 	static void ConDisplayTopBlockpoints(IConsole::IResult *pResult, void *pUserData);
 	static void ConDisplayTopKillStreak(IConsole::IResult *pResult, void *pUserData);

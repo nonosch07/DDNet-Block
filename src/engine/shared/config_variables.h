@@ -741,6 +741,10 @@ MACRO_CONFIG_INT(ClVideoRecorderFPS, cl_video_recorder_fps, 60, 1, 1000, CFGFLAG
 
 //Blockworlds
 
+
+MACRO_CONFIG_INT(SvAccountsystem, sv_account_system, 1, 0, 1, CFGFLAG_SERVER, "Enables or disables the account system")
+MACRO_CONFIG_INT(Sv1on1system, sv_1on1_system, 1, 0, 1, CFGFLAG_SERVER, "Enables or disables the 1on1 system")
+
 // experience stuff related - for god's sake rework that shit wording
 MACRO_CONFIG_INT(SvBlockExperience, sv_block_experience, 3, 0, 0, CFGFLAG_SERVER, "Count of awarded experience points for registered block")
 MACRO_CONFIG_INT(SvBlockFreezedInterval, sv_block_freezed, 3, 0, 0, CFGFLAG_SERVER, "How long player have to be frozen to be blocked")
@@ -753,3 +757,5 @@ MACRO_CONFIG_INT(SvKillStreakCount, sv_kill_streak_count, 5, 1, 10, CFGFLAG_SERV
 MACRO_CONFIG_INT(SvAllowExpFromSameIp, sv_allow_exp_from_same_ip, 0, 0, 1, CFGFLAG_SERVER, "Should be off by default, only useful for testing.")
 MACRO_CONFIG_INT(SvBlockMinAliveTime, sv_block_min_alive_time, 20, 1, 120, CFGFLAG_SERVER, "Min alive time to drop exp.")
 MACRO_CONFIG_INT(SvBlockInterval, sv_block_interval, 0, 0, 1, CFGFLAG_SERVER, "Interval between 2 countable fights.")
+
+MACRO_CONFIG_INT(SvDeathNoteCoolDown, sv_deathnote_cooldown, 600, 60, 3600, CFGFLAG_SERVER, "Time in seconds the player must wait before using the Deathnote again")

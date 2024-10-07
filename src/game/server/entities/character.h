@@ -270,7 +270,7 @@ public:
 
 	//Blockworlds
 
-		int m_FrozenSinceTick;
+	int m_FrozenSinceTick;
 	int m_FrozenAndUnmovedSinceTick;
 	int m_FrozenAndUntouchedSinceTick;
 	int m_CurrentKillingSpree;
@@ -280,6 +280,8 @@ public:
 	int m_LastTouchingWeapon = -1;
 	vec2 CursorPos();
 	int m_KillStreak = 0;
+
+	CCharacterCore BWCore() { return m_Core; }
 };
 
 enum

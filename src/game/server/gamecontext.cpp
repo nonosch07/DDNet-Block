@@ -3690,7 +3690,7 @@ void CGameContext::RegisterDDRaceCommands()
 	Console()->Register("rifle", "", CFGFLAG_SERVER | CMDFLAG_TEST, ConLaser, this, "Gives a laser to you");
 	Console()->Register("jetpack", "", CFGFLAG_SERVER | CMDFLAG_TEST, ConJetpack, this, "Gives jetpack to you");
 	Console()->Register("setjumps", "i[jumps]", CFGFLAG_SERVER | CMDFLAG_TEST, ConSetJumps, this, "Gives you as many jumps as you specify");
-	Console()->Register("weapons", "", CFGFLAG_SERVER | CMDFLAG_TEST, ConWeapons, this, "Gives all weapons to you");
+	Console()->Register("rcon_weapons", "", CFGFLAG_SERVER | CMDFLAG_TEST, ConWeapons, this, "Gives all weapons to you");
 	Console()->Register("unshotgun", "", CFGFLAG_SERVER | CMDFLAG_TEST, ConUnShotgun, this, "Removes the shotgun from you");
 	Console()->Register("ungrenade", "", CFGFLAG_SERVER | CMDFLAG_TEST, ConUnGrenade, this, "Removes the grenade launcher from you");
 	Console()->Register("unlaser", "", CFGFLAG_SERVER | CMDFLAG_TEST, ConUnLaser, this, "Removes the laser from you");
@@ -5032,13 +5032,19 @@ void CGameContext::RegisterBlockworldsChatCommands()
 {
 	Console()->Register("register", "s[username] s[password]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConRegister, this, "Register an account using mysql.");
 	Console()->Register("login", "s[username] s[password]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConLogin, this, "Login to an account using mysql.");
-	Console()->Register("acc_logout", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConAccountLogout, this, "logout from a mysql account.");
-	Console()->Register("password", "s[oldpassword] s[newpassword]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConChangePassword, this, "change your mysql account's password.");
+	Console()->Register("acc_logout", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConAccountLogout, this, "Logout from a mysql account.");
+	Console()->Register("password", "s[oldpassword] s[newpassword]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConChangePassword, this, "Change your mysql account's password.");
 
-	Console()->Register("blockpoints", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayBlockpoints, this, "display how many blockpoints you've got.");
-	Console()->Register("profile", "?s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayProfile, this, "display your or someone's profile.");
+	Console()->Register("blockpoints", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayBlockpoints, this, "Display how many blockpoints you've got.");
+	Console()->Register("bp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayBlockpoints, this, "Display how many blockpoints you've got.");
+	Console()->Register("profile", "?s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayProfile, this, "Display your or someone's profile.");
+
+	Console()->Register("deathnote", "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDeathnote, this, "Use one of your deathnote pages.");
+	Console()->Register("weapons", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConWeaponKit, this, "Display the amount of blockpoints you have.");
+	Console()->Register("weaponkit", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConWeaponKit, this, "Display the amount of blockpoints you have.");
+
 
 	Console()->Register("toplevel", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopLevel, this, "Show top level.");
-	Console()->Register("topbp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopBlockpoints, this, "show top blockpoints.");
-	Console()->Register("topks", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopKillStreak, this, "show top killstreaks.");
+	Console()->Register("topbp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopBlockpoints, this, "Show top blockpoints.");
+	Console()->Register("topks", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopKillStreak, this, "Show top killstreaks.");
 }
