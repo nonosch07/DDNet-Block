@@ -488,6 +488,12 @@ public:
 
 	void SendConnLoggingCommand(CONN_LOGGING_CMD Cmd, const NETADDR *pAddr);
 #endif
+
+
+
+	//Blockworlds
+
+	virtual bool IsClientsSameAddr(int FirstClientID, int SecondClientID) override;
 };
 
 extern CServer *CreateServer();

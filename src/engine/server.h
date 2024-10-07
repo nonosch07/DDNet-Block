@@ -291,6 +291,12 @@ public:
 	virtual const char *GetMapName() const = 0;
 
 	virtual bool IsSixup(int ClientId) const = 0;
+
+
+
+	//Blockworlds
+
+	virtual bool IsClientsSameAddr(int FirstClientID, int SecondClientID) = 0;
 };
 
 class IGameServer : public IInterface

@@ -265,6 +265,21 @@ public:
 
 	CSaveTee &GetLastRescueTeeRef(int Mode = RESCUEMODE_AUTO) { return m_RescueTee[Mode]; }
 	CTuningParams *GetTuning(int Zone) { return Zone ? &TuningList()[Zone] : Tuning(); }
+
+
+
+	//Blockworlds
+
+		int m_FrozenSinceTick;
+	int m_FrozenAndUnmovedSinceTick;
+	int m_FrozenAndUntouchedSinceTick;
+	int m_CurrentKillingSpree;
+	int64_t m_AliveSince;
+	int64_t m_FrozenSince;
+	int m_LastToucher = -1;
+	int m_LastTouchingWeapon = -1;
+	vec2 CursorPos();
+	int m_KillStreak = 0;
 };
 
 enum

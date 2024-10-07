@@ -590,7 +590,6 @@ bool CAccounts::ShowTopLevelThread(IDbConnection *pSqlServer, const ISqlData *pG
 
         Level = pSqlServer->GetInt(2);
 
-        char aBuf[128];
         str_format(aBuf, sizeof(aBuf), "%d. %s : %d", Line, aLastName, Level);
         str_copy(pResult->m_aaMessages[Line], aBuf, sizeof(pResult->m_aaMessages[Line]));
         dbg_msg("top_level", "Retrieved: %s", aBuf);
@@ -632,12 +631,12 @@ bool CAccounts::ShowTopBlockpointsThread(IDbConnection *pSqlServer, const ISqlDa
     pResult->SetVariant(CAccountResult::TOP_MESSAGES);
 
     char aBuf[512];
-    str_copy(aBuf, "SELECT last_name, level FROM Accounts ORDER BY level DESC LIMIT 10;", sizeof(aBuf));
+    str_copy(aBuf, "SELECT last_name, blockpoints FROM Accounts ORDER BY blockpoints DESC LIMIT 10;", sizeof(aBuf));
 
     if (pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
     {
         str_copy(pResult->m_aaMessages[0], "Failed to prepare SQL statement.", sizeof(pResult->m_aaMessages[0]));
-        dbg_msg("top_level", "SQL preparation failed: %s", pError);
+        dbg_msg("top_blockpoints", "SQL preparation failed: %s", pError);
         pResult->m_Success = false;
         return true;
     }
@@ -652,24 +651,23 @@ bool CAccounts::ShowTopBlockpointsThread(IDbConnection *pSqlServer, const ISqlDa
         *pError = '\0';
 
         char aLastName[MAX_NAME_LENGTH];
-        int Level;
+        int Blockpoints;
 
         pSqlServer->GetString(1, aLastName, sizeof(aLastName)); 
 
         if (*pError != '\0')
         {
-            dbg_msg("top_level", "Failed to retrieve Last Name: %s", pError);
+            dbg_msg("top_blockpoints", "Failed to retrieve Last Name: %s", pError);
             str_copy(pResult->m_aaMessages[0], "Failed to retrieve account last name.", sizeof(pResult->m_aaMessages[0]));
             pResult->m_Success = false;
             return true;
         }
 
-        Level = pSqlServer->GetInt(2);
+        Blockpoints = pSqlServer->GetInt(2);
 
-        char aBuf[128];
-        str_format(aBuf, sizeof(aBuf), "%d. %s - %d", Line, aLastName, Level);
+        str_format(aBuf, sizeof(aBuf), "%d. %s - %d", Line, aLastName, Blockpoints);
         str_copy(pResult->m_aaMessages[Line], aBuf, sizeof(pResult->m_aaMessages[Line]));
-        dbg_msg("top_level", "Retrieved: %s", aBuf);
+        dbg_msg("top_blockpoints", "Retrieved: %s", aBuf);
         Line++;
 
         if (Line >= CAccountResult::MAX_MESSAGES)
@@ -709,12 +707,12 @@ bool CAccounts::ShowTopKillStreaksThread(IDbConnection *pSqlServer, const ISqlDa
     pResult->SetVariant(CAccountResult::TOP_MESSAGES);
 
     char aBuf[512];
-    str_copy(aBuf, "SELECT last_name, level FROM Accounts ORDER BY level DESC LIMIT 10;", sizeof(aBuf));
+    str_copy(aBuf, "SELECT last_name, killstreak FROM Accounts ORDER BY level DESC LIMIT 10;", sizeof(aBuf));
 
     if (pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
     {
         str_copy(pResult->m_aaMessages[0], "Failed to prepare SQL statement.", sizeof(pResult->m_aaMessages[0]));
-        dbg_msg("top_blockpoints", "SQL preparation failed: %s", pError);
+        dbg_msg("top_killstreak", "SQL preparation failed: %s", pError);
         pResult->m_Success = false;
         return true;
     }
@@ -729,22 +727,21 @@ bool CAccounts::ShowTopKillStreaksThread(IDbConnection *pSqlServer, const ISqlDa
         *pError = '\0';
 
         char aLastName[MAX_NAME_LENGTH];
-        int Level;
+        int Blockpoints;
 
         pSqlServer->GetString(1, aLastName, sizeof(aLastName));
 
         if (*pError != '\0')
         {
-            dbg_msg("top_level", "Failed to retrieve Last Name: %s", pError);
+            dbg_msg("top_killstreak", "Failed to retrieve Last Name: %s", pError);
             str_copy(pResult->m_aaMessages[0], "Failed to retrieve account last name.", sizeof(pResult->m_aaMessages[0]));
             pResult->m_Success = false;
             return true;
         }
 
-        Level = pSqlServer->GetInt(2);
+        Blockpoints = pSqlServer->GetInt(2);
 
-        char aBuf[128];
-        str_format(aBuf, sizeof(aBuf), "%d. %s : %d", Line, aLastName, Level);
+        str_format(aBuf, sizeof(aBuf), "%d. %s : %d", Line, aLastName, Blockpoints);
         str_copy(pResult->m_aaMessages[Line], aBuf, sizeof(pResult->m_aaMessages[Line]));
         dbg_msg("top_killstreak", "Retrieved: %s", aBuf);
         Line++;

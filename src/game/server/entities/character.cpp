@@ -527,6 +527,7 @@ void CCharacter::FireWeapon()
 				pTarget->Freeze();
 
 			Antibot()->OnHammerHit(m_pPlayer->GetCid(), pTarget->GetPlayer()->GetCid());
+			GameServer()->m_pController->m_BlockTracker.OnPlayerImpacted(pTarget->m_pPlayer->GetCid(), m_pPlayer->GetCid());
 
 			Hits++;
 		}
@@ -799,6 +800,7 @@ void CCharacter::Tick()
 		if(HookedPlayer != -1 && GameServer()->m_apPlayers[HookedPlayer]->GetTeam() != TEAM_SPECTATORS)
 		{
 			Antibot()->OnHookAttach(m_pPlayer->GetCid(), true);
+			GameServer()->m_pController->m_BlockTracker.OnPlayerImpacted(m_Core.HookedPlayer(), m_pPlayer->GetCid());
 		}
 	}
 
@@ -965,7 +967,21 @@ void CCharacter::StopRecording()
 
 void CCharacter::Die(int Killer, int Weapon, bool SendKillMsg)
 {
-	StopRecording();
+	bool Blocked = GameServer()->m_pController->m_BlockTracker.OnPlayerKill(m_pPlayer->GetCid());
+	GameServer()->m_pController->m_BlockTracker.OnPlayerDeath(m_pPlayer->GetCid());
+
+	if(Server()->IsRecording(m_pPlayer->GetCid()))
+	{
+		CPlayerData *pData = GameServer()->Score()->PlayerData(m_pPlayer->GetCid());
+
+		if(pData->m_RecordStopTick - Server()->Tick() <= Server()->TickSpeed() && pData->m_RecordStopTick != -1)
+			Server()->SaveDemo(m_pPlayer->GetCid(), pData->m_RecordFinishTime);
+		else
+			Server()->StopRecord(m_pPlayer->GetCid());
+
+		pData->m_RecordStopTick = -1;
+	}
+
 	int ModeSpecial = GameServer()->m_pController->OnCharacterDeath(this, GameServer()->m_apPlayers[Killer], Weapon);
 
 	char aBuf[256];
@@ -974,15 +990,16 @@ void CCharacter::Die(int Killer, int Weapon, bool SendKillMsg)
 		m_pPlayer->GetCid(), Server()->ClientName(m_pPlayer->GetCid()), Weapon, ModeSpecial);
 	GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "game", aBuf);
 
-	// send the kill message
-	if(SendKillMsg && (Team() == TEAM_FLOCK || Teams()->TeamFlock(Team()) || Teams()->Count(Team()) == 1 || Teams()->GetTeamState(Team()) == CGameTeams::TEAMSTATE_OPEN || !Teams()->TeamLocked(Team())))
+	if(!Blocked)
 	{
+		// send the kill message
 		CNetMsg_Sv_KillMsg Msg;
 		Msg.m_Killer = Killer;
 		Msg.m_Victim = m_pPlayer->GetCid();
 		Msg.m_Weapon = Weapon;
 		Msg.m_ModeSpecial = ModeSpecial;
 		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, -1);
+		m_KillStreak = 0;
 	}
 
 	// a nice sound
@@ -997,7 +1014,23 @@ void CCharacter::Die(int Killer, int Weapon, bool SendKillMsg)
 
 	GameServer()->m_World.RemoveEntity(this);
 	GameServer()->m_World.m_Core.m_apCharacters[m_pPlayer->GetCid()] = 0;
+	/*if (Killer != m_pPlayer->GetCID()
+		&& Killer != -1 
+		&& GameServer()->m_apPlayers[Killer] 
+		&& GameServer()->m_apPlayers[Killer]->pPlayerCosmetic->HasKnockoutPerk())
+	{
+		CPlayer *pKiller = GameServer()->m_apPlayers[Killer];
+		pKiller->pPlayerCosmetic->DoKnockoutPerk(GameWorld(), Killer, Weapon, m_Pos);
+	}
+	else if (m_pPlayer->m_IsDummy)
+	{
+		m_pPlayer->pPlayerCosmetic->DoKnockoutPerk(GameWorld(), -1, Weapon, m_Pos);
+	}
+	else
+	{*/
 	GameServer()->CreateDeath(m_Pos, m_pPlayer->GetCid(), TeamMask());
+	//}
+
 	Teams()->OnCharacterDeath(GetPlayer()->GetCid(), Weapon);
 }
 
@@ -2217,6 +2250,9 @@ bool CCharacter::Freeze(int Seconds)
 		m_Armor = 0;
 		m_FreezeTime = Seconds * Server()->TickSpeed();
 		m_Core.m_FreezeStart = Server()->Tick();
+
+		GameServer()->m_pController->m_BlockTracker.OnPlayerFreeze(m_pPlayer->GetCid());
+
 		return true;
 	}
 	return false;
@@ -2237,6 +2273,7 @@ bool CCharacter::UnFreeze()
 		m_FreezeTime = 0;
 		m_Core.m_FreezeStart = 0;
 		m_FrozenLastTick = true;
+		GameServer()->m_pController->m_BlockTracker.OnPlayerUnfreeze(m_pPlayer->GetCid());
 		return true;
 	}
 	return false;

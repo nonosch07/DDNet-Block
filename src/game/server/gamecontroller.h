@@ -8,6 +8,10 @@
 #include <engine/shared/protocol.h>
 #include <game/server/teams.h>
 
+
+#include "blockworlds/blocktracker.h"
+
+
 struct CScoreLoadBestTimeResult;
 
 /*
@@ -69,6 +73,8 @@ protected:
 
 public:
 	const char *m_pGameType;
+
+	CBlockTracker m_BlockTracker;
 
 	IGameController(class CGameContext *pGameServer);
 	virtual ~IGameController();

@@ -2701,6 +2701,10 @@ if(SERVER)
   set_src(GAME_SERVER GLOB_RECURSE src/game/server
     blockworlds/accounts.cpp
     blockworlds/accounts.h
+    blockworlds/blocktracker.cpp
+    blockworlds/blocktracker.h
+    blockworlds/entities/experience.cpp
+    blockworlds/entities/experience.h
     ddracechat.cpp
     ddracecommands.cpp
     entities/character.cpp

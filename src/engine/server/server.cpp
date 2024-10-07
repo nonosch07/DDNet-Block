@@ -4031,3 +4031,17 @@ void CServer::SetLoggers(std::shared_ptr<ILogger> &&pFileLogger, std::shared_ptr
 	m_pFileLogger = pFileLogger;
 	m_pStdoutLogger = pStdoutLogger;
 }
+
+
+
+
+//Blockworlds
+
+bool CServer::IsClientsSameAddr(int FirstClientID, int SecondClientID)
+{
+	NETADDR FirstAddr, SecondAddr;
+	GetClientAddr(FirstClientID, &FirstAddr);
+	GetClientAddr(SecondClientID, &SecondAddr);
+
+	return net_addr_comp_noport(&FirstAddr, &SecondAddr) == 0;
+}

@@ -21,7 +21,7 @@
 #include "entities/projectile.h"
 
 IGameController::IGameController(class CGameContext *pGameServer) :
-	m_Teams(pGameServer), m_pLoadBestTimeResult(nullptr)
+	m_Teams(pGameServer), m_BlockTracker(pGameServer), m_pLoadBestTimeResult(nullptr)
 {
 	m_pGameServer = pGameServer;
 	m_pConfig = m_pGameServer->Config();
@@ -566,6 +566,7 @@ void IGameController::Tick()
 	}
 
 	DoActivityCheck();
+	m_BlockTracker.Tick();
 }
 
 void IGameController::Snap(int SnappingClient)

@@ -33,6 +33,10 @@ CPlayer::CPlayer(CGameContext *pGameServer, uint32_t UniqueClientId, int ClientI
 	m_NumInputs = 0;
 	Reset();
 	GameServer()->Antibot()->OnPlayerInit(m_ClientId);
+	GameServer()->m_pController->m_BlockTracker.StartTrackPlayer(ClientId);
+
+	m_LastDeathnote = Server()->Tick();
+	m_LastExpAccountAlert = 0;
 }
 
 CPlayer::~CPlayer()
@@ -151,6 +155,8 @@ void CPlayer::Reset()
 	m_SwapTargetsClientId = -1;
 	m_BirthdayAnnounced = false;
 	m_RescueMode = RESCUEMODE_AUTO;
+
+	GameServer()->m_pController->m_BlockTracker.StopTrackPlayer(m_ClientId);
 }
 
 static int PlayerFlags_SixToSeven(int Flags)

@@ -337,6 +337,10 @@ public:
 	int m_EventWTick = -1;
 	bool m_IsDummy = false;
 	bool m_HideInfoInScoreboard;
+
+
+	int64_t m_LastDeathnote;
+	int64_t m_LastExpAccountAlert;
 };
 
 #endif
