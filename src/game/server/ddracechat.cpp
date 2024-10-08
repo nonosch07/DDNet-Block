@@ -2717,16 +2717,30 @@ void CGameContext::ConDeathnote(IConsole::IResult *pResult, void *pUserData)
 	pPlayer->m_LastDeathnote = pServer->Tick();
 }
 
-CPlayer *CGameContext::GetPlayerByName(const char *pName)
+
+void CGameContext::ConCosmetics(IConsole::IResult *pResult, void *pUserData)
 {
-	CPlayer *pPlayer = 0;
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	bool Found = false;
+
+	if(!str_comp_nocase(pResult->GetString(0), "gd"))
 	{
-		if(m_apPlayers[i] && !str_comp(pName, Server()->ClientName(i)))
-		{
-			pPlayer = m_apPlayers[i];
-			break;
-		}
+		Found = pSelf->Cosmetics()->ToggleGundesign(pResult->m_ClientId, pResult->GetString(1));
 	}
-	return pPlayer;
+	else if(!str_comp_nocase(pResult->GetString(0), "ko"))
+	{
+		Found = pSelf->Cosmetics()->ToggleKnockout(pResult->m_ClientId, pResult->GetString(1));
+	}
+	else if(!str_comp_nocase(pResult->GetString(0), "sm"))
+	{
+		Found = pSelf->Cosmetics()->ToggleSkinmani(pResult->m_ClientId, pResult->GetString(1));
+	}
+	else {
+		pSelf->SendChatTarget(pResult->m_ClientId, "Unknown cosmetics type [ko (knockout), gd (gundesign), sm (skinmani)]");
+		return;
+	}
+
+	if(!Found)
+		pSelf->SendChatTarget(pResult->m_ClientId, "Unknown cosmetics name");
 }

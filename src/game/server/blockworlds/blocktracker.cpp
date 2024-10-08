@@ -63,6 +63,8 @@ bool CBlockTracker::Blocked(int ClientID, int BlockerID)
     
     KillStreaks(ClientID, BlockerID);
 
+    m_pGameContext->Cosmetics()->DoKnockoutEffect(m_aTrackedPlayers[ClientID].m_ImpactedClientID, pChr->m_Pos);
+
     return true;
 }
 

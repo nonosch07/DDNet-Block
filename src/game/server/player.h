@@ -341,6 +341,37 @@ public:
 
 	int64_t m_LastDeathnote;
 	int64_t m_LastExpAccountAlert;
+
+
+	//cosmetics
+private:
+	int m_CurrentKnockout = -1;
+	int m_CurrentGunDesign = -1;
+	int m_CurrentSkinMani = -1;
+public:
+	void SetKnockout(int Knockout) { m_CurrentKnockout = Knockout; }
+	void SetGunDesign(int GunDesign) { m_CurrentGunDesign = GunDesign; }
+	void SetSkinMani(int SkinMani) { m_CurrentSkinMani = SkinMani; }
+
+	int GetKnockout() const { return m_CurrentKnockout; }
+	int GetGunDesign() const { return m_CurrentGunDesign; }
+	int GetSkinMani() const { return m_CurrentSkinMani; }
+
+	int ToggleKnockout(int Knockout)
+	{
+		m_CurrentKnockout = m_CurrentKnockout == Knockout ? -1 : Knockout;
+		return m_CurrentKnockout;
+	}
+	int ToggleGunDesign(int GunDesign)
+	{
+		m_CurrentGunDesign = m_CurrentGunDesign == GunDesign ? -1 : GunDesign;
+		return m_CurrentGunDesign;
+	}
+	int ToggleSkinMani(int SkinMani)
+	{
+		m_CurrentSkinMani = m_CurrentSkinMani == SkinMani ? -1 : SkinMani;
+		return m_CurrentSkinMani;
+	}
 };
 
 #endif

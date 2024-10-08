@@ -2705,6 +2705,12 @@ if(SERVER)
     blockworlds/blocktracker.h
     blockworlds/entities/experience.cpp
     blockworlds/entities/experience.h
+    blockworlds/cosmetics/animations.cpp
+    blockworlds/cosmetics/animations.h
+    blockworlds/cosmetics/content.h
+    blockworlds/cosmetics/cosmetics.cpp
+    blockworlds/cosmetics/cosmetics.h
+    blockworlds/cosmetics/letters.h
     ddracechat.cpp
     ddracecommands.cpp
     entities/character.cpp

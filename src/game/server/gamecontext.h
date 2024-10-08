@@ -19,6 +19,9 @@
 #include <memory>
 #include <string>
 
+#include <game/server/blockworlds/cosmetics/animations.h>
+#include <game/server/blockworlds/cosmetics/cosmetics.h>
+
 /*
 	Tick
 		Game Context (CGameContext::tick)
@@ -94,6 +97,9 @@ class CGameContext : public IGameServer
 	CTuningParams m_Tuning;
 	CTuningParams m_aTuningList[NUM_TUNEZONES];
 	std::vector<std::string> m_vCensorlist;
+
+	CAnimationHandler m_Animations;
+	CCosmeticsHandler m_CosmeticsHandler;
 
 	bool m_TeeHistorianActive;
 	CTeeHistorian m_TeeHistorian;
@@ -172,6 +178,9 @@ public:
 	IAntibot *Antibot() { return m_pAntibot; }
 	CTeeHistorian *TeeHistorian() { return &m_TeeHistorian; }
 	bool TeeHistorianActive() const { return m_TeeHistorianActive; }
+
+	CAnimationHandler *Animations() { return &m_Animations; }
+	CCosmeticsHandler *Cosmetics() { return &m_CosmeticsHandler; }
 
 	CGameContext();
 	CGameContext(int Reset);
@@ -612,11 +621,13 @@ public:
 public:
 	void RegisterBlockworldsChatCommands();
 	CPlayer *GetPlayerByName(const char *pName);
+	CPlayer *GetPlayer(int ClientID);
 	static SHA256_DIGEST HashPassword(const char *pPassword);
 	CAccounts *Accounts() { return m_pAccounts; }
 
 private:
 	CAccounts *m_pAccounts;
+
 
 	static void ConRegister(IConsole::IResult *pResult, void *pUserData);
 	static void ConLogin(IConsole::IResult *pResult, void *pUserData);
@@ -632,6 +643,10 @@ private:
 	static void ConDisplayTopLevel(IConsole::IResult *pResult, void *pUserData);
 	static void ConDisplayTopBlockpoints(IConsole::IResult *pResult, void *pUserData);
 	static void ConDisplayTopKillStreak(IConsole::IResult *pResult, void *pUserData);
+
+
+	static void ConCosmetics(IConsole::IResult *pResult, void *pUserData);
+
 };
 
 #endif

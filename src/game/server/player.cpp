@@ -17,7 +17,8 @@
 
 
 #include <game/server/blockworlds/accounts.h>
-
+#include <game/server/blockworlds/cosmetics/animations.h>
+#include <game/server/blockworlds/cosmetics/cosmetics.h>
 
 
 MACRO_ALLOC_POOL_ID_IMPL(CPlayer, MAX_CLIENTS)
@@ -347,6 +348,9 @@ void CPlayer::Snap(int SnappingClient)
 	pClientInfo->m_UseCustomColor = m_TeeInfos.m_UseCustomColor;
 	pClientInfo->m_ColorBody = m_TeeInfos.m_ColorBody;
 	pClientInfo->m_ColorFeet = m_TeeInfos.m_ColorFeet;
+
+	if(GetSkinMani() != -1)
+		GameServer()->Cosmetics()->SnapSkinmani(m_ClientId, m_DieTick, pClientInfo);
 
 	int SnappingClientVersion = GameServer()->GetClientVersion(SnappingClient);
 	int Latency = SnappingClient == SERVER_DEMO_CLIENT ? m_Latency.m_Min : GameServer()->m_apPlayers[SnappingClient]->m_aCurLatency[m_ClientId];

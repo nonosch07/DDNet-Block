@@ -4037,6 +4037,8 @@ void CGameContext::OnInit(const void *pPersistentData)
 
 	if(!m_pAccounts)
 		m_pAccounts = new CAccounts(this, ((CServer *)Server())->DbPool());
+	m_Animations.Init(this);
+	m_CosmeticsHandler.Init(this);
 }
 
 void CGameContext::CreateAllEntities(bool Initial)
@@ -5032,7 +5034,7 @@ void CGameContext::RegisterBlockworldsChatCommands()
 {
 	Console()->Register("register", "s[username] s[password]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConRegister, this, "Register an account using mysql.");
 	Console()->Register("login", "s[username] s[password]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConLogin, this, "Login to an account using mysql.");
-	Console()->Register("acc_logout", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConAccountLogout, this, "Logout from a mysql account.");
+	Console()->Register("logout", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConAccountLogout, this, "Logout from a mysql account.");
 	Console()->Register("password", "s[oldpassword] s[newpassword]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConChangePassword, this, "Change your mysql account's password.");
 
 	Console()->Register("blockpoints", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayBlockpoints, this, "Display how many blockpoints you've got.");
@@ -5047,4 +5049,30 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("toplevel", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopLevel, this, "Show top level.");
 	Console()->Register("topbp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopBlockpoints, this, "Show top blockpoints.");
 	Console()->Register("topks", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopKillStreak, this, "Show top killstreaks.");
+
+
+	Console()->Register("cosmetics", "s[username]" "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConCosmetics, this, "Use one of your deathnote pages.");
+
+}
+
+
+CPlayer *CGameContext::GetPlayerByName(const char *pName)
+{
+	CPlayer *pPlayer = 0;
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		if(m_apPlayers[i] && !str_comp(pName, Server()->ClientName(i)))
+		{
+			pPlayer = m_apPlayers[i];
+			break;
+		}
+	}
+	return pPlayer;
+}
+
+CPlayer *CGameContext::GetPlayer(int ClientID)
+{
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
+		return nullptr;
+	return m_apPlayers[ClientID];
 }

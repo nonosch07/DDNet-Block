@@ -237,7 +237,8 @@ void CProjectile::Tick()
 		}
 		else if(m_Type == WEAPON_GUN)
 		{
-			GameServer()->CreateDamageInd(CurPos, -std::atan2(m_Direction.x, m_Direction.y), 10, (m_Owner != -1) ? TeamMask : CClientMask().set());
+			if(!GameServer()->Cosmetics()->DoGundesign(m_Owner, CurPos, m_Direction))
+				GameServer()->CreateDamageInd(CurPos, -std::atan2(m_Direction.x, m_Direction.y), 10, (m_Owner != -1) ? TeamMask : CClientMask().set());
 			m_MarkedForDestroy = true;
 			return;
 		}
@@ -316,6 +317,9 @@ void CProjectile::Snap(int SnappingClient)
 		if(pSnapChar && pSnapChar->IsAlive() && (m_Layer == LAYER_SWITCH && m_Number > 0 && !Switchers()[m_Number].m_aStatus[pSnapChar->Team()] && (!Tick)))
 			return;
 	}
+
+	if (m_Type == WEAPON_GUN && GameServer()->Cosmetics()->SnapGundesign(m_Owner, GetPos(Ct), m_Direction, GetId(), SnappingClient))
+		return;
 
 	CCharacter *pOwnerChar = 0;
 	CClientMask TeamMask = CClientMask().set();
