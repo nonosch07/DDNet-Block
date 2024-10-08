@@ -68,6 +68,58 @@ void CExperience::Tick()
 	float Speed = Distance * 0.035f + 11.0f;
 	m_Pos += Direction * Speed;
 }
+// circular effect
+// void CExperience::Tick()
+// {
+//     CCharacter *pChr = GameServer()->GetPlayerChar(m_TargetID);
+
+//     // If the character is invalid, destroy the particle
+//     if(pChr == nullptr)
+//     {
+//         m_MarkedForDestroy = true;
+//         return;
+//     }
+
+//     float Distance = distance(m_Pos, pChr->m_Pos);
+//     if(Distance < 24.0f)
+//     {
+//         GameServer()->CreateSound(m_Pos, SOUND_PICKUP_HEALTH, -1);
+//         CPlayer *pPlayer = pChr->GetPlayer();
+
+//         if(pPlayer->IsLoggedIn())
+//         {
+//             pPlayer->SetPlayerExperience(pPlayer->GetPlayerExperience() + g_Config.m_SvBlockExperience);
+//             pPlayer->SetPlayerKills(pPlayer->GetPlayerKills() + 1);
+//             pPlayer->SetPlayerBlockpoints(pPlayer->GetPlayerBlockpoints() + 1);
+//         }
+//         else
+//         {
+//             if(pPlayer->m_LastExpAccountAlert + Server()->TickSpeed() * 300 < Server()->Tick())
+//             {
+//                 GameServer()->SendChatTarget(m_TargetID, "Login/Register an account to receive your experience points");
+//                 pPlayer->m_LastExpAccountAlert = Server()->Tick();
+//             }
+//         }
+
+//         m_MarkedForDestroy = true;
+//         return;
+//     }
+
+//     vec2 Direction = normalize(pChr->m_Pos - m_Pos);
+//     float Speed = Distance * 0.03f + 9.0f;
+
+//     static float Time = 0.0f;
+//     Time += 0.1f;
+
+//     float SpiralRadius = 5.0f;
+//     vec2 SpiralOffset = vec2(
+//         SpiralRadius * sin(Time * 5),
+//         SpiralRadius * cos(Time * 5)
+//     );
+
+//     m_Pos += (Direction * Speed) + SpiralOffset * (Distance / 100.0f);
+
+// }
 
 void CExperience::Snap(int SnappingClient)
 {
