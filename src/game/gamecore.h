@@ -267,6 +267,10 @@ public:
 	bool m_LiveFrozen;
 	CTuningParams m_Tuning;
 
+	// bw stuff
+	mutable bool m_Protected;
+	mutable bool m_Passive;
+
 private:
 	CTeamsCore *m_pTeams;
 	int m_MoveRestrictions;

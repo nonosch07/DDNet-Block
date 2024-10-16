@@ -35,6 +35,11 @@
 #include "player.h"
 #include "score.h"
 
+
+#include <game/server/blockworlds/zones/zonemanager.h>
+
+
+
 // Not thread-safe!
 class CClientChatLogger : public ILogger
 {
@@ -329,6 +334,9 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon, bool NoDamag
 
 		float Dmg = Strength * l;
 		if(!(int)Dmg)
+			continue;
+
+		if((pChr->GetPlayer()->GetCid() != Owner && pChr->Core()->m_Protected) || (pChr->GetPlayer()->GetCid() != Owner && pChr->Core()->m_Passive))
 			continue;
 
 		if((GetPlayerChar(Owner) ? !GetPlayerChar(Owner)->GrenadeHitDisabled() : g_Config.m_SvHit) || NoDamage || Owner == pChr->GetPlayer()->GetCid())
@@ -1051,6 +1059,8 @@ void CGameContext::OnTick()
 
 	//if(world.paused) // make sure that the game object always updates
 	m_pController->Tick();
+	m_Animations.Tick();
+	m_ZoneManager.Tick();
 
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
@@ -4041,6 +4051,8 @@ void CGameContext::OnInit(const void *pPersistentData)
 		m_pAccounts = new CAccounts(this, ((CServer *)Server())->DbPool());
 	m_Animations.Init(this);
 	m_CosmeticsHandler.Init(this);
+	m_ZoneManager.Init(this);
+	
 }
 
 void CGameContext::CreateAllEntities(bool Initial)
@@ -4357,6 +4369,8 @@ void CGameContext::OnSnap(int ClientId)
 	}
 
 	m_pController->Snap(ClientId);
+	m_ZoneManager.Snap(ClientId);
+	m_Animations.Snap(ClientId);
 
 	for(auto &pPlayer : m_apPlayers)
 	{

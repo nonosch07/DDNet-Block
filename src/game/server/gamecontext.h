@@ -21,6 +21,7 @@
 
 #include <game/server/blockworlds/cosmetics/animations.h>
 #include <game/server/blockworlds/cosmetics/cosmetics.h>
+#include <game/server/blockworlds/zones/zonemanager.h>
 
 /*
 	Tick
@@ -65,6 +66,8 @@ struct CScoreRandomMapResult;
 
 
 class CAccounts;
+class CZoneManager;
+
 
 struct CSnapContext
 {
@@ -629,9 +632,12 @@ public:
 	static SHA256_DIGEST HashPassword(const char *pPassword);
 	CAccounts *Accounts() { return m_pAccounts; }
 
+	CZoneManager *ZoneManager() { return &m_ZoneManager; }
+
+
 private:
 	CAccounts *m_pAccounts;
-
+	CZoneManager m_ZoneManager;
 
 	static void ConRegister(IConsole::IResult *pResult, void *pUserData);
 	static void ConLogin(IConsole::IResult *pResult, void *pUserData);

@@ -125,6 +125,9 @@ void CProjectile::Tick()
 	if(pOwnerChar ? !pOwnerChar->GrenadeHitDisabled() : g_Config.m_SvHit)
 		pTargetChr = GameServer()->m_World.IntersectCharacter(PrevPos, ColPos, m_Freeze ? 1.0f : 6.0f, ColPos, pOwnerChar, m_Owner);
 
+	if((pOwnerChar && pOwnerChar->Core()->m_Protected) || (pTargetChr && pTargetChr->Core()->m_Protected) || (pOwnerChar && pOwnerChar->Core()->m_Passive) || (pTargetChr && pTargetChr->Core()->m_Passive))
+		pTargetChr = 0;
+
 	if(m_LifeSpan > -1)
 		m_LifeSpan--;
 

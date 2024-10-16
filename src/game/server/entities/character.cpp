@@ -493,6 +493,8 @@ void CCharacter::FireWeapon()
 
 		if(m_Core.m_HammerHitDisabled)
 			break;
+		if(m_Core.m_Protected || m_Core.m_Passive)
+			break;
 
 		CEntity *apEnts[MAX_CLIENTS];
 		int Hits = 0;
@@ -502,6 +504,9 @@ void CCharacter::FireWeapon()
 		for(int i = 0; i < Num; ++i)
 		{
 			auto *pTarget = static_cast<CCharacter *>(apEnts[i]);
+
+			if(pTarget->Core()->m_Protected || pTarget->Core()->m_Passive)
+				continue;
 
 			//if ((pTarget == this) || Collision()->IntersectLine(ProjStartPos, pTarget->m_Pos, NULL, NULL))
 			if((pTarget == this || (pTarget->IsAlive() && !CanCollide(pTarget->GetPlayer()->GetCid()))))
@@ -1269,7 +1274,7 @@ void CCharacter::Snap(int SnappingClient)
 		return;
 
 	pDDNetCharacter->m_Flags = 0;
-	if(m_Core.m_Solo)
+	if(m_Core.m_Solo || m_Core.m_Protected || m_Core.m_Passive)
 		pDDNetCharacter->m_Flags |= CHARACTERFLAG_SOLO;
 	if(m_Core.m_Super)
 		pDDNetCharacter->m_Flags |= CHARACTERFLAG_SUPER;

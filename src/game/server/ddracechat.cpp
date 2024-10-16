@@ -2644,17 +2644,17 @@ void CGameContext::ConWeaponKit(IConsole::IResult *pResult, void *pUserData)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You don't have any weapon kits, make a trip to the store and purchase some!");
 
 	// check if the player has all weapons
-	bool hasAllWeapons = true;
+	bool HasAllWeapons = true;
 	for (int i = WEAPON_GUN; i < NUM_WEAPONS - 1; i++)
 	{
 	    if (!pChr->BWCore().m_aWeapons[i].m_Got)
 	    {
-	        hasAllWeapons = false;
+	        HasAllWeapons = false;
 	        break;
 	    }
 	}
 	
-	if (hasAllWeapons)
+	if (HasAllWeapons)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You already have all weapons.");
 
 	pPlayer->SetPlayerWeaponkits(pPlayer->GetPlayerWeaponkits() - 1);

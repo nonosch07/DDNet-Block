@@ -2712,6 +2712,16 @@ if(SERVER)
     blockworlds/cosmetics/cosmetics.cpp
     blockworlds/cosmetics/cosmetics.h
     blockworlds/cosmetics/letters.h
+    blockworlds/zones/nocollisionzone.cpp
+    blockworlds/zones/nocollisionzone.h
+    blockworlds/zones/spawnzone.cpp
+    blockworlds/zones/spawnzone.cpp
+    blockworlds/zones/passivezone.cpp
+    blockworlds/zones/passivezone.h
+    blockworlds/zones/zone.cpp
+    blockworlds/zones/zone.h
+    blockworlds/zones/zonemanager.cpp
+    blockworlds/zones/zonemanager.h
     ddracechat.cpp
     ddracecommands.cpp
     entities/character.cpp

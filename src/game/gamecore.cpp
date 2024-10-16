@@ -186,6 +186,10 @@ void CCharacterCore::Reset()
 	// never initialize both to 0
 	m_Input.m_TargetX = 0;
 	m_Input.m_TargetY = -1;
+
+
+	m_Protected = false;
+	m_Passive = false;
 }
 
 void CCharacterCore::Tick(bool UseInput, bool DoDeferredTick)
@@ -353,6 +357,8 @@ void CCharacterCore::Tick(bool UseInput, bool DoDeferredTick)
 				CCharacterCore *pCharCore = m_pWorld->m_apCharacters[i];
 				if(!pCharCore || pCharCore == this || (!(m_Super || pCharCore->m_Super) && ((m_Id != -1 && !m_pTeams->CanCollide(i, m_Id)) || pCharCore->m_Solo || m_Solo)))
 					continue;
+				if(m_Protected || pCharCore->m_Protected || m_Passive || pCharCore->m_Passive)
+					continue;
 
 				vec2 ClosestPoint;
 				if(closest_point_on_line(m_HookPos, NewPos, pCharCore->m_Pos, ClosestPoint))
@@ -409,7 +415,10 @@ void CCharacterCore::Tick(bool UseInput, bool DoDeferredTick)
 		{
 			CCharacterCore *pCharCore = m_pWorld->m_apCharacters[m_HookedPlayer];
 			if(pCharCore && m_Id != -1 && m_pTeams->CanKeepHook(m_Id, pCharCore->m_Id))
-				m_HookPos = pCharCore->m_Pos;
+			{
+				if(!m_Protected && !pCharCore->m_Protected && !m_Passive && !pCharCore->m_Passive)
+					m_HookPos = pCharCore->m_Pos;
+			}
 			else
 			{
 				// release hook
@@ -417,8 +426,11 @@ void CCharacterCore::Tick(bool UseInput, bool DoDeferredTick)
 				m_HookState = HOOK_RETRACTED;
 				m_HookPos = m_Pos;
 			}
-		}
 
+			// keep players hooked for a max of 1.5sec
+			// if(Server()->Tick() > hook_tick+(Server()->TickSpeed()*3)/2)
+			// release_hooked();
+		}
 		// don't do this hook routine when we are already hooked to a player
 		if(m_HookedPlayer == -1 && distance(m_HookPos, m_Pos) > 46.0f)
 		{
@@ -471,6 +483,8 @@ void CCharacterCore::TickDeferred()
 				continue; // make sure that we don't nudge our self
 
 			if(!(m_Super || pCharCore->m_Super) && (m_Solo || pCharCore->m_Solo))
+				continue;
+			if(m_Protected || pCharCore->m_Protected || m_Passive || pCharCore->m_Passive)
 				continue;
 
 			// handle player <-> player collision
@@ -562,7 +576,7 @@ void CCharacterCore::Move()
 
 	m_Vel.x = m_Vel.x * (1.0f / RampValue);
 
-	if(m_pWorld && (m_Super || (m_Tuning.m_PlayerCollision && !m_CollisionDisabled && !m_Solo)))
+	if(m_pWorld && !m_Protected && !m_Passive && (m_Super || (m_Tuning.m_PlayerCollision && !m_CollisionDisabled && !m_Solo)))
 	{
 		// check player collision
 		float Distance = distance(m_Pos, NewPos);
@@ -578,6 +592,8 @@ void CCharacterCore::Move()
 				{
 					CCharacterCore *pCharCore = m_pWorld->m_apCharacters[p];
 					if(!pCharCore || pCharCore == this)
+						continue;
+					if(pCharCore->m_Protected || pCharCore->m_Passive)
 						continue;
 					if((!(pCharCore->m_Super || m_Super) && (m_Solo || pCharCore->m_Solo || pCharCore->m_CollisionDisabled || (m_Id != -1 && !m_pTeams->CanCollide(m_Id, p)))))
 						continue;
