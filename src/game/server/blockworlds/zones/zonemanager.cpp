@@ -6,8 +6,8 @@
 #include <game/mapitems.h>
 #include <game/server/gamecontext.h>
 
-#include "passivezone.h"
 #include "nocollisionzone.h"
+#include "passivezone.h"
 #include "spawnzone.h"
 
 #include "zone.h"

@@ -13,10 +13,7 @@
 
 #include <optional>
 
-
 #include <game/server/blockworlds/accounts.h>
-
-
 
 bool CheckClientId(int ClientId);
 
@@ -36,7 +33,7 @@ void CGameContext::ConInfo(IConsole::IResult *pResult, void *pUserData)
 	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
 		"Blockworlds Modification of DDNet by Nouaa");
 	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"Version: " BLOCKWORLDS_VERSION );
+		"Version: " BLOCKWORLDS_VERSION);
 	if(GIT_SHORTREV_HASH)
 	{
 		char aBuf[64];
@@ -2324,15 +2321,7 @@ void CGameContext::ConTimeCP(IConsole::IResult *pResult, void *pUserData)
 	pSelf->Score()->LoadPlayerTimeCp(pResult->m_ClientId, pName);
 }
 
-
-
-
-
-
-
 //Blockworlds
-
-
 
 inline bool CheckValidChars(const char *pStr)
 {
@@ -2645,16 +2634,16 @@ void CGameContext::ConWeaponKit(IConsole::IResult *pResult, void *pUserData)
 
 	// check if the player has all weapons
 	bool HasAllWeapons = true;
-	for (int i = WEAPON_GUN; i < NUM_WEAPONS - 1; i++)
+	for(int i = WEAPON_GUN; i < NUM_WEAPONS - 1; i++)
 	{
-	    if (!pChr->BWCore().m_aWeapons[i].m_Got)
-	    {
-	        HasAllWeapons = false;
-	        break;
-	    }
+		if(!pChr->BWCore().m_aWeapons[i].m_Got)
+		{
+			HasAllWeapons = false;
+			break;
+		}
 	}
-	
-	if (HasAllWeapons)
+
+	if(HasAllWeapons)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You already have all weapons.");
 
 	pPlayer->SetPlayerWeaponkits(pPlayer->GetPlayerWeaponkits() - 1);
@@ -2694,9 +2683,9 @@ void CGameContext::ConDeathnote(IConsole::IResult *pResult, void *pUserData)
 	if(CurrentTick < CooldownTick)
 	{
 		int RemainingTicks = CooldownTick - CurrentTick;
-		int cooldownTime = (RemainingTicks + pServer->TickSpeed() - 1) / pServer->TickSpeed();
-		int CooldownMinutes = cooldownTime / 60;
-		int CooldownSeconds = cooldownTime % 60;
+		int CooldownTime = (RemainingTicks + pServer->TickSpeed() - 1) / pServer->TickSpeed();
+		int CooldownMinutes = CooldownTime / 60;
+		int CooldownSeconds = CooldownTime % 60;
 
 		char aBuf[256];
 		str_copy(aBuf, "You have to wait ", sizeof(aBuf));
@@ -2731,7 +2720,6 @@ void CGameContext::ConDeathnote(IConsole::IResult *pResult, void *pUserData)
 	pPlayer->m_LastDeathnote = pServer->Tick();
 }
 
-
 void CGameContext::ConCosmetics(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
@@ -2750,11 +2738,66 @@ void CGameContext::ConCosmetics(IConsole::IResult *pResult, void *pUserData)
 	{
 		Found = pSelf->Cosmetics()->ToggleSkinmani(pResult->m_ClientId, pResult->GetString(1));
 	}
-	else {
+	else
+	{
 		pSelf->SendChatTarget(pResult->m_ClientId, "Unknown cosmetics type [ko (knockout), gd (gundesign), sm (skinmani)]");
 		return;
 	}
 
 	if(!Found)
 		pSelf->SendChatTarget(pResult->m_ClientId, "Unknown cosmetics name");
+}
+
+void CGameContext::ConExp(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+
+	if(!g_Config.m_SvAccountsystem)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+
+	char aBuf[256];
+
+	if(!pPlayer->IsLoggedIn())
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You are not logged in.");
+
+	static const int s_MaxNum = 17;
+	float a = (float)pPlayer->GetPlayerExperience() / NeededAccountExp(pPlayer->GetPlayerLevel());
+	int Num = round_to_int(a * s_MaxNum);
+
+	static char s_ExpTopLeft[] = {-30, -107, -108, 0};
+	static char s_ExpTopMidFull[] = {-30, -107, -90, 0};
+	static char s_ExpTopMidEmpty[] = {-30, -107, -112, 0};
+	static char s_ExpTopRight[] = {-30, -107, -105, 0};
+	static char s_ExpBotLeft[] = {-30, -107, -102, 0};
+	static char s_ExpBotMidFull[] = {-30, -107, -87, 0};
+	static char s_ExpBotMidEmpty[] = {-30, -107, -112, 0};
+	static char s_ExpBotRight[] = {-30, -107, -99, 0};
+
+	char aBarTop[64];
+	char aBarBot[64];
+
+	str_format(aBarTop, sizeof(aBarTop), "%s", s_ExpTopLeft);
+	for(int i = 0; i < Num; i++)
+		str_format(aBarTop + strlen(aBarTop), sizeof(aBarTop) - strlen(aBarTop), "%s", s_ExpTopMidFull);
+	for(int i = 0; i < s_MaxNum - Num; i++)
+		str_format(aBarTop + strlen(aBarTop), sizeof(aBarTop) - strlen(aBarTop), "%s", s_ExpTopMidEmpty);
+	str_format(aBarTop + strlen(aBarTop), sizeof(aBarTop) - strlen(aBarTop), "%s", s_ExpTopRight);
+
+	str_format(aBarBot, sizeof(aBarBot), "%s", s_ExpBotLeft);
+	for(int i = 0; i < Num; i++)
+		str_format(aBarBot + strlen(aBarBot), sizeof(aBarBot) - strlen(aBarBot), "%s", s_ExpBotMidFull);
+	for(int i = 0; i < s_MaxNum - Num; i++)
+		str_format(aBarBot + strlen(aBarBot), sizeof(aBarBot) - strlen(aBarBot), "%s", s_ExpBotMidEmpty);
+	str_format(aBarBot + strlen(aBarBot), sizeof(aBarBot) - strlen(aBarBot), "%s", s_ExpBotRight);
+
+	pSelf->SendChatTarget(pResult->m_ClientId, "Experience Bar:");
+	pSelf->SendChatTarget(pResult->m_ClientId, aBarTop);
+	pSelf->SendChatTarget(pResult->m_ClientId, aBarBot);
+	str_format(aBuf, sizeof(aBuf), "Account level: %i", pPlayer->GetPlayerLevel());
+	pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+	str_format(aBuf, sizeof(aBuf), "Account Exp: %i", pPlayer->GetPlayerExperience());
+	pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+	str_format(aBuf, sizeof(aBuf), "Needed Exp: %i", NeededAccountExp(pPlayer->GetPlayerLevel()));
+	pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
 }

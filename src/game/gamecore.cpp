@@ -187,7 +187,6 @@ void CCharacterCore::Reset()
 	m_Input.m_TargetX = 0;
 	m_Input.m_TargetY = -1;
 
-
 	m_Protected = false;
 	m_Passive = false;
 }

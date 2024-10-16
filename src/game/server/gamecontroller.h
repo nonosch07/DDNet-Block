@@ -8,9 +8,7 @@
 #include <engine/shared/protocol.h>
 #include <game/server/teams.h>
 
-
 #include "blockworlds/blocktracker.h"
-
 
 struct CScoreLoadBestTimeResult;
 

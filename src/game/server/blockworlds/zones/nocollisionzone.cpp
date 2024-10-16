@@ -5,79 +5,85 @@
 #include "nocollisionzone.h"
 #include "zonemanager.h"
 
-CNoCollisionZone::CNoCollisionZone(CGameContext *pGameServer)
-    : IZone(pGameServer, ZONE_NOCOLL)
+CNoCollisionZone::CNoCollisionZone(CGameContext *pGameServer) :
+	IZone(pGameServer, ZONE_NOCOLL)
 {
 }
 
 void CNoCollisionZone::Tick()
 {
-    for(int i = 0; i < MAX_CLIENTS; i++)
-    {
-        CPlayer *pPlayer = GameServer()->m_apPlayers[i];
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
 
-        if(!pPlayer)
-            continue;
+		if(!pPlayer)
+			continue;
 
-        CCharacter *pChar = pPlayer->GetCharacter();
+		CCharacter *pChar = pPlayer->GetCharacter();
 
-        if(!pChar)
-            continue;
+		if(!pChar)
+			continue;
 
-        bool InZone = IsInZone(pChar->m_Pos);
+		bool InZone = IsInZone(pChar->m_Pos);
 
-        if(InZone) { Protect(i, GameServer()->Server()->TickSpeed()); }
-        else { Unprotect(i); }
-    }
+		if(InZone)
+		{
+			Protect(i, GameServer()->Server()->TickSpeed());
+		}
+		else
+		{
+			Unprotect(i);
+		}
+	}
 }
 
 void CNoCollisionZone::Snap(int ClientID)
 {
-    for(int i = 0; i < MAX_CLIENTS; i++)
-    {
-        CPlayer *pPlayer = GameServer()->m_apPlayers[i];
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
 
-        if(!pPlayer)
-            continue;
+		if(!pPlayer)
+			continue;
 
-        CCharacter *pChar = pPlayer->GetCharacter();
+		CCharacter *pChar = pPlayer->GetCharacter();
 
-        if(!pChar)
-            continue;
+		if(!pChar)
+			continue;
 
-        int ID = i;
+		int ID = i;
 
-        if(!GameServer()->Server()->Translate(ID, ClientID))
-            continue;
+		if(!GameServer()->Server()->Translate(ID, ClientID))
+			continue;
 
-        if(!pChar->CanSnapCharacter(ClientID))
-            continue;
+		if(!pChar->CanSnapCharacter(ClientID))
+			continue;
 
-        if(!pChar->IsSnappingCharacterInView(ClientID))
-            continue;
-    }
+		if(!pChar->IsSnappingCharacterInView(ClientID))
+			continue;
+	}
 }
 
 void CNoCollisionZone::OnCharacterDeath(CCharacter *pCharacter)
 {
-    int ClientID = pCharacter->GetPlayer()->GetCid();
-    pCharacter->Core()->m_Protected = false;
+	int ClientID = pCharacter->GetPlayer()->GetCid();
+	pCharacter->Core()->m_Protected = false;
 }
 
 void CNoCollisionZone::Protect(int ClientID, int Ticks)
 {
-    CCharacter *pChar = GameServer()->GetPlayerChar(ClientID);
-    if(!pChar)
-        return;
+	CCharacter *pChar = GameServer()->GetPlayerChar(ClientID);
+	if(!pChar)
+		return;
 
-    pChar->Core()->m_Protected = true;
+	pChar->Core()->m_Protected = true;
 }
 
 void CNoCollisionZone::Unprotect(int ClientID)
 {
-    CCharacter *pChar = GameServer()->GetPlayerChar(ClientID);
-    if(!pChar)
-        return;
+	CCharacter *pChar = GameServer()->GetPlayerChar(ClientID);
+	if(!pChar)
+		return;
 
-    pChar->Core()->m_Protected = false;
+	pChar->Core()->m_Protected = false;
 }

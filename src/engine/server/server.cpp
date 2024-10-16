@@ -4029,9 +4029,6 @@ void CServer::SetLoggers(std::shared_ptr<ILogger> &&pFileLogger, std::shared_ptr
 	m_pStdoutLogger = pStdoutLogger;
 }
 
-
-
-
 //Blockworlds
 
 bool CServer::IsClientsSameAddr(int FirstClientID, int SecondClientID)

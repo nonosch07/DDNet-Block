@@ -17,16 +17,13 @@
 
 #include <game/server/blockworlds/accounts.h>
 
-
 class CCharacter;
 class CGameContext;
 class IServer;
 struct CNetObj_PlayerInput;
 struct CScorePlayerResult;
 
-
 class Accounts;
-
 
 enum
 {
@@ -238,9 +235,6 @@ public:
 
 	CSaveTee m_LastTeleTee;
 
-
-
-
 	// Blockworlds
 
 	void BWProcessScoreResult(CAccountResult &Result);
@@ -327,6 +321,8 @@ public:
 	int GetPlayerLastBodyColor() { return m_Account.m_LastBodyColor; }
 	int GetPlayerLastFeetColor() { return m_Account.m_LastFeetColor; }
 
+	void AddPlayerExp(int Amount);
+
 	CAccountData m_Account;
 
 	bool m_allowDeath;
@@ -338,16 +334,15 @@ public:
 	bool m_IsDummy = false;
 	bool m_HideInfoInScoreboard;
 
-
 	int64_t m_LastDeathnote;
 	int64_t m_LastExpAccountAlert;
-
 
 	//cosmetics
 private:
 	int m_CurrentKnockout = -1;
 	int m_CurrentGunDesign = -1;
 	int m_CurrentSkinMani = -1;
+
 public:
 	void SetKnockout(int Knockout) { m_CurrentKnockout = Knockout; }
 	void SetGunDesign(int GunDesign) { m_CurrentGunDesign = GunDesign; }

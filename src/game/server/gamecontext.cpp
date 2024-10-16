@@ -35,10 +35,7 @@
 #include "player.h"
 #include "score.h"
 
-
 #include <game/server/blockworlds/zones/zonemanager.h>
-
-
 
 // Not thread-safe!
 class CClientChatLogger : public ILogger
@@ -127,7 +124,6 @@ void CGameContext::Construct(int Resetting)
 
 	m_aDeleteTempfile[0] = 0;
 	m_TeeHistorianActive = false;
-
 
 	m_pAccounts = nullptr;
 }
@@ -4052,7 +4048,6 @@ void CGameContext::OnInit(const void *pPersistentData)
 	m_Animations.Init(this);
 	m_CosmeticsHandler.Init(this);
 	m_ZoneManager.Init(this);
-	
 }
 
 void CGameContext::CreateAllEntities(bool Initial)
@@ -5032,10 +5027,6 @@ void CGameContext::ReadCensorList()
 	}
 }
 
-
-
-
-
 //Blockworlds
 
 SHA256_DIGEST CGameContext::HashPassword(const char *pPassword)
@@ -5052,6 +5043,7 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("login", "s[username] s[password]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConLogin, this, "Login to an account using mysql.");
 	Console()->Register("logout", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConAccountLogout, this, "Logout from a mysql account.");
 	Console()->Register("password", "s[oldpassword] s[newpassword]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConChangePassword, this, "Change your mysql account's password.");
+	Console()->Register("exp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConExp, this, "Display your experience bar.");
 
 	Console()->Register("blockpoints", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayBlockpoints, this, "Display how many blockpoints you've got.");
 	Console()->Register("bp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayBlockpoints, this, "Display how many blockpoints you've got.");
@@ -5061,16 +5053,14 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("weapons", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConWeaponKit, this, "Display the amount of blockpoints you have.");
 	Console()->Register("weaponkit", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConWeaponKit, this, "Display the amount of blockpoints you have.");
 
-
 	Console()->Register("toplevel", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopLevel, this, "Show top level.");
 	Console()->Register("topbp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopBlockpoints, this, "Show top blockpoints.");
 	Console()->Register("topks", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopKillStreak, this, "Show top killstreaks.");
 
-
-	Console()->Register("cosmetics", "s[username]" "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConCosmetics, this, "Use one of your deathnote pages.");
-
+	Console()->Register("cosmetics", "s[username]"
+					 "s[username]",
+		CFGFLAG_CHAT | CFGFLAG_SERVER, ConCosmetics, this, "Use one of your deathnote pages.");
 }
-
 
 CPlayer *CGameContext::GetPlayerByName(const char *pName)
 {

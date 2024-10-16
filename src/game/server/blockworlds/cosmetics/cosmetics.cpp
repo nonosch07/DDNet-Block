@@ -4,9 +4,9 @@
 #include <engine/shared/config.h>
 
 #include <game/generated/protocol.h>
+#include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
-#include <game/server/entities/character.h>
 
 #include <game/server/blockworlds/accounts.h>
 #include <game/server/blockworlds/cosmetics/animations.h>
@@ -129,7 +129,7 @@ bool CCosmeticsHandler::DoKnockoutEffect(int ClientID, vec2 Pos)
 
 	if(Effect == -1)
 		return false;
-	dbg_msg("cosmetics","doing ko");
+	dbg_msg("cosmetics", "doing ko");
 	DoKnockoutEffectRaw(Pos, Effect);
 	return true;
 }
@@ -413,20 +413,20 @@ bool CCosmeticsHandler::HasSkinmani(int ClientID, int Index)
 
 bool CCosmeticsHandler::ToggleSkinmani(int ClientID, const char *pName)
 {
-        if(ClientID < 0 || ClientID >= MAX_CLIENTS)
-                return false;
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
+		return false;
 
-        int Effect = FindSkinmani(pName);
-        if(Effect == -1)
-                return false;
+	int Effect = FindSkinmani(pName);
+	if(Effect == -1)
+		return false;
 
-        CPlayer* pPlayer = m_pGameServer->GetPlayer(ClientID);
-        if(!pPlayer)
-                return false;
+	CPlayer *pPlayer = m_pGameServer->GetPlayer(ClientID);
+	if(!pPlayer)
+		return false;
 
-        pPlayer->ToggleSkinMani(Effect);
+	pPlayer->ToggleSkinMani(Effect);
 
-        return true;
+	return true;
 }
 void CCosmeticsHandler::SnapSkinmani(int ClientID, int64_t Tick, CNetObj_ClientInfo *pClientInfo)
 {

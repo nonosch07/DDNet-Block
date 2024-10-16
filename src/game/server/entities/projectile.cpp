@@ -321,7 +321,7 @@ void CProjectile::Snap(int SnappingClient)
 			return;
 	}
 
-	if (m_Type == WEAPON_GUN && GameServer()->Cosmetics()->SnapGundesign(m_Owner, GetPos(Ct), m_Direction, GetId(), SnappingClient))
+	if(m_Type == WEAPON_GUN && GameServer()->Cosmetics()->SnapGundesign(m_Owner, GetPos(Ct), m_Direction, GetId(), SnappingClient))
 		return;
 
 	CCharacter *pOwnerChar = 0;

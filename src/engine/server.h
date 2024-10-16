@@ -292,8 +292,6 @@ public:
 
 	virtual bool IsSixup(int ClientId) const = 0;
 
-
-
 	//Blockworlds
 
 	virtual bool IsClientsSameAddr(int FirstClientID, int SecondClientID) = 0;

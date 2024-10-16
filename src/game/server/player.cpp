@@ -15,11 +15,9 @@
 #include <game/gamecore.h>
 #include <game/teamscore.h>
 
-
 #include <game/server/blockworlds/accounts.h>
 #include <game/server/blockworlds/cosmetics/animations.h>
 #include <game/server/blockworlds/cosmetics/cosmetics.h>
-
 
 MACRO_ALLOC_POOL_ID_IMPL(CPlayer, MAX_CLIENTS)
 
@@ -993,9 +991,6 @@ void CPlayer::ProcessScoreResult(CScorePlayerResult &Result)
 	}
 }
 
-
-
-
 //Blockworlds
 
 void CPlayer::BWProcessScoreResult(CAccountResult &Result)
@@ -1205,4 +1200,38 @@ void CPlayer::OnPlayerLogout(int SetLoggedIn)
 	dbg_msg("account", "logging out AccountId=%d SetLoggedIn=%d", GetAccId(), SetLoggedIn);
 
 	m_Account = CAccountData();
+}
+
+void CPlayer::AddPlayerExp(int Amount)
+{
+	m_Account.m_Experience += Amount;
+
+	if(GetPlayerExperience() >= NeededAccountExp(GetPlayerLevel()))
+	{
+		CPlayer *pPlayer = GameServer()->GetPlayer(m_ClientId);
+
+		int ExcessiveExp = GetPlayerExperience() - NeededAccountExp(GetPlayerLevel());
+
+		SetPlayerLevel(GetPlayerLevel() + 1);
+		SetPlayerExperience(0);
+
+		GameServer()->CreateSound(pPlayer->GetCharacter()->GetPos(), SOUND_CTF_CAPTURE, -1);
+		pPlayer->GetCharacter()->SetEmote(EMOTE_HAPPY, Server()->Tick() + 2 * Server()->TickSpeed());
+
+		char aBuf[256];
+		str_format(aBuf, sizeof(aBuf), "[LevelUp+]: You are now level %d!", GetPlayerLevel());
+		GameServer()->SendChatTarget(m_ClientId, aBuf);
+
+		if(GetPlayerLevel() % 50 == 0)
+		{
+			SetPlayerBlockpoints(GetPlayerBlockpoints() + 300);
+
+			str_copy(aBuf, "[LevelUp+]: You've received 300bp !", sizeof(aBuf));
+			GameServer()->SendChatTarget(m_ClientId, aBuf);
+		}
+
+		AddPlayerExp(ExcessiveExp);
+
+		OnPlayerSave(1);
+	}
 }

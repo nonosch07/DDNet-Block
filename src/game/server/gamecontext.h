@@ -64,10 +64,8 @@ class IStorage;
 struct CAntibotRoundData;
 struct CScoreRandomMapResult;
 
-
 class CAccounts;
 class CZoneManager;
-
 
 struct CSnapContext
 {
@@ -617,12 +615,6 @@ public:
 
 	void ResetTuning();
 
-
-
-
-
-
-
 	//Blockworlds
 
 public:
@@ -634,7 +626,6 @@ public:
 
 	CZoneManager *ZoneManager() { return &m_ZoneManager; }
 
-
 private:
 	CAccounts *m_pAccounts;
 	CZoneManager m_ZoneManager;
@@ -643,20 +634,19 @@ private:
 	static void ConLogin(IConsole::IResult *pResult, void *pUserData);
 	static void ConAccountLogout(IConsole::IResult *pResult, void *pUserData);
 	static void ConChangePassword(IConsole::IResult *pResult, void *pUserData);
+	static void ConExp(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConDisplayBlockpoints(IConsole::IResult *pResult, void *pUserData);
 	static void ConDisplayProfile(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConDeathnote(IConsole::IResult *pResult, void *pUserData);
 	static void ConWeaponKit(IConsole::IResult *pResult, void *pUserData);
-	
+
 	static void ConDisplayTopLevel(IConsole::IResult *pResult, void *pUserData);
 	static void ConDisplayTopBlockpoints(IConsole::IResult *pResult, void *pUserData);
 	static void ConDisplayTopKillStreak(IConsole::IResult *pResult, void *pUserData);
 
-
 	static void ConCosmetics(IConsole::IResult *pResult, void *pUserData);
-
 };
 
 #endif

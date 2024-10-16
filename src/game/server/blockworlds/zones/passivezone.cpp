@@ -19,7 +19,7 @@ CPassiveZone::CPassiveZone(CGameContext *pGameServer) :
 void CPassiveZone::Tick()
 {
 	return; // not implemented yet (with db)
-	
+
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		CPlayer *pPlayer = GameServer()->m_apPlayers[i];

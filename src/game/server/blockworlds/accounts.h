@@ -263,6 +263,15 @@ struct CSqlStringData : ISqlData
 	char m_aString[1024];
 };
 
+inline int NeededAccountExp(int Level)
+{
+	return int(Level * 0.18 + 15);
+}
+
+inline int NeededClanExp(int Level)
+{
+	return int(Level * 2.10 + 30);
+}
 
 class CAccounts
 {

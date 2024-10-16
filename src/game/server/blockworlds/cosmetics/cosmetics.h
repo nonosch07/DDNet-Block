@@ -4,7 +4,6 @@
 #include <base/vmath.h>
 #include <engine/server.h>
 
-
 class CGameContext;
 class CGameWorld;
 class CAccountManager;
