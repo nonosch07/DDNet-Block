@@ -35,6 +35,7 @@
 #include "player.h"
 #include "score.h"
 
+#include <game/server/blockworlds/gameinterface/handler.h>
 #include <game/server/blockworlds/zones/zonemanager.h>
 
 // Not thread-safe!
@@ -1057,6 +1058,7 @@ void CGameContext::OnTick()
 	m_pController->Tick();
 	m_Animations.Tick();
 	m_ZoneManager.Tick();
+	m_GameInterfaceHandler.Tick();
 
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
@@ -1340,7 +1342,10 @@ void CGameContext::OnClientPrepareInput(int ClientId, void *pInput)
 void CGameContext::OnClientDirectInput(int ClientId, void *pInput)
 {
 	if(!m_World.m_Paused)
+	{
 		m_apPlayers[ClientId]->OnDirectInput((CNetObj_PlayerInput *)pInput);
+		GameInterface()->OnClientDirectInput(ClientId, pInput);
+	}
 
 	int Flags = ((CNetObj_PlayerInput *)pInput)->m_PlayerFlags;
 	if((Flags & 256) || (Flags & 512))
@@ -1660,6 +1665,8 @@ void CGameContext::OnClientEnter(int ClientId)
 		Mute(&Addr, g_Config.m_SvChatInitialDelay, Server()->ClientName(ClientId), "Initial chat delay", true);
 	}
 
+	GameInterface()->OnClientEnter(ClientId);
+
 	LogEvent("Connect", ClientId);
 }
 
@@ -1721,6 +1728,8 @@ void CGameContext::OnClientConnected(int ClientId, void *pData)
 void CGameContext::OnClientDrop(int ClientId, const char *pReason)
 {
 	LogEvent("Disconnect", ClientId);
+
+	GameInterface()->OnClientDrop(ClientId);
 
 	AbortVoteKickOnDisconnect(ClientId);
 	m_pController->OnPlayerDisconnect(m_apPlayers[ClientId], pReason);
@@ -2229,6 +2238,8 @@ void CGameContext::OnCallVoteNetMessage(const CNetMsg_Cl_CallVote *pMsg, int Cli
 {
 	if(RateLimitPlayerVote(ClientId) || m_VoteCloseTime)
 		return;
+	if(GameInterface()->OnCallVote(ClientId, pMsg->m_pValue, pMsg->m_pReason))
+		return;
 
 	m_apPlayers[ClientId]->UpdatePlaytime();
 
@@ -2476,6 +2487,9 @@ void CGameContext::OnCallVoteNetMessage(const CNetMsg_Cl_CallVote *pMsg, int Cli
 
 void CGameContext::OnVoteNetMessage(const CNetMsg_Cl_Vote *pMsg, int ClientId)
 {
+	if(GameInterface()->OnVoteNetMessage(ClientId, (void *)pMsg))
+		return;
+
 	if(!m_VoteCloseTime)
 		return;
 
@@ -4048,6 +4062,7 @@ void CGameContext::OnInit(const void *pPersistentData)
 	m_Animations.Init(this);
 	m_CosmeticsHandler.Init(this);
 	m_ZoneManager.Init(this);
+	m_GameInterfaceHandler.Init(this);
 }
 
 void CGameContext::CreateAllEntities(bool Initial)

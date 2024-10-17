@@ -21,6 +21,7 @@
 
 #include <game/server/blockworlds/cosmetics/animations.h>
 #include <game/server/blockworlds/cosmetics/cosmetics.h>
+#include <game/server/blockworlds/gameinterface/handler.h>
 #include <game/server/blockworlds/zones/zonemanager.h>
 
 /*
@@ -101,6 +102,7 @@ class CGameContext : public IGameServer
 
 	CAnimationHandler m_Animations;
 	CCosmeticsHandler m_CosmeticsHandler;
+	CGameInterfaceHandler m_GameInterfaceHandler;
 
 	bool m_TeeHistorianActive;
 	CTeeHistorian m_TeeHistorian;
@@ -182,6 +184,7 @@ public:
 
 	CAnimationHandler *Animations() { return &m_Animations; }
 	CCosmeticsHandler *Cosmetics() { return &m_CosmeticsHandler; }
+	CGameInterfaceHandler *GameInterface() { return &m_GameInterfaceHandler; }
 
 	CGameContext();
 	CGameContext(int Reset);

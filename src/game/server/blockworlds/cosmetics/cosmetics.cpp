@@ -114,7 +114,6 @@ bool CCosmeticsHandler::HasKnockoutEffect(int ClientID, int Index)
 	}
 
 	return GameServer()->GetPlayer(ClientID)->GetPlayerKnockouts()[Index] == '1';
-
 }
 
 bool CCosmeticsHandler::DoKnockoutEffect(int ClientID, vec2 Pos)
@@ -242,7 +241,6 @@ bool CCosmeticsHandler::HasGundesign(int ClientID, int Index)
 		return true;
 
 	return GameServer()->GetPlayer(ClientID)->GetPlayerGundesign()[Index] == '1';
-
 }
 
 bool CCosmeticsHandler::DoGundesign(int ClientID, vec2 Pos, vec2 Direction)
@@ -312,7 +310,6 @@ bool CCosmeticsHandler::ToggleGundesign(int ClientID, const char *pName)
 
 	if(Effect == -1)
 		return false;
-
 
 	if(HasGundesign(ClientID, Effect) == false)
 		return false;

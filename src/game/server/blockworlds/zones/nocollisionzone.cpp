@@ -66,7 +66,6 @@ void CNoCollisionZone::Snap(int ClientID)
 
 void CNoCollisionZone::OnCharacterDeath(CCharacter *pCharacter)
 {
-	int ClientID = pCharacter->GetPlayer()->GetCid();
 	pCharacter->Core()->m_Protected = false;
 }
 

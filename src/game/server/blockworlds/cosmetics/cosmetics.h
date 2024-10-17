@@ -20,7 +20,6 @@ class CCosmeticsHandler
 
 	CAccounts *Accounts() const { return m_pAccounts; }
 
-
 public:
 	enum
 	{ // Maximum sizeof(m_aKnockouts)/sizeof(char) = 256

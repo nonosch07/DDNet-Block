@@ -2,7 +2,6 @@
 #define GAME_SERVER_BLOCKWORLDS_ENTITIES_EXPERIENCE_H
 #include <game/server/entity.h>
 
-
 class CExperience : public CEntity
 {
 public:

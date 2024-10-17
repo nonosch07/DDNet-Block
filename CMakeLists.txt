@@ -2712,6 +2712,13 @@ if(SERVER)
     blockworlds/cosmetics/cosmetics.cpp
     blockworlds/cosmetics/cosmetics.h
     blockworlds/cosmetics/letters.h
+    blockworlds/gameinterface/handler.cpp
+    blockworlds/gameinterface/handler.h
+    blockworlds/gameinterface/object.cpp
+    blockworlds/gameinterface/object.h
+    blockworlds/gameinterface/renderers/renderer.h
+    blockworlds/gameinterface/renderers/vote.cpp
+    blockworlds/gameinterface/renderers/vote.h
     blockworlds/zones/nocollisionzone.cpp
     blockworlds/zones/nocollisionzone.h
     blockworlds/zones/spawnzone.cpp
