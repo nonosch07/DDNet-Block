@@ -5,7 +5,6 @@
 #include <unordered_map>
 
 class CGameContext;
-class CAccountManager;
 
 class CBlockTracker
 {

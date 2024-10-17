@@ -113,9 +113,8 @@ bool CCosmeticsHandler::HasKnockoutEffect(int ClientID, int Index)
 			return true;
 	}
 
-	return true;
+	return GameServer()->GetPlayer(ClientID)->GetPlayerKnockouts()[Index] == '1';
 
-	// return GameServer()->DataHandler()->Accounts()->HasPlayerKnockout(ClientID, Index);
 }
 
 bool CCosmeticsHandler::DoKnockoutEffect(int ClientID, vec2 Pos)
@@ -201,10 +200,8 @@ bool CCosmeticsHandler::ToggleKnockout(int ClientID, const char *pName)
 	if(Effect == -1)
 		return false;
 
-	// this check should be outside of this handler
-	// (delete all account stuff from there in future pls)
-	// if(HasKnockoutEffect(ClientID, Effect) == false)
-	// 	return false;
+	if(HasKnockoutEffect(ClientID, Effect) == false)
+		return false;
 
 	GameServer()->GetPlayer(ClientID)->ToggleKnockout(Effect);
 
@@ -228,23 +225,24 @@ int CCosmeticsHandler::FindGundesign(const char *pName)
 
 bool CCosmeticsHandler::HasGundesign(int ClientID, int Index)
 {
-	// if(ClientID < 0 || ClientID >= MAX_CLIENTS)
-	// 	return false;
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
+		return false;
 
-	// if(Index < 0 || Index >= NUM_GUNDESIGNS)
-	// 	return false;
+	if(Index < 0 || Index >= NUM_GUNDESIGNS)
+		return false;
 
-	// if(Server()->ClientAuthed(ClientID) && g_Config.m_Debug)
-	// 	return true;
+	if(Server()->ClientAuthed(ClientID) && g_Config.m_Debug)
+		return true;
 
-	// if(!GameServer()->m_apPlayers[ClientID]->IsLoggedIn())
-	// 	return false;
+	if(!GameServer()->m_apPlayers[ClientID]->IsLoggedIn())
+		return false;
 
-	// if(GameServer()->m_apPlayers[ClientID]->GetPlayerVip() &&
-	// 	(Index == GUNDESIGN_VIP_STARGUN))
-	// 	return true;
+	if(GameServer()->m_apPlayers[ClientID]->GetPlayerVip() &&
+		(Index == GUNDESIGN_VIP_STARGUN))
+		return true;
 
-	// return GameServer()->DataHandler()->Accounts()->HasPlayerGunDesign(ClientID, Index);
+	return GameServer()->GetPlayer(ClientID)->GetPlayerGundesign()[Index] == '1';
+
 }
 
 bool CCosmeticsHandler::DoGundesign(int ClientID, vec2 Pos, vec2 Direction)
@@ -315,10 +313,9 @@ bool CCosmeticsHandler::ToggleGundesign(int ClientID, const char *pName)
 	if(Effect == -1)
 		return false;
 
-	// this check should be outside of this handler
-	// (delete all account stuff from there in future pls)
-	// if(HasGundesign(ClientID, Effect) == false)
-	// 	return false;
+
+	if(HasGundesign(ClientID, Effect) == false)
+		return false;
 
 	GameServer()->GetPlayer(ClientID)->ToggleGunDesign(Effect);
 
@@ -406,9 +403,7 @@ bool CCosmeticsHandler::HasSkinmani(int ClientID, int Index)
 		(Index == SKINMANI_VIP_RAINBOW || Index == SKINMANI_VIP_RAINBOW_EPI || Index == SKINMANI_VIP_HOOK_RAINBOW))
 		return true;
 
-	return true;
-
-	// return GameServer()->DataHandler()->Accounts()->HasPlayerSkinMani(ClientID, Index);
+	return GameServer()->GetPlayer(ClientID)->GetPlayerSkinmani()[Index] == '1';
 }
 
 bool CCosmeticsHandler::ToggleSkinmani(int ClientID, const char *pName)
@@ -420,9 +415,17 @@ bool CCosmeticsHandler::ToggleSkinmani(int ClientID, const char *pName)
 	if(Effect == -1)
 		return false;
 
+	dbg_msg("cosmetics", "index: %d", Effect);
+
 	CPlayer *pPlayer = m_pGameServer->GetPlayer(ClientID);
 	if(!pPlayer)
 		return false;
+
+	if(HasSkinmani(ClientID, Effect) == false)
+	{
+		dbg_msg("cosmetics", "Player doesn't have the skinmani");
+		return false;
+	}
 
 	pPlayer->ToggleSkinMani(Effect);
 

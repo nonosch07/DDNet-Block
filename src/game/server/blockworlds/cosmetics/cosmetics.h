@@ -1,20 +1,25 @@
 #ifndef GAME_SERVER_BLOCKWORLDS_COSMETICS_HANDLER_H
 #define GAME_SERVER_BLOCKWORLDS_COSMETICS_HANDLER_H
 
+#include "game/server/blockworlds/accounts.h"
 #include <base/vmath.h>
 #include <engine/server.h>
 
 class CGameContext;
 class CGameWorld;
-class CAccountManager;
+class CAccounts;
 
 class CCosmeticsHandler
 {
 	CGameContext *m_pGameServer;
+	CAccounts *m_pAccounts;
 	IServer *m_pServer;
 
 	CGameContext *GameServer() const { return m_pGameServer; }
 	IServer *Server() const { return m_pServer; }
+
+	CAccounts *Accounts() const { return m_pAccounts; }
+
 
 public:
 	enum
