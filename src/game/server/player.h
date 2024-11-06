@@ -270,9 +270,9 @@ public:
 	}
 	void SetPlayerRanking(int Ranking) { m_Account.m_Ranking = Ranking; }
 	void SetPlayerBlockpoints(int Blockpoints) { m_Account.m_Blockpoints = Blockpoints; }
-	void SetPlayerKnockouts(const char *Knockouts) { strncpy(m_Account.m_aKnockouts, Knockouts, sizeof(m_Account.m_aKnockouts) - 1); }
-	void SetPlayerGundesign(const char *Gundesign) { strncpy(m_Account.m_aGundesign, Gundesign, sizeof(m_Account.m_aGundesign) - 1); }
-	void SetPlayerSkinmani(const char *Skinmani) { strncpy(m_Account.m_aSkinmani, Skinmani, sizeof(m_Account.m_aSkinmani) - 1); }
+	void SetPlayerKnockouts(int Index, char Value) { m_Account.m_aKnockouts[Index] = Value; }
+	void SetPlayerGundesign(int Index, char Value) { m_Account.m_aGundesign[Index] = Value; }
+	void SetPlayerSkinmani(int Index, char Value) { m_Account.m_aSkinmani[Index] = Value; }
 	void SetPlayerExtras(const char *Extras) { strncpy(m_Account.m_aExtras, Extras, sizeof(m_Account.m_aExtras) - 1); }
 	void SetPlayerRegisterDate(const char *RegisterDate) { strncpy(m_Account.m_RegisterDate, RegisterDate, sizeof(m_Account.m_RegisterDate) - 1); }
 	void SetPlayerRankedGames(int RankedGames) { m_Account.m_RankedGames = RankedGames; }

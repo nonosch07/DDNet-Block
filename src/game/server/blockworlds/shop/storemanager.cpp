@@ -79,21 +79,20 @@ CShop::CShop(CGameContext *pGameContext, CPlayer *pOwner, int pCategory, int pCo
 
 bool CShop::SetProductInfo(int Category, int Cosmetics)
 {
-	int Level;
 	bool Success = false;
 
 	switch(Category)
 	{
 	case CATEGORY_SKINMANI:
-		Success = m_pCosmeticsHandler->ShopInfoSkinmani(Cosmetics, m_pPrice, Level);
+		Success = m_pCosmeticsHandler->ShopInfoSkinmani(Cosmetics, m_pPrice, m_pLevel);
 		m_pCosmeticName = CCosmeticsHandler::ms_SkinmaniNames[Cosmetics];
 		break;
 	case CATEGORY_KNOCKOUT:
-		Success = m_pCosmeticsHandler->ShopInfoKnockout(Cosmetics, m_pPrice, Level);
+		Success = m_pCosmeticsHandler->ShopInfoKnockout(Cosmetics, m_pPrice, m_pLevel);
 		m_pCosmeticName = CCosmeticsHandler::ms_KnockoutNames[Cosmetics];
 		break;
 	case CATEGORY_GUNDESIGN:
-		Success = m_pCosmeticsHandler->ShopInfoGundesign(Cosmetics, m_pPrice, Level);
+		Success = m_pCosmeticsHandler->ShopInfoGundesign(Cosmetics, m_pPrice, m_pLevel);
 		m_pCosmeticName = CCosmeticsHandler::ms_GundesignNames[Cosmetics];
 		break;
 	default:
@@ -150,20 +149,43 @@ void CShop::Purchase()
 		str_format(aBuf, sizeof(aBuf), "You do not have enough blockpoints for '%s'. You need %d blockpoints, but you only have %d bp.", m_pCosmeticName, m_pPrice, m_pOwner->GetPlayerBlockpoints());
 		GameServer()->SendChatTarget(m_pOwner->GetCid(), aBuf);
 		Destroy(false);
+		return;
 	}
-	else
+	else if(m_pLevel > m_pOwner->GetPlayerLevel())
 	{
 		char aBuf[256];
-		str_format(aBuf, sizeof(aBuf), "You have successfully bought '%s'.", m_pCosmeticName);
+		str_format(aBuf, sizeof(aBuf), "You need to be at least level %d to purchase this item.", m_pLevel);
 		GameServer()->SendChatTarget(m_pOwner->GetCid(), aBuf);
-
-		m_pOwner->SetPlayerBlockpoints(m_pOwner->GetPlayerBlockpoints() - m_pPrice);
-
-		// // Grant cosmetics to player
-		// m_pCosmeticsHandler->GrantCosmetic(m_pOwner->GetCID(), m_pCategory, m_pProduct);
-
-		Destroy(true);
+		Destroy(false);
+		return;
 	}
+
+	m_pOwner->SetPlayerBlockpoints(m_pOwner->GetPlayerBlockpoints() - m_pPrice);
+
+	char aBuf[256];
+	str_format(aBuf, sizeof(aBuf), "You have successfully bought '%s'.", m_pCosmeticName);
+	GameServer()->SendChatTarget(m_pOwner->GetCid(), aBuf);
+
+	switch(m_pCategory)
+	{
+	case CATEGORY_KNOCKOUT:
+		m_pOwner->SetPlayerKnockouts(m_pProduct, '1');
+		break;
+
+	case CATEGORY_GUNDESIGN:
+		m_pOwner->SetPlayerGundesign(m_pProduct, '1');
+		break;
+
+	case CATEGORY_SKINMANI:
+		m_pOwner->SetPlayerSkinmani(m_pProduct, '1');
+		break;
+
+	default:
+		GameServer()->SendChatTarget(m_pOwner->GetCid(), "Unknown category.");
+		break;
+	}
+
+	Destroy(true);
 }
 
 void CShop::Decline()

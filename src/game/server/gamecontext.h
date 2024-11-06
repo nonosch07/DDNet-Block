@@ -640,6 +640,9 @@ private:
 	static void ConExp(IConsole::IResult *pResult, void *pUserData);
 	static void ConBuy(IConsole::IResult *pResult, void *pUserData);
 
+	static void ConShopPurchase(IConsole::IResult *pResult, void *pUserData);
+	static void ConShopDecline(IConsole::IResult *pResult, void *pUserData);
+
 	static void ConDisplayBlockpoints(IConsole::IResult *pResult, void *pUserData);
 	static void ConDisplayProfile(IConsole::IResult *pResult, void *pUserData);
 

@@ -5072,8 +5072,15 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("topbp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopBlockpoints, this, "Show top blockpoints.");
 	Console()->Register("topks", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopKillStreak, this, "Show top killstreaks.");
 
-	Console()->Register("cosmetics", "s[category]" "s[name]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConCosmetics, this, "test cmd.");
-	Console()->Register("buy", "s[category]" "s[name]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConBuy, this, "test cmd.");
+	Console()->Register("cosmetics", "s[category]"
+					 "s[name]",
+		CFGFLAG_CHAT | CFGFLAG_SERVER, ConCosmetics, this, "test cmd."); // why fix_style always break this? xD
+	Console()->Register("buy", "s[category]"
+				   "s[name]",
+		CFGFLAG_CHAT | CFGFLAG_SERVER, ConBuy, this, "test cmd.");
+
+	Console()->Register("yes", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConShopPurchase, this, "Accept current shop pending purchase.");
+	Console()->Register("no", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConShopDecline, this, "Decline current shop pending purchase.");
 }
 
 CPlayer *CGameContext::GetPlayerByName(const char *pName)

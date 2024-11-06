@@ -13,6 +13,7 @@ private:
 	CCosmeticsHandler *m_pCosmeticsHandler;
 	int m_pExpireTick = 0;
 	int m_pPrice = 0;
+	int m_pLevel = 0;
 	int m_pProduct = 0;
 	int m_pCategory = 0;
 	const char *m_pCosmeticName;

@@ -2866,3 +2866,33 @@ void CGameContext::ConBuy(IConsole::IResult *pResult, void *pUserData)
 		pSelf->SendChatTarget(pResult->m_ClientId, "pendingpurchase isn't null");
 	}
 }
+
+void CGameContext::ConShopPurchase(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = static_cast<CGameContext *>(pUserData);
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+
+	if(pPlayer && pPlayer->GetCharacter() && pPlayer->GetCharacter()->m_PendingPurchase)
+	{
+		pPlayer->GetCharacter()->m_PendingPurchase->Purchase();
+	}
+	else
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "No item available for purchase.");
+	}
+}
+
+void CGameContext::ConShopDecline(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = static_cast<CGameContext *>(pUserData);
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+
+	if(pPlayer && pPlayer->GetCharacter() && pPlayer->GetCharacter()->m_PendingPurchase)
+	{
+		pPlayer->GetCharacter()->m_PendingPurchase->Decline();
+	}
+	else
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "No item available to decline.");
+	}
+}
