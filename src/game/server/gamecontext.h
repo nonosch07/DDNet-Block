@@ -638,6 +638,7 @@ private:
 	static void ConAccountLogout(IConsole::IResult *pResult, void *pUserData);
 	static void ConChangePassword(IConsole::IResult *pResult, void *pUserData);
 	static void ConExp(IConsole::IResult *pResult, void *pUserData);
+	static void ConBuy(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConDisplayBlockpoints(IConsole::IResult *pResult, void *pUserData);
 	static void ConDisplayProfile(IConsole::IResult *pResult, void *pUserData);

@@ -1,4 +1,5 @@
 /* (c) Shereef Marzouk. See "licence DDRace.txt" and the readme.txt in the root of the distribution for more information. */
+#include "base/system.h"
 #include "gamecontext.h"
 #include <engine/shared/config.h>
 #include <engine/shared/protocol.h>
@@ -2800,4 +2801,68 @@ void CGameContext::ConExp(IConsole::IResult *pResult, void *pUserData)
 	pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
 	str_format(aBuf, sizeof(aBuf), "Needed Exp: %i", NeededAccountExp(pPlayer->GetPlayerLevel()));
 	pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+}
+
+void CGameContext::ConBuy(IConsole::IResult *pResult, void *pUserData)
+{
+	// test command - replace that with tiles
+
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+	CCharacter *pChr = pPlayer->GetCharacter();
+
+	if(!pPlayer)
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "Player not found.");
+		return;
+	}
+
+	int Category;
+	bool Found = false;
+	int CosmeticId = -1;
+
+	std::string Type = pResult->GetString(0);
+	std::string Name = pResult->GetString(1);
+
+	dbg_msg("cmd", "%s , %s", Type.c_str(), Name.c_str());
+
+	if(Type == "gd")
+	{
+		CosmeticId = pSelf->Cosmetics()->FindGundesign(Name.c_str());
+		Category = CShop::CATEGORY_GUNDESIGN;
+		Found = (CosmeticId != -1);
+	}
+	else if(Type == "ko")
+	{
+		CosmeticId = pSelf->Cosmetics()->FindKnockoutEffect(Name.c_str());
+		Category = CShop::CATEGORY_KNOCKOUT;
+		Found = (CosmeticId != -1);
+	}
+	else if(Type == "sm")
+	{
+		CosmeticId = pSelf->Cosmetics()->FindSkinmani(Name.c_str());
+		Category = CShop::CATEGORY_SKINMANI;
+		Found = (CosmeticId != -1);
+	}
+	else
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "Unknown cosmetics type. Use 'ko' (knockout), 'gd' (gundesign), or 'sm' (skinmani).");
+		return;
+	}
+
+	if(!Found)
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "Unknown cosmetics name.");
+		return;
+	}
+
+	if(pChr->m_PendingPurchase == nullptr)
+	{
+		new CShop(pSelf, pPlayer, Category, CosmeticId, 15);
+		// pSelf->SendChatTarget(pResult->m_ClientId, "Purchase initiated. Confirm with /yes or cancel with /no.");
+	}
+	else
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "pendingpurchase isn't null");
+	}
 }

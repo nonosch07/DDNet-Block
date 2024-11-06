@@ -5072,9 +5072,8 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("topbp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopBlockpoints, this, "Show top blockpoints.");
 	Console()->Register("topks", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopKillStreak, this, "Show top killstreaks.");
 
-	Console()->Register("cosmetics", "s[username]"
-					 "s[username]",
-		CFGFLAG_CHAT | CFGFLAG_SERVER, ConCosmetics, this, "Use one of your deathnote pages.");
+	Console()->Register("cosmetics", "s[category]" "s[name]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConCosmetics, this, "test cmd.");
+	Console()->Register("buy", "s[category]" "s[name]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConBuy, this, "test cmd.");
 }
 
 CPlayer *CGameContext::GetPlayerByName(const char *pName)

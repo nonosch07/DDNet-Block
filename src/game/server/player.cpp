@@ -1199,6 +1199,8 @@ void CPlayer::OnPlayerLogout(int SetLoggedIn)
 	OnPlayerSave(SetLoggedIn);
 	dbg_msg("account", "logging out AccountId=%d SetLoggedIn=%d", GetAccId(), SetLoggedIn);
 
+	// m_pCharacter->m_PendingPurchase->Destroy(true); - m_pCharacter will be null at this point
+
 	m_Account = CAccountData();
 }
 

@@ -24,6 +24,7 @@ struct CNetObj_PlayerInput;
 struct CScorePlayerResult;
 
 class Accounts;
+class CShop;
 
 enum
 {
@@ -252,41 +253,41 @@ public:
 	void SetAccId(int Id);
 
 	// Setters
-	void SetPlayerId(int id) { m_Account.m_Id = id; }
-	void SetPlayerName(const char *name) { strncpy(m_Account.m_aName, name, sizeof(m_Account.m_aName) - 1); }
-	void SetPlayerPassword(const char *password) { strncpy(m_Account.m_aPassword, password, sizeof(m_Account.m_aPassword) - 1); }
-	void SetPlayerAddress(const char *address) { strncpy(m_Account.m_aAddress, address, sizeof(m_Account.m_aAddress) - 1); }
-	void SetPlayerIsLoggedIn(int isLoggedIn) { m_Account.m_IsLoggedIn = isLoggedIn; }
-	void SetPlayerVip(int vip) { m_Account.m_Vip = vip; }
-	void SetPlayerPages(int pages) { m_Account.m_Pages = pages; }
-	void SetPlayerLevel(int level) { m_Account.m_Level = level; }
-	void SetPlayerExperience(int experience) { m_Account.m_Experience = experience; }
-	void SetPlayerWeaponkits(int weaponkits) { m_Account.m_Weaponkits = weaponkits; }
+	void SetPlayerId(int Id) { m_Account.m_Id = Id; }
+	void SetPlayerName(const char *Name) { strncpy(m_Account.m_aName, Name, sizeof(m_Account.m_aName) - 1); }
+	void SetPlayerPassword(const char *Password) { strncpy(m_Account.m_aPassword, Password, sizeof(m_Account.m_aPassword) - 1); }
+	void SetPlayerAddress(const char *Address) { strncpy(m_Account.m_aAddress, Address, sizeof(m_Account.m_aAddress) - 1); }
+	void SetPlayerIsLoggedIn(int IsLoggedIn) { m_Account.m_IsLoggedIn = IsLoggedIn; }
+	void SetPlayerVip(int Vip) { m_Account.m_Vip = Vip; }
+	void SetPlayerPages(int Pages) { m_Account.m_Pages = Pages; }
+	void SetPlayerLevel(int Level) { m_Account.m_Level = Level; }
+	void SetPlayerExperience(int Experience) { m_Account.m_Experience = Experience; }
+	void SetPlayerWeaponkits(int Weaponkits) { m_Account.m_Weaponkits = Weaponkits; }
 	void SetPlayerClan(const char *ClanName)
 	{
 		std::strncpy(m_Account.m_aClan, ClanName, sizeof(m_Account.m_aClan) - 1);
 		m_Account.m_aClan[sizeof(m_Account.m_aClan) - 1] = '\0';
 	}
-	void SetPlayerRanking(int ranking) { m_Account.m_Ranking = ranking; }
-	void SetPlayerBlockpoints(int blockpoints) { m_Account.m_Blockpoints = blockpoints; }
-	void SetPlayerKnockouts(const char *knockouts) { strncpy(m_Account.m_aKnockouts, knockouts, sizeof(m_Account.m_aKnockouts) - 1); }
-	void SetPlayerGundesign(const char *gundesign) { strncpy(m_Account.m_aGundesign, gundesign, sizeof(m_Account.m_aGundesign) - 1); }
-	void SetPlayerSkinmani(const char *skinmani) { strncpy(m_Account.m_aSkinmani, skinmani, sizeof(m_Account.m_aSkinmani) - 1); }
-	void SetPlayerExtras(const char *extras) { strncpy(m_Account.m_aExtras, extras, sizeof(m_Account.m_aExtras) - 1); }
-	void SetPlayerRegisterDate(const char *registerDate) { strncpy(m_Account.m_RegisterDate, registerDate, sizeof(m_Account.m_RegisterDate) - 1); }
-	void SetPlayerRankedGames(int rankedGames) { m_Account.m_RankedGames = rankedGames; }
-	void SetPlayerRankedKills(int rankedKills) { m_Account.m_RankedKills = rankedKills; }
-	void SetPlayerRankedDeaths(int rankedDeaths) { m_Account.m_RankedDeaths = rankedDeaths; }
+	void SetPlayerRanking(int Ranking) { m_Account.m_Ranking = Ranking; }
+	void SetPlayerBlockpoints(int Blockpoints) { m_Account.m_Blockpoints = Blockpoints; }
+	void SetPlayerKnockouts(const char *Knockouts) { strncpy(m_Account.m_aKnockouts, Knockouts, sizeof(m_Account.m_aKnockouts) - 1); }
+	void SetPlayerGundesign(const char *Gundesign) { strncpy(m_Account.m_aGundesign, Gundesign, sizeof(m_Account.m_aGundesign) - 1); }
+	void SetPlayerSkinmani(const char *Skinmani) { strncpy(m_Account.m_aSkinmani, Skinmani, sizeof(m_Account.m_aSkinmani) - 1); }
+	void SetPlayerExtras(const char *Extras) { strncpy(m_Account.m_aExtras, Extras, sizeof(m_Account.m_aExtras) - 1); }
+	void SetPlayerRegisterDate(const char *RegisterDate) { strncpy(m_Account.m_RegisterDate, RegisterDate, sizeof(m_Account.m_RegisterDate) - 1); }
+	void SetPlayerRankedGames(int RankedGames) { m_Account.m_RankedGames = RankedGames; }
+	void SetPlayerRankedKills(int RankedKills) { m_Account.m_RankedKills = RankedKills; }
+	void SetPlayerRankedDeaths(int RankedDeaths) { m_Account.m_RankedDeaths = RankedDeaths; }
 	void SetPlayerRankedWins(int RankedWins) { m_Account.m_RankedWins = RankedWins; }
-	void SetPlayerKills(int kills) { m_Account.m_Kills = kills; }
-	void SetPlayerDeaths(int deaths) { m_Account.m_Deaths = deaths; }
-	void SetPlayerTourneyWin(int tourneyWin) { m_Account.m_TourneyWin = tourneyWin; }
-	void SetPlayerPlaytime(long long playtime) { m_Account.m_Playtime = playtime; }
-	void SetPlayerKillstreak(int killstreak) { m_Account.m_Killstreak = killstreak; }
-	void SetPlayerLastName(const char *lastName) { strncpy(m_Account.m_aLastName, lastName, sizeof(m_Account.m_aLastName) - 1); }
-	void SetPlayerLastSkin(const char *lastSkin) { strncpy(m_Account.m_aLastSkin, lastSkin, sizeof(m_Account.m_aLastSkin) - 1); }
-	void SetPlayerLastBodyColor(int lastBodyColor) { m_Account.m_LastBodyColor = lastBodyColor; }
-	void SetPlayerLastFeetColor(int lastFeetColor) { m_Account.m_LastFeetColor = lastFeetColor; }
+	void SetPlayerKills(int Kills) { m_Account.m_Kills = Kills; }
+	void SetPlayerDeaths(int Deaths) { m_Account.m_Deaths = Deaths; }
+	void SetPlayerTourneyWin(int TourneyWin) { m_Account.m_TourneyWin = TourneyWin; }
+	void SetPlayerPlaytime(long long Playtime) { m_Account.m_Playtime = Playtime; }
+	void SetPlayerKillstreak(int Killstreak) { m_Account.m_Killstreak = Killstreak; }
+	void SetPlayerLastName(const char *LastName) { strncpy(m_Account.m_aLastName, LastName, sizeof(m_Account.m_aLastName) - 1); }
+	void SetPlayerLastSkin(const char *LastSkin) { strncpy(m_Account.m_aLastSkin, LastSkin, sizeof(m_Account.m_aLastSkin) - 1); }
+	void SetPlayerLastBodyColor(int LastBodyColor) { m_Account.m_LastBodyColor = LastBodyColor; }
+	void SetPlayerLastFeetColor(int LastFeetColor) { m_Account.m_LastFeetColor = LastFeetColor; }
 
 	// Getters
 	int GetPlayerId() { return m_Account.m_Id; }

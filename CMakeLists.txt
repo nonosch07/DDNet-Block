@@ -2719,6 +2719,10 @@ if(SERVER)
     blockworlds/gameinterface/renderers/renderer.h
     blockworlds/gameinterface/renderers/vote.cpp
     blockworlds/gameinterface/renderers/vote.h
+    blockworlds/shop/storemanager.cpp
+    blockworlds/shop/storemanager.h
+    blockworlds/shop/preview.cpp
+    blockworlds/shop/preview.h
     blockworlds/zones/nocollisionzone.cpp
     blockworlds/zones/nocollisionzone.h
     blockworlds/zones/spawnzone.cpp

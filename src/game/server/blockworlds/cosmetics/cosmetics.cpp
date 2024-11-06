@@ -573,3 +573,149 @@ void CCosmeticsHandler::SnapSkinmaniRaw(int64_t Tick, CNetObj_ClientInfo *pClien
 	    }
 	*/
 }
+
+bool CCosmeticsHandler::ShopInfoSkinmani(int Index, int &Price, int &Level)
+{
+	if(Index == CCosmeticsHandler::SKINMANI_FEET_FIRE ||
+		Index == CCosmeticsHandler::SKINMANI_FEET_WATER ||
+		Index == CCosmeticsHandler::SKINMANI_FEET_POISON)
+	{
+		Price = 250;
+		Level = 50;
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::SKINMANI_FEET_BLACKWHITE)
+	{
+		Price = 550;
+		Level = 105;
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::SKINMANI_FEET_RGB ||
+		Index == CCosmeticsHandler::SKINMANI_FEET_CMY)
+	{
+		Price = 750;
+		Level = 145;
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::SKINMANI_BODY_FIRE ||
+		Index == CCosmeticsHandler::SKINMANI_BODY_WATER ||
+		Index == CCosmeticsHandler::SKINMANI_BODY_POISON)
+	{
+		Price = 1600;
+		Level = 250;
+		return true;
+	}
+	else
+		return false;
+}
+
+bool CCosmeticsHandler::ShopInfoGundesign(int Index, int &Price, int &Level)
+{
+	if(Index == CCosmeticsHandler::GUNDESIGN_CLOCKWISE ||
+		Index == CCosmeticsHandler::GUNDESIGN_COUNTERCLOCK)
+	{
+		Price = 250;
+		Level = 50;
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::GUNDESIGN_TWOCLOCK)
+	{
+		Price = 300;
+		Level = 60;
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::GUNDESIGN_BLINKING)
+	{
+		Price = 600;
+		Level = 115;
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::GUNDESIGN_STARX)
+	{
+		Price = 750;
+		Level = 145;
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::GUNDESIGN_REVERSE)
+	{
+		Price = 900;
+		Level = 175;
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::GUNDESIGN_ARMOR)
+	{
+		Price = 1000;
+		Level = 205;
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::GUNDESIGN_HEART)
+	{
+		Price = 1500;
+		Level = 245;
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::GUNDESIGN_PEW)
+	{
+		Price = 2000;
+		Level = 285;
+		return true;
+	}
+	else
+		return false;
+}
+
+bool CCosmeticsHandler::ShopInfoKnockout(int Index, int &Price, int &Level)
+{
+	if(Index == CCosmeticsHandler::KNOCKOUT_EXPLOSION ||
+		Index == CCosmeticsHandler::KNOCKOUT_HAMMERHIT ||
+		Index == CCosmeticsHandler::KNOCKOUT_KOSTARS)
+	{
+		Price = 250;
+		Level = 50;
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::KNOCKOUT_STARRING)
+	{
+		Price = 600;
+		Level = 115;
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::KNOCKOUT_STAREXPLOSION)
+	{
+		Price = 700;
+		Level = 135;
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::KNOCKOUT_THUNDERSTORM)
+	{
+		Price = 900;
+		Level = 175;
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::KNOCKOUT_KORIP)
+	{
+		Price = 1300;
+		Level = 225;
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::KNOCKOUT_LOVE)
+	{
+		Price = 1600;
+		Level = 255;
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::KNOCKOUT_KOEZ)
+	{
+		Price = 2000;
+		Level = 295;
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::KNOCKOUT_KONOOB)
+	{
+		Price = 2100;
+		Level = 305;
+		return true;
+	}
+	else
+		return false;
+}

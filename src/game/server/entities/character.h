@@ -3,6 +3,7 @@
 #ifndef GAME_SERVER_ENTITIES_CHARACTER_H
 #define GAME_SERVER_ENTITIES_CHARACTER_H
 
+#include "game/server/blockworlds/shop/storemanager.h"
 #include <game/server/entity.h>
 #include <game/server/save.h>
 
@@ -281,6 +282,7 @@ public:
 	int m_KillStreak = 0;
 
 	CCharacterCore BWCore() { return m_Core; }
+	CShop *m_PendingPurchase = nullptr;
 };
 
 enum

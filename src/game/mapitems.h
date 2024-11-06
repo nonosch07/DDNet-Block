@@ -211,6 +211,10 @@ enum
 	TILESLAYERFLAG_TUNE = 32,
 
 	ENTITY_OFFSET = 255 - 16 * 4,
+
+	// Blockworlds
+	OWNTILE_SWITCH_START_BUY = 179,
+	OWNTILE_SWITCH_STOP_BUY = 180,
 };
 
 static constexpr size_t MAX_MAPIMAGES = 64;
