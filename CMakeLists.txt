@@ -1557,6 +1557,7 @@ set(EXPECTED_DATA
   maps/dm7.map
   maps/dm8.map
   maps/dm9.map
+  maps/blmapV3ROYAL.map
   maps/license.txt
   maps7/Gold\ Mine.map
   maps7/LearnToPlay.map
