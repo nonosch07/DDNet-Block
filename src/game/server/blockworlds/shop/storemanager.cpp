@@ -81,18 +81,21 @@ bool CShop::SetProductInfo(int Category, int Cosmetics)
 {
 	bool Success = false;
 
+	// Declare a position variable to hold the position information
+	vec2 Position;
+
 	switch(Category)
 	{
 	case CATEGORY_SKINMANI:
-		Success = m_pCosmeticsHandler->ShopInfoSkinmani(Cosmetics, m_pPrice, m_pLevel);
+		Success = m_pCosmeticsHandler->ShopInfoSkinmani(Cosmetics, m_pPrice, m_pLevel, Position);
 		m_pCosmeticName = CCosmeticsHandler::ms_SkinmaniNames[Cosmetics];
 		break;
 	case CATEGORY_KNOCKOUT:
-		Success = m_pCosmeticsHandler->ShopInfoKnockout(Cosmetics, m_pPrice, m_pLevel);
+		Success = m_pCosmeticsHandler->ShopInfoKnockout(Cosmetics, m_pPrice, m_pLevel, Position);
 		m_pCosmeticName = CCosmeticsHandler::ms_KnockoutNames[Cosmetics];
 		break;
 	case CATEGORY_GUNDESIGN:
-		Success = m_pCosmeticsHandler->ShopInfoGundesign(Cosmetics, m_pPrice, m_pLevel);
+		Success = m_pCosmeticsHandler->ShopInfoGundesign(Cosmetics, m_pPrice, m_pLevel, Position);
 		m_pCosmeticName = CCosmeticsHandler::ms_GundesignNames[Cosmetics];
 		break;
 	default:
@@ -100,6 +103,8 @@ bool CShop::SetProductInfo(int Category, int Cosmetics)
 	}
 	return Success;
 }
+
+
 
 void CShop::OnTick()
 {

@@ -71,6 +71,8 @@ enum
 	NET_CONNSTATE_ONLINE = 4,
 	NET_CONNSTATE_ERROR = 5,
 
+	NET_CONNSTATE_BOT = 6,
+
 	NET_PACKETFLAG_UNUSED = 1 << 0,
 	NET_PACKETFLAG_TOKEN = 1 << 1,
 	NET_PACKETFLAG_CONTROL = 1 << 2,
@@ -320,6 +322,9 @@ public:
 
 	bool m_Sixup;
 	SECURITY_TOKEN m_Token;
+
+	void BotConnect();
+	void BotDrop();
 };
 
 class CConsoleNetConnection
@@ -466,6 +471,9 @@ public:
 	SECURITY_TOKEN GetToken(const NETADDR &Addr);
 	// vanilla token/gametick shouldn't be negative
 	SECURITY_TOKEN GetVanillaToken(const NETADDR &Addr) { return absolute(GetToken(Addr)); }
+
+	void BotInit(int BotID);
+	void BotDelete(int BotID);
 };
 
 class CNetConsole

@@ -23,6 +23,8 @@
 #include <game/server/blockworlds/cosmetics/cosmetics.h>
 #include <game/server/blockworlds/gameinterface/handler.h>
 #include <game/server/blockworlds/zones/zonemanager.h>
+#include <game/server/blockworlds/shop/preview.h>
+
 
 /*
 	Tick
@@ -67,6 +69,7 @@ struct CScoreRandomMapResult;
 
 class CAccounts;
 class CZoneManager;
+class CShopPreview;
 
 struct CSnapContext
 {
@@ -383,9 +386,10 @@ public:
 
 	std::shared_ptr<CScoreRandomMapResult> m_SqlRandomMapResult;
 
+	uint32_t NextUniqueClientId = 1;
+
 private:
 	// starting 1 to make 0 the special value "no client id"
-	uint32_t NextUniqueClientId = 1;
 	bool m_VoteWillPass;
 	CScore *m_pScore;
 
@@ -629,9 +633,14 @@ public:
 
 	CZoneManager *ZoneManager() { return &m_ZoneManager; }
 
+	CShopPreview *ShopPreview() { return &m_ShopPreview; }
+
+	int GetNextClientID();
+
 private:
 	CAccounts *m_pAccounts;
 	CZoneManager m_ZoneManager;
+	CShopPreview m_ShopPreview;
 
 	static void ConRegister(IConsole::IResult *pResult, void *pUserData);
 	static void ConLogin(IConsole::IResult *pResult, void *pUserData);
@@ -654,6 +663,8 @@ private:
 	static void ConDisplayTopKillStreak(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConCosmetics(IConsole::IResult *pResult, void *pUserData);
+
+	static void ConTest(IConsole::IResult *pResult, void *pUserData);
 };
 
 #endif

@@ -258,6 +258,9 @@ public:
 
 	virtual void DemoRecorder_HandleAutoStart() = 0;
 
+	virtual void BotJoin(int BotID, const char *pName) = 0;
+	virtual void BotLeave(int BotID, bool Silent = false) = 0;
+
 	// DDRace
 
 	virtual void SaveDemo(int ClientId, float Time) = 0;

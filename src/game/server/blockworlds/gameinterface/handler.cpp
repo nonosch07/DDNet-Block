@@ -70,7 +70,7 @@ void CGameInterfaceHandler::OnClientDrop(int ClientID)
 		pRenderer->Deactivate(ClientID);
 	}
 
-	dbg_msg("gameinterface", "deactivated voting interface for %d", ClientID);
+	// dbg_msg("gameinterface", "deactivated voting interface for %d", ClientID);
 }
 
 void CGameInterfaceHandler::OnClientDirectInput(int ClientID, void *pInput)

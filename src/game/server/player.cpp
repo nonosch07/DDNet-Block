@@ -452,7 +452,7 @@ void CPlayer::Snap(int SnappingClient)
 
 	pDDNetPlayer->m_AuthLevel = Server()->GetAuthedState(m_ClientId);
 	pDDNetPlayer->m_Flags = 0;
-	if(m_Afk)
+	if(m_Afk && !m_IsNpc)
 		pDDNetPlayer->m_Flags |= EXPLAYERFLAG_AFK;
 	if(m_Paused == PAUSE_SPEC)
 		pDDNetPlayer->m_Flags |= EXPLAYERFLAG_SPEC;
@@ -1236,4 +1236,19 @@ void CPlayer::AddPlayerExp(int Amount)
 
 		OnPlayerSave(1);
 	}
+}
+
+int CGameContext::GetNextClientID()
+{
+	int ClientID = -1;
+	for(int i = 0; i < g_Config.m_SvMaxClients; i++)
+	{
+		if(m_apPlayers[i])
+			continue;
+
+		ClientID = i;
+		break;
+	}
+
+	return ClientID;
 }

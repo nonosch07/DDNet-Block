@@ -37,6 +37,7 @@
 
 #include <game/server/blockworlds/gameinterface/handler.h>
 #include <game/server/blockworlds/zones/zonemanager.h>
+#include <game/server/blockworlds/shop/preview.h>
 
 // Not thread-safe!
 class CClientChatLogger : public ILogger
@@ -160,12 +161,12 @@ void CGameContext::Destruct(int Resetting)
 	}
 }
 
-CGameContext::CGameContext()
+CGameContext::CGameContext() : m_ShopPreview(this) // what is this xd
 {
 	Construct(NO_RESET);
 }
 
-CGameContext::CGameContext(int Reset)
+CGameContext::CGameContext(int Reset) : m_ShopPreview(this)
 {
 	Construct(Reset);
 }
@@ -1058,7 +1059,8 @@ void CGameContext::OnTick()
 	m_pController->Tick();
 	m_Animations.Tick();
 	m_ZoneManager.Tick();
-	m_GameInterfaceHandler.Tick();
+	m_ShopPreview.Tick();
+	// m_GameInterfaceHandler.Tick();
 
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
@@ -4062,7 +4064,8 @@ void CGameContext::OnInit(const void *pPersistentData)
 	m_Animations.Init(this);
 	m_CosmeticsHandler.Init(this);
 	m_ZoneManager.Init(this);
-	m_GameInterfaceHandler.Init(this);
+	m_ShopPreview.Init(this);
+	// m_GameInterfaceHandler.Init(this);
 }
 
 void CGameContext::CreateAllEntities(bool Initial)
@@ -4469,7 +4472,7 @@ bool CGameContext::IsClientReady(int ClientId) const
 
 bool CGameContext::IsClientPlayer(int ClientId) const
 {
-	return m_apPlayers[ClientId] && m_apPlayers[ClientId]->GetTeam() != TEAM_SPECTATORS;
+	return (m_apPlayers[ClientId] && !m_apPlayers[ClientId]->m_IsNpc) && m_apPlayers[ClientId]->GetTeam() != TEAM_SPECTATORS;
 }
 
 CUuid CGameContext::GameUuid() const { return m_GameUuid; }
@@ -4811,7 +4814,7 @@ void CGameContext::List(int ClientId, const char *pFilter)
 	SendChatTarget(ClientId, aBuf);
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
-		if(m_apPlayers[i])
+		if(m_apPlayers[i] && !m_apPlayers[i]->m_IsNpc)
 		{
 			Total++;
 			const char *pName = Server()->ClientName(i);
@@ -5081,6 +5084,8 @@ void CGameContext::RegisterBlockworldsChatCommands()
 
 	Console()->Register("yes", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConShopPurchase, this, "Accept current shop pending purchase.");
 	Console()->Register("no", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConShopDecline, this, "Decline current shop pending purchase.");
+
+	Console()->Register("test", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConTest, this, "Shows the credits of the DDNet mod");
 }
 
 CPlayer *CGameContext::GetPlayerByName(const char *pName)

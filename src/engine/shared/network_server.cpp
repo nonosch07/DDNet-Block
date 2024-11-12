@@ -733,6 +733,8 @@ int CNetServer::Send(CNetChunk *pChunk)
 	}
 	else
 	{
+		if(m_aSlots[pChunk->m_ClientId].m_Connection.State() == NET_CONNSTATE_BOT)
+			return -1;
 		int Flags = 0;
 		dbg_assert(pChunk->m_ClientId >= 0, "erroneous client id");
 		dbg_assert(pChunk->m_ClientId < MaxClients(), "erroneous client id");

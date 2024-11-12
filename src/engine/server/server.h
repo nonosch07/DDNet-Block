@@ -118,6 +118,8 @@ public:
 			STATE_INGAME,
 			STATE_REDIRECTED,
 
+			STATE_NPC,
+
 			SNAPRATE_INIT = 0,
 			SNAPRATE_FULL,
 			SNAPRATE_RECOVER,
@@ -185,6 +187,8 @@ public:
 		std::shared_ptr<CHostLookup> m_pDnsblLookup;
 
 		bool m_Sixup;
+
+		bool m_IsClientDummy;
 
 		bool IncludedInServerInfo() const
 		{
@@ -493,6 +497,8 @@ public:
 	//Blockworlds
 
 	virtual bool IsClientsSameAddr(int FirstClientID, int SecondClientID) override;
+	void BotJoin(int BotID, const char *pName) override;
+	void BotLeave(int BotID, bool Silent = false) override;
 };
 
 extern CServer *CreateServer();

@@ -332,7 +332,7 @@ public:
 	bool m_ShowLevel = true;
 	bool m_EventWinner = false;
 	int m_EventWTick = -1;
-	bool m_IsDummy = false;
+	bool m_IsNpc = false;
 	bool m_HideInfoInScoreboard;
 
 	int64_t m_LastDeathnote;
@@ -358,11 +358,13 @@ public:
 		m_CurrentKnockout = m_CurrentKnockout == Knockout ? -1 : Knockout;
 		return m_CurrentKnockout;
 	}
+
 	int ToggleGunDesign(int GunDesign)
 	{
 		m_CurrentGunDesign = m_CurrentGunDesign == GunDesign ? -1 : GunDesign;
 		return m_CurrentGunDesign;
 	}
+
 	int ToggleSkinMani(int SkinMani)
 	{
 		m_CurrentSkinMani = m_CurrentSkinMani == SkinMani ? -1 : SkinMani;

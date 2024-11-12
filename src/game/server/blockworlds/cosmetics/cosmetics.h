@@ -98,9 +98,9 @@ public:
 	void SnapSkinmani(int ClientID, int64_t Tick, CNetObj_ClientInfo *pClientInfo);
 	void SnapSkinmaniRaw(int64_t Tick, CNetObj_ClientInfo *pClientInfo, int Effect, int ClientID = -1);
 
-	bool ShopInfoSkinmani(int Index, int &Price, int &Level);
-	bool ShopInfoKnockout(int Index, int &Price, int &Level);
-	bool ShopInfoGundesign(int Index, int &Price, int &Level);
+	bool ShopInfoSkinmani(int Index, int &Price, int &Level, vec2 &Position);
+	bool ShopInfoKnockout(int Index, int &Price, int &Level, vec2 &Position);
+	bool ShopInfoGundesign(int Index, int &Price, int &Level, vec2 &Position);
 };
 
 #endif

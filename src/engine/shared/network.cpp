@@ -451,3 +451,23 @@ void CNetBase::Init()
 {
 	ms_Huffman.Init();
 }
+
+void CNetServer::BotInit(int BotID)
+{
+	m_aSlots[BotID].m_Connection.BotConnect();
+}
+
+void CNetServer::BotDelete(int BotID)
+{
+	m_aSlots[BotID].m_Connection.BotDrop();
+}
+
+void CNetConnection::BotConnect()
+{
+	m_State = NET_CONNSTATE_BOT;
+}
+
+void CNetConnection::BotDrop()
+{
+	m_State = NET_CONNSTATE_OFFLINE;
+}

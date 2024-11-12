@@ -1035,23 +1035,7 @@ void CCharacter::Die(int Killer, int Weapon, bool SendKillMsg)
 
 	GameServer()->m_World.RemoveEntity(this);
 	GameServer()->m_World.m_Core.m_apCharacters[m_pPlayer->GetCid()] = 0;
-	/*if (Killer != m_pPlayer->GetCID()
-		&& Killer != -1 
-		&& GameServer()->m_apPlayers[Killer] 
-		&& GameServer()->m_apPlayers[Killer]->pPlayerCosmetic->HasKnockoutPerk())
-	{
-		CPlayer *pKiller = GameServer()->m_apPlayers[Killer];
-		pKiller->pPlayerCosmetic->DoKnockoutPerk(GameWorld(), Killer, Weapon, m_Pos);
-	}
-	else if (m_pPlayer->m_IsDummy)
-	{
-		m_pPlayer->pPlayerCosmetic->DoKnockoutPerk(GameWorld(), -1, Weapon, m_Pos);
-	}
-	else
-	{*/
 	GameServer()->CreateDeath(m_Pos, m_pPlayer->GetCid(), TeamMask());
-	//}
-
 	Teams()->OnCharacterDeath(GetPlayer()->GetCid(), Weapon);
 }
 
