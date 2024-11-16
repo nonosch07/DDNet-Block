@@ -65,7 +65,7 @@ bool CBlockTracker::Blocked(int ClientID, int BlockerID)
 
 	m_pGameContext->Cosmetics()->DoKnockoutEffect(m_aTrackedPlayers[ClientID].m_ImpactedClientID, pChr->m_Pos);
 
-	{// Send kill msg
+	{ // Send kill msg
 		CNetMsg_Sv_KillMsg Msg;
 		Msg.m_Killer = BlockerID;
 		Msg.m_Victim = ClientID;

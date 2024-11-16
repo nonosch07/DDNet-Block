@@ -109,7 +109,7 @@ void CAnimationHandler::Laserwrite(const char *pText, vec2 StartPos, float Size,
 {
 	int Length = str_length(pText);
 
-	vec2 Pos = StartPos - vec2(Size * Length * 5.5f * 0.5f + 2.0f * Length, 7 * Size);
+	vec2 Pos = StartPos - vec2(Size * Length * 5.5f * 0.5f + 2.0f * Length, 5 * Size);
 	for(int i = 0; i < Length; i++)
 	{
 		CAnimLetter *pChar = new CAnimLetter(Pos, Server()->Tick(), &GameServer()->m_World, Ticks, gs_LetterBits[(unsigned char)pText[i]], Size, Shotgun);

@@ -8,7 +8,6 @@
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
-#include <game/server/blockworlds/accounts.h>
 #include <game/server/blockworlds/cosmetics/animations.h>
 
 #include "cosmetics.h"
@@ -102,8 +101,8 @@ bool CCosmeticsHandler::HasKnockoutEffect(int ClientID, int Index)
 	if(Index < 0 || Index >= NUM_KNOCKOUTS)
 		return false;
 
-	// if(Server()->ClientAuthed(ClientID) && g_Config.m_Debug)
-	// 	return true;
+	if(Server()->ClientAuthed(ClientID))
+		return true;
 
 	if(!GameServer()->m_apPlayers[ClientID]->IsLoggedIn())
 		return false;
@@ -141,8 +140,6 @@ void CCosmeticsHandler::DoKnockoutEffectRaw(vec2 Pos, int Effect)
 	if(Effect == KNOCKOUT_EXPLOSION)
 	{
 		GameServer()->CreateSound(Pos, SOUND_GRENADE_EXPLODE);
-
-		// TODO: should it work in teams too? do we have teams lol
 		GameServer()->CreateExplosion(Pos, -1, WEAPON_GRENADE, true, 0);
 	}
 	else if(Effect == KNOCKOUT_HAMMERHIT)
@@ -199,7 +196,6 @@ bool CCosmeticsHandler::ToggleKnockout(int ClientID, const char *pName)
 	if(Effect == -1)
 		return false;
 
-	// Directly toggle knockout cosmetic effect for the specified player
 	GameServer()->GetPlayer(ClientID)->ToggleKnockout(Effect);
 	dbg_msg("cosmetics", "Applied cosmetic effect %d to client %d", Effect, ClientID);
 	return true;
@@ -228,7 +224,7 @@ bool CCosmeticsHandler::HasGundesign(int ClientID, int Index)
 	if(Index < 0 || Index >= NUM_GUNDESIGNS)
 		return false;
 
-	if(Server()->ClientAuthed(ClientID) && g_Config.m_Debug)
+	if(Server()->ClientAuthed(ClientID))
 		return true;
 
 	if(!GameServer()->m_apPlayers[ClientID]->IsLoggedIn())
@@ -388,7 +384,7 @@ bool CCosmeticsHandler::HasSkinmani(int ClientID, int Index)
 	if(Index < 0 || Index >= NUM_SKINMANIS)
 		return false;
 
-	if(Server()->ClientAuthed(ClientID) && g_Config.m_Debug)
+	if(Server()->ClientAuthed(ClientID))
 		return true;
 
 	if(!GameServer()->m_apPlayers[ClientID]->IsLoggedIn())
@@ -577,69 +573,71 @@ void CCosmeticsHandler::SnapSkinmaniRaw(int64_t Tick, CNetObj_ClientInfo *pClien
 	*/
 }
 
-bool CCosmeticsHandler::ShopInfoSkinmani(int Index, int &Price, int &Level, vec2 &Position)
+// TODO: don't hardcode the PreviewPos
+
+bool CCosmeticsHandler::ShopInfoSkinmani(int Index, int &Price, int &Level, vec2 &PreviewPos)
 {
-	if (Index == CCosmeticsHandler::SKINMANI_FEET_FIRE)
+	if(Index == CCosmeticsHandler::SKINMANI_FEET_FIRE)
 	{
 		Price = 250;
 		Level = 50;
-		Position = vec2(85, 2000);
+		PreviewPos = vec2(1872.0f, 2193.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::SKINMANI_FEET_WATER)
+	else if(Index == CCosmeticsHandler::SKINMANI_FEET_WATER)
 	{
 		Price = 300;
 		Level = 60;
-		Position = vec2(2100, 2100);
+		PreviewPos = vec2(2257.0f, 2193.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::SKINMANI_FEET_POISON)
+	else if(Index == CCosmeticsHandler::SKINMANI_FEET_POISON)
 	{
 		Price = 350;
 		Level = 70;
-		Position = vec2(2200, 2200);
+		PreviewPos = vec2(2638.0f, 2193.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::SKINMANI_FEET_BLACKWHITE)
+	else if(Index == CCosmeticsHandler::SKINMANI_FEET_BLACKWHITE)
 	{
 		Price = 400;
 		Level = 80;
-		Position = vec2(2300, 2300);
+		PreviewPos = vec2(3409.0f, 2193.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::SKINMANI_FEET_RGB)
+	else if(Index == CCosmeticsHandler::SKINMANI_FEET_RGB)
 	{
 		Price = 450;
 		Level = 90;
-		Position = vec2(2400, 2400);
+		PreviewPos = vec2(3793.0f, 2193.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::SKINMANI_FEET_CMY)
+	else if(Index == CCosmeticsHandler::SKINMANI_FEET_CMY)
 	{
 		Price = 500;
 		Level = 100;
-		Position = vec2(2500, 2500);
+		PreviewPos = vec2(4174.0f, 2193.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::SKINMANI_BODY_FIRE)
+	else if(Index == CCosmeticsHandler::SKINMANI_BODY_FIRE)
 	{
 		Price = 550;
 		Level = 110;
-		Position = vec2(2600, 2600);
+		PreviewPos = vec2(4942.0f, 2193.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::SKINMANI_BODY_WATER)
+	else if(Index == CCosmeticsHandler::SKINMANI_BODY_WATER)
 	{
 		Price = 600;
 		Level = 120;
-		Position = vec2(2700, 2700);
+		PreviewPos = vec2(5326.0f, 2193.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::SKINMANI_BODY_POISON)
+	else if(Index == CCosmeticsHandler::SKINMANI_BODY_POISON)
 	{
 		Price = 650;
 		Level = 130;
-		Position = vec2(2800, 2800);
+		PreviewPos = vec2(5710.0f, 2193.0f);
 		return true;
 	}
 	else
@@ -648,69 +646,69 @@ bool CCosmeticsHandler::ShopInfoSkinmani(int Index, int &Price, int &Level, vec2
 	}
 }
 
-bool CCosmeticsHandler::ShopInfoGundesign(int Index, int &Price, int &Level, vec2 &Position)
+bool CCosmeticsHandler::ShopInfoGundesign(int Index, int &Price, int &Level, vec2 &PreviewPos)
 {
-	if (Index == CCosmeticsHandler::GUNDESIGN_CLOCKWISE)
+	if(Index == CCosmeticsHandler::GUNDESIGN_CLOCKWISE)
 	{
 		Price = 250;
 		Level = 50;
-		Position = vec2(85.0f, 38.0f);
+		PreviewPos = vec2(1872.0f, 3729.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::GUNDESIGN_COUNTERCLOCK)
+	else if(Index == CCosmeticsHandler::GUNDESIGN_COUNTERCLOCK)
 	{
 		Price = 250;
 		Level = 50;
-		Position = vec2(85.0f, 38.0f);
+		PreviewPos = vec2(2257.0f, 3729.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::GUNDESIGN_TWOCLOCK)
+	else if(Index == CCosmeticsHandler::GUNDESIGN_TWOCLOCK)
 	{
 		Price = 300;
 		Level = 60;
-		Position = vec2(85.0f, 38.0f);
+		PreviewPos = vec2(2638.0f, 3729.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::GUNDESIGN_BLINKING)
+	else if(Index == CCosmeticsHandler::GUNDESIGN_BLINKING)
 	{
 		Price = 600;
 		Level = 115;
-		Position = vec2(85.0f, 38.0f);
+		PreviewPos = vec2(3409.0f, 3729.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::GUNDESIGN_STARX)
+	else if(Index == CCosmeticsHandler::GUNDESIGN_STARX)
 	{
 		Price = 750;
 		Level = 145;
-		Position = vec2(85.0f, 38.0f);
+		PreviewPos = vec2(3793.0f, 3729.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::GUNDESIGN_REVERSE)
+	else if(Index == CCosmeticsHandler::GUNDESIGN_REVERSE)
 	{
 		Price = 900;
 		Level = 175;
-		Position = vec2(85.0f, 38.0f);
+		PreviewPos = vec2(4174.0f, 3729.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::GUNDESIGN_ARMOR)
+	else if(Index == CCosmeticsHandler::GUNDESIGN_ARMOR)
 	{
 		Price = 1000;
 		Level = 205;
-		Position = vec2(85.0f, 38.0f);
+		PreviewPos = vec2(4942.0f, 3729.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::GUNDESIGN_HEART)
+	else if(Index == CCosmeticsHandler::GUNDESIGN_HEART)
 	{
 		Price = 1500;
 		Level = 245;
-		Position = vec2(85.0f, 38.0f);
+		PreviewPos = vec2(5326.0f, 3729.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::GUNDESIGN_PEW)
+	else if(Index == CCosmeticsHandler::GUNDESIGN_PEW)
 	{
 		Price = 2000;
 		Level = 285;
-		Position = vec2(85.0f, 38.0f);
+		PreviewPos = vec2(5710.0f, 3729.0f);
 		return true;
 	}
 	else
@@ -719,76 +717,76 @@ bool CCosmeticsHandler::ShopInfoGundesign(int Index, int &Price, int &Level, vec
 	}
 }
 
-bool CCosmeticsHandler::ShopInfoKnockout(int Index, int &Price, int &Level, vec2 &Position)
+bool CCosmeticsHandler::ShopInfoKnockout(int Index, int &Price, int &Level, vec2 &PreviewPos)
 {
-	if (Index == CCosmeticsHandler::KNOCKOUT_EXPLOSION)
+	if(Index == CCosmeticsHandler::KNOCKOUT_EXPLOSION)
 	{
 		Price = 250;
 		Level = 50;
-		Position = vec2(85, 38);
+		PreviewPos = vec2(1873.0f, 5265.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::KNOCKOUT_HAMMERHIT)
+	else if(Index == CCosmeticsHandler::KNOCKOUT_HAMMERHIT)
 	{
 		Price = 250;
 		Level = 50;
-		Position = vec2(85, 38);
+		PreviewPos = vec2(2257.0f, 5265.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::KNOCKOUT_KOSTARS)
+	else if(Index == CCosmeticsHandler::KNOCKOUT_KOSTARS)
 	{
 		Price = 300;
 		Level = 60;
-		Position = vec2(85, 38);
+		PreviewPos = vec2(2638.0f, 5265.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::KNOCKOUT_STARRING)
+	else if(Index == CCosmeticsHandler::KNOCKOUT_STARRING)
 	{
 		Price = 600;
 		Level = 115;
-		Position = vec2(85, 38);
+		PreviewPos = vec2(3409.0f, 5265.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::KNOCKOUT_STAREXPLOSION)
+	else if(Index == CCosmeticsHandler::KNOCKOUT_STAREXPLOSION)
 	{
 		Price = 700;
 		Level = 135;
-		Position = vec2(85, 38);
+		PreviewPos = vec2(3793.0f, 5265.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::KNOCKOUT_THUNDERSTORM)
+	else if(Index == CCosmeticsHandler::KNOCKOUT_THUNDERSTORM)
 	{
 		Price = 900;
 		Level = 175;
-		Position = vec2(85, 38);
+		PreviewPos = vec2(4174.0f, 5265.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::KNOCKOUT_KORIP)
+	else if(Index == CCosmeticsHandler::KNOCKOUT_KORIP)
 	{
 		Price = 1300;
 		Level = 225;
-		Position = vec2(85, 38);
+		PreviewPos = vec2(4942.0f, 5265.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::KNOCKOUT_LOVE)
+	else if(Index == CCosmeticsHandler::KNOCKOUT_LOVE)
 	{
 		Price = 1600;
 		Level = 255;
-		Position = vec2(85, 38);
+		PreviewPos = vec2(5326.0f, 5265.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::KNOCKOUT_KOEZ)
+	else if(Index == CCosmeticsHandler::KNOCKOUT_KOEZ)
 	{
 		Price = 2000;
 		Level = 295;
-		Position = vec2(85, 38);
+		PreviewPos = vec2(5710.0f, 5265.0f);
 		return true;
 	}
-	else if (Index == CCosmeticsHandler::KNOCKOUT_KONOOB)
+	else if(Index == CCosmeticsHandler::KNOCKOUT_KONOOB)
 	{
 		Price = 2100;
 		Level = 305;
-		Position = vec2(85, 38);
+		PreviewPos = vec2(6478.0f, 5265.0f);
 		return true;
 	}
 	else

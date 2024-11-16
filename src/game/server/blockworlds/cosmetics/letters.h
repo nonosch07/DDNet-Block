@@ -83,10 +83,10 @@ public:
 						vec2 Pos = GetPos() + vec2(x * m_Size, y * m_Size);
 						pProj->m_X = (int)Pos.x;
 						pProj->m_Y = (int)Pos.y;
-						pProj->m_VelX = (int)(Pos.x * 100.0f);
-						pProj->m_VelY = (int)(Pos.y * 100.0f);
-						pProj->m_StartTick = Server()->Tick() - 5;
-						pProj->m_Type = WEAPON_SHOTGUN;
+						pProj->m_VelX = (int)(Pos.x);
+						pProj->m_VelY = (int)(Pos.y);
+						pProj->m_StartTick = Server()->Tick();
+						pProj->m_Type = WEAPON_HAMMER;
 					}
 				}
 

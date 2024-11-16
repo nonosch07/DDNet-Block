@@ -22,9 +22,8 @@
 #include <game/server/blockworlds/cosmetics/animations.h>
 #include <game/server/blockworlds/cosmetics/cosmetics.h>
 #include <game/server/blockworlds/gameinterface/handler.h>
-#include <game/server/blockworlds/zones/zonemanager.h>
 #include <game/server/blockworlds/shop/preview.h>
-
+#include <game/server/blockworlds/zones/zonemanager.h>
 
 /*
 	Tick

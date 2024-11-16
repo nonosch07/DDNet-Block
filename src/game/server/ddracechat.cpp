@@ -12,8 +12,6 @@
 #include "player.h"
 #include "score.h"
 
-#include <optional>
-
 #include <game/server/blockworlds/accounts.h>
 
 bool CheckClientId(int ClientId);
@@ -22,13 +20,13 @@ void CGameContext::ConTest(IConsole::IResult *pResult, void *pUserData)
 {
 	// CGameContext *pSelf = (CGameContext *)pUserData;
 
-    // int DummyID = pSelf->GetNextClientID();
+	// int DummyID = pSelf->GetNextClientID();
 
 	// // pSelf->m_apPlayers[DummyID] = new(DummyID) CPlayer(pSelf, pSelf->NextUniqueClientId, DummyID, TEAM_RED);
-    // // pSelf->NextUniqueClientId += 1;
-    // // pSelf->OnClientConnected(DummyID, 0);
-    // // pSelf->Server()->BotJoin(DummyID, "");
-    // // pSelf->m_apPlayers[DummyID]->m_IsNpc = true;
+	// // pSelf->NextUniqueClientId += 1;
+	// // pSelf->OnClientConnected(DummyID, 0);
+	// // pSelf->Server()->BotJoin(DummyID, "");
+	// // pSelf->m_apPlayers[DummyID]->m_IsNpc = true;
 
 	// pSelf->ShopPreview()->OnInit(pSelf);
 }

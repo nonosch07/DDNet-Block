@@ -36,8 +36,8 @@
 #include "score.h"
 
 #include <game/server/blockworlds/gameinterface/handler.h>
-#include <game/server/blockworlds/zones/zonemanager.h>
 #include <game/server/blockworlds/shop/preview.h>
+#include <game/server/blockworlds/zones/zonemanager.h>
 
 // Not thread-safe!
 class CClientChatLogger : public ILogger
@@ -161,12 +161,12 @@ void CGameContext::Destruct(int Resetting)
 	}
 }
 
-CGameContext::CGameContext() : m_ShopPreview(this) // what is this xd
+CGameContext::CGameContext() // what is this xd
 {
 	Construct(NO_RESET);
 }
 
-CGameContext::CGameContext(int Reset) : m_ShopPreview(this)
+CGameContext::CGameContext(int Reset)
 {
 	Construct(Reset);
 }
@@ -1059,7 +1059,8 @@ void CGameContext::OnTick()
 	m_pController->Tick();
 	m_Animations.Tick();
 	m_ZoneManager.Tick();
-	m_ShopPreview.Tick();
+	if (g_Config.m_SvShopServer)
+		m_ShopPreview.Tick();
 	// m_GameInterfaceHandler.Tick();
 
 	for(int i = 0; i < MAX_CLIENTS; i++)
@@ -4064,7 +4065,8 @@ void CGameContext::OnInit(const void *pPersistentData)
 	m_Animations.Init(this);
 	m_CosmeticsHandler.Init(this);
 	m_ZoneManager.Init(this);
-	m_ShopPreview.Init(this);
+	if (g_Config.m_SvShopServer)
+		m_ShopPreview.Init(this);
 	// m_GameInterfaceHandler.Init(this);
 }
 

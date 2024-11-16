@@ -1,28 +1,23 @@
 #ifndef GAME_SERVER_BLOCKWORLDS_COSMETICS_HANDLER_H
 #define GAME_SERVER_BLOCKWORLDS_COSMETICS_HANDLER_H
 
-#include "game/server/blockworlds/accounts.h"
-#include <base/vmath.h>
+#include "base/vmath.h"
 #include <engine/server.h>
 
 class CGameContext;
-class CGameWorld;
-class CAccounts;
 
 class CCosmeticsHandler
 {
 	CGameContext *m_pGameServer;
-	CAccounts *m_pAccounts;
 	IServer *m_pServer;
 
 	CGameContext *GameServer() const { return m_pGameServer; }
 	IServer *Server() const { return m_pServer; }
 
-	CAccounts *Accounts() const { return m_pAccounts; }
 
 public:
 	enum
-	{ // Maximum sizeof(m_aKnockouts)/sizeof(char) = 256
+	{
 		KNOCKOUT_EXPLOSION = 0,
 		KNOCKOUT_HAMMERHIT,
 		KNOCKOUT_KOSTARS,
@@ -98,9 +93,9 @@ public:
 	void SnapSkinmani(int ClientID, int64_t Tick, CNetObj_ClientInfo *pClientInfo);
 	void SnapSkinmaniRaw(int64_t Tick, CNetObj_ClientInfo *pClientInfo, int Effect, int ClientID = -1);
 
-	bool ShopInfoSkinmani(int Index, int &Price, int &Level, vec2 &Position);
-	bool ShopInfoKnockout(int Index, int &Price, int &Level, vec2 &Position);
-	bool ShopInfoGundesign(int Index, int &Price, int &Level, vec2 &Position);
+	bool ShopInfoSkinmani(int Index, int &Price, int &Level, vec2 &PreviewPos);
+	bool ShopInfoKnockout(int Index, int &Price, int &Level, vec2 &PreviewPos);
+	bool ShopInfoGundesign(int Index, int &Price, int &Level, vec2 &PreviewPos);
 };
 
 #endif
