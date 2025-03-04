@@ -4,6 +4,7 @@
 #include <game/server/player.h>
 
 #include "accounts.h"
+#include "engine/shared/config.h"
 
 // Credits: Strongly inspired by ChillerDragon's account system.
 
@@ -121,7 +122,7 @@ void CAccounts::ExecUserThread(
 	auto pResult = NewSqlAccountResult(ClientId);
 	if(pResult == nullptr)
 		return;
-	auto Tmp = std::make_unique<CSqlAccountRequest>(pResult);
+	auto Tmp = std::make_unique<CSqlAccountRequest>(pResult, m_pGameServer);
 	Tmp->m_ClientId = ClientId;
 	str_copy(Tmp->m_aUsername, pUsername, sizeof(Tmp->m_aUsername));
 	str_copy(Tmp->m_aPassword, pPassword, sizeof(Tmp->m_aPassword));
@@ -138,6 +139,17 @@ void CAccounts::ExecUserThread(
 	m_pPool->Execute(pFuncPtr, std::move(Tmp), pThreadName);
 }
 
+bool CAccounts::RateLimitPlayer(int ClientId)
+{
+	CPlayer *pPlayer = GameServer()->m_apPlayers[ClientId];
+	if(pPlayer == 0)
+		return true;
+	if(pPlayer->m_LastSqlQuery + (int64_t)g_Config.m_SvSqlQueriesDelay * Server()->TickSpeed() >= Server()->Tick())
+		return true;
+	pPlayer->m_LastSqlQuery = Server()->Tick();
+	return false;
+}
+
 void CAccounts::Save(int ClientId, CAccountData *pAccountData)
 {
 	ExecUserThread(SaveThread, "save user", ClientId, "", "", "", 0, pAccountData);
@@ -152,9 +164,9 @@ bool CAccounts::SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData,
 	char aBuf[2048];
 	str_copy(aBuf,
 		"UPDATE Accounts SET "
-		"address = ?, is_logged_in = ?, vip = ?, pages = ?, level = ?, experience = ?, weaponkits = ?, ranking = ?,"
-		"blockpoints = ?, knockouts = ?, gundesign = ?, skinmani = ?, extras = ?, ranked_games = ?,"
-		"ranked_kills = ?, ranked_deaths = ?, ranked_wins = ?, kills = ?, deaths = ?, tourney_win = ?, playtime = ?, killstreak = ?,"
+		"address = ?, is_logged_in = ?, vip = ?, pages = ?, level = ?, experience = ?, weaponkits = ?, ranking = ?, "
+		"clanID = ?, auth_level = ?, blockpoints = ?, knockouts = ?, gundesign = ?, skinmani = ?, extras = ?, ranked_games = ?, "
+		"ranked_kills = ?, ranked_deaths = ?, ranked_wins = ?, kills = ?, deaths = ?, tourney_win = ?, playtime = ?, killstreak = ?, "
 		"last_name = ?, last_skin = ?, last_body_color = ?, last_feet_color = ? "
 		"WHERE id = ?;",
 		sizeof(aBuf));
@@ -167,36 +179,46 @@ bool CAccounts::SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData,
 
 	const CAccountData *pAcc = &pData->m_AccountData;
 	int Index = 1;
-	pSqlServer->BindString(Index++, pAcc->m_aAddress);
-	pSqlServer->BindInt(Index++, pAcc->m_IsLoggedIn);
-	pSqlServer->BindInt(Index++, pAcc->m_Vip);
-	pSqlServer->BindInt(Index++, pAcc->m_Pages);
-	pSqlServer->BindInt(Index++, pAcc->m_Level);
-	pSqlServer->BindInt(Index++, pAcc->m_Experience);
-	pSqlServer->BindInt(Index++, pAcc->m_Weaponkits);
-	pSqlServer->BindInt(Index++, pAcc->m_Ranking);
-	pSqlServer->BindInt(Index++, pAcc->m_Blockpoints);
-	pSqlServer->BindString(Index++, pAcc->m_aKnockouts);
-	pSqlServer->BindString(Index++, pAcc->m_aGundesign);
-	pSqlServer->BindString(Index++, pAcc->m_aSkinmani);
-	pSqlServer->BindString(Index++, pAcc->m_aExtras);
-	pSqlServer->BindInt(Index++, pAcc->m_RankedGames);
-	pSqlServer->BindInt(Index++, pAcc->m_RankedKills);
-	pSqlServer->BindInt(Index++, pAcc->m_RankedDeaths);
-	pSqlServer->BindInt(Index++, pAcc->m_RankedWins);
-	pSqlServer->BindInt(Index++, pAcc->m_Kills);
-	pSqlServer->BindInt(Index++, pAcc->m_Deaths);
-	pSqlServer->BindInt(Index++, pAcc->m_TourneyWin);
-	pSqlServer->BindInt64(Index++, pAcc->m_Playtime);
-	pSqlServer->BindInt(Index++, pAcc->m_Killstreak);
-	pSqlServer->BindString(Index++, pAcc->m_aLastName);
-	pSqlServer->BindString(Index++, pAcc->m_aLastSkin);
-	pSqlServer->BindInt(Index++, pAcc->m_LastBodyColor);
-	pSqlServer->BindInt(Index++, pAcc->m_LastFeetColor);
-	pSqlServer->BindInt(Index++, pAcc->m_Id);
 
-	int NumUpdated;
+#define BIND_STRING(dest) pSqlServer->BindString(Index++, dest)
+#define BIND_INT(dest) pSqlServer->BindInt(Index++, dest)
+#define BIND_INT64(dest) pSqlServer->BindInt64(Index++, dest)
 
+	BIND_STRING(pAcc->m_aAddress);
+	BIND_INT(pAcc->m_IsLoggedIn);
+	BIND_INT(pAcc->m_Vip);
+	BIND_INT(pAcc->m_Pages);
+	BIND_INT(pAcc->m_Level);
+	BIND_INT(pAcc->m_Experience);
+	BIND_INT(pAcc->m_Weaponkits);
+	BIND_INT(pAcc->m_Ranking);
+	BIND_INT(pAcc->m_ClanId);
+	BIND_INT(pAcc->m_AuthLevel);
+	BIND_INT(pAcc->m_Blockpoints);
+	BIND_STRING(pAcc->m_aKnockouts);
+	BIND_STRING(pAcc->m_aGundesign);
+	BIND_STRING(pAcc->m_aSkinmani);
+	BIND_STRING(pAcc->m_aExtras);
+	BIND_INT(pAcc->m_RankedGames);
+	BIND_INT(pAcc->m_RankedKills);
+	BIND_INT(pAcc->m_RankedDeaths);
+	BIND_INT(pAcc->m_RankedWins);
+	BIND_INT(pAcc->m_Kills);
+	BIND_INT(pAcc->m_Deaths);
+	BIND_INT(pAcc->m_TourneyWin);
+	BIND_INT64(pAcc->m_Playtime);
+	BIND_INT(pAcc->m_Killstreak);
+	BIND_STRING(pAcc->m_aLastName);
+	BIND_STRING(pAcc->m_aLastSkin);
+	BIND_INT(pAcc->m_LastBodyColor);
+	BIND_INT(pAcc->m_LastFeetColor);
+	BIND_INT(pAcc->m_Id);
+
+#undef BIND_STRING
+#undef BIND_INT
+#undef BIND_INT64
+
+	int NumUpdated = 0;
 	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
 	{
 		return true;
@@ -206,6 +228,8 @@ bool CAccounts::SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData,
 
 void CAccounts::Login(int ClientId, const char *pUsername, const char *pPassword)
 {
+	if(RateLimitPlayer(ClientId))
+		return;
 	ExecUserThread(LoginThread, "login user", ClientId, pUsername, pPassword, "", 0, NULL);
 }
 
@@ -214,7 +238,6 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 	const CSqlAccountRequest *pRequestData = dynamic_cast<const CSqlAccountRequest *>(pGameData);
 	CAccountResult *pResult = dynamic_cast<CAccountResult *>(pGameData->m_pResult.get());
 
-	// Hash the input password
 	SHA256_DIGEST HashedPassword = CGameContext::HashPassword(pRequestData->m_aPassword);
 	char aHashedPassword[SHA256_DIGEST_LENGTH * 2 + 1];
 	for(int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
@@ -224,7 +247,7 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 	str_copy(aBuf,
 		"SELECT "
 		"id, name, password, address, is_logged_in, vip, pages, level, experience, weaponkits, ranking, "
-		"clan, blockpoints, knockouts, gundesign, skinmani, extras, registerdate, ranked_games, "
+		"clanID, auth_level, blockpoints, knockouts, gundesign, skinmani, extras, registerdate, ranked_games, "
 		"ranked_kills, ranked_deaths, ranked_wins, kills, deaths, tourney_win, playtime, killstreak, "
 		"last_name, last_skin, last_body_color, last_feet_color "
 		"FROM Accounts "
@@ -247,58 +270,72 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 
 	if(!End)
 	{
-		if(pSqlServer->GetInt(5)) // IsLoggedIn
+		if(pSqlServer->GetInt(5)) // is_logged_in column.
 		{
 			pResult->SetVariant(CAccountResult::LOGGED_IN_ALREADY);
 			pResult->m_Account.m_Id = pSqlServer->GetInt(1);
 			return false;
 		}
+
 		pResult->SetVariant(CAccountResult::LOGIN_INFO);
-		pResult->m_Account.m_Id = pSqlServer->GetInt(1); // id
-		pSqlServer->GetString(2, pResult->m_Account.m_aName, sizeof(pResult->m_Account.m_aName)); // name
-		pSqlServer->GetString(3, pResult->m_Account.m_aPassword, sizeof(pResult->m_Account.m_aPassword)); // password
-		pSqlServer->GetString(4, pResult->m_Account.m_aAddress, sizeof(pResult->m_Account.m_aAddress)); // address
-		pResult->m_Account.m_IsLoggedIn = pSqlServer->GetInt(5); // is_logged_in
-		pResult->m_Account.m_Vip = pSqlServer->GetInt(6); // vip
-		pResult->m_Account.m_Pages = pSqlServer->GetInt(7); // pages
-		pResult->m_Account.m_Level = pSqlServer->GetInt(8); // level
-		pResult->m_Account.m_Experience = pSqlServer->GetInt(9); // experience
-		pResult->m_Account.m_Weaponkits = pSqlServer->GetInt(10); // weaponkits
-		pResult->m_Account.m_Ranking = pSqlServer->GetInt(11); // ranking
 
-		char aClan[32];
-		if(pSqlServer->IsNull(12))
+#define SQL_GET_INT(idx, dest) dest = pSqlServer->GetInt(idx)
+#define SQL_GET_INT64(idx, dest) dest = pSqlServer->GetInt64(idx)
+#define SQL_GET_STRING(idx, dest) pSqlServer->GetString(idx, dest, sizeof(dest))
+
+		SQL_GET_INT(1, pResult->m_Account.m_Id);
+		SQL_GET_STRING(2, pResult->m_Account.m_aName);
+		SQL_GET_STRING(3, pResult->m_Account.m_aPassword);
+		SQL_GET_STRING(4, pResult->m_Account.m_aAddress);
+		SQL_GET_INT(5, pResult->m_Account.m_IsLoggedIn);
+		SQL_GET_INT(6, pResult->m_Account.m_Vip);
+		SQL_GET_INT(7, pResult->m_Account.m_Pages);
+		SQL_GET_INT(8, pResult->m_Account.m_Level);
+		SQL_GET_INT(9, pResult->m_Account.m_Experience);
+		SQL_GET_INT(10, pResult->m_Account.m_Weaponkits);
+		SQL_GET_INT(11, pResult->m_Account.m_Ranking);
+		SQL_GET_INT(12, pResult->m_Account.m_ClanId);
+		SQL_GET_INT(13, pResult->m_Account.m_AuthLevel);
+		SQL_GET_INT(14, pResult->m_Account.m_Blockpoints);
+		SQL_GET_STRING(15, pResult->m_Account.m_aKnockouts);
+		SQL_GET_STRING(16, pResult->m_Account.m_aGundesign);
+		SQL_GET_STRING(17, pResult->m_Account.m_aSkinmani);
+		SQL_GET_STRING(18, pResult->m_Account.m_aExtras);
+		SQL_GET_STRING(19, pResult->m_Account.m_RegisterDate);
+		SQL_GET_INT(20, pResult->m_Account.m_RankedGames);
+		SQL_GET_INT(21, pResult->m_Account.m_RankedKills);
+		SQL_GET_INT(22, pResult->m_Account.m_RankedDeaths);
+		SQL_GET_INT(23, pResult->m_Account.m_RankedWins);
+		SQL_GET_INT(24, pResult->m_Account.m_Kills);
+		SQL_GET_INT(25, pResult->m_Account.m_Deaths);
+		SQL_GET_INT(26, pResult->m_Account.m_TourneyWin);
+		SQL_GET_INT64(27, pResult->m_Account.m_Playtime);
+		SQL_GET_INT(28, pResult->m_Account.m_Killstreak);
+		SQL_GET_STRING(29, pResult->m_Account.m_aLastName);
+		SQL_GET_STRING(30, pResult->m_Account.m_aLastSkin);
+		SQL_GET_INT(31, pResult->m_Account.m_LastBodyColor);
+		SQL_GET_INT(32, pResult->m_Account.m_LastFeetColor);
+
+#undef SQL_GET_INT
+#undef SQL_GET_INT64
+#undef SQL_GET_STRING
+
+		pResult->m_Account.m_pClanData = nullptr;
+		if(pResult->m_Account.m_ClanId > 0)
 		{
-			pResult->m_Account.m_aClan[0] = '\0';
-		}
-		else
-		{
-			pSqlServer->GetString(12, aClan, sizeof(aClan));
-			strncpy(pResult->m_Account.m_aClan, aClan, sizeof(pResult->m_Account.m_aClan));
-			pResult->m_Account.m_aClan[sizeof(pResult->m_Account.m_aClan) - 1] = '\0';
+			CGameContext *pGameContext = pRequestData->m_pGameContext;
+			const std::vector<CClansData> &vClans = pGameContext->Clans()->GetClansData();
+			for(const CClansData &Clan : vClans)
+			{
+				if(Clan.m_Id == pResult->m_Account.m_ClanId)
+				{
+					pResult->m_Account.m_pClanData = &Clan;
+					break;
+				}
+			}
 		}
 
-		pResult->m_Account.m_Blockpoints = pSqlServer->GetInt(13); // blockpoints
-		pSqlServer->GetString(14, pResult->m_Account.m_aKnockouts, sizeof(pResult->m_Account.m_aKnockouts)); // knockouts
-		pSqlServer->GetString(15, pResult->m_Account.m_aGundesign, sizeof(pResult->m_Account.m_aGundesign)); // gundesign
-		pSqlServer->GetString(16, pResult->m_Account.m_aSkinmani, sizeof(pResult->m_Account.m_aSkinmani)); // skinmani
-		pSqlServer->GetString(17, pResult->m_Account.m_aExtras, sizeof(pResult->m_Account.m_aExtras)); // extras
-		pSqlServer->GetString(18, pResult->m_Account.m_RegisterDate, sizeof(pResult->m_Account.m_RegisterDate)); // registerdate
-		pResult->m_Account.m_RankedGames = pSqlServer->GetInt(19); // ranked_games
-		pResult->m_Account.m_RankedKills = pSqlServer->GetInt(20); // ranked_kills
-		pResult->m_Account.m_RankedDeaths = pSqlServer->GetInt(21); // ranked_deaths
-		pResult->m_Account.m_RankedWins = pSqlServer->GetInt(22); // ranked_wins
-		pResult->m_Account.m_Kills = pSqlServer->GetInt(23); // kills
-		pResult->m_Account.m_Deaths = pSqlServer->GetInt(24); // deaths
-		pResult->m_Account.m_TourneyWin = pSqlServer->GetInt(25); // tourney_win
-		pResult->m_Account.m_Playtime = pSqlServer->GetInt64(26); // playtime
-		pResult->m_Account.m_Killstreak = pSqlServer->GetInt(27); // killstreak
-		pSqlServer->GetString(28, pResult->m_Account.m_aLastName, sizeof(pResult->m_Account.m_aLastName)); // last_name
-		pSqlServer->GetString(29, pResult->m_Account.m_aLastSkin, sizeof(pResult->m_Account.m_aLastSkin)); // last_skin
-		pResult->m_Account.m_LastBodyColor = pSqlServer->GetInt(30); // last_body_color
-		pResult->m_Account.m_LastFeetColor = pSqlServer->GetInt(31); // last_feet_color
-
-		dbg_msg("clandata", "%s", pResult->m_Account.m_aClan);
+		dbg_msg("clandata", "ClanID: %d", pResult->m_Account.m_ClanId);
 	}
 	else
 	{
@@ -341,6 +378,8 @@ bool CAccounts::ExecuteSqlThread(IDbConnection *pSqlServer, const ISqlData *pGam
 
 void CAccounts::Register(int ClientId, const char *pUsername, const char *pPassword)
 {
+	if(RateLimitPlayer(ClientId))
+		return;
 	ExecUserThread(RegisterThread, "register user", ClientId, pUsername, pPassword, "", 0, NULL);
 }
 
@@ -419,18 +458,15 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 
 void CAccounts::SetLoggedIn(int ClientId, int LoggedIn, int AccountId)
 {
-	auto Tmp = std::make_unique<CSqlSetLoginData>();
-	Tmp->m_LoggedIn = LoggedIn;
-	Tmp->m_AccountId = AccountId;
+	dbg_msg("account", "ClientId=%d, LoggedIn=%d, AccountId=%d - Executing SetLoggedInThread via AdminThread", ClientId, LoggedIn, AccountId);
 
-	dbg_msg("account", "ClientId=%d, LoggedIn=%d, AccountId=%d - Executing SetLoggedInThread", ClientId, LoggedIn, AccountId);
-
-	m_pPool->ExecuteWrite(SetLoggedInThread, std::move(Tmp), "set logged in");
+	ExecAdminThread(SetLoggedInThread, "set logged in", ClientId, AccountId, LoggedIn,
+		CAdminCommandResult::LOG_ONLY, "", "", "");
 }
 
-bool CAccounts::SetLoggedInThread(IDbConnection *pSqlServer, const ISqlData *pGameData, Write w, char *pError, int ErrorSize)
+bool CAccounts::SetLoggedInThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
 {
-	const CSqlSetLoginData *pData = dynamic_cast<const CSqlSetLoginData *>(pGameData);
+	const CSqlAdminCommandRequest *pData = dynamic_cast<const CSqlAdminCommandRequest *>(pGameData);
 	if(!pData)
 	{
 		str_copy(pError, "Invalid data type.", ErrorSize);
@@ -439,42 +475,34 @@ bool CAccounts::SetLoggedInThread(IDbConnection *pSqlServer, const ISqlData *pGa
 	}
 
 	char aBuf[512];
+	str_copy(aBuf, "UPDATE Accounts SET is_logged_in = ? WHERE id = ?;", sizeof(aBuf));
 
-	if(w == Write::NORMAL)
+	dbg_msg("sql", "SetLoggedInThread: Preparing statement: %s", aBuf);
+
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
-		snprintf(aBuf, sizeof(aBuf), "UPDATE Accounts SET is_logged_in = ? WHERE id = ?;");
-
-		dbg_msg("sql", "SetLoggedInThread: Preparing statement: %s", aBuf);
-
-		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
-		{
-			str_copy(pError, "Failed to prepare UPDATE statement.", ErrorSize);
-			dbg_msg("sql", "SetLoggedInThread: Failed to prepare UPDATE statement: %s", pError);
-			return true;
-		}
-
-		pSqlServer->BindInt(1, pData->m_LoggedIn);
-		pSqlServer->BindInt(2, pData->m_AccountId);
-
-		dbg_msg("sql", "SetLoggedInThread: Bound parameters - LoggedIn=%d, AccountId=%d", pData->m_LoggedIn, pData->m_AccountId);
-
-		int NumUpdated;
-		if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
-		{
-			return true;
-		}
-		return false;
+		str_copy(pError, "Failed to prepare UPDATE statement.", ErrorSize);
+		dbg_msg("sql", "SetLoggedInThread: Failed to prepare UPDATE statement: %s", pError);
+		return true;
 	}
-	else if(w == Write::NORMAL_FAILED)
+
+	pSqlServer->BindInt(1, pData->m_State);
+	pSqlServer->BindInt(2, pData->m_TargetAccountId);
+
+	dbg_msg("sql", "SetLoggedInThread: Bound parameters - LoggedIn=%d, AccountId=%d", pData->m_State, pData->m_TargetAccountId);
+
+	int NumUpdated;
+	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
 	{
-		dbg_msg("sql", "SetLoggedInThread: Write::NORMAL_FAILED state reached.");
-		return false;
+		return true;
 	}
 	return false;
 }
 
 void CAccounts::ChangePassword(int ClientId, const char *pUsername, const char *pOldPassword, const char *pNewPassword)
 {
+	if(RateLimitPlayer(ClientId))
+		return;
 	ExecUserThread(ChangePasswordThread, "change password", ClientId, pUsername, pOldPassword, pNewPassword, 0, NULL);
 }
 
@@ -555,6 +583,8 @@ bool CAccounts::ChangePasswordThread(IDbConnection *pSqlServer, const ISqlData *
 
 void CAccounts::ShowTopLevel(int ClientId)
 {
+	if(RateLimitPlayer(ClientId))
+		return;
 	ExecUserThread(ShowTopLevelThread, "show top level thread", ClientId, "", "", "", 0, NULL);
 }
 
@@ -629,6 +659,8 @@ bool CAccounts::ShowTopLevelThread(IDbConnection *pSqlServer, const ISqlData *pG
 
 void CAccounts::ShowTopBlockpoints(int ClientId)
 {
+	if(RateLimitPlayer(ClientId))
+		return;
 	ExecUserThread(ShowTopBlockpointsThread, "show top blockpoints thread", ClientId, "", "", "", 0, NULL);
 }
 
@@ -704,6 +736,8 @@ bool CAccounts::ShowTopBlockpointsThread(IDbConnection *pSqlServer, const ISqlDa
 
 void CAccounts::ShowTopKillStreak(int ClientId)
 {
+	if(RateLimitPlayer(ClientId))
+		return;
 	ExecUserThread(ShowTopKillStreaksThread, "show top killstreak thread", ClientId, "", "", "", 0, NULL);
 }
 
@@ -756,7 +790,6 @@ bool CAccounts::ShowTopKillStreaksThread(IDbConnection *pSqlServer, const ISqlDa
 			break;
 	}
 
-	// just in case no results were found
 	if(Line == 1)
 	{
 		str_copy(pResult->m_aaMessages[Line], "No players found.", sizeof(pResult->m_aaMessages[Line]));

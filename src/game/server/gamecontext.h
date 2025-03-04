@@ -67,6 +67,7 @@ struct CAntibotRoundData;
 struct CScoreRandomMapResult;
 
 class CAccounts;
+class CClanManager;
 class CZoneManager;
 class CShopPreview;
 
@@ -385,7 +386,7 @@ public:
 
 	std::shared_ptr<CScoreRandomMapResult> m_SqlRandomMapResult;
 
-	uint32_t NextUniqueClientId = 1;
+	uint32_t m_NextUniqueClientId = 1;
 
 private:
 	// starting 1 to make 0 the special value "no client id"
@@ -628,7 +629,9 @@ public:
 	CPlayer *GetPlayerByName(const char *pName);
 	CPlayer *GetPlayer(int ClientID);
 	static SHA256_DIGEST HashPassword(const char *pPassword);
+
 	CAccounts *Accounts() { return m_pAccounts; }
+	CClanManager *Clans() { return m_pClans; }
 
 	CZoneManager *ZoneManager() { return &m_ZoneManager; }
 
@@ -636,8 +639,12 @@ public:
 
 	int GetNextClientID();
 
+	void ForceResetLoginState();
+
 private:
 	CAccounts *m_pAccounts;
+	CClanManager *m_pClans;
+
 	CZoneManager m_ZoneManager;
 	CShopPreview m_ShopPreview;
 
@@ -653,6 +660,7 @@ private:
 
 	static void ConDisplayBlockpoints(IConsole::IResult *pResult, void *pUserData);
 	static void ConDisplayProfile(IConsole::IResult *pResult, void *pUserData);
+	static void ConDisplayClanProfile(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConDeathnote(IConsole::IResult *pResult, void *pUserData);
 	static void ConWeaponKit(IConsole::IResult *pResult, void *pUserData);
@@ -664,6 +672,18 @@ private:
 	static void ConCosmetics(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConTest(IConsole::IResult *pResult, void *pUserData);
+
+	static void ConClanCreate(IConsole::IResult *pResult, void *pUserData);
+	static void ConClanDelete(IConsole::IResult *pResult, void *pUserData);
+	static void ConClanLeave(IConsole::IResult *pResult, void *pUserData);
+	static void ConClanRemove(IConsole::IResult *pResult, void *pUserData);
+	static void ConClanSetAuth(IConsole::IResult *pResult, void *pUserData);
+	static void ConClanAssign(IConsole::IResult *pResult, void *pUserData);
+	static void ConClanRename(IConsole::IResult *pResult, void *pUserData);
+
+	static void ConClanInvite(IConsole::IResult *pResult, void *pUserData);
+	static void ConClanAccept(IConsole::IResult *pResult, void *pUserData);
+	static void ConClanDecline(IConsole::IResult *pResult, void *pUserData);
 };
 
 #endif

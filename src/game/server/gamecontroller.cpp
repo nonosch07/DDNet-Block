@@ -422,6 +422,7 @@ void IGameController::OnPlayerConnect(CPlayer *pPlayer)
 
 void IGameController::OnPlayerDisconnect(class CPlayer *pPlayer, const char *pReason)
 {
+	pPlayer->OnPlayerSave(0);
 	pPlayer->OnDisconnect();
 	int ClientId = pPlayer->GetCid();
 	if(Server()->ClientIngame(ClientId))

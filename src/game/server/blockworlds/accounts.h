@@ -1,5 +1,5 @@
-#ifndef GAME_SERVER_DDPP_ACCOUNTS_H
-#define GAME_SERVER_DDPP_ACCOUNTS_H
+#ifndef GAME_SERVER_BLOCKWORLDS_ACCOUNTS_H
+#define GAME_SERVER_BLOCKWORLDS_ACCOUNTS_H
 
 #include <array>
 #include <cstdint>
@@ -14,6 +14,8 @@
 #include <game/voting.h>
 
 #include <game/server/gamecontext.h>
+
+#include "clans.h"
 
 struct ISqlData;
 class IDbConnection;
@@ -45,7 +47,7 @@ struct CAccountData
 		m_Experience = 0;
 		m_Weaponkits = 0;
 		m_Ranking = 0;
-		m_aClan[0] = '\0';
+		m_ClanId = 0;
 		m_Blockpoints = 0;
 		m_aKnockouts[0] = '\0';
 		m_aGundesign[0] = '\0';
@@ -81,7 +83,8 @@ struct CAccountData
 	int m_Experience;
 	int m_Weaponkits;
 	int m_Ranking;
-	char m_aClan[15];
+	int m_ClanId;
+	int m_AuthLevel;
 	int m_Blockpoints;
 	char m_aKnockouts[256];
 	char m_aGundesign[256];
@@ -101,6 +104,8 @@ struct CAccountData
 	char m_aLastSkin[32];
 	int m_LastBodyColor;
 	int m_LastFeetColor;
+
+	const CClansData *m_pClanData;
 };
 
 struct CAdminCommandResult : ISqlResult
@@ -142,28 +147,26 @@ struct CAccountResult : ISqlResult
 
 	enum
 	{
-		MAX_MESSAGES = 11, // tops' header + 10 results
+		MAX_MESSAGES = 11,
 	};
 
-	// Message variants
 	enum Variant
 	{
-		DIRECT, // Direct message to the player
-		ALL, // Message to all players
-		BROADCAST, // Broadcast message
-		LOGGED_IN_ALREADY, // Player already logged in
-		LOGIN_WRONG_PASS, // Incorrect login credentials
-		LOGIN_INFO, // Information to be shown after login
-		REGISTER, // Registration messages
-		LOG_ONLY, // Log message (debugging purposes)
-		TOP_MESSAGES // for top-level messages
+		DIRECT,
+		ALL,
+		BROADCAST,
+		LOGGED_IN_ALREADY,
+		LOGIN_WRONG_PASS,
+		LOGIN_INFO,
+		REGISTER,
+		LOG_ONLY,
+		TOP_MESSAGES
 	} m_MessageKind;
 
-	char m_aaMessages[MAX_MESSAGES][512]; // Array to store messages
-	char m_aBroadcast[1024]; // Broadcast message buffer
-	CAccountData m_Account; // Account information
+	char m_aaMessages[MAX_MESSAGES][512];
+	char m_aBroadcast[1024];
+	CAccountData m_Account;
 
-	// Set the message type variant
 	void SetVariant(Variant v)
 	{
 		m_MessageKind = v;
@@ -172,26 +175,24 @@ struct CAccountResult : ISqlResult
 		case REGISTER:
 		case DIRECT:
 		case ALL:
-		case TOP_MESSAGES: // Add TOP_MESSAGES to this case to reset the message array
+		case TOP_MESSAGES:
 			for(auto &aMessage : m_aaMessages)
-				aMessage[0] = 0; // Reset each message to an empty string
+				aMessage[0] = 0;
 			break;
 
 		case BROADCAST:
-			m_aBroadcast[0] = 0; // Reset the broadcast message
+			m_aBroadcast[0] = 0;
 			break;
 
 		case LOGGED_IN_ALREADY:
-			// No specific reset needed for this case
 			break;
 
 		case LOGIN_WRONG_PASS:
 		case LOGIN_INFO:
-			m_Account = CAccountData(); // Reset account data for login-related cases
+			m_Account = CAccountData();
 			break;
 
 		case LOG_ONLY:
-			// No specific reset needed for this case
 			break;
 		}
 	}
@@ -199,17 +200,18 @@ struct CAccountResult : ISqlResult
 
 struct CSqlAccountRequest : ISqlData
 {
-	CSqlAccountRequest(std::shared_ptr<CAccountResult> pResult) :
-		ISqlData(std::move(pResult))
+	CSqlAccountRequest(std::shared_ptr<CAccountResult> pResult, CGameContext *pGameContext) :
+		ISqlData(std::move(pResult)), m_pGameContext(pGameContext)
 	{
 	}
+
+	CGameContext *m_pGameContext;
 
 	CAccountData m_AccountData;
 	char m_aUsername[64];
 	char m_aPassword[64];
 	char m_aNewPassword[64];
-
-	char m_aClanName[15];
+	char m_aClanName[11];
 	char m_AccountID;
 	int m_ClientId;
 };
@@ -281,6 +283,8 @@ class CAccounts
 	CGameContext *m_pGameServer;
 	IServer *m_pServer;
 
+	bool RateLimitPlayer(int ClientId);
+
 	// per player queries user
 
 	// Accounts
@@ -294,7 +298,7 @@ class CAccounts
 	static bool ShowTopKillStreaksThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 
 	// non ratelimited server side queries
-	static bool SetLoggedInThread(IDbConnection *pSqlServer, const ISqlData *pGameData, Write w, char *pError, int ErrorSize);
+	static bool SetLoggedInThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool LogoutUsernameThread(IDbConnection *pSqlServer, const ISqlData *pGameData, Write w, char *pError, int ErrorSize);
 	static bool ExecuteSqlThread(IDbConnection *pSqlServer, const ISqlData *pGameData, Write w, char *pError, int ErrorSize);
 

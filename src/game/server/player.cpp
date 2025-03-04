@@ -16,6 +16,7 @@
 #include <game/teamscore.h>
 
 #include <game/server/blockworlds/accounts.h>
+#include <game/server/blockworlds/clans.h>
 #include <game/server/blockworlds/cosmetics/animations.h>
 #include <game/server/blockworlds/cosmetics/cosmetics.h>
 
@@ -184,13 +185,19 @@ void CPlayer::Tick()
 
 	if(m_AccountQueryResult != nullptr && m_AccountQueryResult->m_Completed)
 	{
-		BWProcessScoreResult(*m_AccountQueryResult);
+		BWProcessAccountsResult(*m_AccountQueryResult);
 		m_AccountQueryResult = nullptr;
 	}
 	if(m_AdminCommandQueryResult != nullptr && m_AdminCommandQueryResult->m_Completed)
 	{
 		BWProcessAdminCommandResult(*m_AdminCommandQueryResult);
 		m_AdminCommandQueryResult = nullptr;
+	}
+
+	if(m_ClanQueryResult != nullptr && m_ClanQueryResult->m_Completed)
+	{
+		BWProcessClansResult(*m_ClanQueryResult);
+		m_ClanQueryResult = nullptr;
 	}
 
 	if(!Server()->ClientIngame(m_ClientId))
@@ -340,7 +347,26 @@ void CPlayer::Snap(int SnappingClient)
 		return;
 
 	StrToInts(&pClientInfo->m_Name0, 4, Server()->ClientName(m_ClientId));
-	StrToInts(&pClientInfo->m_Clan0, 3, Server()->ClientClan(m_ClientId));
+
+	if(IsLoggedIn() && GetClanId() > 0)
+	{
+		const char *pClanName = "";
+		const auto &vClans = GameServer()->Clans()->GetClansData();
+		for(const auto &Clan : vClans)
+		{
+			if(Clan.m_Id == GetClanId())
+			{
+				pClanName = Clan.m_ClanName;
+				break;
+			}
+		}
+		StrToInts(&pClientInfo->m_Clan0, 3, pClanName);
+	}
+	else
+	{
+		StrToInts(&pClientInfo->m_Clan0, 3, "");
+	}
+
 	pClientInfo->m_Country = Server()->ClientCountry(m_ClientId);
 	StrToInts(&pClientInfo->m_Skin0, 6, m_TeeInfos.m_aSkinName);
 	pClientInfo->m_UseCustomColor = m_TeeInfos.m_UseCustomColor;
@@ -532,8 +558,6 @@ void CPlayer::FakeSnap()
 void CPlayer::OnDisconnect()
 {
 	KillCharacter();
-	OnPlayerLogout();
-
 	m_Moderating = false;
 }
 
@@ -993,7 +1017,7 @@ void CPlayer::ProcessScoreResult(CScorePlayerResult &Result)
 
 //Blockworlds
 
-void CPlayer::BWProcessScoreResult(CAccountResult &Result)
+void CPlayer::BWProcessAccountsResult(CAccountResult &Result)
 {
 	if(Result.m_Success)
 	{
@@ -1067,6 +1091,34 @@ void CPlayer::BWProcessScoreResult(CAccountResult &Result)
 				if(aMessage[0] == 0)
 					break;
 				dbg_msg("account", "%s", aMessage);
+			}
+			break;
+		}
+	}
+}
+
+void CPlayer::BWProcessClansResult(CClanResult &Result)
+{
+	if(Result.m_Success)
+	{
+		switch(Result.m_MessageKind)
+		{
+		case CClanResult::DIRECT:
+			for(auto &aMessage : Result.m_aaMessages)
+			{
+				if(aMessage[0] == 0)
+					break;
+				GameServer()->SendChatTarget(m_ClientId, aMessage);
+			}
+			break;
+		case CClanResult::ALL:
+		case CClanResult::BROADCAST:
+		case CClanResult::DELETE:
+			for(auto &aMessage : Result.m_aaMessages)
+			{
+				if(aMessage[0] == 0)
+					break;
+				GameServer()->SendChatTarget(m_ClientId, aMessage);
 			}
 			break;
 		}

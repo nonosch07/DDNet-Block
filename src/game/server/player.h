@@ -16,6 +16,7 @@
 #include <optional>
 
 #include <game/server/blockworlds/accounts.h>
+#include <game/server/blockworlds/clans.h>
 
 class CCharacter;
 class CGameContext;
@@ -238,9 +239,11 @@ public:
 
 	// Blockworlds
 
-	void BWProcessScoreResult(CAccountResult &Result);
+	void BWProcessAccountsResult(CAccountResult &Result);
+	void BWProcessClansResult(CClanResult &Result);
 	void BWProcessAdminCommandResult(CAdminCommandResult &Result);
 	std::shared_ptr<CAccountResult> m_AccountQueryResult;
+	std::shared_ptr<CClanResult> m_ClanQueryResult;
 	std::shared_ptr<CAdminCommandResult> m_AdminCommandQueryResult;
 
 	void OnPlayerLogin();
@@ -263,12 +266,10 @@ public:
 	void SetPlayerLevel(int Level) { m_Account.m_Level = Level; }
 	void SetPlayerExperience(int Experience) { m_Account.m_Experience = Experience; }
 	void SetPlayerWeaponkits(int Weaponkits) { m_Account.m_Weaponkits = Weaponkits; }
-	void SetPlayerClan(const char *ClanName)
-	{
-		std::strncpy(m_Account.m_aClan, ClanName, sizeof(m_Account.m_aClan) - 1);
-		m_Account.m_aClan[sizeof(m_Account.m_aClan) - 1] = '\0';
-	}
+	// void SetPlayerClan(const char *ClanName) {}
 	void SetPlayerRanking(int Ranking) { m_Account.m_Ranking = Ranking; }
+	void SetClanId(int ClanId) { m_Account.m_ClanId = ClanId; }
+	void SetAuthLevel(int Level) { m_Account.m_AuthLevel = Level; }
 	void SetPlayerBlockpoints(int Blockpoints) { m_Account.m_Blockpoints = Blockpoints; }
 	void SetPlayerKnockouts(int Index, char Value) { m_Account.m_aKnockouts[Index] = Value; }
 	void SetPlayerGundesign(int Index, char Value) { m_Account.m_aGundesign[Index] = Value; }
@@ -301,7 +302,8 @@ public:
 	int GetPlayerExperience() { return m_Account.m_Experience; }
 	int GetPlayerWeaponkits() { return m_Account.m_Weaponkits; }
 	int GetPlayerRanking() { return m_Account.m_Ranking; }
-	const char *GetPlayerClan() { return m_Account.m_aClan; }
+	int GetClanId() { return m_Account.m_ClanId; }
+	int GetAuthLevel() { return m_Account.m_AuthLevel; }
 	int GetPlayerBlockpoints() { return m_Account.m_Blockpoints; }
 	const char *GetPlayerKnockouts() { return m_Account.m_aKnockouts; }
 	const char *GetPlayerGundesign() { return m_Account.m_aGundesign; }

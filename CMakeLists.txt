@@ -98,7 +98,7 @@ elseif(TARGET_OS STREQUAL "mac")
 endif()
 
 option(WEBSOCKETS "Enable websockets support" OFF)
-option(MYSQL "Enable mysql support" OFF)
+option(MYSQL "Enable mysql support" ON)
 option(TEST_MYSQL "Test mysql support in unit tests (also sets -DMYSQL=ON)" OFF)
 option(AUTOUPDATE "Enable the autoupdater" OFF)
 option(INFORM_UPDATE "Inform about available updates" ON)
@@ -390,9 +390,9 @@ function(set_glob VAR GLOBBING EXTS DIRECTORY) # ...
     if(GLOB_BUT_NOT_LIST)
       message(AUTHOR_WARNING "Entries only present in ${DIRECTORY}: ${GLOB_BUT_NOT_LIST}")
     endif()
-    if(NOT LIST_BUT_NOT_GLOB AND NOT GLOB_BUT_NOT_LIST)
-      message(AUTHOR_WARNING "${VAR} is not alphabetically sorted")
-    endif()
+    # if(NOT LIST_BUT_NOT_GLOB AND NOT GLOB_BUT_NOT_LIST)
+    #   message(AUTHOR_WARNING "${VAR} is not alphabetically sorted") // don't give a single fuck
+    # endif()
   endif()
 
   set(${VAR} ${FILES} PARENT_SCOPE)
@@ -2701,91 +2701,7 @@ if(SERVER)
     upnp.cpp
     upnp.h
   )
-  set_src(GAME_SERVER GLOB_RECURSE src/game/server
-    blockworlds/accounts.cpp
-    blockworlds/accounts.h
-    blockworlds/blocktracker.cpp
-    blockworlds/blocktracker.h
-    blockworlds/entities/experience.cpp
-    blockworlds/entities/experience.h
-    blockworlds/cosmetics/animations.cpp
-    blockworlds/cosmetics/animations.h
-    blockworlds/cosmetics/content.h
-    blockworlds/cosmetics/cosmetics.cpp
-    blockworlds/cosmetics/cosmetics.h
-    blockworlds/cosmetics/letters.h
-    blockworlds/gameinterface/handler.cpp
-    blockworlds/gameinterface/handler.h
-    blockworlds/gameinterface/object.cpp
-    blockworlds/gameinterface/object.h
-    blockworlds/gameinterface/renderers/renderer.h
-    blockworlds/gameinterface/renderers/vote.cpp
-    blockworlds/gameinterface/renderers/vote.h
-    blockworlds/shop/storemanager.cpp
-    blockworlds/shop/storemanager.h
-    blockworlds/shop/preview.cpp
-    blockworlds/shop/preview.h
-    blockworlds/zones/nocollisionzone.cpp
-    blockworlds/zones/nocollisionzone.h
-    blockworlds/zones/spawnzone.cpp
-    blockworlds/zones/spawnzone.cpp
-    blockworlds/zones/passivezone.cpp
-    blockworlds/zones/passivezone.h
-    blockworlds/zones/zone.cpp
-    blockworlds/zones/zone.h
-    blockworlds/zones/zonemanager.cpp
-    blockworlds/zones/zonemanager.h
-    ddracechat.cpp
-    ddracecommands.cpp
-    entities/character.cpp
-    entities/character.h
-    entities/door.cpp
-    entities/door.h
-    entities/dragger.cpp
-    entities/dragger.h
-    entities/dragger_beam.cpp
-    entities/dragger_beam.h
-    entities/gun.cpp
-    entities/gun.h
-    entities/laser.cpp
-    entities/laser.h
-    entities/light.cpp
-    entities/light.h
-    entities/pickup.cpp
-    entities/pickup.h
-    entities/plasma.cpp
-    entities/plasma.h
-    entities/projectile.cpp
-    entities/projectile.h
-    entity.cpp
-    entity.h
-    eventhandler.cpp
-    eventhandler.h
-    gamecontext.cpp
-    gamecontext.h
-    gamecontroller.cpp
-    gamecontroller.h
-    gamemodes/DDRace.cpp
-    gamemodes/DDRace.h
-    gamemodes/mod.cpp
-    gamemodes/mod.h
-    gameworld.cpp
-    gameworld.h
-    player.cpp
-    player.h
-    save.cpp
-    save.h
-    score.cpp
-    score.h
-    scoreworker.cpp
-    scoreworker.h
-    teams.cpp
-    teams.h
-    teehistorian.cpp
-    teehistorian.h
-    teeinfo.cpp
-    teeinfo.h
-  )
+  file(GLOB_RECURSE GAME_SERVER src/game/server/*.c src/game/server/*.cpp src/game/server/*.h)
   set(GAME_GENERATED_SERVER
     "src/game/generated/server_data.cpp"
     "src/game/generated/server_data.h"

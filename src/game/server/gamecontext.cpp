@@ -4,6 +4,7 @@
 
 #include <vector>
 
+#include "game/server/gameworld.h"
 #include "teeinfo.h"
 #include <antibot/antibot_data.h>
 #include <base/logger.h>
@@ -1059,7 +1060,7 @@ void CGameContext::OnTick()
 	m_pController->Tick();
 	m_Animations.Tick();
 	m_ZoneManager.Tick();
-	if (g_Config.m_SvShopServer)
+	if(g_Config.m_SvShopServer)
 		m_ShopPreview.Tick();
 	// m_GameInterfaceHandler.Tick();
 
@@ -1718,9 +1719,9 @@ void CGameContext::OnClientConnected(int ClientId, void *pData)
 
 	if(m_apPlayers[ClientId])
 		delete m_apPlayers[ClientId];
-	m_apPlayers[ClientId] = new(ClientId) CPlayer(this, NextUniqueClientId, ClientId, StartTeam);
+	m_apPlayers[ClientId] = new(ClientId) CPlayer(this, m_NextUniqueClientId, ClientId, StartTeam);
 	m_apPlayers[ClientId]->SetInitialAfk(Afk);
-	NextUniqueClientId += 1;
+	m_NextUniqueClientId += 1;
 
 	SendMotd(ClientId);
 	SendSettings(ClientId);
@@ -3770,6 +3771,8 @@ void CGameContext::RegisterDDRaceCommands()
 
 void CGameContext::RegisterChatCommands()
 {
+	RegisterBlockworldsChatCommands();
+
 	Console()->Register("credits", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConCredits, this, "Shows the credits of the DDNet mod");
 	Console()->Register("rules", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConRules, this, "Shows the server rules");
 	Console()->Register("emote", "?s[emote name] i[duration in seconds]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConEyeEmote, this, "Sets your tee's eye emote");
@@ -4062,12 +4065,16 @@ void CGameContext::OnInit(const void *pPersistentData)
 
 	if(!m_pAccounts)
 		m_pAccounts = new CAccounts(this, ((CServer *)Server())->DbPool());
+	if(!m_pClans)
+		m_pClans = new CClanManager(this, ((CServer *)Server())->DbPool());
 	m_Animations.Init(this);
 	m_CosmeticsHandler.Init(this);
 	m_ZoneManager.Init(this);
-	if (g_Config.m_SvShopServer)
+	if(g_Config.m_SvShopServer)
 		m_ShopPreview.Init(this);
 	// m_GameInterfaceHandler.Init(this);
+
+	m_pClans->LoadAllClans();
 }
 
 void CGameContext::CreateAllEntities(bool Initial)
@@ -5068,6 +5075,7 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("blockpoints", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayBlockpoints, this, "Display how many blockpoints you've got.");
 	Console()->Register("bp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayBlockpoints, this, "Display how many blockpoints you've got.");
 	Console()->Register("profile", "?s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayProfile, this, "Display your or someone's profile.");
+	Console()->Register("clan_profile", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayClanProfile, this, "Display how many blockpoints you've got.");
 
 	Console()->Register("deathnote", "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDeathnote, this, "Use one of your deathnote pages.");
 	Console()->Register("weapons", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConWeaponKit, this, "Display the amount of blockpoints you have.");
@@ -5088,6 +5096,17 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("no", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConShopDecline, this, "Decline current shop pending purchase.");
 
 	Console()->Register("test", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConTest, this, "Shows the credits of the DDNet mod");
+
+	Console()->Register("clan_create", "s[clanname]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanCreate, this, "Creates a new clan with the given name.");
+	Console()->Register("clan_delete", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanDelete, this, "Deletes your clan - (co)leaders only.");
+	Console()->Register("clan_leave", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanLeave, this, "Leaves your current clan.");
+	Console()->Register("clan_kick", "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanRemove, this, "Kicks the specified user from your clan.");
+	Console()->Register("clan_setlevel", "s[username] i[level]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanSetAuth, this, "Sets the clan access level for a member (1: leader, 2: co-leader, 3: member).");
+	Console()->Register("clan_assign", "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanAssign, this, "Accepts a pending clan invitation.");
+
+	// Console()->Register("clan_invite", "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanInvite, this, "Invites a user to join your clan.");
+	// Console()->Register("clan_assign", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanAssign, this, "Accepts a pending clan invitation.");
+	// Console()->Register("clan_decline", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanDecline, this, "Declines a pending clan invitation.");
 }
 
 CPlayer *CGameContext::GetPlayerByName(const char *pName)
@@ -5109,4 +5128,16 @@ CPlayer *CGameContext::GetPlayer(int ClientID)
 	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
 		return nullptr;
 	return m_apPlayers[ClientID];
+}
+
+void CGameContext::ForceResetLoginState()
+{
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		if(m_apPlayers[i] && m_apPlayers[i]->IsLoggedIn())
+		{
+			dbg_msg("saving", "%d", i);
+			m_pAccounts->SetLoggedIn(i, 0, m_apPlayers[i]->GetAccId());
+		}
+	}
 }

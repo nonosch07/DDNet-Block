@@ -14,7 +14,6 @@ class CCosmeticsHandler
 	CGameContext *GameServer() const { return m_pGameServer; }
 	IServer *Server() const { return m_pServer; }
 
-
 public:
 	enum
 	{
