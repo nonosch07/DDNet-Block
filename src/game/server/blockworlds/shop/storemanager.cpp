@@ -9,7 +9,6 @@ CShop::CShop(CGameContext *pGameContext, CPlayer *pOwner, int pCategory, int pCo
 {
 	m_pExpireTick = GameServer()->Server()->Tick() + ExpireInS * GameServer()->Server()->TickSpeed();
 
-	// don't think that's needed but meh
 	if(!pOwner->IsLoggedIn())
 	{
 		GameServer()->SendChatTarget(pOwner->GetCid(), "You need to be logged in to make purchases.");
@@ -18,19 +17,18 @@ CShop::CShop(CGameContext *pGameContext, CPlayer *pOwner, int pCategory, int pCo
 		return;
 	}
 
-	// check if the player already has the cosmetic
 	bool HasCosmetic = false;
 	int ClientID = pOwner->GetCid();
 	switch(pCategory)
 	{
 	case CATEGORY_GUNDESIGN:
-		HasCosmetic = m_pGameContext->Cosmetics()->HasGundesign(ClientID, pCosmetics);
+		HasCosmetic = (pOwner->GetPlayerGundesign()[pCosmetics] == '1');
 		break;
 	case CATEGORY_KNOCKOUT:
-		HasCosmetic = m_pGameContext->Cosmetics()->HasKnockoutEffect(ClientID, pCosmetics);
+		HasCosmetic = (pOwner->GetPlayerKnockouts()[pCosmetics] == '1');
 		break;
 	case CATEGORY_SKINMANI:
-		HasCosmetic = m_pGameContext->Cosmetics()->HasSkinmani(ClientID, pCosmetics);
+		HasCosmetic = (pOwner->GetPlayerSkinmani()[pCosmetics] == '1');
 		break;
 	default:
 		GameServer()->SendChatTarget(pOwner->GetCid(), "Invalid cosmetic category.");
@@ -57,7 +55,6 @@ CShop::CShop(CGameContext *pGameContext, CPlayer *pOwner, int pCategory, int pCo
 		return;
 	}
 
-	// check if there's an active purchase for the character and replace it if necessary
 	if(pOwner->GetCharacter())
 	{
 		if(pOwner->GetCharacter()->m_PendingPurchase)
@@ -66,7 +63,6 @@ CShop::CShop(CGameContext *pGameContext, CPlayer *pOwner, int pCategory, int pCo
 		}
 		pOwner->GetCharacter()->m_PendingPurchase = this;
 
-		// send purchase confirmation message
 		char aBuf[256];
 		str_format(aBuf, sizeof(aBuf), "Do you want to buy '%s' for %d blockpoints? (/yes, /no)", m_pCosmeticName, m_pPrice);
 		GameServer()->SendChatTarget(m_pOwner->GetCid(), aBuf);
@@ -186,7 +182,8 @@ void CShop::Purchase()
 		GameServer()->SendChatTarget(m_pOwner->GetCid(), "Unknown category.");
 		break;
 	}
-
+	GameServer()->ClearVotes(m_pOwner->GetCid());
+	GameServer()->ProgressVoteOptions(m_pOwner->GetCid());
 	Destroy(true);
 }
 

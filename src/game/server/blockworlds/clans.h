@@ -12,7 +12,7 @@ class CGameContext;
 struct CClansData
 {
 	int m_Id;
-	char m_ClanName[11];
+	char m_ClanName[12];
 	int m_Level;
 	int m_Experience;
 };
@@ -76,7 +76,7 @@ struct CSqlClanRequest : ISqlData
 		m_aUsername[0] = '\0';
 		m_aNewClanName[0] = '\0';
 	}
-	char m_aClanName[11];
+	char m_aClanName[12];
 	char m_aUsername[64];
 	int m_AccountId;
 	int m_ClientId;

@@ -22,9 +22,9 @@ CREATE TABLE IF NOT EXISTS Accounts (
   clanID INT NOT NULL DEFAULT 0, -- 0 indicates no clan membership
   auth_level INT DEFAULT 0,      -- 0 = none, 1 = member, 2 = co-leader, 3 = leader
   blockpoints INT DEFAULT 0,
-  knockouts VARCHAR(256) DEFAULT '0000000000000',
-  gundesign VARCHAR(256) DEFAULT '000000000000',
-  skinmani VARCHAR(256) DEFAULT '0000000000000',
+  knockouts VARCHAR(11) DEFAULT '00000000000',
+  gundesign VARCHAR(10) DEFAULT '0000000000',
+  skinmani VARCHAR(10) DEFAULT '0000000000',
   extras VARCHAR(256) DEFAULT '00000000000000',
   registerdate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   ranked_games INT DEFAULT 0,

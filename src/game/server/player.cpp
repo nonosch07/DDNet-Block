@@ -604,6 +604,14 @@ void CPlayer::OnDirectInput(CNetObj_PlayerInput *pNewInput)
 
 void CPlayer::OnPredictedEarlyInput(CNetObj_PlayerInput *pNewInput)
 {
+	if((pNewInput->m_PlayerFlags & PLAYERFLAG_IN_MENU && !(m_PlayerFlags & PLAYERFLAG_IN_MENU)))
+	{
+		// resend vote options everytime somebody enters the menu, so the votes dont get out of sync when connecting a dummy
+		GameServer()->ClearVotes(GetCid());
+		GameServer()->ProgressVoteOptions(GetCid());
+		GameServer()->SendCosmeticsVoteOptions(GetCid());
+	}
+
 	m_PlayerFlags = pNewInput->m_PlayerFlags;
 
 	if(!m_pCharacter && m_Team != TEAM_SPECTATORS && (pNewInput->m_Fire & 1))
@@ -1191,6 +1199,10 @@ void CPlayer::OnPlayerLogin()
 {
 	GameServer()->SendChatTarget(m_ClientId, "Login successfully");
 
+	GameServer()->ClearVotes(GetCid());
+	GameServer()->ProgressVoteOptions(GetCid());
+	GameServer()->SendCosmeticsVoteOptions(GetCid());
+
 	GameServer()->Accounts()->SetLoggedIn(m_ClientId, 1, m_Account.m_Id);
 }
 
@@ -1248,8 +1260,14 @@ void CPlayer::OnPlayerLogout(int SetLoggedIn)
 	if(!IsLoggedIn())
 		return;
 
+	GameServer()->ClearVotes(GetCid());
+	GameServer()->ProgressVoteOptions(GetCid());
 	OnPlayerSave(SetLoggedIn);
 	dbg_msg("account", "logging out AccountId=%d SetLoggedIn=%d", GetAccId(), SetLoggedIn);
+
+	SetSkinMani(-1);
+	SetGunDesign(-1);
+	SetKnockout(-1);
 
 	// m_pCharacter->m_PendingPurchase->Destroy(true); - m_pCharacter will be null at this point
 

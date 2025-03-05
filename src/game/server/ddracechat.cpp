@@ -2838,8 +2838,6 @@ void CGameContext::ConBuy(IConsole::IResult *pResult, void *pUserData)
 	std::string Type = pResult->GetString(0);
 	std::string Name = pResult->GetString(1);
 
-	dbg_msg("cmd", "%s , %s", Type.c_str(), Name.c_str());
-
 	if(Type == "gd")
 	{
 		CosmeticId = pSelf->Cosmetics()->FindGundesign(Name.c_str());

@@ -189,6 +189,7 @@ void CCosmeticsHandler::DoKnockoutEffectRaw(vec2 Pos, int Effect)
 
 bool CCosmeticsHandler::ToggleKnockout(int ClientID, const char *pName)
 {
+	dbg_msg("knockout", "toggling %s", pName);
 	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
 		return false;
 
@@ -305,8 +306,8 @@ bool CCosmeticsHandler::ToggleGundesign(int ClientID, const char *pName)
 	if(Effect == -1)
 		return false;
 
-	if(HasGundesign(ClientID, Effect) == false)
-		return false;
+	// if(HasGundesign(ClientID, Effect) == false)
+	// 	return false;
 
 	GameServer()->GetPlayer(ClientID)->ToggleGunDesign(Effect);
 
@@ -417,11 +418,11 @@ bool CCosmeticsHandler::ToggleSkinmani(int ClientID, const char *pName)
 		return true;
 	}
 
-	if(HasSkinmani(ClientID, Effect) == false)
-	{
-		dbg_msg("cosmetics", "Player doesn't have the skinmani");
-		return false;
-	}
+	// if(HasSkinmani(ClientID, Effect) == false)
+	// {
+	// 	dbg_msg("cosmetics", "Player doesn't have the skinmani");
+	// 	return false;
+	// }
 
 	pPlayer->ToggleSkinMani(Effect);
 

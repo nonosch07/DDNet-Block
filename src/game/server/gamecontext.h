@@ -639,7 +639,12 @@ public:
 
 	int GetNextClientID();
 
-	void ForceResetLoginState();
+	// votemenu
+	void SendCosmeticsVoteOptions(int ClientID);
+	bool HandleCosmeticsVote(const CNetMsg_Cl_CallVote *pMsg, int ClientId);
+	void SetVoteDescriptionAtIndex(int *pIndex, const char *pStr, CNetMsg_Sv_VoteOptionListAdd *pOptionMsg);
+	void CreateStripline(char *pDst, int DstSize, const char *pTitle);
+	void ClearVotes(int ClientID);
 
 private:
 	CAccounts *m_pAccounts;
