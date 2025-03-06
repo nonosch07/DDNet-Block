@@ -329,43 +329,43 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 
 	pResult->SetVariant(CAccountResult::LOGIN_INFO);
 
+	int Index = 1;
+
 #define SQL_GET_INT(idx, dest) dest = pSqlServer->GetInt(idx)
 #define SQL_GET_INT64(idx, dest) dest = pSqlServer->GetInt64(idx)
 #define SQL_GET_STRING(idx, dest) pSqlServer->GetString(idx, dest, sizeof(dest))
 
-	int idx = 1;
-
-	SQL_GET_INT(idx++, pResult->m_Account.m_Id);
-	SQL_GET_STRING(idx++, pResult->m_Account.m_aName);
-	SQL_GET_STRING(idx++, pResult->m_Account.m_aPassword);
-	SQL_GET_STRING(idx++, pResult->m_Account.m_aAddress);
-	SQL_GET_INT(idx++, pResult->m_Account.m_Vip);
-	SQL_GET_INT(idx++, pResult->m_Account.m_Pages);
-	SQL_GET_INT(idx++, pResult->m_Account.m_Level);
-	SQL_GET_INT(idx++, pResult->m_Account.m_Experience);
-	SQL_GET_INT(idx++, pResult->m_Account.m_Weaponkits);
-	SQL_GET_INT(idx++, pResult->m_Account.m_Ranking);
-	SQL_GET_INT(idx++, pResult->m_Account.m_ClanId);
-	SQL_GET_INT(idx++, pResult->m_Account.m_AuthLevel);
-	SQL_GET_INT(idx++, pResult->m_Account.m_Blockpoints);
-	SQL_GET_STRING(idx++, pResult->m_Account.m_aKnockouts);
-	SQL_GET_STRING(idx++, pResult->m_Account.m_aGundesign);
-	SQL_GET_STRING(idx++, pResult->m_Account.m_aSkinmani);
-	SQL_GET_STRING(idx++, pResult->m_Account.m_aExtras);
-	SQL_GET_STRING(idx++, pResult->m_Account.m_RegisterDate);
-	SQL_GET_INT(idx++, pResult->m_Account.m_RankedGames);
-	SQL_GET_INT(idx++, pResult->m_Account.m_RankedKills);
-	SQL_GET_INT(idx++, pResult->m_Account.m_RankedDeaths);
-	SQL_GET_INT(idx++, pResult->m_Account.m_RankedWins);
-	SQL_GET_INT(idx++, pResult->m_Account.m_Kills);
-	SQL_GET_INT(idx++, pResult->m_Account.m_Deaths);
-	SQL_GET_INT(idx++, pResult->m_Account.m_TourneyWin);
-	SQL_GET_INT64(idx++, pResult->m_Account.m_Playtime);
-	SQL_GET_INT(idx++, pResult->m_Account.m_Killstreak);
-	SQL_GET_STRING(idx++, pResult->m_Account.m_aLastName);
-	SQL_GET_STRING(idx++, pResult->m_Account.m_aLastSkin);
-	SQL_GET_INT(idx++, pResult->m_Account.m_LastBodyColor);
-	SQL_GET_INT(idx++, pResult->m_Account.m_LastFeetColor);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Id);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aName);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aPassword);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aAddress);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Vip);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Pages);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Level);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Experience);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Weaponkits);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Ranking);
+	SQL_GET_INT(Index++, pResult->m_Account.m_ClanId);
+	SQL_GET_INT(Index++, pResult->m_Account.m_AuthLevel);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Blockpoints);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aKnockouts);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aGundesign);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aSkinmani);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aExtras);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_RegisterDate);
+	SQL_GET_INT(Index++, pResult->m_Account.m_RankedGames);
+	SQL_GET_INT(Index++, pResult->m_Account.m_RankedKills);
+	SQL_GET_INT(Index++, pResult->m_Account.m_RankedDeaths);
+	SQL_GET_INT(Index++, pResult->m_Account.m_RankedWins);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Kills);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Deaths);
+	SQL_GET_INT(Index++, pResult->m_Account.m_TourneyWin);
+	SQL_GET_INT64(Index++, pResult->m_Account.m_Playtime);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Killstreak);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aLastName);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aLastSkin);
+	SQL_GET_INT(Index++, pResult->m_Account.m_LastBodyColor);
+	SQL_GET_INT(Index++, pResult->m_Account.m_LastFeetColor);
 
 #undef SQL_GET_INT
 #undef SQL_GET_INT64
