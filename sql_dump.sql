@@ -26,7 +26,6 @@ CREATE TABLE `accounts` (
                             `name` varchar(11) NOT NULL,
                             `password` varchar(256) NOT NULL,
                             `address` varchar(47) DEFAULT '0.0.0.0',
-                            `is_logged_in` int(11) DEFAULT 0,
                             `vip` int(11) DEFAULT 0,
                             `pages` int(11) DEFAULT 0,
                             `level` int(11) DEFAULT 1,

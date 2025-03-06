@@ -306,7 +306,7 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 	char aBuf[2048];
 	str_copy(aBuf,
 		"SELECT "
-		"id, name, password, address, is_logged_in, vip, pages, level, experience, weaponkits, ranking, "
+		"id, name, password, address, vip, pages, level, experience, weaponkits, ranking, "
 		"clanID, auth_level, blockpoints, knockouts, gundesign, skinmani, extras, registerdate, ranked_games, "
 		"ranked_kills, ranked_deaths, ranked_wins, kills, deaths, tourney_win, playtime, killstreak, "
 		"last_name, last_skin, last_body_color, last_feet_color "
