@@ -163,8 +163,8 @@ bool CAccounts::SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData,
 
 	char aBuf[2048];
 	str_copy(aBuf,
-		"address = ?, is_logged_in = ?, vip = ?, pages = ?, level = ?, experience = ?, weaponkits = ?, ranking = ?, "
 		"UPDATE accounts SET "
+		"address = ?, vip = ?, pages = ?, level = ?, experience = ?, weaponkits = ?, ranking = ?, "
 		"clanID = ?, auth_level = ?, blockpoints = ?, knockouts = ?, gundesign = ?, skinmani = ?, extras = ?, ranked_games = ?, "
 		"ranked_kills = ?, ranked_deaths = ?, ranked_wins = ?, kills = ?, deaths = ?, tourney_win = ?, playtime = ?, killstreak = ?, "
 		"last_name = ?, last_skin = ?, last_body_color = ?, last_feet_color = ? "
@@ -243,15 +243,14 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 	for(int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
 		sprintf(&aHashedPassword[i * 2], "%02x", HashedPassword.data[i]);
 
-	char aBuf[2048];
-	str_copy(aBuf,
-		"SELECT "
-		"id, name, password, address, is_logged_in, vip, pages, level, experience, weaponkits, ranking, "
-		"clanID, auth_level, blockpoints, knockouts, gundesign, skinmani, extras, registerdate, ranked_games, "
-		"ranked_kills, ranked_deaths, ranked_wins, kills, deaths, tourney_win, playtime, killstreak, "
-		"last_name, last_skin, last_body_color, last_feet_color "
-		"WHERE name = ? AND password = ?;",
-		sizeof(aBuf));
+	{ // wrong creds
+		char aBuf[2048];
+		str_copy(aBuf,
+			"SELECT "
+			"id "
+			"FROM accounts "
+			"WHERE name = ? AND password = ?;",
+			sizeof(aBuf));
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -275,7 +274,40 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 			pResult->m_Account.m_Id = pSqlServer->GetInt(1);
 			return false;
 		}
+		if(!End)
+		{
+			char aServerId[32];
+			pSqlServer->GetString(1, aServerId, sizeof(pResult->m_aLoginServer));
+
+			pResult->SetVariant(CAccountResult::LOGGED_IN_ALREADY);
+			str_copy(pResult->m_aLoginServer, aServerId);
+			return false;
+		}
+	}
+
+	char aBuf[2048];
+	str_copy(aBuf,
+		"SELECT "
+		"id, name, password, address, is_logged_in, vip, pages, level, experience, weaponkits, ranking, "
+		"clanID, auth_level, blockpoints, knockouts, gundesign, skinmani, extras, registerdate, ranked_games, "
+		"ranked_kills, ranked_deaths, ranked_wins, kills, deaths, tourney_win, playtime, killstreak, "
+		"last_name, last_skin, last_body_color, last_feet_color "
 		"FROM Accounts "
+		"WHERE id = ?;",
+		sizeof(aBuf));
+
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+	{
+		return true;
+	}
+
+	pSqlServer->BindInt(1, AccountId);
+
+	bool End;
+	if(pSqlServer->Step(&End, pError, ErrorSize))
+	{
+		return true;
+	}
 
 		pResult->SetVariant(CAccountResult::LOGIN_INFO);
 
