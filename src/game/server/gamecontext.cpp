@@ -4077,6 +4077,7 @@ void CGameContext::OnInit(const void *pPersistentData)
 		m_ShopPreview.Init(this);
 	// m_GameInterfaceHandler.Init(this);
 
+	m_pAccounts->ClearLogins();
 	m_pClans->LoadAllClans();
 }
 

@@ -1070,7 +1070,12 @@ void CPlayer::BWProcessAccountsResult(CAccountResult &Result)
 			break;
 
 		case CAccountResult::LOGGED_IN_ALREADY:
-			GameServer()->SendChatTarget(m_ClientId, "Account is already being used.");
+			if(str_comp(Result.m_aLoginServer, g_Config.m_SvServerId) == 0)
+			{
+				GameServer()->SendChatTarget(m_ClientId, "Account is already being used on this server.");
+				break;
+			}
+			GameServer()->SendChatTarget(m_ClientId, "Account is already being used on other server.");
 			break;
 
 		case CAccountResult::LOGIN_WRONG_PASS:
@@ -1201,18 +1206,14 @@ void CPlayer::OnPlayerLogin()
 	GameServer()->ClearVotes(GetCid());
 	GameServer()->ProgressVoteOptions(GetCid());
 	GameServer()->SendCosmeticsVoteOptions(GetCid());
-
-	GameServer()->Accounts()->SetLoggedIn(m_ClientId, 1, m_Account.m_Id);
 }
 
-void CPlayer::OnPlayerSave(int SetLoggedIn)
+void CPlayer::OnPlayerSave(bool Logout)
 {
-	dbg_msg("account", "saving account '%s' CID=%d AccountId=%d SetLoggedIn=%d", Server()->ClientName(GetCid()), GetCid(), m_Account.m_Id, SetLoggedIn);
+	dbg_msg("account", "saving account '%s' CID=%d AccountId=%d Logout=%d", Server()->ClientName(GetCid()), GetCid(), m_Account.m_Id, Logout);
 
 	if(!m_Account.m_Id)
 		return;
-
-	m_Account.m_IsLoggedIn = SetLoggedIn;
 
 	char aName[32];
 	str_copy(aName, Server()->ClientName(m_ClientId), sizeof(aName));
@@ -1252,17 +1253,18 @@ void CPlayer::OnPlayerSave(int SetLoggedIn)
 	}
 
 	GameServer()->Accounts()->Save(GetCid(), &m_Account);
+	if(Logout)
+		GameServer()->Accounts()->Logout(GetCid(), m_Account.m_Id);
 }
-
-void CPlayer::OnPlayerLogout(int SetLoggedIn)
+void CPlayer::OnPlayerLogout()
 {
 	if(!IsLoggedIn())
 		return;
 
 	GameServer()->ClearVotes(GetCid());
 	GameServer()->ProgressVoteOptions(GetCid());
-	OnPlayerSave(SetLoggedIn);
-	dbg_msg("account", "logging out AccountId=%d SetLoggedIn=%d", GetAccId(), SetLoggedIn);
+	OnPlayerSave(true);
+	dbg_msg("account", "logging out AccountId=%d", GetAccId());
 
 	SetSkinMani(-1);
 	SetGunDesign(-1);
@@ -1303,7 +1305,7 @@ void CPlayer::AddPlayerExp(int Amount)
 
 		AddPlayerExp(ExcessiveExp);
 
-		OnPlayerSave(1);
+		OnPlayerSave(false);
 	}
 }
 
