@@ -18,7 +18,6 @@ CShop::CShop(CGameContext *pGameContext, CPlayer *pOwner, int pCategory, int pCo
 	}
 
 	bool HasCosmetic = false;
-	int ClientID = pOwner->GetCid();
 	switch(pCategory)
 	{
 	case CATEGORY_GUNDESIGN:
