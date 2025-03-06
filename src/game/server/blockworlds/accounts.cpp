@@ -310,7 +310,7 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 		"clanID, auth_level, blockpoints, knockouts, gundesign, skinmani, extras, registerdate, ranked_games, "
 		"ranked_kills, ranked_deaths, ranked_wins, kills, deaths, tourney_win, playtime, killstreak, "
 		"last_name, last_skin, last_body_color, last_feet_color "
-		"FROM Accounts "
+		"FROM accounts "
 		"WHERE id = ?;",
 		sizeof(aBuf));
 
@@ -411,8 +411,6 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 			}
 		}
 	}
-
-	dbg_msg("clandata", "ClanID: %d", pResult->m_Account.m_ClanId);
 
 	return false;
 }
