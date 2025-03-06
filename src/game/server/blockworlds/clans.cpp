@@ -28,10 +28,9 @@ CClanManager::~CClanManager()
 std::shared_ptr<CClanResult> CClanManager::NewSqlClanResult(int ClientId)
 {
 	CPlayer *pCurPlayer = GameServer()->m_apPlayers[ClientId];
-	if(pCurPlayer->m_ClanQueryResult != nullptr)
-		return nullptr;
-	pCurPlayer->m_ClanQueryResult = std::make_shared<CClanResult>();
-	return pCurPlayer->m_ClanQueryResult;
+	if(!pCurPlayer)	return nullptr;
+	pCurPlayer->m_ClanQueryResult.push(std::make_shared<CClanResult>());
+	return pCurPlayer->m_ClanQueryResult.back();
 }
 
 // --- Helper function to execute SQL threads for clan operations ---

@@ -305,7 +305,7 @@ class CAccounts
 	// returns new SqlResult bound to the player, if no current Thread is active for this player
 	std::shared_ptr<CAccountResult> NewSqlAccountResult(int ClientId);
 	std::shared_ptr<CAdminCommandResult> NewSqlAdminCommandResult(int ClientId);
-	// Creates for player bound database requests (1 request max at a time per player)
+	// Creates for player bound database requests
 	void ExecUserThread(
 		bool (*pFuncPtr)(IDbConnection *, const ISqlData *, char *pError, int ErrorSize),
 		const char *pThreadName,

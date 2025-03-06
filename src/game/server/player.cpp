@@ -183,21 +183,20 @@ void CPlayer::Tick()
 		m_ScoreFinishResult = nullptr;
 	}
 
-	if(m_AccountQueryResult != nullptr && m_AccountQueryResult->m_Completed)
+	if(!m_AccountQueryResult.empty() && m_AccountQueryResult.front() && m_AccountQueryResult.front()->m_Completed)
 	{
-		BWProcessAccountsResult(*m_AccountQueryResult);
-		m_AccountQueryResult = nullptr;
+		BWProcessAccountsResult(*m_AccountQueryResult.front());
+		m_AccountQueryResult.pop();
 	}
-	if(m_AdminCommandQueryResult != nullptr && m_AdminCommandQueryResult->m_Completed)
+	if(!m_AdminCommandQueryResult.empty() && m_AdminCommandQueryResult.front() && m_AdminCommandQueryResult.front()->m_Completed)
 	{
-		BWProcessAdminCommandResult(*m_AdminCommandQueryResult);
-		m_AdminCommandQueryResult = nullptr;
+		BWProcessAdminCommandResult(*m_AdminCommandQueryResult.front());
+		m_AdminCommandQueryResult.pop();
 	}
-
-	if(m_ClanQueryResult != nullptr && m_ClanQueryResult->m_Completed)
+	if(!m_ClanQueryResult.empty() && m_ClanQueryResult.front() && m_ClanQueryResult.front()->m_Completed)
 	{
-		BWProcessClansResult(*m_ClanQueryResult);
-		m_ClanQueryResult = nullptr;
+		BWProcessClansResult(*m_ClanQueryResult.front());
+		m_ClanQueryResult.pop();
 	}
 
 	if(!Server()->ClientIngame(m_ClientId))

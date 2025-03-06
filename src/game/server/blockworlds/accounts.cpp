@@ -68,10 +68,9 @@ CAccounts::CAccounts(CGameContext *pGameServer, CDbConnectionPool *pPool) :
 std::shared_ptr<CAdminCommandResult> CAccounts::NewSqlAdminCommandResult(int ClientId)
 {
 	CPlayer *pCurPlayer = GameServer()->m_apPlayers[ClientId];
-	if(pCurPlayer->m_AdminCommandQueryResult != nullptr)
-		return nullptr;
-	pCurPlayer->m_AdminCommandQueryResult = std::make_shared<CAdminCommandResult>();
-	return pCurPlayer->m_AdminCommandQueryResult;
+	if(!pCurPlayer) return nullptr;
+	pCurPlayer->m_AdminCommandQueryResult.push(std::make_shared<CAdminCommandResult>());
+	return pCurPlayer->m_AdminCommandQueryResult.back();
 }
 
 void CAccounts::ExecAdminThread(
@@ -103,10 +102,9 @@ void CAccounts::ExecAdminThread(
 std::shared_ptr<CAccountResult> CAccounts::NewSqlAccountResult(int ClientId)
 {
 	CPlayer *pCurPlayer = GameServer()->m_apPlayers[ClientId];
-	if(pCurPlayer->m_AccountQueryResult != nullptr)
-		return nullptr;
-	pCurPlayer->m_AccountQueryResult = std::make_shared<CAccountResult>();
-	return pCurPlayer->m_AccountQueryResult;
+	if(!pCurPlayer) return nullptr;
+	pCurPlayer->m_AccountQueryResult.push(std::make_shared<CAccountResult>());
+	return pCurPlayer->m_AccountQueryResult.back();
 }
 
 void CAccounts::ExecUserThread(

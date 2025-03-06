@@ -14,6 +14,7 @@
 
 #include <memory>
 #include <optional>
+#include <queue>
 
 #include <game/server/blockworlds/accounts.h>
 #include <game/server/blockworlds/clans.h>
@@ -242,9 +243,9 @@ public:
 	void BWProcessAccountsResult(CAccountResult &Result);
 	void BWProcessClansResult(CClanResult &Result);
 	void BWProcessAdminCommandResult(CAdminCommandResult &Result);
-	std::shared_ptr<CAccountResult> m_AccountQueryResult;
-	std::shared_ptr<CClanResult> m_ClanQueryResult;
-	std::shared_ptr<CAdminCommandResult> m_AdminCommandQueryResult;
+	std::queue<std::shared_ptr<CAccountResult>> m_AccountQueryResult;
+	std::queue<std::shared_ptr<CClanResult>> m_ClanQueryResult;
+	std::queue<std::shared_ptr<CAdminCommandResult>> m_AdminCommandQueryResult;
 
 	void OnPlayerLogin();
 	void OnPlayerLogout(int SetLoggedIn = 0);
