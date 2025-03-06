@@ -163,8 +163,8 @@ bool CAccounts::SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData,
 
 	char aBuf[2048];
 	str_copy(aBuf,
-		"UPDATE Accounts SET "
 		"address = ?, is_logged_in = ?, vip = ?, pages = ?, level = ?, experience = ?, weaponkits = ?, ranking = ?, "
+		"UPDATE accounts SET "
 		"clanID = ?, auth_level = ?, blockpoints = ?, knockouts = ?, gundesign = ?, skinmani = ?, extras = ?, ranked_games = ?, "
 		"ranked_kills = ?, ranked_deaths = ?, ranked_wins = ?, kills = ?, deaths = ?, tourney_win = ?, playtime = ?, killstreak = ?, "
 		"last_name = ?, last_skin = ?, last_body_color = ?, last_feet_color = ? "
@@ -250,7 +250,6 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 		"clanID, auth_level, blockpoints, knockouts, gundesign, skinmani, extras, registerdate, ranked_games, "
 		"ranked_kills, ranked_deaths, ranked_wins, kills, deaths, tourney_win, playtime, killstreak, "
 		"last_name, last_skin, last_body_color, last_feet_color "
-		"FROM Accounts "
 		"WHERE name = ? AND password = ?;",
 		sizeof(aBuf));
 
@@ -276,6 +275,7 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 			pResult->m_Account.m_Id = pSqlServer->GetInt(1);
 			return false;
 		}
+		"FROM Accounts "
 
 		pResult->SetVariant(CAccountResult::LOGIN_INFO);
 
@@ -390,7 +390,7 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 	pResult->SetVariant(CAccountResult::REGISTER);
 
 	char aBuf[2048];
-	str_copy(aBuf, "SELECT name FROM Accounts WHERE name = ?;", sizeof(aBuf));
+	str_copy(aBuf, "SELECT name FROM accounts WHERE name = ?;", sizeof(aBuf));
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -423,7 +423,7 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 		for(int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
 			sprintf(&aHashedPassword[i * 2], "%02x", HashedPassword.data[i]);
 
-		snprintf(aBuf, sizeof(aBuf), "INSERT INTO Accounts (name, password) VALUES (?, ?);");
+		snprintf(aBuf, sizeof(aBuf), "INSERT INTO accounts (name, password) VALUES (?, ?);");
 
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		{
@@ -513,7 +513,7 @@ bool CAccounts::ChangePasswordThread(IDbConnection *pSqlServer, const ISqlData *
 	pResult->SetVariant(CAccountResult::DIRECT);
 
 	char aBuf[2048];
-	str_copy(aBuf, "SELECT password FROM Accounts WHERE name = ?;", sizeof(aBuf));
+	str_copy(aBuf, "SELECT password FROM accounts WHERE name = ?;", sizeof(aBuf));
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -553,7 +553,7 @@ bool CAccounts::ChangePasswordThread(IDbConnection *pSqlServer, const ISqlData *
 	for(int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
 		sprintf(&aHashedNewPassword[i * 2], "%02x", HashedNewPassword.data[i]);
 
-	str_copy(aBuf, "UPDATE Accounts SET password = ? WHERE name = ?;", sizeof(aBuf));
+	str_copy(aBuf, "UPDATE accounts SET password = ? WHERE name = ?;", sizeof(aBuf));
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -593,7 +593,7 @@ bool CAccounts::ShowTopLevelThread(IDbConnection *pSqlServer, const ISqlData *pG
 	CAccountResult *pResult = dynamic_cast<CAccountResult *>(pGameData->m_pResult.get());
 
 	char aBuf[512];
-	str_copy(aBuf, "SELECT last_name, level FROM Accounts ORDER BY level DESC LIMIT 10;", sizeof(aBuf));
+	str_copy(aBuf, "SELECT last_name, level FROM accounts ORDER BY level DESC LIMIT 10;", sizeof(aBuf));
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -670,7 +670,7 @@ bool CAccounts::ShowTopBlockpointsThread(IDbConnection *pSqlServer, const ISqlDa
 	pResult->SetVariant(CAccountResult::TOP_MESSAGES);
 
 	char aBuf[512];
-	str_copy(aBuf, "SELECT last_name, blockpoints FROM Accounts ORDER BY blockpoints DESC LIMIT 10;", sizeof(aBuf));
+	str_copy(aBuf, "SELECT last_name, blockpoints FROM accounts ORDER BY blockpoints DESC LIMIT 10;", sizeof(aBuf));
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -747,7 +747,7 @@ bool CAccounts::ShowTopKillStreaksThread(IDbConnection *pSqlServer, const ISqlDa
 	pResult->SetVariant(CAccountResult::TOP_MESSAGES);
 
 	char aBuf[512];
-	str_copy(aBuf, "SELECT last_name, killstreak FROM Accounts ORDER BY level DESC LIMIT 10;", sizeof(aBuf));
+	str_copy(aBuf, "SELECT last_name, killstreak FROM accounts ORDER BY level DESC LIMIT 10;", sizeof(aBuf));
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{

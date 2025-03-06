@@ -148,7 +148,7 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	CClanResult *pResult = static_cast<CClanResult *>(pGameData->m_pResult.get());
 	char aBuf[1024];
 
-	str_copy(aBuf, "INSERT INTO Clans (name) VALUES (?);", sizeof(aBuf));
+	str_copy(aBuf, "INSERT INTO clans (name) VALUES (?);", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		snprintf(pError, ErrorSize, "Error 101: Failed to prepare INSERT statement: %s", pError);
@@ -170,7 +170,7 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		return true;
 	}
 
-	str_copy(aBuf, "SELECT id FROM Clans WHERE name = ?;", sizeof(aBuf));
+	str_copy(aBuf, "SELECT id FROM clans WHERE name = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		snprintf(pError, ErrorSize, "Error 104: Failed to prepare SELECT statement: %s", pError);
@@ -195,7 +195,7 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		return true;
 	}
 
-	str_copy(aBuf, "UPDATE Accounts SET clanID = ?, auth_level = 3 WHERE id = ?;", sizeof(aBuf));
+	str_copy(aBuf, "UPDATE accounts SET clanID = ?, auth_level = 3 WHERE id = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		snprintf(pError, ErrorSize, "Error 107: Failed to prepare UPDATE statement: %s", pError);
@@ -245,7 +245,7 @@ bool CClanManager::DeleteClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	CClanResult *pResult = static_cast<CClanResult *>(pGameData->m_pResult.get());
 	char aBuf[1024];
 
-	str_copy(aBuf, "DELETE FROM Clans WHERE id = ?;", sizeof(aBuf));
+	str_copy(aBuf, "DELETE FROM clans WHERE id = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		snprintf(pError, ErrorSize, "Error 101: Failed to prepare DELETE statement: %s", pError);
@@ -268,7 +268,7 @@ bool CClanManager::DeleteClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		return true;
 	}
 
-	str_copy(aBuf, "UPDATE Accounts SET clanID = 0, auth_level = 0 WHERE clanID = ?;", sizeof(aBuf));
+	str_copy(aBuf, "UPDATE accounts SET clanID = 0, auth_level = 0 WHERE clanID = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		snprintf(pError, ErrorSize, "Error 104: Failed to prepare UPDATE statement: %s", pError);
@@ -321,7 +321,7 @@ bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *p
 
 	if(pData->m_AccountId != 0)
 	{
-		str_copy(aBuf, "UPDATE Accounts SET clanID = ?, auth_level = 1 WHERE id = ?;", sizeof(aBuf));
+		str_copy(aBuf, "UPDATE accounts SET clanID = ?, auth_level = 1 WHERE id = ?;", sizeof(aBuf));
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		{
 			snprintf(pError, ErrorSize, "Error 201: Failed to prepare UPDATE statement: %s", pError);
@@ -333,7 +333,7 @@ bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	}
 	else
 	{
-		str_copy(aBuf, "UPDATE Accounts SET clanID = ?, auth_level = 1 WHERE name = ?;", sizeof(aBuf));
+		str_copy(aBuf, "UPDATE accounts SET clanID = ?, auth_level = 1 WHERE name = ?;", sizeof(aBuf));
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		{
 			snprintf(pError, ErrorSize, "Error 201: Failed to prepare UPDATE statement: %s", pError);
@@ -371,7 +371,7 @@ bool CClanManager::RemoveFromClanThread(IDbConnection *pSqlServer, const ISqlDat
 	CClanResult *pResult = static_cast<CClanResult *>(pGameData->m_pResult.get());
 	char aBuf[1024];
 
-	str_copy(aBuf, "UPDATE Accounts SET clanID = 0, auth_level = 0 WHERE name = ? AND clanID = ?;", sizeof(aBuf));
+	str_copy(aBuf, "UPDATE accounts SET clanID = 0, auth_level = 0 WHERE name = ? AND clanID = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		snprintf(pError, ErrorSize, "Error 301: Failed to prepare UPDATE statement: %s", pError);
@@ -404,7 +404,7 @@ bool CClanManager::ClanLeaveThread(IDbConnection *pSqlServer, const ISqlData *pG
 	CClanResult *pResult = static_cast<CClanResult *>(pGameData->m_pResult.get());
 	char aBuf[1024];
 
-	str_copy(aBuf, "UPDATE Accounts SET clanID = 0, auth_level = 0 WHERE id = ? AND clanID = ?;", sizeof(aBuf));
+	str_copy(aBuf, "UPDATE accounts SET clanID = 0, auth_level = 0 WHERE id = ? AND clanID = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		snprintf(pError, ErrorSize, "Error 401: Failed to prepare UPDATE statement: %s", pError);
@@ -436,7 +436,7 @@ bool CClanManager::SetAuthLevelThread(IDbConnection *pSqlServer, const ISqlData 
 	CClanResult *pResult = static_cast<CClanResult *>(pGameData->m_pResult.get());
 	char aBuf[1024];
 
-	str_copy(aBuf, "UPDATE Accounts SET auth_level = ? WHERE name = ? AND clanID = ?;", sizeof(aBuf));
+	str_copy(aBuf, "UPDATE accounts SET auth_level = ? WHERE name = ? AND clanID = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		snprintf(pError, ErrorSize, "Error 501: Failed to prepare UPDATE statement: %s", pError);
@@ -469,7 +469,7 @@ bool CClanManager::RenameClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	CClanResult *pResult = static_cast<CClanResult *>(pGameData->m_pResult.get());
 	char aBuf[1024];
 
-	str_copy(aBuf, "UPDATE Clans SET name = ? WHERE id = ?;", sizeof(aBuf));
+	str_copy(aBuf, "UPDATE clans SET name = ? WHERE id = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		snprintf(pError, ErrorSize, "Error 601: Failed to prepare UPDATE statement: %s", pError);
@@ -514,7 +514,7 @@ bool CClanManager::LoadClansThread(IDbConnection *pSqlServer, const ISqlData *pG
 {
 	const CSqlClanListRequest *pRequest = static_cast<const CSqlClanListRequest *>(pGameData);
 	char aBuf[1024];
-	str_copy(aBuf, "SELECT id, name, level, experience FROM Clans;", sizeof(aBuf));
+	str_copy(aBuf, "SELECT id, name, level, experience FROM clans;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		snprintf(pError, ErrorSize, "Failed to prepare LOAD clans statement: %s", pError);
