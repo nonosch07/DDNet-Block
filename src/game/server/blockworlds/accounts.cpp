@@ -68,7 +68,8 @@ CAccounts::CAccounts(CGameContext *pGameServer, CDbConnectionPool *pPool) :
 std::shared_ptr<CAdminCommandResult> CAccounts::NewSqlAdminCommandResult(int ClientId)
 {
 	CPlayer *pCurPlayer = GameServer()->m_apPlayers[ClientId];
-	if(!pCurPlayer) return nullptr;
+	if(!pCurPlayer)
+		return nullptr;
 	pCurPlayer->m_AdminCommandQueryResult.push(std::make_shared<CAdminCommandResult>());
 	return pCurPlayer->m_AdminCommandQueryResult.back();
 }
@@ -102,7 +103,8 @@ void CAccounts::ExecAdminThread(
 std::shared_ptr<CAccountResult> CAccounts::NewSqlAccountResult(int ClientId)
 {
 	CPlayer *pCurPlayer = GameServer()->m_apPlayers[ClientId];
-	if(!pCurPlayer) return nullptr;
+	if(!pCurPlayer)
+		return nullptr;
 	pCurPlayer->m_AccountQueryResult.push(std::make_shared<CAccountResult>());
 	return pCurPlayer->m_AccountQueryResult.back();
 }
@@ -716,7 +718,7 @@ bool CAccounts::ShowTopLevelThread(IDbConnection *pSqlServer, const ISqlData *pG
 
 		Level = pSqlServer->GetInt(2);
 
-		str_format(aBuf, sizeof(aBuf), "%d. %s : %d", Line, aLastName, Level);
+		str_format(aBuf, sizeof(aBuf), "[%d] %s : %d", Line, aLastName, Level);
 		str_copy(pResult->m_aaMessages[Line], aBuf, sizeof(pResult->m_aaMessages[Line]));
 		dbg_msg("top_level", "Retrieved: %s", aBuf);
 		Line++;
@@ -793,7 +795,7 @@ bool CAccounts::ShowTopBlockpointsThread(IDbConnection *pSqlServer, const ISqlDa
 
 		Blockpoints = pSqlServer->GetInt(2);
 
-		str_format(aBuf, sizeof(aBuf), "%d. %s - %d", Line, aLastName, Blockpoints);
+		str_format(aBuf, sizeof(aBuf), "[%d] %s - %d", Line, aLastName, Blockpoints);
 		str_copy(pResult->m_aaMessages[Line], aBuf, sizeof(pResult->m_aaMessages[Line]));
 		dbg_msg("top_blockpoints", "Retrieved: %s", aBuf);
 		Line++;
@@ -814,7 +816,7 @@ bool CAccounts::ShowTopBlockpointsThread(IDbConnection *pSqlServer, const ISqlDa
 
 	if(*pError != '\0')
 	{
-		dbg_msg("top_level", "SQL stepping failed: %s", pError);
+		dbg_msg("top_blockpoints", "SQL stepping failed: %s", pError);
 		str_copy(pResult->m_aaMessages[Line], "Error retrieving top level players.", sizeof(pResult->m_aaMessages[Line]));
 		pResult->m_Success = false;
 		return true;
@@ -870,7 +872,7 @@ bool CAccounts::ShowTopKillStreaksThread(IDbConnection *pSqlServer, const ISqlDa
 
 		Blockpoints = pSqlServer->GetInt(2);
 
-		str_format(aBuf, sizeof(aBuf), "%d. %s : %d", Line, aLastName, Blockpoints);
+		str_format(aBuf, sizeof(aBuf), "[%d] %s : %d", Line, aLastName, Blockpoints);
 		str_copy(pResult->m_aaMessages[Line], aBuf, sizeof(pResult->m_aaMessages[Line]));
 		dbg_msg("top_killstreak", "Retrieved: %s", aBuf);
 		Line++;

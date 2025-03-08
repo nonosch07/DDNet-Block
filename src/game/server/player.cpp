@@ -8,6 +8,7 @@
 
 #include <base/system.h>
 
+#include <cstdint>
 #include <engine/antibot.h>
 #include <engine/server.h>
 #include <engine/shared/config.h>
@@ -37,6 +38,7 @@ CPlayer::CPlayer(CGameContext *pGameServer, uint32_t UniqueClientId, int ClientI
 
 	m_LastDeathnote = Server()->Tick();
 	m_LastExpAccountAlert = 0;
+	m_ClanSaveCooldown = 0;
 }
 
 CPlayer::~CPlayer()
@@ -301,6 +303,15 @@ void CPlayer::Tick()
 			GameServer()->SendEmoticon(GetCid(), EMOTICON_GHOST, -1);
 		}
 	}
+
+	if(m_ClanSaveCooldown + Server()->TickSpeed() * g_Config.m_SvClanSaveInterval < Server()->Tick())
+	{
+		if(IsLoggedIn() && GetClanId() > 0)
+		{
+			GameServer()->Clans()->SaveClan(GetCid(), GetClanId());
+			m_ClanSaveCooldown = Server()->Tick();
+		}
+	}	
 }
 
 void CPlayer::PostTick()
@@ -1256,6 +1267,7 @@ void CPlayer::OnPlayerSave(bool Logout)
 	if(Logout)
 		GameServer()->Accounts()->Logout(GetCid(), m_Account.m_Id);
 }
+
 void CPlayer::OnPlayerLogout()
 {
 	if(!IsLoggedIn())
@@ -1266,11 +1278,14 @@ void CPlayer::OnPlayerLogout()
 	OnPlayerSave(true);
 	dbg_msg("account", "logging out AccountId=%d", GetAccId());
 
+	if(GetClanId() > 0)
+	{
+		GameServer()->Clans()->SaveClan(GetCid(), GetClanId());
+	}
+
 	SetSkinMani(-1);
 	SetGunDesign(-1);
 	SetKnockout(-1);
-
-	// m_pCharacter->m_PendingPurchase->Destroy(true); - m_pCharacter will be null at this point
 
 	m_Account = CAccountData();
 }

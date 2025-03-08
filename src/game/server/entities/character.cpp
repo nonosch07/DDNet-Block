@@ -143,6 +143,10 @@ void CCharacter::Destroy()
 	{
 		m_PendingPurchase->Destroy(false);
 	}
+	if(m_PendingClanRequests)
+	{
+		m_PendingClanRequests->Destroy(false);
+	}
 	GameServer()->m_World.m_Core.m_apCharacters[m_pPlayer->GetCid()] = 0;
 	m_Alive = false;
 	SetSolo(false);
@@ -828,6 +832,10 @@ void CCharacter::Tick()
 	if(m_PendingPurchase != nullptr)
 	{
 		m_PendingPurchase->OnTick();
+	}
+	if(m_PendingClanRequests != nullptr)
+	{
+		m_PendingClanRequests->OnTick();
 	}
 }
 
@@ -1898,13 +1906,6 @@ void CCharacter::HandleTiles(int Index)
 	{
 		m_LastBonus = false;
 	}
-
-	// if (m_PendingPurchase == nullptr && Collision()->GetSwitchType(MapIndex) == OWNTILE_SWITCH_START_BUY) {
-	// 	new CShop(GameServer(), GetPlayer(), 0, Collision()->GetSwitchNumber(MapIndex), Collision()->GetSwitchDelay(MapIndex));
-	// }
-	// if (m_PendingPurchase && Collision()->GetSwitchType(MapIndex) == OWNTILE_SWITCH_STOP_BUY) {
-	// 	m_PendingPurchase->Destroy(false);
-	// }
 
 	int z = Collision()->IsTeleport(MapIndex);
 	if(!g_Config.m_SvOldTeleportHook && !g_Config.m_SvOldTeleportWeapons && z && !Collision()->TeleOuts(z - 1).empty())

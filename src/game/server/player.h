@@ -298,7 +298,9 @@ public:
 	int GetPlayerVip() { return m_Account.m_Vip; }
 	int GetPlayerPages() { return m_Account.m_Pages; }
 	int GetPlayerLevel() { return m_Account.m_Level; }
+	int GetClanLevel() { return m_Account.m_pClanData->m_Level; }
 	int GetPlayerExperience() { return m_Account.m_Experience; }
+	int GetClanExperience() { return m_Account.m_pClanData->m_Experience; }
 	int GetPlayerWeaponkits() { return m_Account.m_Weaponkits; }
 	int GetPlayerRanking() { return m_Account.m_Ranking; }
 	int GetClanId() { return m_Account.m_ClanId; }
@@ -338,6 +340,7 @@ public:
 
 	int64_t m_LastDeathnote;
 	int64_t m_LastExpAccountAlert;
+	int64_t m_ClanSaveCooldown;
 
 	//cosmetics
 private:

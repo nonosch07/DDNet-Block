@@ -14,6 +14,7 @@
 
 #include <game/server/blockworlds/accounts.h>
 #include <game/server/blockworlds/clans.h>
+#include <game/server/blockworlds/requests/clan_requests/requests.h>
 
 bool CheckClientId(int ClientId);
 
@@ -2529,8 +2530,7 @@ void CGameContext::ConDisplayProfile(IConsole::IResult *pResult, void *pUserData
 	}
 
 	char aBuf[128];
-	str_format(aBuf, sizeof(aBuf), "*** Profile of %s (%s)",
-		pTargetPlayer->GetPlayerName(),
+	str_format(aBuf, sizeof(aBuf), "*** Profile of %s",
 		pTargetPlayer->m_Account.m_aName);
 	pSelf->SendChatTarget(ClientId, aBuf);
 
@@ -2816,6 +2816,69 @@ void CGameContext::ConExp(IConsole::IResult *pResult, void *pUserData)
 	str_format(aBuf, sizeof(aBuf), "Needed Exp: %i", NeededAccountExp(pPlayer->GetPlayerLevel()));
 	pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
 }
+void CGameContext::ConClanExp(IConsole::IResult *pResult, void *pUserData)
+{
+    CGameContext *pSelf = (CGameContext *)pUserData;
+    CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+
+    if(!g_Config.m_SvAccountsystem)
+        return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+
+    char aBuf[256];
+
+    if(!pPlayer->IsLoggedIn())
+        return pSelf->SendChatTarget(pResult->m_ClientId, "You are not logged in.");
+    if(!pPlayer->GetClanId())
+        return pSelf->SendChatTarget(pResult->m_ClientId, "You are not in a clan");
+
+    // make sure the clan data pointer is valid.
+    if(!pPlayer->m_Account.m_pClanData)
+    {
+        pSelf->SendChatTarget(pResult->m_ClientId, "Error: Something weird happened, try to login again.");
+        return;
+    }
+
+    static const int s_MaxNum = 17;
+    float Ratio = (float)pPlayer->GetClanExperience() / NeededClanExp(pPlayer->GetClanLevel());
+    int Num = round_to_int(Ratio * s_MaxNum);
+
+    static char s_ExpTopLeft[]     = {-30, -107, -108, 0};
+    static char s_ExpTopMidFull[]  = {-30, -107, -90,  0};
+    static char s_ExpTopMidEmpty[] = {-30, -107, -112, 0};
+    static char s_ExpTopRight[]    = {-30, -107, -105, 0};
+    static char s_ExpBotLeft[]     = {-30, -107, -102, 0};
+    static char s_ExpBotMidFull[]  = {-30, -107, -87,  0};
+    static char s_ExpBotMidEmpty[] = {-30, -107, -112, 0};
+    static char s_ExpBotRight[]    = {-30, -107, -99,  0};
+
+    char aBarTop[64];
+    char aBarBot[64];
+
+    str_format(aBarTop, sizeof(aBarTop), "%s", s_ExpTopLeft);
+    for(int i = 0; i < Num; i++)
+        str_format(aBarTop + strlen(aBarTop), sizeof(aBarTop) - strlen(aBarTop), "%s", s_ExpTopMidFull);
+    for(int i = 0; i < s_MaxNum - Num; i++)
+        str_format(aBarTop + strlen(aBarTop), sizeof(aBarTop) - strlen(aBarTop), "%s", s_ExpTopMidEmpty);
+    str_format(aBarTop + strlen(aBarTop), sizeof(aBarTop) - strlen(aBarTop), "%s", s_ExpTopRight);
+
+    str_format(aBarBot, sizeof(aBarBot), "%s", s_ExpBotLeft);
+    for(int i = 0; i < Num; i++)
+        str_format(aBarBot + strlen(aBarBot), sizeof(aBarBot) - strlen(aBarBot), "%s", s_ExpBotMidFull);
+    for(int i = 0; i < s_MaxNum - Num; i++)
+        str_format(aBarBot + strlen(aBarBot), sizeof(aBarBot) - strlen(aBarBot), "%s", s_ExpBotMidEmpty);
+    str_format(aBarBot + strlen(aBarBot), sizeof(aBarBot) - strlen(aBarBot), "%s", s_ExpBotRight);
+
+    pSelf->SendChatTarget(pResult->m_ClientId, "Clan Experience Bar:");
+    pSelf->SendChatTarget(pResult->m_ClientId, aBarTop);
+    pSelf->SendChatTarget(pResult->m_ClientId, aBarBot);
+    str_format(aBuf, sizeof(aBuf), "Clan level: %i", pPlayer->GetClanLevel());
+    pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+    str_format(aBuf, sizeof(aBuf), "Clan Exp: %i", pPlayer->GetClanExperience());
+    pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+    str_format(aBuf, sizeof(aBuf), "Needed Exp: %i", NeededClanExp(pPlayer->GetClanLevel()));
+    pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+}
+
 
 void CGameContext::ConBuy(IConsole::IResult *pResult, void *pUserData)
 {
@@ -2909,6 +2972,108 @@ void CGameContext::ConShopDecline(IConsole::IResult *pResult, void *pUserData)
 	}
 }
 
+void CGameContext::ConClanInvite(IConsole::IResult *pResult, void *pUserData)
+{
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+
+	if(!pPlayer || !pPlayer->IsLoggedIn() || !pPlayer->GetCharacter())
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "You are not properly logged in.");
+		return;
+	}
+
+	if(pPlayer->GetClanId() == 0)
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "You are not in a clan to invite others.");
+		return;
+	}
+
+	if(pPlayer->GetAuthLevel() < 2)
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "You need to be the leader or co-leader to invite others.");
+		return;
+	}
+
+	const char *pName = pResult->GetString(0);
+	int Target = -1;
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		if(pSelf->m_apPlayers[i] && !str_comp(pName, pSelf->Server()->ClientName(i)))
+		{
+			Target = i;
+			break;
+		}
+	}
+
+	if(Target == -1)
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "Player not found or not logged in.");
+		return;
+	}
+
+	CPlayer *pTargetPlayer = pSelf->m_apPlayers[Target];
+
+	if(!pTargetPlayer || !pTargetPlayer->GetCharacter())
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "Target player is not available.");
+		return;
+	}
+	if(!pTargetPlayer->IsLoggedIn())
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "This player is not logged in.");
+		return;
+	}
+
+	if(pTargetPlayer->GetClanId() != 0)
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "This player is already in a clan.");
+		return;
+	}
+
+	if(pTargetPlayer->GetCharacter()->m_PendingClanRequests)
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "This player already has a pending clan invitation.");
+		return;
+	}
+
+	new CClanRequests(pSelf, pTargetPlayer, pPlayer, pPlayer->GetClanId(), 15);
+	pSelf->SendChatTarget(pResult->m_ClientId, "Clan invitation sent.");
+}
+
+void CGameContext::ConClanAccept(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = static_cast<CGameContext *>(pUserData);
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+
+	if(pPlayer && pPlayer->GetCharacter() && pPlayer->GetCharacter()->m_PendingClanRequests)
+	{
+		pPlayer->GetCharacter()->m_PendingClanRequests->Accept();
+	}
+	else
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "Nobody invited you!");
+	}
+}
+
+void CGameContext::ConClanDecline(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = static_cast<CGameContext *>(pUserData);
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+
+	if(pPlayer && pPlayer->GetCharacter() && pPlayer->GetCharacter()->m_PendingClanRequests)
+	{
+		pPlayer->GetCharacter()->m_PendingClanRequests->Decline();
+	}
+	else
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "Nobody invited you!");
+	}
+}
+
 void CGameContext::ConClanCreate(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
@@ -2970,49 +3135,69 @@ void CGameContext::ConClanDelete(IConsole::IResult *pResult, void *pUserData)
 	pSelf->Clans()->DeleteClan(ClientId, pPlayer->GetClanId(), pPlayer->GetAccId());
 }
 
-void CGameContext::ConClanAssign(IConsole::IResult *pResult, void *pUserData)
-{
-	CGameContext *pSelf = (CGameContext *)pUserData;
-
-	if(!CheckClientId(pResult->m_ClientId))
-		return;
-
-	int ClientId = pResult->m_ClientId;
-	CPlayer *pPlayer = pSelf->m_apPlayers[ClientId];
-	if(!pPlayer)
-		return;
-
-	if(!pPlayer->m_Account.m_Id)
-		return pSelf->SendChatTarget(ClientId, "You must be logged in to assign a player to a clan.");
-
-	if(pPlayer->m_Account.m_ClanId < 1 || pPlayer->m_Account.m_AuthLevel < 2)
-		return pSelf->SendChatTarget(ClientId, "You are not authorized to add members to this clan.");
-
-	const char *pAccountName = pResult->GetString(0);
-	pSelf->Clans()->AssignClan(ClientId, pAccountName, pPlayer->m_Account.m_ClanId, pPlayer->m_Account.m_Id);
-}
-
 void CGameContext::ConClanRemove(IConsole::IResult *pResult, void *pUserData)
 {
-	CGameContext *pSelf = (CGameContext *)pUserData;
+    CGameContext *pSelf = (CGameContext *)pUserData;
 
-	if(!CheckClientId(pResult->m_ClientId))
-		return;
+    if(!CheckClientId(pResult->m_ClientId))
+        return;
 
-	int ClientId = pResult->m_ClientId;
-	CPlayer *pPlayer = pSelf->m_apPlayers[ClientId];
-	if(!pPlayer)
-		return;
+    int ClientId = pResult->m_ClientId;
+    CPlayer *pPlayer = pSelf->m_apPlayers[ClientId];
+    if(!pPlayer)
+        return;
 
-	if(!pPlayer->m_Account.m_Id)
-		return pSelf->SendChatTarget(ClientId, "You must be logged in to remove a player from the clan.");
+    if(!pPlayer->m_Account.m_Id)
+        return pSelf->SendChatTarget(ClientId, "You must be logged in to remove a player from the clan.");
 
-	if(pPlayer->m_Account.m_ClanId < 1 || pPlayer->m_Account.m_AuthLevel < 2)
-		return pSelf->SendChatTarget(ClientId, "You are not authorized to remove members from this clan.");
+    if(pPlayer->m_Account.m_ClanId < 1 || pPlayer->m_Account.m_AuthLevel < 2)
+        return pSelf->SendChatTarget(ClientId, "You are not authorized to remove members from this clan.");
 
-	const char *pAccountName = pResult->GetString(0);
-	pSelf->Clans()->RemoveFromClan(ClientId, pAccountName, pPlayer->m_Account.m_ClanId);
+    const char *pTargetName = pResult->GetString(0);
+    bool FoundTarget = false;
+    int TargetClientId = -1;
+
+    for(int i = 0; i < MAX_CLIENTS; i++)
+    {
+        if(pSelf->m_apPlayers[i] && !str_comp(pTargetName, pSelf->Server()->ClientName(i)))
+        {
+            TargetClientId = i;
+            FoundTarget = true;
+            break;
+        }
+    }
+
+    if(!FoundTarget)
+    {
+        return pSelf->SendChatTarget(ClientId, "Player not found");
+    }
+
+    CPlayer *pTargetPlayer = pSelf->m_apPlayers[TargetClientId];
+
+    if(!pTargetPlayer->m_Account.m_Id)
+    {
+        return pSelf->SendChatTarget(ClientId, "The target player is not logged in.");
+    }
+
+    if(pPlayer->m_Account.m_ClanId != pTargetPlayer->m_Account.m_ClanId)
+    {
+        return pSelf->SendChatTarget(ClientId, "The target player is not in your clan.");
+    }
+
+    if(ClientId == TargetClientId)
+    {
+        return pSelf->SendChatTarget(ClientId, "You cannot remove yourself from the clan.");
+    }
+
+    if(pTargetPlayer->m_Account.m_AuthLevel == 3)
+    {
+        return pSelf->SendChatTarget(ClientId, "You cannot remove a leader or co-leader from the clan.");
+    }
+
+    pSelf->Clans()->RemoveFromClan(TargetClientId, pTargetPlayer->m_Account.m_aName, pPlayer->m_Account.m_ClanId);
 }
+
+
 
 void CGameContext::ConClanLeave(IConsole::IResult *pResult, void *pUserData)
 {
@@ -3040,30 +3225,68 @@ void CGameContext::ConClanLeave(IConsole::IResult *pResult, void *pUserData)
 
 void CGameContext::ConClanSetAuth(IConsole::IResult *pResult, void *pUserData)
 {
-	CGameContext *pSelf = (CGameContext *)pUserData;
-
-	if(!CheckClientId(pResult->m_ClientId))
-		return;
-
-	int ClientId = pResult->m_ClientId;
-	CPlayer *pPlayer = pSelf->m_apPlayers[ClientId];
-	if(!pPlayer)
-		return;
-
-	if(!pPlayer->m_Account.m_Id)
-		return pSelf->SendChatTarget(ClientId, "You must be logged in to change a player's clan rank.");
-
-	if(pPlayer->m_Account.m_ClanId < 1 || pPlayer->m_Account.m_AuthLevel < 3)
-		return pSelf->SendChatTarget(ClientId, "Only the clan leader can set ranks.");
-
-	const char *pAccountName = pResult->GetString(0);
-	int NewAuthLevel = pResult->GetInteger(1);
-
-	if(NewAuthLevel < 1 || NewAuthLevel > 3)
-		return pSelf->SendChatTarget(ClientId, "Invalid rank. Allowed values: 1 (Member), 2 (coleader), 3 (Leader). Setting someone's rank to 3 transfer the leadership!");
-
-	pSelf->Clans()->SetAuthLevel(ClientId, pAccountName, NewAuthLevel, pPlayer->m_Account.m_ClanId);
+    CGameContext *pSelf = (CGameContext *)pUserData;
+    
+    if (!CheckClientId(pResult->m_ClientId))
+        return;
+    
+    int IssuerId = pResult->m_ClientId;
+    CPlayer *pIssuer = pSelf->m_apPlayers[IssuerId];
+    int NewAuthLevel = pResult->GetInteger(1);
+    
+    if (!pIssuer)
+        return;
+    
+    if (!pIssuer->m_Account.m_Id)
+        return pSelf->SendChatTarget(IssuerId, "You must be logged in to change a player's clan rank.");
+    
+    if (pIssuer->m_Account.m_ClanId < 1 || pIssuer->m_Account.m_AuthLevel < 3)
+        return pSelf->SendChatTarget(IssuerId, "Only the clan leader can set ranks.");
+    
+    if (NewAuthLevel == 3)
+        return pSelf->SendChatTarget(IssuerId, "Use /clan_transfer to transfer leadership.");
+    
+    const char *pTargetName = pResult->GetString(0);
+    bool FoundTarget = false;
+    int TargetClientId = -1;
+    
+    for (int i = 0; i < MAX_CLIENTS; i++)
+    {
+        if (pSelf->m_apPlayers[i] && !str_comp(pTargetName, pSelf->Server()->ClientName(i)))
+        {
+            TargetClientId = i;
+            FoundTarget = true;
+            break;
+        }
+    }
+    
+    if (!FoundTarget)
+        return pSelf->SendChatTarget(IssuerId, "Player not found");
+    
+    CPlayer *pTargetPlayer = pSelf->m_apPlayers[TargetClientId];
+    
+    if (!pTargetPlayer->m_Account.m_Id)
+        return pSelf->SendChatTarget(IssuerId, "The target player is not logged in.");
+    
+    if (pIssuer->m_Account.m_ClanId != pTargetPlayer->m_Account.m_ClanId)
+        return pSelf->SendChatTarget(IssuerId, "The target player is not in your clan.");
+    
+    if (IssuerId == TargetClientId)
+        return pSelf->SendChatTarget(IssuerId, "You cannot change your own rank.");
+    
+    if (NewAuthLevel < 1 || NewAuthLevel > 2)
+        return pSelf->SendChatTarget(IssuerId, "Invalid rank. Allowed values: 1 (Member), 2 (Co-Leader). Use /clan_transfer to transfer leadership!");
+    
+    if (pTargetPlayer->m_Account.m_AuthLevel == 3)
+        return pSelf->SendChatTarget(IssuerId, "You cannot change the rank of the clan leader.");
+    
+    if (pTargetPlayer->m_Account.m_AuthLevel == NewAuthLevel)
+        return pSelf->SendChatTarget(IssuerId, "The player already has that rank.");
+    
+    pSelf->Clans()->SetAuthLevel(TargetClientId, pTargetPlayer->m_Account.m_aName, NewAuthLevel, pIssuer->m_Account.m_ClanId);
 }
+
+
 
 void CGameContext::ConClanRename(IConsole::IResult *pResult, void *pUserData)
 {
@@ -3103,9 +3326,10 @@ void CGameContext::ConClanRename(IConsole::IResult *pResult, void *pUserData)
 	pSelf->Clans()->RenameClan(ClientId, pPlayer->m_Account.m_ClanId, pNewClanName);
 }
 
-void CGameContext::ConDisplayClanProfile(IConsole::IResult *pResult, void *pUserData)
+void CGameContext::ConDisplayTopClans(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
+
 	if(!CheckClientId(pResult->m_ClientId))
 		return;
 
@@ -3113,48 +3337,5 @@ void CGameContext::ConDisplayClanProfile(IConsole::IResult *pResult, void *pUser
 	CPlayer *pPlayer = pSelf->m_apPlayers[ClientId];
 	if(!pPlayer)
 		return;
-	pSelf->SendChatTarget(ClientId, "test");
-
-	const CClansData *pClanData = nullptr;
-
-	if(pPlayer->m_Account.m_ClanId <= 0)
-	{
-		pSelf->SendChatTarget(ClientId, "You are not in a clan.");
-		return;
-	}
-
-	const std::vector<CClansData> &vClans = pSelf->Clans()->GetClansData();
-	{
-		char CountBuf[64];
-		str_format(CountBuf, sizeof(CountBuf), "Number of clans loaded: %d", (int)vClans.size());
-		pSelf->SendChatTarget(ClientId, CountBuf);
-	}
-
-	for(const CClansData &Clan : vClans)
-	{
-		char DbgBuf[128];
-		str_format(DbgBuf, sizeof(DbgBuf), "Comparing clan id %d with account clan id %d", Clan.m_Id, pPlayer->m_Account.m_ClanId);
-		pSelf->SendChatTarget(ClientId, DbgBuf);
-
-		if(Clan.m_Id == pPlayer->m_Account.m_ClanId)
-		{
-			pClanData = &Clan;
-			break;
-		}
-	}
-	if(!pClanData)
-	{
-		pSelf->SendChatTarget(ClientId, "Your clan data could not be found.");
-		return;
-	}
-
-	char aBuf[128];
-	str_format(aBuf, sizeof(aBuf), "*** Profile of Clan %s (ID: %d)", pClanData->m_ClanName, pClanData->m_Id);
-	pSelf->SendChatTarget(ClientId, aBuf);
-
-	str_format(aBuf, sizeof(aBuf), "*** Level: %d", pClanData->m_Level);
-	pSelf->SendChatTarget(ClientId, aBuf);
-
-	str_format(aBuf, sizeof(aBuf), "*** Experience: %d", pClanData->m_Experience);
-	pSelf->SendChatTarget(ClientId, aBuf);
+	pSelf->Clans()->ShowTopClans(ClientId);
 }
