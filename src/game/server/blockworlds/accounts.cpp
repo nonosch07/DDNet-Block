@@ -68,10 +68,10 @@ CAccounts::CAccounts(CGameContext *pGameServer, CDbConnectionPool *pPool) :
 std::shared_ptr<CAdminCommandResult> CAccounts::NewSqlAdminCommandResult(int ClientId)
 {
 	CPlayer *pCurPlayer = GameServer()->m_apPlayers[ClientId];
-	if(pCurPlayer->m_AdminCommandQueryResult != nullptr)
+	if(!pCurPlayer)
 		return nullptr;
-	pCurPlayer->m_AdminCommandQueryResult = std::make_shared<CAdminCommandResult>();
-	return pCurPlayer->m_AdminCommandQueryResult;
+	pCurPlayer->m_AdminCommandQueryResult.push(std::make_shared<CAdminCommandResult>());
+	return pCurPlayer->m_AdminCommandQueryResult.back();
 }
 
 void CAccounts::ExecAdminThread(
@@ -103,10 +103,10 @@ void CAccounts::ExecAdminThread(
 std::shared_ptr<CAccountResult> CAccounts::NewSqlAccountResult(int ClientId)
 {
 	CPlayer *pCurPlayer = GameServer()->m_apPlayers[ClientId];
-	if(pCurPlayer->m_AccountQueryResult != nullptr)
+	if(!pCurPlayer)
 		return nullptr;
-	pCurPlayer->m_AccountQueryResult = std::make_shared<CAccountResult>();
-	return pCurPlayer->m_AccountQueryResult;
+	pCurPlayer->m_AccountQueryResult.push(std::make_shared<CAccountResult>());
+	return pCurPlayer->m_AccountQueryResult.back();
 }
 
 void CAccounts::ExecUserThread(
@@ -135,6 +135,7 @@ void CAccounts::ExecUserThread(
 	{
 		Tmp->m_AccountData = CAccountData();
 	}
+	Tmp->m_AccountId = AccountId;
 
 	m_pPool->Execute(pFuncPtr, std::move(Tmp), pThreadName);
 }
@@ -163,8 +164,8 @@ bool CAccounts::SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData,
 
 	char aBuf[2048];
 	str_copy(aBuf,
-		"UPDATE Accounts SET "
-		"address = ?, is_logged_in = ?, vip = ?, pages = ?, level = ?, experience = ?, weaponkits = ?, ranking = ?, "
+		"UPDATE accounts SET "
+		"address = ?, vip = ?, pages = ?, level = ?, experience = ?, weaponkits = ?, ranking = ?, "
 		"clanID = ?, auth_level = ?, blockpoints = ?, knockouts = ?, gundesign = ?, skinmani = ?, extras = ?, ranked_games = ?, "
 		"ranked_kills = ?, ranked_deaths = ?, ranked_wins = ?, kills = ?, deaths = ?, tourney_win = ?, playtime = ?, killstreak = ?, "
 		"last_name = ?, last_skin = ?, last_body_color = ?, last_feet_color = ? "
@@ -185,7 +186,6 @@ bool CAccounts::SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData,
 #define BIND_INT64(dest) pSqlServer->BindInt64(Index++, dest)
 
 	BIND_STRING(pAcc->m_aAddress);
-	BIND_INT(pAcc->m_IsLoggedIn);
 	BIND_INT(pAcc->m_Vip);
 	BIND_INT(pAcc->m_Pages);
 	BIND_INT(pAcc->m_Level);
@@ -243,15 +243,77 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 	for(int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
 		sprintf(&aHashedPassword[i * 2], "%02x", HashedPassword.data[i]);
 
+	{ // wrong creds
+		char aBuf[2048];
+		str_copy(aBuf,
+			"SELECT "
+			"id "
+			"FROM accounts "
+			"WHERE name = ? AND password = ?;",
+			sizeof(aBuf));
+
+		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+		{
+			return true;
+		}
+
+		pSqlServer->BindString(1, pRequestData->m_aUsername);
+		pSqlServer->BindString(2, aHashedPassword);
+
+		bool End;
+		if(pSqlServer->Step(&End, pError, ErrorSize))
+		{
+			return true;
+		}
+
+		if(End)
+		{
+			pResult->SetVariant(CAccountResult::LOGIN_WRONG_PASS);
+			return false;
+		}
+	}
+
+	int AccountId = pSqlServer->GetInt(1);
+
+	{ // is account busy
+		char aBusyBuf[512];
+		str_copy(aBusyBuf, "SELECT server_id FROM accounts_busy WHERE account_id = ?;", sizeof(aBusyBuf));
+
+		if(pSqlServer->PrepareStatement(aBusyBuf, pError, ErrorSize))
+		{
+			dbg_msg("is_account_busy", "SQL preparation failed: %s", pError);
+			return true;
+		}
+
+		pSqlServer->BindInt(1, AccountId);
+
+		bool End = false;
+		if(pSqlServer->Step(&End, pError, ErrorSize))
+		{
+			dbg_msg("is_account_busy", "Failed to retrieve server_id: %s", pError);
+			pResult->m_Success = false;
+			return true;
+		}
+		if(!End)
+		{
+			char aServerId[32];
+			pSqlServer->GetString(1, aServerId, sizeof(pResult->m_aLoginServer));
+
+			pResult->SetVariant(CAccountResult::LOGGED_IN_ALREADY);
+			str_copy(pResult->m_aLoginServer, aServerId);
+			return false;
+		}
+	}
+
 	char aBuf[2048];
 	str_copy(aBuf,
 		"SELECT "
-		"id, name, password, address, is_logged_in, vip, pages, level, experience, weaponkits, ranking, "
+		"id, name, password, address, vip, pages, level, experience, weaponkits, ranking, "
 		"clanID, auth_level, blockpoints, knockouts, gundesign, skinmani, extras, registerdate, ranked_games, "
 		"ranked_kills, ranked_deaths, ranked_wins, kills, deaths, tourney_win, playtime, killstreak, "
 		"last_name, last_skin, last_body_color, last_feet_color "
-		"FROM Accounts "
-		"WHERE name = ? AND password = ?;",
+		"FROM accounts "
+		"WHERE id = ?;",
 		sizeof(aBuf));
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
@@ -259,8 +321,7 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 		return true;
 	}
 
-	pSqlServer->BindString(1, pRequestData->m_aUsername);
-	pSqlServer->BindString(2, aHashedPassword);
+	pSqlServer->BindInt(1, AccountId);
 
 	bool End;
 	if(pSqlServer->Step(&End, pError, ErrorSize))
@@ -268,79 +329,91 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 		return true;
 	}
 
-	if(!End)
-	{
-		if(pSqlServer->GetInt(5)) // is_logged_in column.
-		{
-			pResult->SetVariant(CAccountResult::LOGGED_IN_ALREADY);
-			pResult->m_Account.m_Id = pSqlServer->GetInt(1);
-			return false;
-		}
+	pResult->SetVariant(CAccountResult::LOGIN_INFO);
 
-		pResult->SetVariant(CAccountResult::LOGIN_INFO);
+	int Index = 1;
 
 #define SQL_GET_INT(idx, dest) dest = pSqlServer->GetInt(idx)
 #define SQL_GET_INT64(idx, dest) dest = pSqlServer->GetInt64(idx)
 #define SQL_GET_STRING(idx, dest) pSqlServer->GetString(idx, dest, sizeof(dest))
 
-		SQL_GET_INT(1, pResult->m_Account.m_Id);
-		SQL_GET_STRING(2, pResult->m_Account.m_aName);
-		SQL_GET_STRING(3, pResult->m_Account.m_aPassword);
-		SQL_GET_STRING(4, pResult->m_Account.m_aAddress);
-		SQL_GET_INT(5, pResult->m_Account.m_IsLoggedIn);
-		SQL_GET_INT(6, pResult->m_Account.m_Vip);
-		SQL_GET_INT(7, pResult->m_Account.m_Pages);
-		SQL_GET_INT(8, pResult->m_Account.m_Level);
-		SQL_GET_INT(9, pResult->m_Account.m_Experience);
-		SQL_GET_INT(10, pResult->m_Account.m_Weaponkits);
-		SQL_GET_INT(11, pResult->m_Account.m_Ranking);
-		SQL_GET_INT(12, pResult->m_Account.m_ClanId);
-		SQL_GET_INT(13, pResult->m_Account.m_AuthLevel);
-		SQL_GET_INT(14, pResult->m_Account.m_Blockpoints);
-		SQL_GET_STRING(15, pResult->m_Account.m_aKnockouts);
-		SQL_GET_STRING(16, pResult->m_Account.m_aGundesign);
-		SQL_GET_STRING(17, pResult->m_Account.m_aSkinmani);
-		SQL_GET_STRING(18, pResult->m_Account.m_aExtras);
-		SQL_GET_STRING(19, pResult->m_Account.m_RegisterDate);
-		SQL_GET_INT(20, pResult->m_Account.m_RankedGames);
-		SQL_GET_INT(21, pResult->m_Account.m_RankedKills);
-		SQL_GET_INT(22, pResult->m_Account.m_RankedDeaths);
-		SQL_GET_INT(23, pResult->m_Account.m_RankedWins);
-		SQL_GET_INT(24, pResult->m_Account.m_Kills);
-		SQL_GET_INT(25, pResult->m_Account.m_Deaths);
-		SQL_GET_INT(26, pResult->m_Account.m_TourneyWin);
-		SQL_GET_INT64(27, pResult->m_Account.m_Playtime);
-		SQL_GET_INT(28, pResult->m_Account.m_Killstreak);
-		SQL_GET_STRING(29, pResult->m_Account.m_aLastName);
-		SQL_GET_STRING(30, pResult->m_Account.m_aLastSkin);
-		SQL_GET_INT(31, pResult->m_Account.m_LastBodyColor);
-		SQL_GET_INT(32, pResult->m_Account.m_LastFeetColor);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Id);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aName);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aPassword);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aAddress);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Vip);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Pages);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Level);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Experience);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Weaponkits);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Ranking);
+	SQL_GET_INT(Index++, pResult->m_Account.m_ClanId);
+	SQL_GET_INT(Index++, pResult->m_Account.m_AuthLevel);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Blockpoints);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aKnockouts);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aGundesign);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aSkinmani);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aExtras);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_RegisterDate);
+	SQL_GET_INT(Index++, pResult->m_Account.m_RankedGames);
+	SQL_GET_INT(Index++, pResult->m_Account.m_RankedKills);
+	SQL_GET_INT(Index++, pResult->m_Account.m_RankedDeaths);
+	SQL_GET_INT(Index++, pResult->m_Account.m_RankedWins);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Kills);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Deaths);
+	SQL_GET_INT(Index++, pResult->m_Account.m_TourneyWin);
+	SQL_GET_INT64(Index++, pResult->m_Account.m_Playtime);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Killstreak);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aLastName);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aLastSkin);
+	SQL_GET_INT(Index++, pResult->m_Account.m_LastBodyColor);
+	SQL_GET_INT(Index++, pResult->m_Account.m_LastFeetColor);
 
 #undef SQL_GET_INT
 #undef SQL_GET_INT64
 #undef SQL_GET_STRING
 
-		pResult->m_Account.m_pClanData = nullptr;
-		if(pResult->m_Account.m_ClanId > 0)
+	{ // set busy
+		char aBusyBuf[512];
+		str_copy(aBusyBuf, "INSERT INTO accounts_busy (server_id, account_id) VALUES (?, ?);", sizeof(aBusyBuf));
+
+		if(pSqlServer->PrepareStatement(aBusyBuf, pError, ErrorSize))
 		{
-			CGameContext *pGameContext = pRequestData->m_pGameContext;
-			const std::vector<CClansData> &vClans = pGameContext->Clans()->GetClansData();
-			for(const CClansData &Clan : vClans)
-			{
-				if(Clan.m_Id == pResult->m_Account.m_ClanId)
-				{
-					pResult->m_Account.m_pClanData = &Clan;
-					break;
-				}
-			}
+			dbg_msg("set_account_busy", "SQL preparation failed: %s", pError);
+			return true;
 		}
 
-		dbg_msg("clandata", "ClanID: %d", pResult->m_Account.m_ClanId);
+		pSqlServer->BindString(1, g_Config.m_SvServerId);
+		pSqlServer->BindInt(2, AccountId);
+
+		int Inserted;
+		if(pSqlServer->ExecuteUpdate(&Inserted, pError, ErrorSize))
+		{
+			dbg_msg("set_account_busy", "Failed to set busy (%d): %s", AccountId, pError);
+			pResult->m_Success = false;
+			return true;
+		}
+		if(Inserted == 0)
+		{
+			dbg_msg("set_account_busy", "Failed to set busy (%d): %s", AccountId, pError);
+		}
 	}
-	else
+
+	pResult->m_Account.m_pClanData = nullptr;
+	if(pResult->m_Account.m_ClanId > 0)
 	{
-		pResult->SetVariant(CAccountResult::LOGIN_WRONG_PASS);
+		CGameContext *pGameContext = pRequestData->m_pGameContext;
+		const std::vector<CClansData> &vClans = pGameContext->Clans()->GetClansData();
+		for(const CClansData &Clan : vClans)
+		{
+			if(Clan.m_Id == pResult->m_Account.m_ClanId)
+			{
+				pResult->m_Account.m_pClanData = &Clan;
+				break;
+			}
+		}
 	}
+
 	return false;
 }
 
@@ -390,7 +463,7 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 	pResult->SetVariant(CAccountResult::REGISTER);
 
 	char aBuf[2048];
-	str_copy(aBuf, "SELECT name FROM Accounts WHERE name = ?;", sizeof(aBuf));
+	str_copy(aBuf, "SELECT name FROM accounts WHERE name = ?;", sizeof(aBuf));
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -423,7 +496,7 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 		for(int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
 			sprintf(&aHashedPassword[i * 2], "%02x", HashedPassword.data[i]);
 
-		snprintf(aBuf, sizeof(aBuf), "INSERT INTO Accounts (name, password) VALUES (?, ?);");
+		snprintf(aBuf, sizeof(aBuf), "INSERT INTO accounts (name, password) VALUES (?, ?);");
 
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		{
@@ -456,44 +529,62 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 	return false;
 }
 
-void CAccounts::SetLoggedIn(int ClientId, int LoggedIn, int AccountId)
+void CAccounts::Logout(int ClientId, int AccountId)
 {
-	dbg_msg("account", "ClientId=%d, LoggedIn=%d, AccountId=%d - Executing SetLoggedInThread via AdminThread", ClientId, LoggedIn, AccountId);
-
-	ExecAdminThread(SetLoggedInThread, "set logged in", ClientId, AccountId, LoggedIn,
-		CAdminCommandResult::LOG_ONLY, "", "", "");
+	ExecUserThread(LogoutThread, "logout user", ClientId, "", "", "", AccountId, nullptr);
 }
 
-bool CAccounts::SetLoggedInThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
+bool CAccounts::LogoutThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
 {
-	const CSqlAdminCommandRequest *pData = dynamic_cast<const CSqlAdminCommandRequest *>(pGameData);
-	if(!pData)
-	{
-		str_copy(pError, "Invalid data type.", ErrorSize);
-		dbg_msg("sql", "SetLoggedInThread: Invalid data type.");
-		return true;
-	}
-
+	const CSqlAccountRequest *pData = dynamic_cast<const CSqlAccountRequest *>(pGameData);
 	char aBuf[512];
-	str_copy(aBuf, "UPDATE Accounts SET is_logged_in = ? WHERE id = ?;", sizeof(aBuf));
-
-	dbg_msg("sql", "SetLoggedInThread: Preparing statement: %s", aBuf);
+	str_copy(aBuf, "DELETE FROM accounts_busy WHERE account_id = ? AND server_id = ?;", sizeof(aBuf));
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
-		str_copy(pError, "Failed to prepare UPDATE statement.", ErrorSize);
-		dbg_msg("sql", "SetLoggedInThread: Failed to prepare UPDATE statement: %s", pError);
+		dbg_msg("logout", "SQL preparation failed: %s", pError);
 		return true;
 	}
 
-	pSqlServer->BindInt(1, pData->m_State);
-	pSqlServer->BindInt(2, pData->m_TargetAccountId);
+	pSqlServer->BindInt(1, pData->m_AccountId);
+	pSqlServer->BindString(2, g_Config.m_SvServerId);
 
-	dbg_msg("sql", "SetLoggedInThread: Bound parameters - LoggedIn=%d, AccountId=%d", pData->m_State, pData->m_TargetAccountId);
-
-	int NumUpdated;
-	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
+	int Deleted;
+	if(pSqlServer->ExecuteUpdate(&Deleted, pError, ErrorSize))
 	{
+		dbg_msg("logout", "Failed to remove account_busy entry: %s", pError);
+		return true;
+	}
+	if(Deleted == 0)
+	{
+		dbg_msg("logout", "Failed to remove account_busy entry: %s", pError);
+	}
+	return false;
+}
+
+void CAccounts::ClearLogins()
+{
+	m_pPool->Execute(ClearLoginsThread, nullptr, "clear all logins");
+}
+
+bool CAccounts::ClearLoginsThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
+{
+	char aBuf[512];
+	str_copy(aBuf, "DELETE FROM accounts_busy WHERE server_id = ?;", sizeof(aBuf));
+
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+	{
+		dbg_msg("clear_logins", "SQL preparation failed: %s", pError);
+		return true;
+	}
+
+	pSqlServer->BindString(1, g_Config.m_SvServerId);
+	pSqlServer->Print();
+
+	int Deleted;
+	if(pSqlServer->ExecuteUpdate(&Deleted, pError, ErrorSize))
+	{
+		dbg_msg("clear_logins", "Failed to clear logins for %s: %s", g_Config.m_SvServerId, pError);
 		return true;
 	}
 	return false;
@@ -513,7 +604,7 @@ bool CAccounts::ChangePasswordThread(IDbConnection *pSqlServer, const ISqlData *
 	pResult->SetVariant(CAccountResult::DIRECT);
 
 	char aBuf[2048];
-	str_copy(aBuf, "SELECT password FROM Accounts WHERE name = ?;", sizeof(aBuf));
+	str_copy(aBuf, "SELECT password FROM accounts WHERE name = ?;", sizeof(aBuf));
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -553,7 +644,7 @@ bool CAccounts::ChangePasswordThread(IDbConnection *pSqlServer, const ISqlData *
 	for(int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
 		sprintf(&aHashedNewPassword[i * 2], "%02x", HashedNewPassword.data[i]);
 
-	str_copy(aBuf, "UPDATE Accounts SET password = ? WHERE name = ?;", sizeof(aBuf));
+	str_copy(aBuf, "UPDATE accounts SET password = ? WHERE name = ?;", sizeof(aBuf));
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -593,7 +684,7 @@ bool CAccounts::ShowTopLevelThread(IDbConnection *pSqlServer, const ISqlData *pG
 	CAccountResult *pResult = dynamic_cast<CAccountResult *>(pGameData->m_pResult.get());
 
 	char aBuf[512];
-	str_copy(aBuf, "SELECT last_name, level FROM Accounts ORDER BY level DESC LIMIT 10;", sizeof(aBuf));
+	str_copy(aBuf, "SELECT last_name, level FROM accounts ORDER BY level DESC LIMIT 10;", sizeof(aBuf));
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -627,7 +718,7 @@ bool CAccounts::ShowTopLevelThread(IDbConnection *pSqlServer, const ISqlData *pG
 
 		Level = pSqlServer->GetInt(2);
 
-		str_format(aBuf, sizeof(aBuf), "%d. %s : %d", Line, aLastName, Level);
+		str_format(aBuf, sizeof(aBuf), "[%d] %s : %d", Line, aLastName, Level);
 		str_copy(pResult->m_aaMessages[Line], aBuf, sizeof(pResult->m_aaMessages[Line]));
 		dbg_msg("top_level", "Retrieved: %s", aBuf);
 		Line++;
@@ -670,7 +761,7 @@ bool CAccounts::ShowTopBlockpointsThread(IDbConnection *pSqlServer, const ISqlDa
 	pResult->SetVariant(CAccountResult::TOP_MESSAGES);
 
 	char aBuf[512];
-	str_copy(aBuf, "SELECT last_name, blockpoints FROM Accounts ORDER BY blockpoints DESC LIMIT 10;", sizeof(aBuf));
+	str_copy(aBuf, "SELECT last_name, blockpoints FROM accounts ORDER BY blockpoints DESC LIMIT 10;", sizeof(aBuf));
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -704,7 +795,7 @@ bool CAccounts::ShowTopBlockpointsThread(IDbConnection *pSqlServer, const ISqlDa
 
 		Blockpoints = pSqlServer->GetInt(2);
 
-		str_format(aBuf, sizeof(aBuf), "%d. %s - %d", Line, aLastName, Blockpoints);
+		str_format(aBuf, sizeof(aBuf), "[%d] %s - %d", Line, aLastName, Blockpoints);
 		str_copy(pResult->m_aaMessages[Line], aBuf, sizeof(pResult->m_aaMessages[Line]));
 		dbg_msg("top_blockpoints", "Retrieved: %s", aBuf);
 		Line++;
@@ -725,7 +816,7 @@ bool CAccounts::ShowTopBlockpointsThread(IDbConnection *pSqlServer, const ISqlDa
 
 	if(*pError != '\0')
 	{
-		dbg_msg("top_level", "SQL stepping failed: %s", pError);
+		dbg_msg("top_blockpoints", "SQL stepping failed: %s", pError);
 		str_copy(pResult->m_aaMessages[Line], "Error retrieving top level players.", sizeof(pResult->m_aaMessages[Line]));
 		pResult->m_Success = false;
 		return true;
@@ -747,7 +838,7 @@ bool CAccounts::ShowTopKillStreaksThread(IDbConnection *pSqlServer, const ISqlDa
 	pResult->SetVariant(CAccountResult::TOP_MESSAGES);
 
 	char aBuf[512];
-	str_copy(aBuf, "SELECT last_name, killstreak FROM Accounts ORDER BY level DESC LIMIT 10;", sizeof(aBuf));
+	str_copy(aBuf, "SELECT last_name, killstreak FROM accounts ORDER BY level DESC LIMIT 10;", sizeof(aBuf));
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -781,7 +872,7 @@ bool CAccounts::ShowTopKillStreaksThread(IDbConnection *pSqlServer, const ISqlDa
 
 		Blockpoints = pSqlServer->GetInt(2);
 
-		str_format(aBuf, sizeof(aBuf), "%d. %s : %d", Line, aLastName, Blockpoints);
+		str_format(aBuf, sizeof(aBuf), "[%d] %s : %d", Line, aLastName, Blockpoints);
 		str_copy(pResult->m_aaMessages[Line], aBuf, sizeof(pResult->m_aaMessages[Line]));
 		dbg_msg("top_killstreak", "Retrieved: %s", aBuf);
 		Line++;

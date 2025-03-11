@@ -192,7 +192,7 @@ public:
 
 		bool IncludedInServerInfo() const
 		{
-			return m_State != STATE_EMPTY && !m_DebugDummy;
+			return m_State != STATE_EMPTY && m_State != STATE_NPC;
 		}
 	};
 

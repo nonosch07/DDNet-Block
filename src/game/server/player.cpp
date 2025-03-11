@@ -8,6 +8,7 @@
 
 #include <base/system.h>
 
+#include <cstdint>
 #include <engine/antibot.h>
 #include <engine/server.h>
 #include <engine/shared/config.h>
@@ -37,6 +38,7 @@ CPlayer::CPlayer(CGameContext *pGameServer, uint32_t UniqueClientId, int ClientI
 
 	m_LastDeathnote = Server()->Tick();
 	m_LastExpAccountAlert = 0;
+	m_ClanSaveCooldown = 0;
 }
 
 CPlayer::~CPlayer()
@@ -183,21 +185,20 @@ void CPlayer::Tick()
 		m_ScoreFinishResult = nullptr;
 	}
 
-	if(m_AccountQueryResult != nullptr && m_AccountQueryResult->m_Completed)
+	if(!m_AccountQueryResult.empty() && m_AccountQueryResult.front() && m_AccountQueryResult.front()->m_Completed)
 	{
-		BWProcessAccountsResult(*m_AccountQueryResult);
-		m_AccountQueryResult = nullptr;
+		BWProcessAccountsResult(*m_AccountQueryResult.front());
+		m_AccountQueryResult.pop();
 	}
-	if(m_AdminCommandQueryResult != nullptr && m_AdminCommandQueryResult->m_Completed)
+	if(!m_AdminCommandQueryResult.empty() && m_AdminCommandQueryResult.front() && m_AdminCommandQueryResult.front()->m_Completed)
 	{
-		BWProcessAdminCommandResult(*m_AdminCommandQueryResult);
-		m_AdminCommandQueryResult = nullptr;
+		BWProcessAdminCommandResult(*m_AdminCommandQueryResult.front());
+		m_AdminCommandQueryResult.pop();
 	}
-
-	if(m_ClanQueryResult != nullptr && m_ClanQueryResult->m_Completed)
+	if(!m_ClanQueryResult.empty() && m_ClanQueryResult.front() && m_ClanQueryResult.front()->m_Completed)
 	{
-		BWProcessClansResult(*m_ClanQueryResult);
-		m_ClanQueryResult = nullptr;
+		BWProcessClansResult(*m_ClanQueryResult.front());
+		m_ClanQueryResult.pop();
 	}
 
 	if(!Server()->ClientIngame(m_ClientId))
@@ -300,6 +301,15 @@ void CPlayer::Tick()
 		if(1200 - ((Server()->Tick() - m_pCharacter->GetLastAction()) % (1200)) < 5)
 		{
 			GameServer()->SendEmoticon(GetCid(), EMOTICON_GHOST, -1);
+		}
+	}
+
+	if(m_ClanSaveCooldown + Server()->TickSpeed() * g_Config.m_SvClanSaveInterval < Server()->Tick())
+	{
+		if(IsLoggedIn() && GetClanId() > 0)
+		{
+			GameServer()->Clans()->SaveClan(GetCid(), GetClanId());
+			m_ClanSaveCooldown = Server()->Tick();
 		}
 	}
 }
@@ -1071,7 +1081,12 @@ void CPlayer::BWProcessAccountsResult(CAccountResult &Result)
 			break;
 
 		case CAccountResult::LOGGED_IN_ALREADY:
-			GameServer()->SendChatTarget(m_ClientId, "Account is already being used.");
+			if(str_comp(Result.m_aLoginServer, g_Config.m_SvServerId) == 0)
+			{
+				GameServer()->SendChatTarget(m_ClientId, "Account is already being used on this server.");
+				break;
+			}
+			GameServer()->SendChatTarget(m_ClientId, "Account is already being used on other server.");
 			break;
 
 		case CAccountResult::LOGIN_WRONG_PASS:
@@ -1202,18 +1217,14 @@ void CPlayer::OnPlayerLogin()
 	GameServer()->ClearVotes(GetCid());
 	GameServer()->ProgressVoteOptions(GetCid());
 	GameServer()->SendCosmeticsVoteOptions(GetCid());
-
-	GameServer()->Accounts()->SetLoggedIn(m_ClientId, 1, m_Account.m_Id);
 }
 
-void CPlayer::OnPlayerSave(int SetLoggedIn)
+void CPlayer::OnPlayerSave(bool Logout)
 {
-	dbg_msg("account", "saving account '%s' CID=%d AccountId=%d SetLoggedIn=%d", Server()->ClientName(GetCid()), GetCid(), m_Account.m_Id, SetLoggedIn);
+	dbg_msg("account", "saving account '%s' CID=%d AccountId=%d Logout=%d", Server()->ClientName(GetCid()), GetCid(), m_Account.m_Id, Logout);
 
 	if(!m_Account.m_Id)
 		return;
-
-	m_Account.m_IsLoggedIn = SetLoggedIn;
 
 	char aName[32];
 	str_copy(aName, Server()->ClientName(m_ClientId), sizeof(aName));
@@ -1253,23 +1264,28 @@ void CPlayer::OnPlayerSave(int SetLoggedIn)
 	}
 
 	GameServer()->Accounts()->Save(GetCid(), &m_Account);
+	if(Logout)
+		GameServer()->Accounts()->Logout(GetCid(), m_Account.m_Id);
 }
 
-void CPlayer::OnPlayerLogout(int SetLoggedIn)
+void CPlayer::OnPlayerLogout()
 {
 	if(!IsLoggedIn())
 		return;
 
 	GameServer()->ClearVotes(GetCid());
 	GameServer()->ProgressVoteOptions(GetCid());
-	OnPlayerSave(SetLoggedIn);
-	dbg_msg("account", "logging out AccountId=%d SetLoggedIn=%d", GetAccId(), SetLoggedIn);
+	OnPlayerSave(true);
+	dbg_msg("account", "logging out AccountId=%d", GetAccId());
+
+	if(GetClanId() > 0)
+	{
+		GameServer()->Clans()->SaveClan(GetCid(), GetClanId());
+	}
 
 	SetSkinMani(-1);
 	SetGunDesign(-1);
 	SetKnockout(-1);
-
-	// m_pCharacter->m_PendingPurchase->Destroy(true); - m_pCharacter will be null at this point
 
 	m_Account = CAccountData();
 }
@@ -1304,7 +1320,7 @@ void CPlayer::AddPlayerExp(int Amount)
 
 		AddPlayerExp(ExcessiveExp);
 
-		OnPlayerSave(1);
+		OnPlayerSave(false);
 	}
 }
 

@@ -4,6 +4,7 @@
 #define GAME_SERVER_ENTITIES_CHARACTER_H
 
 #include "game/server/blockworlds/shop/storemanager.h"
+#include <game/server/blockworlds/requests/clan_requests/requests.h>
 #include <game/server/entity.h>
 #include <game/server/save.h>
 
@@ -283,6 +284,9 @@ public:
 
 	CCharacterCore BWCore() { return m_Core; }
 	CShop *m_PendingPurchase = nullptr;
+	int64_t m_LastShopTick = 0;
+
+	CClanRequests *m_PendingClanRequests = nullptr;
 };
 
 enum

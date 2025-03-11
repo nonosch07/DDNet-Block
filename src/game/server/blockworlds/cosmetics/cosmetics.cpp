@@ -20,8 +20,8 @@ const char *CCosmeticsHandler::ms_KnockoutNames[NUM_KNOCKOUTS] = {
 	"Star Ring",
 	"Starexplosion",
 	"Thunderstorm",
-	"Love",
 	"KO RIP",
+	"Love",
 	"KO EZ",
 	"KO NOOB",
 	"KO PRO",
@@ -35,12 +35,12 @@ const char *CCosmeticsHandler::ms_GundesignNames[NUM_GUNDESIGNS] = {
 	"Counterclock",
 	"TwoOClock",
 	"Blinking Bullet",
-	"Reverse",
 	"StarX",
-	"Invis Bullet",
+	"Reverse",
 	"Armorgun",
 	"Heartgun",
 	"Pew",
+
 	"1337 gun",
 	"Stargun (VIP)",
 };
@@ -55,6 +55,7 @@ const char *CCosmeticsHandler::ms_SkinmaniNames[NUM_SKINMANIS] = {
 	"Body Fire",
 	"Body Water",
 	"Body Poison",
+
 	"Nightblue",
 	"Rainbow (VIP)",
 	"Epi Rainbow (VIP)",
@@ -127,7 +128,6 @@ bool CCosmeticsHandler::DoKnockoutEffect(int ClientID, vec2 Pos)
 
 	if(Effect == -1)
 		return false;
-	dbg_msg("cosmetics", "doing ko");
 	DoKnockoutEffectRaw(Pos, Effect);
 	return true;
 }
@@ -195,6 +195,9 @@ bool CCosmeticsHandler::ToggleKnockout(int ClientID, const char *pName)
 
 	int Effect = FindKnockoutEffect(pName);
 	if(Effect == -1)
+		return false;
+
+	if(HasKnockoutEffect(ClientID, Effect) == false)
 		return false;
 
 	GameServer()->GetPlayer(ClientID)->ToggleKnockout(Effect);
@@ -306,8 +309,8 @@ bool CCosmeticsHandler::ToggleGundesign(int ClientID, const char *pName)
 	if(Effect == -1)
 		return false;
 
-	// if(HasGundesign(ClientID, Effect) == false)
-	// 	return false;
+	if(HasGundesign(ClientID, Effect) == false)
+		return false;
 
 	GameServer()->GetPlayer(ClientID)->ToggleGunDesign(Effect);
 
@@ -352,8 +355,6 @@ bool CCosmeticsHandler::SnapGundesignRaw(vec2 Pos, vec2 Dir, int Effect, int Ent
 		if(Server()->Tick() % 3 == 0)
 			return true;
 	}
-	else if(Effect == GUNDESIGN_INVISBULLET)
-		return true;
 	else if(Effect == GUNDESIGN_VIP_STARGUN)
 	{
 		GameServer()->CreateDamageInd(Pos, angle(Dir) + 5.1f, 1, CClientMask().set(SnappingClient));
@@ -407,8 +408,6 @@ bool CCosmeticsHandler::ToggleSkinmani(int ClientID, const char *pName)
 	if(Effect == -1)
 		return false;
 
-	dbg_msg("cosmetics", "index: %d", Effect);
-
 	CPlayer *pPlayer = m_pGameServer->GetPlayer(ClientID);
 	if(!pPlayer)
 		return false;
@@ -418,11 +417,8 @@ bool CCosmeticsHandler::ToggleSkinmani(int ClientID, const char *pName)
 		return true;
 	}
 
-	// if(HasSkinmani(ClientID, Effect) == false)
-	// {
-	// 	dbg_msg("cosmetics", "Player doesn't have the skinmani");
-	// 	return false;
-	// }
+	if(HasSkinmani(ClientID, Effect) == false)
+		return false;
 
 	pPlayer->ToggleSkinMani(Effect);
 

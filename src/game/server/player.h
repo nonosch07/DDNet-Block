@@ -14,6 +14,7 @@
 
 #include <memory>
 #include <optional>
+#include <queue>
 
 #include <game/server/blockworlds/accounts.h>
 #include <game/server/blockworlds/clans.h>
@@ -242,13 +243,13 @@ public:
 	void BWProcessAccountsResult(CAccountResult &Result);
 	void BWProcessClansResult(CClanResult &Result);
 	void BWProcessAdminCommandResult(CAdminCommandResult &Result);
-	std::shared_ptr<CAccountResult> m_AccountQueryResult;
-	std::shared_ptr<CClanResult> m_ClanQueryResult;
-	std::shared_ptr<CAdminCommandResult> m_AdminCommandQueryResult;
+	std::queue<std::shared_ptr<CAccountResult>> m_AccountQueryResult;
+	std::queue<std::shared_ptr<CClanResult>> m_ClanQueryResult;
+	std::queue<std::shared_ptr<CAdminCommandResult>> m_AdminCommandQueryResult;
 
 	void OnPlayerLogin();
-	void OnPlayerLogout(int SetLoggedIn = 0);
-	void OnPlayerSave(int SetLoggedIn);
+	void OnPlayerLogout();
+	void OnPlayerSave(bool Logout);
 
 	//helper functions:
 	int GetAccId() { return m_Account.m_Id; }
@@ -260,7 +261,6 @@ public:
 	void SetPlayerName(const char *Name) { strncpy(m_Account.m_aName, Name, sizeof(m_Account.m_aName) - 1); }
 	void SetPlayerPassword(const char *Password) { strncpy(m_Account.m_aPassword, Password, sizeof(m_Account.m_aPassword) - 1); }
 	void SetPlayerAddress(const char *Address) { strncpy(m_Account.m_aAddress, Address, sizeof(m_Account.m_aAddress) - 1); }
-	void SetPlayerIsLoggedIn(int IsLoggedIn) { m_Account.m_IsLoggedIn = IsLoggedIn; }
 	void SetPlayerVip(int Vip) { m_Account.m_Vip = Vip; }
 	void SetPlayerPages(int Pages) { m_Account.m_Pages = Pages; }
 	void SetPlayerLevel(int Level) { m_Account.m_Level = Level; }
@@ -295,11 +295,12 @@ public:
 	const char *GetPlayerName() { return m_Account.m_aName; }
 	const char *GetPlayerPassword() { return m_Account.m_aPassword; }
 	const char *GetPlayerAddress() { return m_Account.m_aAddress; }
-	int GetPlayerIsLoggedIn() { return m_Account.m_IsLoggedIn; }
 	int GetPlayerVip() { return m_Account.m_Vip; }
 	int GetPlayerPages() { return m_Account.m_Pages; }
 	int GetPlayerLevel() { return m_Account.m_Level; }
+	int GetClanLevel() { return m_Account.m_pClanData->m_Level; }
 	int GetPlayerExperience() { return m_Account.m_Experience; }
+	int GetClanExperience() { return m_Account.m_pClanData->m_Experience; }
 	int GetPlayerWeaponkits() { return m_Account.m_Weaponkits; }
 	int GetPlayerRanking() { return m_Account.m_Ranking; }
 	int GetClanId() { return m_Account.m_ClanId; }
@@ -339,6 +340,7 @@ public:
 
 	int64_t m_LastDeathnote;
 	int64_t m_LastExpAccountAlert;
+	int64_t m_ClanSaveCooldown;
 
 	//cosmetics
 private:

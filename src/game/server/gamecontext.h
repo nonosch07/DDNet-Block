@@ -388,6 +388,8 @@ public:
 
 	uint32_t m_NextUniqueClientId = 1;
 
+	void Teleport(CCharacter *pChr, vec2 Pos);
+
 private:
 	// starting 1 to make 0 the special value "no client id"
 	bool m_VoteWillPass;
@@ -438,7 +440,6 @@ private:
 
 	static void ConToTeleporter(IConsole::IResult *pResult, void *pUserData);
 	static void ConToCheckTeleporter(IConsole::IResult *pResult, void *pUserData);
-	void Teleport(CCharacter *pChr, vec2 Pos);
 	static void ConTeleport(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConCredits(IConsole::IResult *pResult, void *pUserData);
@@ -658,6 +659,7 @@ private:
 	static void ConAccountLogout(IConsole::IResult *pResult, void *pUserData);
 	static void ConChangePassword(IConsole::IResult *pResult, void *pUserData);
 	static void ConExp(IConsole::IResult *pResult, void *pUserData);
+	static void ConClanExp(IConsole::IResult *pResult, void *pUserData);
 	static void ConBuy(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConShopPurchase(IConsole::IResult *pResult, void *pUserData);
@@ -665,7 +667,6 @@ private:
 
 	static void ConDisplayBlockpoints(IConsole::IResult *pResult, void *pUserData);
 	static void ConDisplayProfile(IConsole::IResult *pResult, void *pUserData);
-	static void ConDisplayClanProfile(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConDeathnote(IConsole::IResult *pResult, void *pUserData);
 	static void ConWeaponKit(IConsole::IResult *pResult, void *pUserData);
@@ -673,6 +674,7 @@ private:
 	static void ConDisplayTopLevel(IConsole::IResult *pResult, void *pUserData);
 	static void ConDisplayTopBlockpoints(IConsole::IResult *pResult, void *pUserData);
 	static void ConDisplayTopKillStreak(IConsole::IResult *pResult, void *pUserData);
+	static void ConDisplayTopClans(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConCosmetics(IConsole::IResult *pResult, void *pUserData);
 
@@ -683,7 +685,6 @@ private:
 	static void ConClanLeave(IConsole::IResult *pResult, void *pUserData);
 	static void ConClanRemove(IConsole::IResult *pResult, void *pUserData);
 	static void ConClanSetAuth(IConsole::IResult *pResult, void *pUserData);
-	static void ConClanAssign(IConsole::IResult *pResult, void *pUserData);
 	static void ConClanRename(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConClanInvite(IConsole::IResult *pResult, void *pUserData);

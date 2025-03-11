@@ -40,7 +40,6 @@ struct CAccountData
 		m_aName[0] = '\0';
 		m_aPassword[0] = '\0';
 		m_aAddress[0] = '\0';
-		m_IsLoggedIn = 0;
 		m_Vip = 0;
 		m_Pages = 0;
 		m_Level = 1;
@@ -76,7 +75,6 @@ struct CAccountData
 	char m_aName[64];
 	char m_aPassword[256];
 	char m_aAddress[48];
-	int m_IsLoggedIn;
 	int m_Vip;
 	int m_Pages;
 	int m_Level;
@@ -152,7 +150,7 @@ struct CAccountResult : ISqlResult
 
 	enum Variant
 	{
-		DIRECT,
+		DIRECT = 0,
 		ALL,
 		BROADCAST,
 		LOGGED_IN_ALREADY,
@@ -160,8 +158,11 @@ struct CAccountResult : ISqlResult
 		LOGIN_INFO,
 		REGISTER,
 		LOG_ONLY,
-		TOP_MESSAGES
+		TOP_MESSAGES,
 	} m_MessageKind;
+
+	// IsAccountBusy
+	char m_aLoginServer[32];
 
 	char m_aaMessages[MAX_MESSAGES][512];
 	char m_aBroadcast[1024];
@@ -185,6 +186,7 @@ struct CAccountResult : ISqlResult
 			break;
 
 		case LOGGED_IN_ALREADY:
+			m_aLoginServer[0] = 0;
 			break;
 
 		case LOGIN_WRONG_PASS:
@@ -212,7 +214,7 @@ struct CSqlAccountRequest : ISqlData
 	char m_aPassword[64];
 	char m_aNewPassword[64];
 	char m_aClanName[11];
-	char m_AccountID;
+	int m_AccountId;
 	int m_ClientId;
 };
 
@@ -298,14 +300,14 @@ class CAccounts
 	static bool ShowTopKillStreaksThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 
 	// non ratelimited server side queries
-	static bool SetLoggedInThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
-	static bool LogoutUsernameThread(IDbConnection *pSqlServer, const ISqlData *pGameData, Write w, char *pError, int ErrorSize);
+	static bool ClearLoginsThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
+	static bool LogoutThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool ExecuteSqlThread(IDbConnection *pSqlServer, const ISqlData *pGameData, Write w, char *pError, int ErrorSize);
 
 	// returns new SqlResult bound to the player, if no current Thread is active for this player
 	std::shared_ptr<CAccountResult> NewSqlAccountResult(int ClientId);
 	std::shared_ptr<CAdminCommandResult> NewSqlAdminCommandResult(int ClientId);
-	// Creates for player bound database requests (1 request max at a time per player)
+	// Creates for player bound database requests
 	void ExecUserThread(
 		bool (*pFuncPtr)(IDbConnection *, const ISqlData *, char *pError, int ErrorSize),
 		const char *pThreadName,
@@ -333,9 +335,10 @@ public:
 	// Accounts
 	void Save(int ClientId, CAccountData *pAccountData);
 	void Login(int ClientId, const char *pUsername, const char *pPassword);
+	void Logout(int ClientId, int AccountId);
+	void ClearLogins();
 	void Register(int ClientId, const char *pUsername, const char *pPassword);
 	void ChangePassword(int ClientId, const char *pUsername, const char *pOldPassword, const char *pNewPassword);
-	void SetLoggedIn(int ClientId, int LoggedIn, int AccountId);
 	void ExecuteSql(const char *pQuery);
 
 	void ShowTopLevel(int ClientId);

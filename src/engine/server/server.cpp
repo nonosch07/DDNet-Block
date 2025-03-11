@@ -2232,16 +2232,13 @@ void CServer::CacheServerInfoSixup(CCache *pCache, bool SendClients)
 	{
 		for(int i = 0; i < MAX_CLIENTS; i++)
 		{
-			for(int i = 0; i < MAX_CLIENTS; i++)
+			if(m_aClients[i].IncludedInServerInfo())
 			{
-				if(m_aClients[i].m_State != CClient::STATE_EMPTY && m_aClients[i].m_State != CClient::STATE_NPC)
-				{
-					Packer.AddString(ClientName(i), MAX_NAME_LENGTH); // client name
-					Packer.AddString(ClientClan(i), MAX_CLAN_LENGTH); // client clan
-					Packer.AddInt(m_aClients[i].m_Country); // client country
-					Packer.AddInt(m_aClients[i].m_Score.value_or(0)); // client score
-					Packer.AddInt(GameServer()->IsClientPlayer(i) ? 0 : 1); // flag spectator=1, bot=2 (player=0)
-				}
+				Packer.AddString(ClientName(i), MAX_NAME_LENGTH); // client name
+				Packer.AddString(ClientClan(i), MAX_CLAN_LENGTH); // client clan
+				Packer.AddInt(m_aClients[i].m_Country); // client country
+				Packer.AddInt(m_aClients[i].m_Score.value_or(0)); // client score
+				Packer.AddInt(GameServer()->IsClientPlayer(i) ? 0 : 1); // flag spectator=1, bot=2 (player=0)
 			}
 		}
 	}

@@ -49,7 +49,9 @@ void CExperience::Tick()
 			pPlayer->AddPlayerExp(g_Config.m_SvBlockExperience);
 			pPlayer->SetPlayerKills(pPlayer->GetPlayerKills() + 1);
 			pPlayer->SetPlayerBlockpoints(pPlayer->GetPlayerBlockpoints() + 1);
-			// if (GameServer()->DataHandler()->Accounts()->GetPlayerClanID(m_TargetID)){ GameServer()->DataHandler()->Clans()->AddClanExp(GameServer()->DataHandler()->Accounts()->GetPlayerClanID(m_TargetID), g_Config.m_SvBlockExperience);}
+
+			if(pPlayer->GetClanId())
+				GameServer()->Clans()->AddClanExp(pPlayer->GetClanId(), g_Config.m_SvBlockExperience);
 		}
 		else
 		{

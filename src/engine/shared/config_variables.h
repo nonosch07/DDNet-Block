@@ -738,25 +738,30 @@ MACRO_CONFIG_INT(ClVideoRecorderFPS, cl_video_recorder_fps, 60, 1, 1000, CFGFLAG
 
 //Blockworlds
 
-MACRO_CONFIG_INT(SvAccountsystem, sv_account_system, 1, 0, 1, CFGFLAG_SERVER, "Enables or disables the account system")
-MACRO_CONFIG_INT(Sv1on1system, sv_1on1_system, 1, 0, 1, CFGFLAG_SERVER, "Enables or disables the 1on1 system")
+MACRO_CONFIG_STR(SvServerId, sv_server_id, 32, "unique_id", CFGFLAG_SERVER, "Unique identifier for the server instance. Mainly used for login state.")
 
-// experience stuff related - for god's sake rework that shit wording
-MACRO_CONFIG_INT(SvBlockExperience, sv_block_experience, 3, 0, 0, CFGFLAG_SERVER, "Count of awarded experience points for registered block")
-MACRO_CONFIG_INT(SvBlockFreezedInterval, sv_block_freezed, 3, 0, 0, CFGFLAG_SERVER, "How long player have to be frozen to be blocked")
-MACRO_CONFIG_INT(SvBlockResetUnfreezedInterval, sv_block_reset_unfreezed, 3, 0, 0, CFGFLAG_SERVER, "How long player have to be not frozen to lost impact of enemy")
-MACRO_CONFIG_INT(SvBlockResetNoImpactInterval, sv_block_reset_no_impact, 2, 0, 0, CFGFLAG_SERVER, "How long impact of enemy is remembered after unfreeze")
-MACRO_CONFIG_INT(SvBlockImpactIntervalToResist, sv_block_impact_interval_to_resist, 5, 0, 0, CFGFLAG_SERVER, "How long impact of enemy is remembered after unfreeze")
-MACRO_CONFIG_INT(SvBlockUnfreezeNoImpactInterval, sv_block_unfreeze_no_impact_interval, 1, 0, 0, CFGFLAG_SERVER, "How long ago player must be impacted to be blocked")
-MACRO_CONFIG_INT(SvBlockKillInterval, sv_block_kill_interval, 5, 0, 0, CFGFLAG_SERVER, "How long ago must player die to be blocked")
-MACRO_CONFIG_INT(SvKillStreakCount, sv_kill_streak_count, 5, 1, 10, CFGFLAG_SERVER, "How much kills a player needs, to have a kills treak")
-MACRO_CONFIG_INT(SvAllowExpFromSameIp, sv_allow_exp_from_same_ip, 0, 0, 1, CFGFLAG_SERVER, "Should be off by default, only useful for testing.")
-MACRO_CONFIG_INT(SvBlockMinAliveTime, sv_block_min_alive_time, 20, 1, 120, CFGFLAG_SERVER, "Min alive time to drop exp.")
-MACRO_CONFIG_INT(SvBlockInterval, sv_block_interval, 0, 0, 1, CFGFLAG_SERVER, "Interval between 2 countable fights.")
+MACRO_CONFIG_INT(SvAccountsystem, sv_account_system, 1, 0, 1, CFGFLAG_SERVER, "Toggle for enabling (1) or disabling (0) the account system.")
+MACRO_CONFIG_INT(Sv1on1system, sv_1on1_system, 1, 0, 1, CFGFLAG_SERVER, "Toggle for enabling (1) or disabling (0) the one-on-one (1v1) system.")
 
-MACRO_CONFIG_INT(SvDeathNoteCoolDown, sv_deathnote_cooldown, 600, 60, 3600, CFGFLAG_SERVER, "Time in seconds the player must wait before using the Deathnote again")
+// Experience and block-related settings:
+MACRO_CONFIG_INT(SvBlockExperience, sv_block_experience, 3, 0, 0, CFGFLAG_SERVER, "Experience points awarded for each registered block.")
+MACRO_CONFIG_INT(SvBlockFreezedInterval, sv_block_freezed, 3, 0, 0, CFGFLAG_SERVER, "Duration (in seconds) a player must remain frozen to be considered for blocking.")
+MACRO_CONFIG_INT(SvBlockResetUnfreezedInterval, sv_block_reset_unfreezed, 3, 0, 0, CFGFLAG_SERVER, "Time (in seconds) a player must remain unfrozen before losing the enemy’s block impact.")
+MACRO_CONFIG_INT(SvBlockResetNoImpactInterval, sv_block_reset_no_impact, 2, 0, 0, CFGFLAG_SERVER, "Time (in seconds) after unfreezing during which an enemy’s impact is still counted.")
+MACRO_CONFIG_INT(SvBlockImpactIntervalToResist, sv_block_impact_interval_to_resist, 5, 0, 0, CFGFLAG_SERVER, "Duration (in seconds) enemy impact is registered before resistance can be applied.")
+MACRO_CONFIG_INT(SvBlockUnfreezeNoImpactInterval, sv_block_unfreeze_no_impact_interval, 1, 0, 0, CFGFLAG_SERVER, "Time threshold (in seconds) for a recent impact to count towards blocking after unfreeze.")
+MACRO_CONFIG_INT(SvBlockKillInterval, sv_block_kill_interval, 5, 0, 0, CFGFLAG_SERVER, "Time (in seconds) since a player's death during which blocking is still in effect.")
+MACRO_CONFIG_INT(SvKillStreakCount, sv_kill_streak_count, 5, 1, 10, CFGFLAG_SERVER, "Number of consecutive kills required to register a kill streak.")
+MACRO_CONFIG_INT(SvAllowExpFromSameIp, sv_allow_exp_from_same_ip, 0, 0, 1, CFGFLAG_SERVER, "Enable (1) or disable (0) awarding experience points for players connecting from the same IP. (Recommended: off for production.)")
+MACRO_CONFIG_INT(SvBlockMinAliveTime, sv_block_min_alive_time, 20, 1, 120, CFGFLAG_SERVER, "Minimum time (in seconds) a player must stay alive to earn experience.")
+MACRO_CONFIG_INT(SvBlockInterval, sv_block_interval, 0, 0, 1, CFGFLAG_SERVER, "Interval (in seconds) between two countable fights.")
 
-MACRO_CONFIG_INT(SvShopServer, sv_shop_server, 0, 0, 1, CFGFLAG_SERVER, "Whether it's a shop server or not.")
+// Deathnote settings:
+MACRO_CONFIG_INT(SvDeathNoteCoolDown, sv_deathnote_cooldown, 600, 60, 3600, CFGFLAG_SERVER, "Cooldown time (in seconds) a player must wait before reusing the Deathnote.")
 
-// clans stuff related.
-MACRO_CONFIG_INT(SvClanMinLevel, sv_clan_min_level, 25, 0, 100, CFGFLAG_SERVER, "Minimum level needed to create a clan.")
+// Shop server setting:
+MACRO_CONFIG_INT(SvShopServer, sv_shop_server, 0, 0, 1, CFGFLAG_SERVER, "Set to 1 if this is a shop server; otherwise, set to 0.")
+
+// Clans settings:
+MACRO_CONFIG_INT(SvClanMinLevel, sv_clan_min_level, 25, 0, 100, CFGFLAG_SERVER, "Minimum player level required to create a clan.")
+MACRO_CONFIG_INT(SvClanSaveInterval, sv_clan_save_interval, 600, 1, 3600, CFGFLAG_SERVER, "Time delay (in seconds) between successive clan saves.")

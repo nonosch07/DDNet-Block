@@ -143,6 +143,10 @@ void CCharacter::Destroy()
 	{
 		m_PendingPurchase->Destroy(false);
 	}
+	if(m_PendingClanRequests)
+	{
+		m_PendingClanRequests->Destroy(false);
+	}
 	GameServer()->m_World.m_Core.m_apCharacters[m_pPlayer->GetCid()] = 0;
 	m_Alive = false;
 	SetSolo(false);
@@ -828,6 +832,10 @@ void CCharacter::Tick()
 	if(m_PendingPurchase != nullptr)
 	{
 		m_PendingPurchase->OnTick();
+	}
+	if(m_PendingClanRequests != nullptr)
+	{
+		m_PendingClanRequests->OnTick();
 	}
 }
 
@@ -1838,6 +1846,24 @@ void CCharacter::HandleTiles(int Index)
 			m_Core.m_Jumps = NewJumps;
 		}
 	}
+	else if(Collision()->GetSwitchType(MapIndex) == TILE_SHOP)
+	{
+		int Category = Collision()->GetSwitchNumber(MapIndex);
+		int Item = Collision()->GetSwitchDelay(MapIndex);
+		int CurrentTick = GameServer()->Server()->Tick();
+
+		if(m_pPlayer && m_pPlayer->GetCharacter())
+		{
+			CCharacter *pChr = m_pPlayer->GetCharacter();
+			if(pChr->m_PendingPurchase != nullptr ||
+				CurrentTick < pChr->m_LastShopTick + (GameServer()->Server()->TickSpeed() * 2))
+				return;
+
+			pChr->m_LastShopTick = CurrentTick;
+			new CShop(GameServer(), m_pPlayer, Category, Item, 15);
+		}
+	}
+
 	else if(Collision()->GetSwitchType(MapIndex) == TILE_ADD_TIME && !m_LastPenalty)
 	{
 		int min = Collision()->GetSwitchDelay(MapIndex);
@@ -1898,13 +1924,6 @@ void CCharacter::HandleTiles(int Index)
 	{
 		m_LastBonus = false;
 	}
-
-	// if (m_PendingPurchase == nullptr && Collision()->GetSwitchType(MapIndex) == OWNTILE_SWITCH_START_BUY) {
-	// 	new CShop(GameServer(), GetPlayer(), 0, Collision()->GetSwitchNumber(MapIndex), Collision()->GetSwitchDelay(MapIndex));
-	// }
-	// if (m_PendingPurchase && Collision()->GetSwitchType(MapIndex) == OWNTILE_SWITCH_STOP_BUY) {
-	// 	m_PendingPurchase->Destroy(false);
-	// }
 
 	int z = Collision()->IsTeleport(MapIndex);
 	if(!g_Config.m_SvOldTeleportHook && !g_Config.m_SvOldTeleportWeapons && z && !Collision()->TeleOuts(z - 1).empty())

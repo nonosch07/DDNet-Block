@@ -3,6 +3,7 @@
 
 #include "engine/server/databases/connection_pool.h"
 #include <memory>
+#include <unordered_set>
 #include <vector>
 
 class IDbConnection;
@@ -15,6 +16,8 @@ struct CClansData
 	char m_ClanName[12];
 	int m_Level;
 	int m_Experience;
+
+	int m_LastSavedTick;
 };
 
 struct CClanListResult : ISqlResult
@@ -34,7 +37,7 @@ struct CClanResult : ISqlResult
 {
 	enum
 	{
-		MAX_MESSAGES = 10,
+		MAX_MESSAGES = 15,
 	};
 
 	char m_aaMessages[MAX_MESSAGES][512];
@@ -104,7 +107,8 @@ class CClanManager
 		const char *pClanName,
 		const char *pUsername = nullptr,
 		int AccountId = 0,
-		int ClanId = 0);
+		int ClanId = 0,
+		int AuthLevel = 0);
 
 	bool RateLimitPlayer(int ClientId);
 
@@ -115,9 +119,20 @@ class CClanManager
 	static bool ClanLeaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool SetAuthLevelThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool RenameClanThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
+	static bool SaveClanThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
+	static bool ShowTopClansThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 
 	static bool LoadClansThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 
+	static const CClansData *GetClanDataById(int ClanId, const std::vector<CClansData> &ClansData)
+	{
+		for(const auto &Clan : ClansData)
+		{
+			if(Clan.m_Id == ClanId)
+				return &Clan;
+		}
+		return nullptr;
+	}
 	std::shared_ptr<CClanResult> NewSqlClanResult(int ClientId);
 
 public:
@@ -131,6 +146,8 @@ public:
 	void ClanLeave(int ClientId);
 	void SetAuthLevel(int ClientId, const char *AccountName, int NewAuthLevel, int ClanId);
 	void RenameClan(int ClientId, int ClanId, const char *pNewClanName);
+	void SaveClan(int ClientId, int ClanId);
+	void ShowTopClans(int ClientId);
 
 	void LoadAllClans();
 
@@ -140,11 +157,14 @@ public:
 	}
 
 	int GetClanIdByName(const char *pClanName);
+	const char *GetClanName(int ClanId);
 	// I didn't find any other way to do that so.. fuck it
-	void UpdatePlayerClan(int ClientId, int NewClanId);
+	void UpdatePlayerClan(int ClientId, int NewClanId, int AuthLevel);
 	void ResetPlayersClan(int ClanId);
 
 	const std::vector<CClansData> &GetClansData() const { return m_vClansData; }
+
+	void AddClanExp(int ClanId, int Amount);
 };
 
 #endif // GAME_SERVER_BLOCKWORLDS_CLANMANAGER_H
