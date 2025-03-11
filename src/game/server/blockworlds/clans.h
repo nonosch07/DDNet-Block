@@ -162,7 +162,6 @@ public:
 	void UpdatePlayerClan(int ClientId, int NewClanId, int AuthLevel);
 	void ResetPlayersClan(int ClanId);
 
-
 	const std::vector<CClansData> &GetClansData() const { return m_vClansData; }
 
 	void AddClanExp(int ClanId, int Amount);

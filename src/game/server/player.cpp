@@ -311,7 +311,7 @@ void CPlayer::Tick()
 			GameServer()->Clans()->SaveClan(GetCid(), GetClanId());
 			m_ClanSaveCooldown = Server()->Tick();
 		}
-	}	
+	}
 }
 
 void CPlayer::PostTick()

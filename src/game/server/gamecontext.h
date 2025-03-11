@@ -388,6 +388,8 @@ public:
 
 	uint32_t m_NextUniqueClientId = 1;
 
+	void Teleport(CCharacter *pChr, vec2 Pos);
+
 private:
 	// starting 1 to make 0 the special value "no client id"
 	bool m_VoteWillPass;
@@ -438,7 +440,6 @@ private:
 
 	static void ConToTeleporter(IConsole::IResult *pResult, void *pUserData);
 	static void ConToCheckTeleporter(IConsole::IResult *pResult, void *pUserData);
-	void Teleport(CCharacter *pChr, vec2 Pos);
 	static void ConTeleport(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConCredits(IConsole::IResult *pResult, void *pUserData);

@@ -1,6 +1,7 @@
 #ifndef GAME_SERVER_BLOCKWORLDS_STORE_PREVIEW_H
 #define GAME_SERVER_BLOCKWORLDS_STORE_PREVIEW_H
 
+#include "base/vmath.h"
 class CGameContext;
 class CCosmeticsHandler;
 class CPlayer;
@@ -18,7 +19,10 @@ private:
 	void DisplaySkinmanis();
 	void DisplayCosmetics();
 
+	void DisplaySkinManipulations();
+
 	void DisplayPricesAndLevels();
+	void DisplayPriceLevel(const vec2 &PreviewPos, int Price, int Level);
 
 public:
 	CShopPreview();

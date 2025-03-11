@@ -284,6 +284,7 @@ public:
 
 	CCharacterCore BWCore() { return m_Core; }
 	CShop *m_PendingPurchase = nullptr;
+	int64_t m_LastShopTick = 0;
 
 	CClanRequests *m_PendingClanRequests = nullptr;
 };

@@ -1063,8 +1063,7 @@ void CGameContext::OnTick()
 	m_ZoneManager.Tick();
 	if(g_Config.m_SvShopServer)
 		m_ShopPreview.Tick();
-	// m_GameInterfaceHandler.Tick();
-
+	bool UpdatePlaytimeThisSkibidiTick = (Server()->Tick() % Server()->TickSpeed() == 0);
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		if(m_apPlayers[i])
@@ -1074,6 +1073,9 @@ void CGameContext::OnTick()
 
 			m_apPlayers[i]->Tick();
 			m_apPlayers[i]->PostTick();
+
+			if(m_apPlayers[i]->IsLoggedIn() && UpdatePlaytimeThisSkibidiTick)
+				m_apPlayers[i]->SetPlayerPlaytime(m_apPlayers[i]->GetPlayerPlaytime() + 1);
 		}
 	}
 
@@ -5070,46 +5072,45 @@ SHA256_DIGEST CGameContext::HashPassword(const char *pPassword)
 
 void CGameContext::RegisterBlockworldsChatCommands()
 {
-    Console()->Register("register", "s[username] s[password]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConRegister, this, "Create a new account.");
-    Console()->Register("login", "s[username] s[password]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConLogin, this, "Log in to your account.");
-    Console()->Register("logout", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConAccountLogout, this, "Log out of your MySQL account.");
-    Console()->Register("password", "s[oldpassword] s[newpassword]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConChangePassword, this, "Change your account password.");
-    Console()->Register("exp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConExp, this, "Display your current experience progress.");
+	Console()->Register("register", "s[username] s[password]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConRegister, this, "Create a new account.");
+	Console()->Register("login", "s[username] s[password]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConLogin, this, "Log in to your account.");
+	Console()->Register("logout", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConAccountLogout, this, "Log out of your MySQL account.");
+	Console()->Register("password", "s[oldpassword] s[newpassword]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConChangePassword, this, "Change your account password.");
+	Console()->Register("exp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConExp, this, "Display your current experience progress.");
 
-    Console()->Register("blockpoints", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayBlockpoints, this, "Show your current blockpoints.");
-    Console()->Register("bp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayBlockpoints, this, "Show your current blockpoints.");
-    Console()->Register("profile", "?s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayProfile, this, "Display your own or another player's profile.");
+	Console()->Register("blockpoints", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayBlockpoints, this, "Show your current blockpoints.");
+	Console()->Register("bp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayBlockpoints, this, "Show your current blockpoints.");
+	Console()->Register("profile", "?s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayProfile, this, "Display your own or another player's profile.");
 
-    Console()->Register("deathnote", "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDeathnote, this, "Use one of your deathnote pages.");
-    Console()->Register("weapons", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConWeaponKit, this, "Display how many weapon kits you have.");
-    Console()->Register("weaponkit", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConWeaponKit, this, "Display how many weapon kits you have.");
+	Console()->Register("deathnote", "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDeathnote, this, "Use one of your deathnote pages.");
+	Console()->Register("weapons", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConWeaponKit, this, "Display how many weapon kits you have.");
+	Console()->Register("weaponkit", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConWeaponKit, this, "Display how many weapon kits you have.");
 
-    Console()->Register("toplevel", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopLevel, this, "Show the leaderboard of top-level players.");
-    Console()->Register("topbp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopBlockpoints, this, "Display the leaderboard of top blockpoints.");
-    Console()->Register("topks", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopKillStreak, this, "Show the leaderboard for top kill streaks.");
-    Console()->Register("topclans", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopClans, this, "Display the top clans leaderboard.");
+	Console()->Register("toplevel", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopLevel, this, "Show the leaderboard of top-level players.");
+	Console()->Register("topbp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopBlockpoints, this, "Display the leaderboard of top blockpoints.");
+	Console()->Register("topks", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopKillStreak, this, "Show the leaderboard for top kill streaks.");
+	Console()->Register("topclans", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopClans, this, "Display the top clans leaderboard.");
 
-    Console()->Register("cosmetics", "s[category] s[name]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConCosmetics, this, "Show available cosmetics for the specified category and name.");
-    Console()->Register("buy", "s[category] s[name]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConBuy, this, "Purchase an item from the shop by category and name.");
+	Console()->Register("cosmetics", "s[category] s[name]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConCosmetics, this, "Show available cosmetics for the specified category and name.");
+	Console()->Register("buy", "s[category] s[name]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConBuy, this, "Purchase an item from the shop by category and name.");
 
-    Console()->Register("yes", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConShopPurchase, this, "Confirm the pending shop purchase.");
-    Console()->Register("no", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConShopDecline, this, "Cancel the pending shop purchase.");
+	Console()->Register("yes", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConShopPurchase, this, "Confirm the pending shop purchase.");
+	Console()->Register("no", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConShopDecline, this, "Cancel the pending shop purchase.");
 
-    Console()->Register("test", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConTest, this, "Display credits for the DDNet mod.");
+	Console()->Register("test", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConTest, this, "Display credits for the DDNet mod.");
 
-    Console()->Register("clan_create", "s[clanname]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanCreate, this, "Create a new clan with the given name.");
-    Console()->Register("clan_delete", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanDelete, this, "Delete your clan (leaders only).");
-    Console()->Register("clan_leave", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanLeave, this, "Leave your current clan.");
-    Console()->Register("clan_kick", "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanRemove, this, "Remove the specified user from your clan.");
-    Console()->Register("clan_setlevel", "s[username] i[level]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanSetAuth, this, "Assign a clan access level to a member (1: member, 2: co-leader).");
+	Console()->Register("clan_create", "s[clanname]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanCreate, this, "Create a new clan with the given name.");
+	Console()->Register("clan_delete", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanDelete, this, "Delete your clan (leaders only).");
+	Console()->Register("clan_leave", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanLeave, this, "Leave your current clan.");
+	Console()->Register("clan_kick", "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanRemove, this, "Remove the specified user from your clan.");
+	Console()->Register("clan_setlevel", "s[username] i[level]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanSetAuth, this, "Assign a clan access level to a member (1: member, 2: co-leader).");
 
-    Console()->Register("clan_invite", "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanInvite, this, "Invite a user to join your clan.");
-    Console()->Register("clan_accept", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanAccept, this, "Accept a pending clan invitation.");
-    Console()->Register("clan_decline", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanDecline, this, "Decline a pending clan invitation.");
+	Console()->Register("clan_invite", "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanInvite, this, "Invite a user to join your clan.");
+	Console()->Register("clan_accept", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanAccept, this, "Accept a pending clan invitation.");
+	Console()->Register("clan_decline", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanDecline, this, "Decline a pending clan invitation.");
 
-    Console()->Register("clan_exp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanExp, this, "Display the current experience progress of your clan.");
+	Console()->Register("clan_exp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanExp, this, "Display the current experience progress of your clan.");
 }
-
 
 CPlayer *CGameContext::GetPlayerByName(const char *pName)
 {
