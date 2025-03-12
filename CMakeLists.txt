@@ -999,8 +999,8 @@ set(EXPECTED_DATA
   announcement.txt
   autoexec_server.cfg
   censorlist.txt
-  maps/Store.map
   maps/blmapV3ROYAL.map
+  maps/store.map
   maps7/readme.txt
   wordlist.txt
 )
