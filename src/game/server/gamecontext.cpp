@@ -628,6 +628,31 @@ void CGameContext::SendChatTarget(int To, const char *pText, int VersionFlags) c
 	}
 }
 
+void CGameContext::SendClanChat(int ClanId, const char *pText, int VersionFlags) const
+{
+    CNetMsg_Sv_Chat Msg;
+    Msg.m_Team = 0;
+    Msg.m_ClientId = -1;
+    Msg.m_pMessage = pText;
+
+    for(int i = 0; i < Server()->MaxClients(); i++)
+    {
+        CPlayer *pPlayer = m_apPlayers[i];
+        if(!pPlayer || !pPlayer->IsLoggedIn())
+            continue;
+
+        if(pPlayer->GetClanId() != ClanId)
+            continue;
+
+        if(!((Server()->IsSixup(i) && (VersionFlags & FLAG_SIXUP)) ||
+             (!Server()->IsSixup(i) && (VersionFlags & FLAG_SIX))))
+            continue;
+
+        Server()->SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, i);
+    }
+}
+
+
 void CGameContext::SendChatTeam(int Team, const char *pText) const
 {
 	for(int i = 0; i < MAX_CLIENTS; i++)

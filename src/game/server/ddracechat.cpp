@@ -2981,7 +2981,7 @@ void CGameContext::ConClanInvite(IConsole::IResult *pResult, void *pUserData)
 
 	if(!pPlayer || !pPlayer->IsLoggedIn() || !pPlayer->GetCharacter())
 	{
-		pSelf->SendChatTarget(pResult->m_ClientId, "You are not properly logged in.");
+		pSelf->SendChatTarget(pResult->m_ClientId, "You are not logged in.");
 		return;
 	}
 

@@ -49,6 +49,7 @@ struct CClanResult : ISqlResult
 		ALL,
 		BROADCAST,
 		DELETE,
+		CLAN,
 	} m_MessageKind;
 	Variant m_Type;
 
@@ -60,8 +61,9 @@ struct CClanResult : ISqlResult
 		case DIRECT:
 		case ALL:
 		case BROADCAST:
-			m_aBroadcast[0] = 0; // reset the broadcast message
+			m_aBroadcast[0] = 0;
 			break;
+		case CLAN:
 		case DELETE:
 			break;
 		}
