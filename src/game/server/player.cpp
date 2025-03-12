@@ -1144,6 +1144,23 @@ void CPlayer::BWProcessClansResult(CClanResult &Result)
 				GameServer()->SendChatTarget(m_ClientId, aMessage);
 			}
 			break;
+		case CClanResult::CLAN:
+		{
+			for(int i = 0; i < MAX_CLIENTS; i++)
+			{
+				CPlayer *pMember = GameServer()->m_apPlayers[i];
+				if(pMember && pMember->IsLoggedIn() && pMember->GetClanId() == GetClanId())
+				{
+					for(auto &aMessage : Result.m_aaMessages)
+					{
+						if(aMessage[0] == 0)
+							break;
+						GameServer()->SendChatTarget(i, aMessage);
+					}
+				}
+			}
+			break;
+		}
 		}
 	}
 }

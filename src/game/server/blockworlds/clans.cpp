@@ -242,7 +242,6 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	{
 		pData->m_pClanManager->UpdatePlayerClan(pData->m_ClientId, ClanId, 3);
 	}
-
 	str_copy(pResult->m_aaMessages[0], "Clan created successfully!", sizeof(pResult->m_aaMessages[0]));
 	return false;
 }
@@ -318,105 +317,140 @@ bool CClanManager::DeleteClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		}
 	}
 
-	pResult->SetVariant(CClanResult::DELETE);
 	str_copy(pResult->m_aaMessages[0], "Clan deleted successfully!", sizeof(pResult->m_aaMessages[0]));
 	return false;
 }
 bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
 {
-	const CSqlClanRequest *pData = static_cast<const CSqlClanRequest *>(pGameData);
-	CClanResult *pResult = static_cast<CClanResult *>(pGameData->m_pResult.get());
-	char aBuf[1024];
+    const CSqlClanRequest *pData = static_cast<const CSqlClanRequest *>(pGameData);
+    CClanResult *pResult = static_cast<CClanResult *>(pGameData->m_pResult.get());
+    char aBuf[1024];
 
-	pResult->SetVariant(CClanResult::DIRECT);
+    pResult->SetVariant(CClanResult::DIRECT);
 
-	if(pData->m_AccountId != 0)
-	{
-		str_copy(aBuf, "UPDATE accounts SET clanID = ?, auth_level = 1 WHERE id = ?;", sizeof(aBuf));
-		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
-		{
-			snprintf(pError, ErrorSize, "Error 201: Failed to prepare UPDATE statement: %s", pError);
-			str_copy(pResult->m_aaMessages[0], "Error 201: Assign clan failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
-			return true;
-		}
-		pSqlServer->BindInt(1, pData->m_ClanId);
-		pSqlServer->BindInt(2, pData->m_AccountId);
-	}
-	else
-	{
-		str_copy(aBuf, "UPDATE accounts SET clanID = ?, auth_level = 1 WHERE name = ?;", sizeof(aBuf));
-		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
-		{
-			snprintf(pError, ErrorSize, "Error 201: Failed to prepare UPDATE statement: %s", pError);
-			str_copy(pResult->m_aaMessages[0], "Error 201: Assign clan failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
-			return true;
-		}
-		pSqlServer->BindInt(1, pData->m_ClanId);
-		pSqlServer->BindString(2, pData->m_aUsername);
-	}
+    if(pData->m_AccountId != 0)
+    {
+        str_copy(aBuf, "UPDATE accounts SET clanID = ?, auth_level = 1 WHERE id = ?;", sizeof(aBuf));
+        if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+        {
+            snprintf(pError, ErrorSize, "Error 201: Failed to prepare UPDATE statement: %s", pError);
+            str_copy(pResult->m_aaMessages[0], "Error 201: Assign clan failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
+            return true;
+        }
+        pSqlServer->BindInt(1, pData->m_ClanId);
+        pSqlServer->BindInt(2, pData->m_AccountId);
+    }
+    else
+    {
+        str_copy(aBuf, "UPDATE accounts SET clanID = ?, auth_level = 1 WHERE name = ?;", sizeof(aBuf));
+        if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+        {
+            snprintf(pError, ErrorSize, "Error 201: Failed to prepare UPDATE statement: %s", pError);
+            str_copy(pResult->m_aaMessages[0], "Error 201: Assign clan failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
+            return true;
+        }
+        pSqlServer->BindInt(1, pData->m_ClanId);
+        pSqlServer->BindString(2, pData->m_aUsername);
+    }
 
-	int NumUpdated;
-	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
-	{
-		snprintf(pError, ErrorSize, "Error 202: Failed to execute UPDATE statement: %s", pError);
-		str_copy(pResult->m_aaMessages[0], "Error 202: Assign clan failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
-		return true;
-	}
-	if(NumUpdated != 1)
-	{
-		snprintf(pError, ErrorSize, "Error 203: Assign clan failed. No rows updated.");
-		str_copy(pResult->m_aaMessages[0], "Error 203: Unable to assign clan.", sizeof(pResult->m_aaMessages[0]));
-		return true;
-	}
-	if(pData->m_pClanManager && pData->m_ClientId >= 0)
-	{
-		pData->m_pClanManager->UpdatePlayerClan(pData->m_ClientId, pData->m_ClanId, 1);
-	}
-	return false;
+    int NumUpdated;
+    if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
+    {
+        snprintf(pError, ErrorSize, "Error 202: Failed to execute UPDATE statement: %s", pError);
+        str_copy(pResult->m_aaMessages[0], "Error 202: Assign clan failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
+        return true;
+    }
+    if(NumUpdated != 1)
+    {
+        snprintf(pError, ErrorSize, "Error 203: Assign clan failed. No rows updated.");
+        str_copy(pResult->m_aaMessages[0], "Error 203: Unable to assign clan.", sizeof(pResult->m_aaMessages[0]));
+        return true;
+    }
+    
+    if(pData->m_pClanManager && pData->m_ClientId >= 0)
+    {
+        pData->m_pClanManager->UpdatePlayerClan(pData->m_ClientId, pData->m_ClanId, 1);
+    }
+    
+    {
+        CGameContext *pGameServer = pData->m_pClanManager->GameServer();
+        char aBroadcast[256];
+        str_format(aBroadcast, sizeof(aBroadcast), "%s has joined the clan!", pData->m_aUsername);
+        pGameServer->SendClanChat(pData->m_ClanId, aBroadcast);
+    }
+    
+    // str_copy(pResult->m_aaMessages[0], "Clan assignment successful.", sizeof(pResult->m_aaMessages[0]));
+    return false;
 }
+
 
 bool CClanManager::RemoveFromClanThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
 {
-	const CSqlClanRequest *pData = static_cast<const CSqlClanRequest *>(pGameData);
-	CClanResult *pResult = static_cast<CClanResult *>(pGameData->m_pResult.get());
-	char aBuf[1024];
+    const CSqlClanRequest *pData = static_cast<const CSqlClanRequest *>(pGameData);
+    CClanResult *pResult = static_cast<CClanResult *>(pGameData->m_pResult.get());
+    char aBuf[1024];
 
-	pResult->SetVariant(CClanResult::DIRECT);
+    pResult->SetVariant(CClanResult::DIRECT);
 
-	str_copy(aBuf, "UPDATE accounts SET clanID = 0, auth_level = 0 WHERE name = ? AND clanID = ?;", sizeof(aBuf));
-	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
-	{
-		snprintf(pError, ErrorSize, "Error 301: Failed to prepare UPDATE statement: %s", pError);
-		str_copy(pResult->m_aaMessages[0], "Error 301: Remove from clan failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
-		return true;
-	}
-	pSqlServer->BindString(1, pData->m_aUsername);
-	pSqlServer->BindInt(2, pData->m_ClanId);
-	int NumUpdated;
-	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
-	{
-		snprintf(pError, ErrorSize, "Error 302: Failed to execute UPDATE statement: %s", pError);
-		str_copy(pResult->m_aaMessages[0], "Error 302: Remove from clan failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
-		return true;
-	}
-	if(NumUpdated != 1)
-	{
-		snprintf(pError, ErrorSize, "Error 303: Remove from clan failed. No rows updated.");
-		str_copy(pResult->m_aaMessages[0], "Error 303: Unable to remove from clan.", sizeof(pResult->m_aaMessages[0]));
-		return true;
-	}
+    str_copy(aBuf, "UPDATE accounts SET clanID = 0, auth_level = 0 WHERE name = ? AND clanID = ?;", sizeof(aBuf));
+    if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+    {
+        snprintf(pError, ErrorSize, "Error 301: Failed to prepare UPDATE statement: %s", pError);
+        str_copy(pResult->m_aaMessages[0], "Error 301: Remove from clan failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
+        return true;
+    }
+    pSqlServer->BindString(1, pData->m_aUsername);
+    pSqlServer->BindInt(2, pData->m_ClanId);
+    int NumUpdated;
+    if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
+    {
+        snprintf(pError, ErrorSize, "Error 302: Failed to execute UPDATE statement: %s", pError);
+        str_copy(pResult->m_aaMessages[0], "Error 302: Remove from clan failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
+        return true;
+    }
+    if(NumUpdated != 1)
+    {
+        snprintf(pError, ErrorSize, "Error 303: Remove from clan failed. No rows updated.");
+        str_copy(pResult->m_aaMessages[0], "Error 303: Unable to remove from clan.", sizeof(pResult->m_aaMessages[0]));
+        return true;
+    }
 
-	if(pData->m_pClanManager && pData->m_ClientId >= 0)
-	{
-		pResult->SetVariant(CClanResult::DIRECT);
+    if(pData->m_pClanManager && pData->m_ClientId >= 0)
+    {
+        pResult->SetVariant(CClanResult::DIRECT);
+        pData->m_pClanManager->UpdatePlayerClan(pData->m_ClientId, 0, 0);
+    }
 
-		pData->m_pClanManager->UpdatePlayerClan(pData->m_ClientId, 0, 0);
-	}
+    CGameContext *pGameServer = pData->m_pClanManager->GameServer();
 
-	str_copy(pResult->m_aaMessages[0], "Removed from clan successfully!", sizeof(pResult->m_aaMessages[0]));
+    // -- notify the kicked player --
+    int KickedClientId = -1;
+    for(int i = 0; i < MAX_CLIENTS; i++)
+    {
+        CPlayer *pTarget = pGameServer->m_apPlayers[i];
+        if(pTarget && pTarget->IsLoggedIn() && str_comp(pTarget->m_Account.m_aName, pData->m_aUsername) == 0)
+        {
+            KickedClientId = i;
+            break;
+        }
+    }
+    if(KickedClientId != -1)
+    {
+        pGameServer->SendChatTarget(KickedClientId, "You have been kicked from your clan!");
+    }
 
-	return false;
+    // -- broadcast to remaining clan members using SendClanChat --
+    {
+        char aBroadcast[256];
+        str_format(aBroadcast, sizeof(aBroadcast), "'%s' has been kicked from the clan!", pData->m_aUsername);
+        pGameServer->SendClanChat(pData->m_ClanId, aBroadcast);
+    }
+
+    // str_copy(pResult->m_aaMessages[0], "Removed from clan successfully!", sizeof(pResult->m_aaMessages[0]));
+
+    return false;
 }
+
 
 bool CClanManager::ClanLeaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
 {
@@ -453,7 +487,6 @@ bool CClanManager::ClanLeaveThread(IDbConnection *pSqlServer, const ISqlData *pG
 	{
 		pData->m_pClanManager->UpdatePlayerClan(pData->m_ClientId, 0, 0);
 	}
-
 	str_copy(pResult->m_aaMessages[0], "You have left the clan successfully!", sizeof(pResult->m_aaMessages[0]));
 	return false;
 }
@@ -464,7 +497,7 @@ bool CClanManager::SetAuthLevelThread(IDbConnection *pSqlServer, const ISqlData 
 	CClanResult *pResult = static_cast<CClanResult *>(pGameData->m_pResult.get());
 	char aBuf[1024];
 
-	pResult->SetVariant(CClanResult::DIRECT);
+	pResult->SetVariant(CClanResult::CLAN);
 
 	str_copy(aBuf, "UPDATE accounts SET auth_level = ? WHERE name = ? AND clanID = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
@@ -490,9 +523,23 @@ bool CClanManager::SetAuthLevelThread(IDbConnection *pSqlServer, const ISqlData 
 		return true;
 	}
 
-	pData->m_pClanManager->UpdatePlayerClan(pData->m_ClientId, pData->m_ClanId, pData->m_NewAuthLevel);
+	if(pData->m_pClanManager && pData->m_ClientId >= 0)
+	{
+		pData->m_pClanManager->UpdatePlayerClan(pData->m_ClientId, pData->m_ClanId, pData->m_NewAuthLevel);
+	}
 
-	str_copy(pResult->m_aaMessages[0], "Auth level updated successfully!", sizeof(pResult->m_aaMessages[0]));
+	char aRank[32];
+	if(pData->m_NewAuthLevel == 2)
+		str_copy(aRank, "co-leader", sizeof(aRank));
+	else if(pData->m_NewAuthLevel == 1)
+		str_copy(aRank, "member", sizeof(aRank));
+	else
+		str_format(aRank, sizeof(aRank), "rank %d", pData->m_NewAuthLevel);
+
+	char aMessage[256];
+	str_format(aMessage, sizeof(aMessage), "Auth level updated: %s is now %s.", pData->m_aUsername, aRank);
+	str_copy(pResult->m_aaMessages[0], aMessage, sizeof(pResult->m_aaMessages[0]));
+
 	return false;
 }
 
