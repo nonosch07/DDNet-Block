@@ -16,87 +16,121 @@ CGameWorld *CMapAnimation::GameWorld() { return m_pGameWorld; }
 
 CAnimationHandler::CAnimationHandler()
 {
-	mem_copy(gs_LetterBits['a'], gs_LetterA, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['b'], gs_LetterB, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['c'], gs_LetterC, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['d'], gs_LetterD, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['e'], gs_LetterE, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['f'], gs_LetterF, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['g'], gs_LetterG, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['h'], gs_LetterH, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['i'], gs_LetterI, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['j'], gs_LetterJ, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['k'], gs_LetterK, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['l'], gs_LetterL, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['m'], gs_LetterM, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['n'], gs_LetterN, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['o'], gs_LetterO, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['p'], gs_LetterP, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['q'], gs_LetterQ, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['r'], gs_LetterR, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['s'], gs_LetterS, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['t'], gs_LetterT, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['u'], gs_LetterU, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['v'], gs_LetterV, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['w'], gs_LetterW, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['x'], gs_LetterX, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['y'], gs_LetterY, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['z'], gs_LetterZ, sizeof(gs_LetterBits[0]));
+    const char lc_letters[] = "abcdefghijklmnopqrstuvwxyz";
+    const char uc_letters[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const char num_letters[] = "0123456789";
+    const char spl_letters[] = "+-!?%$().,:<>=|";
+    const char space[] = " ";
 
-	mem_copy(gs_LetterBits['A'], gs_LetterA, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['B'], gs_LetterB, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['C'], gs_LetterC, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['D'], gs_LetterD, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['E'], gs_LetterE, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['F'], gs_LetterF, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['G'], gs_LetterG, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['H'], gs_LetterH, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['I'], gs_LetterI, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['J'], gs_LetterJ, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['K'], gs_LetterK, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['L'], gs_LetterL, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['M'], gs_LetterM, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['N'], gs_LetterN, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['O'], gs_LetterO, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['P'], gs_LetterP, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['Q'], gs_LetterQ, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['R'], gs_LetterR, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['S'], gs_LetterS, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['T'], gs_LetterT, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['U'], gs_LetterU, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['V'], gs_LetterV, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['W'], gs_LetterW, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['X'], gs_LetterX, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['Y'], gs_LetterY, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['Z'], gs_LetterZ, sizeof(gs_LetterBits[0]));
+    void *num_destinations[] = {
+        gs_Letter0,
+        gs_Letter1,
+        gs_Letter2,
+        gs_Letter3,
+        gs_Letter4,
+        gs_Letter5,
+        gs_Letter6,
+        gs_Letter7,
+        gs_Letter8,
+        gs_Letter9
+    };
+    void *spl_destinations[] = {
+        gs_LetterPL,
+        gs_LetterMN,
+        gs_LetterEM,
+        gs_LetterQM,
+        gs_LetterPC,
+        gs_LetterDL,
+        gs_LetterBO,
+        gs_LetterBC,
+        gs_LetterDT,
+        gs_LetterCM,
+        gs_LetterDD,
+        gs_LetterSM,
+        gs_LetterBI,
+        gs_LetterEQ,
+        gs_LetterLV,
+        gs_LetterSP};
+    void *lc_destinations[] = {
+        gs_LetterA,
+        gs_LetterB,
+        gs_LetterC,
+        gs_LetterD,
+        gs_LetterE,
+        gs_LetterF,
+        gs_LetterG,
+        gs_LetterH,
+        gs_LetterI,
+        gs_LetterJ,
+        gs_LetterK,
+        gs_LetterL,
+        gs_LetterM,
+        gs_LetterN,
+        gs_LetterO,
+        gs_LetterP,
+        gs_LetterQ,
+        gs_LetterR,
+        gs_LetterS,
+        gs_LetterT,
+        gs_LetterU,
+        gs_LetterV,
+        gs_LetterW,
+        gs_LetterX,
+        gs_LetterY,
+        gs_LetterZ
+    };
 
-	mem_copy(gs_LetterBits['0'], gs_Letter0, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['1'], gs_Letter1, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['2'], gs_Letter2, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['3'], gs_Letter3, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['4'], gs_Letter4, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['5'], gs_Letter5, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['6'], gs_Letter6, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['7'], gs_Letter7, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['8'], gs_Letter8, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['9'], gs_Letter9, sizeof(gs_LetterBits[0]));
+    void *uc_destinations[] = {
+        gs_LetterA,
+        gs_LetterB,
+        gs_LetterC,
+        gs_LetterD,
+        gs_LetterE,
+        gs_LetterF,
+        gs_LetterG,
+        gs_LetterH,
+        gs_LetterI,
+        gs_LetterJ,
+        gs_LetterK,
+        gs_LetterL,
+        gs_LetterM,
+        gs_LetterN,
+        gs_LetterO,
+        gs_LetterP,
+        gs_LetterQ,
+        gs_LetterR,
+        gs_LetterS,
+        gs_LetterT,
+        gs_LetterU,
+        gs_LetterV,
+        gs_LetterW,
+        gs_LetterX,
+        gs_LetterY,
+        gs_LetterZ
+    };
 
-	mem_copy(gs_LetterBits['+'], gs_LetterPL, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['-'], gs_LetterMN, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['!'], gs_LetterEM, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['?'], gs_LetterQM, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['%'], gs_LetterPC, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['$'], gs_LetterDL, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['('], gs_LetterBO, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits[')'], gs_LetterBC, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['.'], gs_LetterDT, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits[','], gs_LetterCM, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits[':'], gs_LetterDD, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['<'], gs_LetterSM, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['>'], gs_LetterBI, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['='], gs_LetterEQ, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits['|'], gs_LetterLV, sizeof(gs_LetterBits[0]));
-	mem_copy(gs_LetterBits[' '], gs_LetterSP, sizeof(gs_LetterBits[0]));
+    for (size_t i = 0; i < strlen(lc_letters); i++) {
+        unsigned char idx = static_cast<unsigned char>(lc_letters[i]);
+        mem_copy(gs_LetterBits[idx], lc_destinations[i], sizeof(gs_LetterBits[0]));
+    }
+
+    for (size_t i = 0; i < strlen(uc_letters); i++) {
+        unsigned char idx = static_cast<unsigned char>(uc_letters[i]);
+        mem_copy(gs_LetterBits[idx], uc_destinations[i], sizeof(gs_LetterBits[0]));
+    }
+
+    for (size_t i = 0; i < strlen(num_letters); i++) {
+        unsigned char idx = static_cast<unsigned char>(num_letters[i]);
+        mem_copy(gs_LetterBits[idx], num_destinations[i], sizeof(gs_LetterBits[0]));
+    }
+
+    for (size_t i = 0; i < strlen(spl_letters); i++) {
+        unsigned char idx = static_cast<unsigned char>(spl_letters[i]);
+        mem_copy(gs_LetterBits[idx], spl_destinations[i], sizeof(gs_LetterBits[0]));
+    }
+
+    unsigned char space_idx = static_cast<unsigned char>(space[0]); // because space is a bxxxx.
+    mem_copy(gs_LetterBits[space_idx], gs_LetterSP, sizeof(gs_LetterBits[0]));
 }
 
 void CAnimationHandler::Init(CGameContext *pGameServer)
