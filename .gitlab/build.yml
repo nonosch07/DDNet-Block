@@ -1,10 +1,11 @@
 image: ubuntu:22.04
 
 stages:
-  - test
-
+  - Build DDNet Server
+  - Build docker image and deploy
 
 build_cmake:
+  stage: Build DDNet Server
   before_script:
     - apt-get update -y
     - apt-get upgrade -y
@@ -14,12 +15,53 @@ build_cmake:
       cargo cmake ninja-build
       libfreetype6-dev libnotify-dev libsdl2-dev libsqlite3-dev libvulkan-dev
       glslang-tools spirv-tools libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev
-      libx264-dev libpng-dev
+      libx264-dev libpng-dev libmariadb-dev
       libcurl4 libcurl3-gnutls libcurl4-openssl-dev libcurlpp-dev
       libogg-dev libopus-dev libopusfile-dev
       valgrind -y
-  stage: test
   script:
     - mkdir build && cd build
-    - cmake -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON ..
+    - cmake -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON ..
     - make game-server
+  artifacts:
+    paths:
+      - build/DDNet-Server
+    when: on_success
+    expire_in: 7 days
+  only:
+    - master
+    - test
+
+package_main:
+  stage: Build docker image and deploy
+  image: docker:24.0.6-alpine3.18
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    IMAGE_LATEST: registry.gitlab.com/blockworlds1/blockworlds:latest
+  script:
+    - docker info
+    - docker login registry.gitlab.com -u ${GL_DEPLOY_USER} -p ${GL_DEPLOY_PASS}
+    - DOCKER_BUILDKIT=1 docker build -f Dockerfile.blockworlds -t $IMAGE_LATEST .
+    - docker push $IMAGE_LATEST
+  only:
+    - master
+
+package_test:
+  stage: Build docker image and deploy
+  image: docker:24.0.6-alpine3.18
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    IMAGE_LATEST: registry.gitlab.com/blockworlds1/blockworlds:${CI_COMMIT_BRANCH}
+  script:
+    - docker info
+    - docker login registry.gitlab.com -u ${GL_DEPLOY_USER} -p ${GL_DEPLOY_PASS}
+    - DOCKER_BUILDKIT=1 docker build -f Dockerfile.blockworlds -t $IMAGE_LATEST .
+    - docker push $IMAGE_LATEST
+  only:
+    - test
