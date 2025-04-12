@@ -1,0 +1,16 @@
+FROM debian:stable-slim
+
+RUN apt update -y && apt upgrade -y
+RUN apt install -y libssl3 libcurl4 libsqlite3-0 libmariadb3
+
+WORKDIR /blockworlds
+
+COPY build/DDNet-Server blockworlds
+COPY storage.cfg .
+COPY start.sh .
+
+EXPOSE 8303/udp
+
+RUN chmod +x ./start.sh
+
+ENTRYPOINT [ "./start.sh" ]
