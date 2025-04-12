@@ -37,8 +37,6 @@ void CVotes::Deactivate(int ClientID)
 	ClearVotes(ClientID);
 }
 
-constexpr const char *s_Gap = " ";
-
 std::list<const char *> GenerateList(CHeap *Heap, CGenericTreeElement<CGameInterfaceObject> *Tree, int Depth = 0, bool IsFirstLine = false)
 {
 	std::list<const char *> Lines;
