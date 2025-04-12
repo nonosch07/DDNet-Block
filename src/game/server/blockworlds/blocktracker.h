@@ -3,7 +3,7 @@
 
 #include <engine/shared/protocol.h>
 #include <unordered_map>
-
+#include <cstdint>
 class CGameContext;
 
 class CBlockTracker

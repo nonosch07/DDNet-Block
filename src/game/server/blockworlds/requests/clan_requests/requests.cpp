@@ -71,7 +71,7 @@ void CClanRequests::Destroy(bool Silent)
 	if(!Silent)
 	{
 		char aBuf[256];
-		str_format(aBuf, sizeof(aBuf), "Clan invitation has been aborted.");
+		str_copy(aBuf, "Clan invitation has been aborted.", sizeof(aBuf));
 		GameServer()->SendChatTarget(m_pClanSeeker->GetCid(), aBuf);
 		GameServer()->SendChatTarget(m_pClanOwner->GetCid(), aBuf);
 	}
