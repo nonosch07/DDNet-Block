@@ -938,6 +938,38 @@ void CConsole::RegisterTemp(const char *pName, const char *pParams, int Flags, c
 	AddCommandSorted(pCommand);
 }
 
+void CConsole::Deregister(const char *pName)
+{
+	if(!m_pFirstCommand)
+		return;
+
+	CCommand *pRemoved = nullptr;
+
+	// remove entry from command list
+	if(str_comp(m_pFirstCommand->m_pName, pName) == 0)
+	{
+		pRemoved = m_pFirstCommand;
+		m_pFirstCommand = m_pFirstCommand->m_pNext;
+	}
+	else
+	{
+		for(CCommand *pCommand = m_pFirstCommand; pCommand->m_pNext; pCommand = pCommand->m_pNext)
+			if(str_comp(pCommand->m_pNext->m_pName, pName) == 0)
+			{
+				pRemoved = pCommand->m_pNext;
+				pCommand->m_pNext = pCommand->m_pNext->m_pNext;
+				break;
+			}
+	}
+
+	// add to recycle list
+	if(pRemoved)
+	{
+		pRemoved->m_pNext = m_pRecycleList;
+		m_pRecycleList = pRemoved;
+	}
+}
+
 void CConsole::DeregisterTemp(const char *pName)
 {
 	if(!m_pFirstCommand)
