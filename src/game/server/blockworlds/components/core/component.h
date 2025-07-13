@@ -17,6 +17,7 @@ protected:
 	class IServer *Server() const;
 	class CConfig *Config() const;
 	class IConsole *Console() const;
+	class CComponentRegistry *Registry() const;
 
 public:
 	CComponent(class CGameContext *pGameServer);

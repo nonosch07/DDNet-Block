@@ -20,8 +20,8 @@
 #include <game/server/score.h>
 #include <game/server/teams.h>
 
+#include <game/server/blockworlds/components/core/component_registry.h>
 #include <game/server/blockworlds/shop/storemanager.h>
-#include <game/server/blockworlds/components/core/component_factory.h>
 
 MACRO_ALLOC_POOL_ID_IMPL(CCharacter, MAX_CLIENTS)
 

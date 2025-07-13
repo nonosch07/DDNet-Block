@@ -28,7 +28,7 @@
 #include <game/mapitems.h>
 #include <game/version.h>
 
-#include <game/server/blockworlds/components/core/component_factory.h>
+#include <game/server/blockworlds/components/core/component_registry.h>
 #include <game/server/blockworlds/components/events.h>
 
 #include <game/generated/protocol7.h>

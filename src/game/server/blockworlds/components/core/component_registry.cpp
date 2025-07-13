@@ -1,8 +1,8 @@
-#include "component_factory.h"
+#include "component_registry.h"
 
-CComponentFactory g_ComponentRegistry;
+CComponentRegistry g_ComponentRegistry;
 
-CComponent *CComponentFactory::Create(std::type_index Type, class CGameContext *pGameServer)
+CComponent *CComponentRegistry::Create(std::type_index Type, class CGameContext *pGameServer)
 {
 	auto Result = m_Components.try_emplace(Type, m_TypeToFactory[Type](pGameServer));
 	if(!Result.second)
@@ -14,7 +14,7 @@ CComponent *CComponentFactory::Create(std::type_index Type, class CGameContext *
 
 	return pComponent;
 }
-CComponent *CComponentFactory::Create(const std::string &Name, class CGameContext *pGameServer)
+CComponent *CComponentRegistry::Create(const std::string &Name, class CGameContext *pGameServer)
 {
 	auto Result = m_NameToType.find(Name);
 	if(Result == m_NameToType.end())
@@ -22,13 +22,13 @@ CComponent *CComponentFactory::Create(const std::string &Name, class CGameContex
 	return Create(Result->second, pGameServer);
 }
 
-CComponent *CComponentFactory::Get(std::type_index Type)
+CComponent *CComponentRegistry::Get(std::type_index Type)
 {
 	if (auto it = m_Components.find(Type); it != m_Components.end())
 		return it->second.get();
 	return nullptr;
 }
-CComponent *CComponentFactory::Get(const std::string &Name)
+CComponent *CComponentRegistry::Get(const std::string &Name)
 {
 	auto Result = m_NameToType.find(Name);
 	if(Result == m_NameToType.end())
@@ -36,7 +36,7 @@ CComponent *CComponentFactory::Get(const std::string &Name)
 	return Get(Result->second);
 }
 
-bool CComponentFactory::Remove(std::type_index Type)
+bool CComponentRegistry::Remove(std::type_index Type)
 {
 	if (auto it = m_Components.find(Type); it != m_Components.end())
 	{
@@ -47,7 +47,7 @@ bool CComponentFactory::Remove(std::type_index Type)
 	}
 	return false;
 }
-bool CComponentFactory::Remove(const std::string &Name)
+bool CComponentRegistry::Remove(const std::string &Name)
 {
 	auto Result = m_NameToType.find(Name);
 	if(Result == m_NameToType.end())
@@ -55,7 +55,7 @@ bool CComponentFactory::Remove(const std::string &Name)
 	return Remove(Result->second);
 }
 
-std::vector<CComponent*> CComponentFactory::Active()
+std::vector<CComponent*> CComponentRegistry::Active()
 {
 	std::vector<CComponent*> vComponents;
 	vComponents.reserve(m_Components.size());
@@ -64,7 +64,7 @@ std::vector<CComponent*> CComponentFactory::Active()
 	return vComponents;
 }
 
-std::unordered_map<std::type_index, class CComponent*> CComponentFactory::All()
+std::unordered_map<std::type_index, class CComponent*> CComponentRegistry::All()
 {
 	std::unordered_map<std::type_index, class CComponent*> vComponents;
 	vComponents.reserve(m_TypeToFactory.size());

@@ -15,7 +15,7 @@
 #include <game/server/blockworlds/events/base/eventhandler.h>
 #include <game/server/blockworlds/requests/clan_requests/requests.h>
 
-#include <game/server/blockworlds/components/core/component_factory.h>
+#include <game/server/blockworlds/components/core/component_registry.h>
 
 inline bool CheckValidChars(const char *pStr)
 {

@@ -10,7 +10,7 @@
 #include <base/system.h>
 #include <game/server/blockworlds/components/core/component.h>
 
-class CComponentFactory final
+class CComponentRegistry final
 {
 public:
 	using FnFactory = std::function<class CComponent*(class CGameContext*)>;
@@ -75,6 +75,6 @@ public:
 	}
 };
 
-extern CComponentFactory g_ComponentRegistry;
+extern CComponentRegistry g_ComponentRegistry;
 
 #endif // GAME_SERVER_BLOCKWORLDS_COMPONENTS_CORE_COMPONENT_FACTORY_H
