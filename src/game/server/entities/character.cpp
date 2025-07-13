@@ -54,7 +54,7 @@ void CCharacter::Reset()
 	Destroy();
 }
 
-bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
+bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos, bool doEvent)
 {
 	m_EmoteStop = -1;
 	m_LastAction = -1;
@@ -92,7 +92,7 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	GameServer()->m_World.InsertEntity(this);
 	m_Alive = true;
 
-	GameServer()->m_pController->OnCharacterSpawn(this);
+	GameServer()->m_pController->OnCharacterSpawn(this, doEvent);
 
 	DDRaceInit();
 
@@ -133,6 +133,16 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 			GameServer()->m_apSavedTeleTees[m_pPlayer->GetCid()] = nullptr;
 		}
 	}
+
+	for(CEvent *Event : GameServer()->m_vEvents)
+	{
+		//TODO:: store event types in a bool set, i hate looking at that || shit
+		if((Event->pGetGametype() == CEvent::EVENT_1on1 || Event->pGetGametype() == CEvent::EVENT_LMB || Event->pGetGametype() == CEvent::EVENT_TDM) && !doEvent)
+			continue;
+		Event->OnCharacterSpawn(this);
+	}
+
+	m_CurrentKillingSpree = 0;
 
 	return true;
 }

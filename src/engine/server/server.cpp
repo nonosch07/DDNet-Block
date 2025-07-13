@@ -32,8 +32,11 @@
 #include <engine/shared/protocol.h>
 #include <engine/shared/protocol7.h>
 #include <engine/shared/protocol_ex.h>
-#include <engine/shared/rust_version.h>
 #include <engine/shared/snapshot.h>
+
+#ifdef CONF_RUST_BRIDGE
+#include <engine/shared/rust_version.h>
+#endif
 
 #include <game/version.h>
 
@@ -3906,7 +3909,9 @@ void CServer::RegisterCommands()
 	Console()->Register("auth_remove", "s[ident]", CFGFLAG_SERVER | CFGFLAG_NONTEEHISTORIC, ConAuthRemove, this, "Remove a rcon key");
 	Console()->Register("auth_list", "", CFGFLAG_SERVER, ConAuthList, this, "List all rcon keys");
 
+#ifdef CONF_RUST_BRIDGE
 	RustVersionRegister(*Console());
+#endif
 
 	Console()->Chain("sv_name", ConchainSpecialInfoupdate, this);
 	Console()->Chain("password", ConchainSpecialInfoupdate, this);

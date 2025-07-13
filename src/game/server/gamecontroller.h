@@ -96,7 +96,7 @@ public:
 		Arguments:
 			chr - The CCharacter that was spawned.
 	*/
-	virtual void OnCharacterSpawn(class CCharacter *pChr);
+	virtual void OnCharacterSpawn(class CCharacter *pChr, bool doEvent);
 
 	virtual void HandleCharacterTiles(class CCharacter *pChr, int MapIndex);
 	virtual void SetArmorProgress(CCharacter *pCharacer, int Progress){};

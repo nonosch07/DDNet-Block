@@ -130,6 +130,7 @@ void CGameContext::Construct(int Resetting)
 	m_TeeHistorianActive = false;
 
 	m_pAccounts = nullptr;
+	m_pClans = nullptr;
 }
 
 void CGameContext::Destruct(int Resetting)
@@ -630,28 +631,27 @@ void CGameContext::SendChatTarget(int To, const char *pText, int VersionFlags) c
 
 void CGameContext::SendClanChat(int ClanId, const char *pText, int VersionFlags) const
 {
-    CNetMsg_Sv_Chat Msg;
-    Msg.m_Team = 0;
-    Msg.m_ClientId = -1;
-    Msg.m_pMessage = pText;
+	CNetMsg_Sv_Chat Msg;
+	Msg.m_Team = 0;
+	Msg.m_ClientId = -1;
+	Msg.m_pMessage = pText;
 
-    for(int i = 0; i < Server()->MaxClients(); i++)
-    {
-        CPlayer *pPlayer = m_apPlayers[i];
-        if(!pPlayer || !pPlayer->IsLoggedIn())
-            continue;
+	for(int i = 0; i < Server()->MaxClients(); i++)
+	{
+		CPlayer *pPlayer = m_apPlayers[i];
+		if(!pPlayer || !pPlayer->IsLoggedIn())
+			continue;
 
-        if(pPlayer->GetClanId() != ClanId)
-            continue;
+		if(pPlayer->GetClanId() != ClanId)
+			continue;
 
-        if(!((Server()->IsSixup(i) && (VersionFlags & FLAG_SIXUP)) ||
-             (!Server()->IsSixup(i) && (VersionFlags & FLAG_SIX))))
-            continue;
+		if(!((Server()->IsSixup(i) && (VersionFlags & FLAG_SIXUP)) ||
+			   (!Server()->IsSixup(i) && (VersionFlags & FLAG_SIX))))
+			continue;
 
-        Server()->SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, i);
-    }
+		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, i);
+	}
 }
-
 
 void CGameContext::SendChatTeam(int Team, const char *pText) const
 {
@@ -1084,6 +1084,9 @@ void CGameContext::OnTick()
 
 	//if(world.paused) // make sure that the game object always updates
 	m_pController->Tick();
+
+	//blockworlds OnTicks.
+	BW_OnTick();
 	m_Animations.Tick();
 	m_ZoneManager.Tick();
 	if(g_Config.m_SvShopServer)
@@ -4102,7 +4105,7 @@ void CGameContext::OnInit(const void *pPersistentData)
 	m_ZoneManager.Init(this);
 	if(g_Config.m_SvShopServer)
 		m_ShopPreview.Init(this);
-	// m_GameInterfaceHandler.Init(this);
+	m_GameInterfaceHandler.Init(this);
 
 	m_pAccounts->ClearLogins();
 	m_pClans->LoadAllClans();
@@ -5087,6 +5090,48 @@ void CGameContext::ReadCensorList()
 
 //Blockworlds
 
+int CGameContext::isInEvent(int pPlayerID)
+{
+	for(CEvent *pEvent : m_vEvents)
+	{
+		if(pEvent->playersInclude(pPlayerID))
+		{
+			return pEvent->pGetGametype();
+		}
+	}
+	return 0;
+}
+
+CInvite *CGameContext::getInvite(int Player1ID, int Player2ID, int EventID)
+{
+	for(CInvite *pInvite : m_vEventInvites)
+	{
+		if(EventID != -1 && pInvite->m_Event != EventID)
+			continue;
+		if(Player1ID != -1 && (pInvite->m_pInviteFrom->GetCid() != Player1ID && pInvite->m_pInviteTo->GetCid() != Player1ID))
+			continue;
+		if(Player2ID != -1 && (pInvite->m_pInviteFrom->GetCid() != Player2ID && pInvite->m_pInviteTo->GetCid() != Player2ID))
+			continue;
+		return pInvite;
+	}
+	return nullptr;
+}
+
+std::vector<CInvite *> CGameContext::getInvites(int Player1ID, int Player2ID, int pEventID)
+{
+	std::vector<CInvite *> rInvites = std::vector<CInvite *>();
+	for(CInvite *pInvite : m_vEventInvites)
+	{
+		if(pEventID != -1 && pInvite->m_Event != pEventID)
+			continue;
+		if(Player1ID != -1 && (pInvite->m_pInviteFrom->GetCid() != Player1ID && pInvite->m_pInviteTo->GetCid() != Player1ID))
+			continue;
+		if(Player2ID != -1 && (pInvite->m_pInviteFrom->GetCid() != Player2ID && pInvite->m_pInviteTo->GetCid() != Player2ID))
+			continue;
+		rInvites.push_back(pInvite);
+	}
+	return rInvites;
+}
 SHA256_DIGEST CGameContext::HashPassword(const char *pPassword)
 {
 	SHA256_CTX Sha256Ctx;
@@ -5135,6 +5180,13 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("clan_decline", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanDecline, this, "Decline a pending clan invitation.");
 
 	Console()->Register("clan_exp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanExp, this, "Display the current experience progress of your clan.");
+
+	// events
+	Console()->Register("1on1", "s[player name] ?i[wager]", CFGFLAG_CHAT, Con1on1, this, "Fight against another player");
+	Console()->Register("accept", "r[player name]", CFGFLAG_CHAT, Con1on1Accept, this, "Accept the 1vs1 request from player r");
+	Console()->Register("decline", "r[player name]", CFGFLAG_CHAT, Con1on1Decline, this, "Decline the 1vs1 request from player r");
+	Console()->Register("sub", "", CFGFLAG_CHAT, ConJoinEvent, this, "Join the current ongoing event");
+	Console()->Register("leave", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConLeaveEvent, this, "Leave current event");
 }
 
 CPlayer *CGameContext::GetPlayerByName(const char *pName)
@@ -5379,4 +5431,20 @@ bool CGameContext::HandleCosmeticsVote(const CNetMsg_Cl_CallVote *pMsg, int Clie
 	SendCosmeticsVoteOptions(ClientId);
 
 	return true;
+}
+
+// Event ticker
+void CGameContext::BW_OnTick()
+{
+	for(CEvent *Event : m_vEvents)
+	{
+		if(Event != nullptr)
+		{
+			Event->OnTick();
+		}
+	}
+	for(CInvite *pInvite : m_vEventInvites)
+	{
+		pInvite->OnTick();
+	}
 }

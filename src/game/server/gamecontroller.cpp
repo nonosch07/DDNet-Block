@@ -493,7 +493,7 @@ int IGameController::OnCharacterDeath(class CCharacter *pVictim, class CPlayer *
 	return 0;
 }
 
-void IGameController::OnCharacterSpawn(class CCharacter *pChr)
+void IGameController::OnCharacterSpawn(class CCharacter *pChr, bool doEvent)
 {
 	pChr->SetTeams(&Teams());
 	Teams().OnCharacterSpawn(pChr->GetPlayer()->GetCid());

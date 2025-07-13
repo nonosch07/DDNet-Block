@@ -25,6 +25,8 @@
 #include <game/server/blockworlds/shop/preview.h>
 #include <game/server/blockworlds/zones/zonemanager.h>
 
+#include "./blockworlds/events/1on1/1on1_invite.h"
+#include "./blockworlds/events/base/event_base.h"
 /*
 	Tick
 		Game Context (CGameContext::tick)
@@ -312,6 +314,7 @@ public:
 	void OnShutdown(void *pPersistentData) override;
 
 	void OnTick() override;
+	void BW_OnTick(); // only runs events, no need to override in child classes
 	void OnPreSnap() override;
 	void OnSnap(int ClientId) override;
 	void OnPostSnap() override;
@@ -627,6 +630,12 @@ public:
 	//Blockworlds
 
 public:
+	//events
+	static int GetTilePositions(int TileID, CGameContext *pSelf, std::vector<vec2> &result);
+	static int getSwitchTilePositions(int Type, int Delay, int Number, CGameContext *pSelf, std::vector<vec2> &result);
+	std::vector<CEvent *> m_vEvents;
+	std::vector<CInvite *> m_vEventInvites;
+	//commands
 	void RegisterBlockworldsChatCommands();
 	CPlayer *GetPlayerByName(const char *pName);
 	CPlayer *GetPlayer(int ClientID);
@@ -647,6 +656,11 @@ public:
 	void SetVoteDescriptionAtIndex(int *pIndex, const char *pStr, CNetMsg_Sv_VoteOptionListAdd *pOptionMsg);
 	void CreateStripline(char *pDst, int DstSize, const char *pTitle);
 	void ClearVotes(int ClientID);
+
+	//public Event getters and checks
+	CInvite *getInvite(int pPlayer1ID, int pPlayer2ID = -1, int pEventID = -1);
+	std::vector<CInvite *> getInvites(int pPlayer1ID, int pPlayer2ID = -1, int pEventID = -1);
+	int isInEvent(int pPlayerID);
 
 private:
 	CAccounts *m_pAccounts;
@@ -691,6 +705,17 @@ private:
 	static void ConClanInvite(IConsole::IResult *pResult, void *pUserData);
 	static void ConClanAccept(IConsole::IResult *pResult, void *pUserData);
 	static void ConClanDecline(IConsole::IResult *pResult, void *pUserData);
+
+	//Event commands
+
+	static void Con1on1(IConsole::IResult *pResult, void *pUserData);
+	static void Con1on1Accept(IConsole::IResult *pResult, void *pUserData);
+	static void Con1on1Decline(IConsole::IResult *pResult, void *pUserData);
+
+	static void ConJoinEvent(IConsole::IResult *pResult, void *pUserData);
+	static void ConCreateLMB(IConsole::IResult *pResult, void *pUserData);
+	static void ConCreateTDM(IConsole::IResult *pResult, void *pUserData);
+	static void ConLeaveEvent(IConsole::IResult *pResult, void *pUserData);
 };
 
 #endif

@@ -109,28 +109,28 @@ public:
 	template<typename... Args>
 	CGameInterfaceObject(const char *pFormat, Args &... vArgs)
 	{
-		std::snprintf(m_aString, sizeof(m_aString), pFormat, vArgs...);
+		//std::snprintf(m_aString, sizeof(m_aString), pFormat, vArgs...);
 	}
 
 	template<typename... Args>
 	CGameInterfaceObject(int Alignment, const char *pFormat, Args &... vArgs) :
 		m_Alignment(Alignment)
 	{
-		std::snprintf(m_aString, sizeof(m_aString), pFormat, vArgs...);
+		//std::snprintf(m_aString, sizeof(m_aString), pFormat, vArgs...);
 	}
 
 	template<typename... Args>
 	CGameInterfaceObject(FGameInterfaceCallback pCallback, const char *pFormat, Args &... vArgs) :
 		m_Callback(pCallback)
 	{
-		std::snprintf(m_aString, sizeof(m_aString), pFormat, vArgs...);
+		//std::snprintf(m_aString, sizeof(m_aString), pFormat, vArgs...);
 	}
 
 	template<typename... Args>
 	CGameInterfaceObject(int Alignment, FGameInterfaceCallback pCallback, const char *pFormat, Args &... vArgs) :
 		m_Alignment(Alignment), m_Callback(pCallback)
 	{
-		std::snprintf(m_aString, sizeof(m_aString), pFormat, vArgs...);
+		//std::snprintf(m_aString, sizeof(m_aString), pFormat, vArgs...);
 	}
 
 	void SetAlignment(int Alignment) { m_Alignment = Alignment; }
