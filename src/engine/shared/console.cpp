@@ -906,7 +906,7 @@ void CConsole::Register(const char *pName, const char *pParams,
 	if(pCommand->m_Flags & CFGFLAG_ANNOUNCE)
 	{
 		char aBuf[CMDLINE_LENGTH];
-		str_format(aBuf, sizeof(aBuf), "New command registered: %s", pCommand->m_pName);
+		str_format(aBuf, sizeof(aBuf), "Command registered: %s", pCommand->m_pName);
 		Print(OUTPUT_LEVEL_STANDARD, "console", aBuf);
 	}
 }
