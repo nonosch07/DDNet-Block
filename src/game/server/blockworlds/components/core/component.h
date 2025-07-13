@@ -31,7 +31,7 @@ public:
 //	virtual void InjectDependency(const std::type_index& Type, CComponent* pComponent) {};
 
 	[[nodiscard]] virtual const char *GetName() const = 0;
-	[[nodiscard]] virtual bool IsDebug() const = 0;
+	[[nodiscard]] virtual bool IsDebug() const;
 
 	template<typename... TArgs>
 	void Log(const char* pFmt, TArgs&&... Args) const

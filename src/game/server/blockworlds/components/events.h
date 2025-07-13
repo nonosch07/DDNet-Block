@@ -10,7 +10,6 @@ class CEvents final : public CComponent
 public:
 	static constexpr const char *GetNameStatic() { return "Events"; }
 	[[nodiscard]] const char *GetName() const override { return GetNameStatic(); };
-	[[nodiscard]] bool IsDebug() const override;
 
 protected:
 	void OnEnable() override;

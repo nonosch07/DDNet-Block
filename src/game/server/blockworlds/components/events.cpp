@@ -3,11 +3,6 @@
 #include <engine/shared/config.h>
 #include <engine/server.h>
 
-bool CEvents::IsDebug() const
-{
-	return Config()->m_Debug;
-}
-
 CEvents::CEvents(CGameContext *pGameServer) :
 	CComponent(pGameServer) {}
 

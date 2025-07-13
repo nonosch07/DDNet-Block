@@ -1,6 +1,7 @@
 #include "component.h"
 
 #include <engine/server/server.h>
+#include <engine/shared/config.h>
 
 #include <game/server/gamecontext.h>
 
@@ -12,4 +13,9 @@ IConsole *CComponent::Console() const { return m_pGameServer->Console(); }
 CComponent::CComponent(CGameContext *pGameServer)
 {
 	m_pGameServer = pGameServer;
+}
+
+bool CComponent::IsDebug() const
+{
+	return Config()->m_Debug;
 }
