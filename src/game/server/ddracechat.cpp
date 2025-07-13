@@ -14,6 +14,7 @@
 
 #include <game/server/blockworlds/accounts.h>
 #include <game/server/blockworlds/clans.h>
+#include <game/server/blockworlds/events/base/eventhandler.h>
 #include <game/server/blockworlds/requests/clan_requests/requests.h>
 
 bool CheckClientId(int ClientId);
@@ -47,7 +48,7 @@ void CGameContext::ConInfo(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
 	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"Blockworlds Modification of DDNet by Nouaa");
+		"Blockworlds Modification by Nouaa, based on DDRace");
 	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
 		"Version: " BLOCKWORLDS_VERSION);
 	if(GIT_SHORTREV_HASH)
@@ -2339,6 +2340,63 @@ void CGameContext::ConTimeCP(IConsole::IResult *pResult, void *pUserData)
 
 //Blockworlds
 
+int CGameContext::GetTilePositions(int TileID, CGameContext *pSelf, std::vector<vec2> &result)
+{ // use a vector reference as a parameter
+	// std::vector<vec2> result; // no need to declare a local vector
+	if(TileID < 0 || TileID > 255)
+		return 0;
+
+	int Length = pSelf->Collision()->GetWidth() * pSelf->Collision()->GetHeight(); // get the length of the pointer array
+	int foundIndex = 0;
+	for(int i = 0; i < Length; i++)
+	{ // loop through all indices
+		if(pSelf->Collision()->GetTileIndex(i) == TileID)
+		{ // check if it matches the tile id
+
+			int X = pSelf->Collision()->GetPos(i).x; // get the x coordinate from the index
+			int Y = pSelf->Collision()->GetPos(i).y; // get the y coordinate from the index
+			result.push_back(vec2(X, Y)); // use push_back to add elements to the vector
+			foundIndex++;
+		}
+	}
+	// *_result = result; // no need to assign the vector to another pointer
+	return foundIndex;
+	// return 0;
+}
+int CGameContext::getSwitchTilePositions(int Type, int Delay, int Number, CGameContext *pSelf, std::vector<vec2> &result)
+{ // use a vector reference as a parameter
+	// std::vector<vec2> result; // no need to declare a local vector
+	if(Type < 0 || Type > 255)
+	{
+		return 0;
+	}
+	CMapItemLayerTilemap *switchLayer = pSelf->Collision()->Layers()->SwitchLayer();
+	int Length = switchLayer->m_Width * switchLayer->m_Height; // get the length of the pointer array
+	int foundIndex = 0;
+	for(int i = 0; i < Length; i++)
+	{ // loop through all indices
+		if(Type != -1)
+		{
+			if(pSelf->Collision()->GetSwitchType(i) != Type)
+				continue;
+		}
+		if(Delay != -1 && pSelf->Collision()->GetSwitchDelay(i) != Delay)
+			continue;
+		if(Number != -1 && pSelf->Collision()->GetSwitchNumber(i) != Number)
+			continue;
+
+		int X = pSelf->Collision()->GetPos(i).x; // get the x coordinate from the index
+		int Y = pSelf->Collision()->GetPos(i).y; // get the y coordinate from the index
+		result.push_back(vec2(X, Y)); // use push_back to add elements to the vector
+		foundIndex++;
+		// dbg_msg("Dummy-Shop", "switch found (ID: %d | Delay/Type: %d)", pSelf->Collision()->GetSwitchNumber(i), pSelf->Collision()->GetSwitchDelay(i));
+		// }
+	}
+
+	// *_result = result; // no need to assign the vector to another pointer
+	return foundIndex;
+	// return 0;
+}
 inline bool CheckValidChars(const char *pStr)
 {
 	int Len = str_length(pStr);
@@ -3333,4 +3391,204 @@ void CGameContext::ConDisplayTopClans(IConsole::IResult *pResult, void *pUserDat
 	if(!pPlayer)
 		return;
 	pSelf->Clans()->ShowTopClans(ClientId);
+}
+
+void CGameContext::Con1on1(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	if(!g_Config.m_SvAccountsystem)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+
+	if(!g_Config.m_Sv1on1system)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "1on1 matches are currently disabled.");
+
+	if(!pResult->NumArguments())
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "Challenge another player by writing '/1on1 name (blockpoints)'");
+		return pSelf->SendChatTarget(pResult->m_ClientId, "An example would be \"/1on1 nameless tee\" or \"/1on1 marcella 30\"");
+	}
+
+	const char *pEnemyName = pResult->GetString(0);
+	int Wager = pResult->GetInteger(1);
+
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+	CPlayer *pTarget = pSelf->GetPlayerByName(pEnemyName);
+
+	std::vector<vec2> result;
+	GetTilePositions(BW_1ON1_START_POS, pSelf, result);
+
+	// some errors handling
+	if(!pTarget)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Player not found");
+	if(pTarget->GetCid() == pResult->m_ClientId)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You can't start a 1vs1 against yourself.");
+	if(Wager < 0)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "The amount set for the Wager must be more than 0 or none");
+
+	if(!pPlayer->IsLoggedIn() && Wager > 0)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You have to be logged in to place a wager in the pot.");
+	if(Wager > pPlayer->GetPlayerBlockpoints())
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You can't afford to wager that much!");
+
+	if(Wager > pTarget->GetPlayerBlockpoints())
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Player doesn't have enough blockpoints.");
+
+	if(pSelf->isInEvent(pResult->m_ClientId))
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You must finish your 1on1 first (or use '/leave' to leave).");
+
+	if(pSelf->isInEvent(pTarget->GetCid()))
+		return pSelf->SendChatTarget(pResult->m_ClientId, "This player is already in an event.");
+
+	char aBuf[256];
+	if(result.empty())
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Error: This map does not have any spawn tiles for 1v1. (194 / Blue Spawn inside of Game Layer)");
+
+	CInvite *pInvite = pSelf->getInvite(pPlayer->GetCid(), pTarget->GetCid(), CEvent::EVENT_1on1);
+	if(pInvite && pInvite->m_pInviteFrom == pTarget && pPlayer == pInvite->m_pInviteTo)
+		return pInvite->Accept();
+	else if(pInvite)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Request cannot be send right now. Try again in a few seconds.");
+
+	new CInvite(pSelf, pTarget, pPlayer, CEvent::EVENT_1on1, 30, Wager);
+	pPlayer->sent1on1InviteTo = pTarget->GetCid();
+	str_format(aBuf, sizeof(aBuf), "%s challenged you for an 1on1! (/accept, /decline) (%d BP)", pSelf->Server()->ClientName(pResult->m_ClientId), Wager);
+	pSelf->SendChatTarget(pTarget->GetCid(), aBuf);
+	str_format(aBuf, sizeof(aBuf), "Match request has been sent to '%s' (%d BP).", pSelf->Server()->ClientName(pTarget->GetCid()), Wager);
+	pSelf->SendChatTarget(pPlayer->GetCid(), aBuf);
+}
+
+void CGameContext::Con1on1Accept(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	if(!g_Config.m_SvAccountsystem)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+
+	if(!g_Config.m_Sv1on1system)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "1on1 matches are currently disabled.");
+
+	// do you really want to copy vector of pointers
+	std::vector<CInvite *> pInvites = pSelf->getInvites(pResult->m_ClientId, 1);
+
+	if(pInvites.empty())
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Nobody has invited you!");
+
+	CPlayer *pTarget = pSelf->GetPlayerByName(pResult->GetString(0));
+
+	if(!pTarget && pInvites.size() > 1)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Player not found.");
+
+	if(pSelf->isInEvent(pResult->m_ClientId))
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You are already in an event.");
+
+	for(int i = pInvites.size() - 1; i >= 0; i--)
+	{
+		if(pInvites[i]->m_pInviteTo != pSelf->m_apPlayers[pResult->m_ClientId])
+			continue;
+
+		return pInvites[i]->Accept();
+	}
+
+	for(CEvent *pEvent : pSelf->m_vEvents)
+		if(pEvent->pGetGametype() == CEvent::EVENT_INVITE)
+			return ((CInvite *)pEvent)->Accept();
+	pSelf->SendChatTarget(pResult->m_ClientId, "No invitation to accept was found.");
+}
+
+void CGameContext::Con1on1Decline(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	if(!g_Config.m_SvAccountsystem)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+
+	if(!g_Config.m_Sv1on1system)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "1on1 matches are currently disabled.");
+
+	if(!pResult->NumArguments())
+		return;
+
+	CPlayer *pTarget = pSelf->GetPlayerByName(pResult->GetString(0));
+
+	if(!pTarget)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "This player doesn't exist.");
+
+	std::vector<CInvite *> pInvites = pSelf->getInvites(pResult->m_ClientId, pTarget->GetCid());
+	for(int i = pInvites.size() - 1; i >= 0; i--)
+	{ // loop from behind so the last pInvite gets prioritized
+		if(pInvites[i]->m_pInviteTo != pSelf->m_apPlayers[pResult->m_ClientId]) // is the player the player that received an request or the one that sent it?
+			continue;
+		pInvites[i]->Decline();
+		break;
+	}
+}
+
+void CGameContext::ConJoinEvent(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	if(!g_Config.m_SvAccountsystem)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+
+	if(!pPlayer->IsLoggedIn())
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You must be logged in with an account to participate in a tournament.");
+
+	for(CEvent *pEvent : pSelf->m_vEvents)
+	{
+		if(pEvent->pGetGametype() != CEvent::EVENT_INVITE)
+			continue;
+		else if(pSelf->isInEvent(pResult->m_ClientId))
+			return pSelf->SendChatTarget(pResult->m_ClientId, "You are either currently participating in an event or have already registered for an upcoming one. To exit, use the command /leave.");
+		return ((BW_CEventHandler *)pEvent)->Accept(pPlayer);
+	}
+}
+
+void CGameContext::ConCreateLMB(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	if(!g_Config.m_SvAccountsystem)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+
+	if(pSelf->isInEvent(pResult->m_ClientId))
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You must finish your current event first (Or use '/leave' to leave).");
+
+	new BW_CEventHandler(pSelf, nullptr, CEvent::EVENT_LMB, &pSelf->m_apPlayers);
+}
+
+void CGameContext::ConCreateTDM(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	if(!g_Config.m_SvAccountsystem)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+
+	if(pSelf->isInEvent(pResult->m_ClientId))
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You must finish your current event first (Or use '/leave' to leave).");
+
+	new BW_CEventHandler(pSelf, nullptr, CEvent::EVENT_TDM, &pSelf->m_apPlayers);
+}
+
+void CGameContext::ConLeaveEvent(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	if(!g_Config.m_SvAccountsystem)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+
+	if(!pPlayer)
+		return;
+
+	bool Found = false;
+	for(CEvent *pEvent : pSelf->m_vEvents)
+		if(pEvent->Leave(pPlayer))
+			Found = true;
+
+	if(!Found)
+		pSelf->SendChatTarget(pResult->m_ClientId, "You are not in any event!");
 }

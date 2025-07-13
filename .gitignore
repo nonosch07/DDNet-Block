@@ -147,3 +147,10 @@ tags
 *.user
 *.vcxproj
 *.zip
+
+# nixos
+flake.nix
+flake.lock
+.envrc
+.direnv
+.devenv

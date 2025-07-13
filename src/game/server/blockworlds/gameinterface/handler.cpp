@@ -6,7 +6,7 @@
 
 void CGameInterfaceHandler::Init(CGameContext *pGameServer)
 {
-	m_aRenderers[GAMEINT_VOTE] = new CVotes;
+	m_aRenderers[GAMEINT_VOTE] = new CVotes();
 	m_aRenderers[GAMEINT_VOTE]->Init(pGameServer);
 }
 

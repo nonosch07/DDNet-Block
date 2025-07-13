@@ -1,9 +1,9 @@
 #ifndef GAME_SERVER_BLOCKWORLDS_BLOCKTRACKER_H
 #define GAME_SERVER_BLOCKWORLDS_BLOCKTRACKER_H
 
+#include <cstdint>
 #include <engine/shared/protocol.h>
 #include <unordered_map>
-#include <cstdint>
 class CGameContext;
 
 class CBlockTracker

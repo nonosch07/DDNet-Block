@@ -643,7 +643,7 @@ CCharacter *CSaveTeam::MatchCharacter(CGameContext *pGameServer, int ClientId, i
 		return pGameServer->m_apPlayers[ClientId]->GetCharacter();
 	}
 	pGameServer->m_apPlayers[ClientId]->KillCharacter(WEAPON_GAME);
-	return pGameServer->m_apPlayers[ClientId]->ForceSpawn(m_pSavedTees[SaveId].GetPos());
+	return pGameServer->m_apPlayers[ClientId]->ForceSpawn(m_pSavedTees[SaveId].GetPos(), false);
 }
 
 char *CSaveTeam::GetString()

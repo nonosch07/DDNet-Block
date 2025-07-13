@@ -120,6 +120,7 @@ private:
 
 	union UParameterExtra
 	{
+		int64_t i64;
 		int i;
 		unsigned long ul;
 		float f;
@@ -397,11 +398,11 @@ void CMysqlConnection::BindInt64(int Idx, int64_t Value)
 	Idx -= 1;
 	dbg_assert(0 <= Idx && Idx < (int)m_vStmtParameters.size(), "index out of bounds");
 
-	m_vStmtParameterExtras[Idx].i = Value;
+	m_vStmtParameterExtras[Idx].i64 = Value;
 	MYSQL_BIND *pParam = &m_vStmtParameters[Idx];
 	pParam->buffer_type = MYSQL_TYPE_LONGLONG;
-	pParam->buffer = &m_vStmtParameterExtras[Idx].i;
-	pParam->buffer_length = sizeof(m_vStmtParameterExtras[Idx].i);
+	pParam->buffer = &m_vStmtParameterExtras[Idx].i64;
+	pParam->buffer_length = sizeof(m_vStmtParameterExtras[Idx].i64);
 	pParam->length = nullptr;
 	pParam->is_null = nullptr;
 	pParam->is_unsigned = false;
@@ -418,7 +419,7 @@ void CMysqlConnection::BindFloat(int Idx, float Value)
 	MYSQL_BIND *pParam = &m_vStmtParameters[Idx];
 	pParam->buffer_type = MYSQL_TYPE_FLOAT;
 	pParam->buffer = &m_vStmtParameterExtras[Idx].f;
-	pParam->buffer_length = sizeof(m_vStmtParameterExtras[Idx].i);
+	pParam->buffer_length = sizeof(m_vStmtParameterExtras[Idx].f);
 	pParam->length = nullptr;
 	pParam->is_null = nullptr;
 	pParam->is_unsigned = false;
@@ -501,12 +502,14 @@ bool CMysqlConnection::IsNull(int Col)
 	Col -= 1;
 
 	MYSQL_BIND Bind;
+	char DummyBuf[1];
+	unsigned long Length = 0;
 	my_bool IsNull;
 	mem_zero(&Bind, sizeof(Bind));
-	Bind.buffer_type = MYSQL_TYPE_NULL;
-	Bind.buffer = nullptr;
-	Bind.buffer_length = 0;
-	Bind.length = nullptr;
+	Bind.buffer_type = MYSQL_TYPE_STRING;
+	Bind.buffer = DummyBuf;
+	Bind.buffer_length = sizeof(DummyBuf);
+	Bind.length = &Length;
 	Bind.is_null = &IsNull;
 	Bind.is_unsigned = false;
 	Bind.error = nullptr;

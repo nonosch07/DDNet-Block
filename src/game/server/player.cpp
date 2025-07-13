@@ -674,11 +674,11 @@ void CPlayer::Respawn(bool WeakHook)
 	}
 }
 
-CCharacter *CPlayer::ForceSpawn(vec2 Pos)
+CCharacter *CPlayer::ForceSpawn(vec2 Pos, bool doEvent)
 {
 	m_Spawning = false;
 	m_pCharacter = new(m_ClientId) CCharacter(&GameServer()->m_World, GameServer()->GetLastPlayerInput(m_ClientId));
-	m_pCharacter->Spawn(this, Pos);
+	m_pCharacter->Spawn(this, Pos, doEvent);
 	m_Team = 0;
 	return m_pCharacter;
 }
@@ -1229,6 +1229,7 @@ void CPlayer::BWProcessAdminCommandResult(CAdminCommandResult &Result)
 
 void CPlayer::OnPlayerLogin()
 {
+	KillCharacter();
 	GameServer()->SendChatTarget(m_ClientId, "Login successfully");
 
 	GameServer()->ClearVotes(GetCid());
