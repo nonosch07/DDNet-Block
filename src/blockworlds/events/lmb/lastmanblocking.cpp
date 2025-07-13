@@ -1,5 +1,5 @@
 #include "lastmanblocking.h"
-#include "game/server/blockworlds/events/base/event_base.h"
+#include "blockworlds/events/base/event_base.h"
 #include "game/server/entities/character.h"
 #include "game/server/gamemodes/DDRace.h"
 #include "game/server/player.h"

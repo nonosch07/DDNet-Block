@@ -18,6 +18,9 @@ protected:
 	void OnConsoleInit() override;
 	void OnConsoleTerminate() override;
 
+	void OnPlayerDrop(int ClientId) override;
+	void OnCharacterDeath(int KillerId, int ClientId, int Weapon) override;
+
 	void OnTick() override;
 
 	static void ConEventsTest(IConsole::IResult *pResult, void *pUserData);

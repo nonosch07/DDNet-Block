@@ -1,6 +1,6 @@
 #include "1on1_invite.h"
 #include "game/mapitems.h"
-#include "game/server/blockworlds/events/1on1/1on1.h"
+#include "blockworlds/events/1on1/1on1.h"
 #include "game/server/player.h"
 
 #include "game/server/gamecontext.h"

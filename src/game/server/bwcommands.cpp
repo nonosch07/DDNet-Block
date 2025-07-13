@@ -10,12 +10,12 @@
 #include <game/server/save.h>
 #include <game/server/teams.h>
 
-#include <game/server/blockworlds/accounts.h>
-#include <game/server/blockworlds/clans.h>
-#include <game/server/blockworlds/events/base/eventhandler.h>
-#include <game/server/blockworlds/requests/clan_requests/requests.h>
+ #include <blockworlds/accounts.h>
+#include <blockworlds/clans.h>
+#include <blockworlds/events/base/eventhandler.h>
+#include <blockworlds/requests/clan_requests/requests.h>
 
-#include <game/server/blockworlds/components/core/component_registry.h>
+#include <blockworlds/components/core/component_registry.h>
 
 inline bool CheckValidChars(const char *pStr)
 {

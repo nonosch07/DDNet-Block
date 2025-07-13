@@ -24,6 +24,15 @@ void CEvents::OnConsoleTerminate()
 	Console()->Deregister("events_test");
 }
 
+void CEvents::OnPlayerDrop(int ClientId)
+{
+	CComponent::OnPlayerDrop(ClientId);
+}
+void CEvents::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
+{
+	CComponent::OnCharacterDeath(KillerId, ClientId, Weapon);
+}
+
 void CEvents::OnTick()
 {
 	if(Server()->Tick() % (Server()->TickSpeed() * 3) == 0)

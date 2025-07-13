@@ -1,7 +1,7 @@
 #include "blocktracker.h"
 #include <engine/shared/config.h>
-#include <game/server/blockworlds/accounts.h>
-#include <game/server/blockworlds/entities/experience.h>
+#include <blockworlds/accounts.h>
+#include <blockworlds/entities/experience.h>
 #include <game/server/entities/character.h>
 #include <game/server/entity.h>
 #include <game/server/gamecontext.h>

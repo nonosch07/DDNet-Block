@@ -3,7 +3,7 @@
 #include <engine/server/server.h>
 #include <engine/shared/config.h>
 
-#include <game/server/blockworlds/components/core/component_registry.h>
+#include <blockworlds/components/core/component_registry.h>
 #include <game/server/gamecontext.h>
 
 CGameContext *CComponent::GameServer() const { return m_pGameServer; }

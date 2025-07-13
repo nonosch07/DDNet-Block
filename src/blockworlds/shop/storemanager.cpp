@@ -1,5 +1,5 @@
 #include "storemanager.h"
-#include <game/server/blockworlds/accounts.h>
+#include <blockworlds/accounts.h>
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>

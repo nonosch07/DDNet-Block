@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "game/server/blockworlds/cosmetics/cosmetics.h"
+#include "blockworlds/cosmetics/cosmetics.h"
 #include "game/server/gameworld.h"
 #include "teeinfo.h"
 #include <antibot/antibot_data.h>
@@ -28,8 +28,8 @@
 #include <game/mapitems.h>
 #include <game/version.h>
 
-#include <game/server/blockworlds/components/core/component_registry.h>
-#include <game/server/blockworlds/components/events.h>
+#include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/components/events.h>
 
 #include <game/generated/protocol7.h>
 #include <game/generated/protocolglue.h>
@@ -40,9 +40,9 @@
 #include "player.h"
 #include "score.h"
 
-#include <game/server/blockworlds/gameinterface/handler.h>
-#include <game/server/blockworlds/shop/preview.h>
-#include <game/server/blockworlds/zones/zonemanager.h>
+#include <blockworlds/gameinterface/handler.h>
+#include <blockworlds/shop/preview.h>
+#include <blockworlds/zones/zonemanager.h>
 
 // Not thread-safe!
 class CClientChatLogger : public ILogger

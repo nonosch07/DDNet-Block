@@ -3,8 +3,8 @@
 #ifndef GAME_SERVER_ENTITIES_CHARACTER_H
 #define GAME_SERVER_ENTITIES_CHARACTER_H
 
-#include "game/server/blockworlds/shop/storemanager.h"
-#include <game/server/blockworlds/requests/clan_requests/requests.h>
+#include <blockworlds/shop/storemanager.h>
+#include <blockworlds/requests/clan_requests/requests.h>
 #include <game/server/entity.h>
 #include <game/server/save.h>
 

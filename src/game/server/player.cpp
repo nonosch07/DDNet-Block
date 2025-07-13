@@ -16,10 +16,10 @@
 #include <game/gamecore.h>
 #include <game/teamscore.h>
 
-#include <game/server/blockworlds/accounts.h>
-#include <game/server/blockworlds/clans.h>
-#include <game/server/blockworlds/cosmetics/animations.h>
-#include <game/server/blockworlds/cosmetics/cosmetics.h>
+#include <blockworlds/accounts.h>
+#include <blockworlds/clans.h>
+#include <blockworlds/cosmetics/animations.h>
+#include <blockworlds/cosmetics/cosmetics.h>
 
 MACRO_ALLOC_POOL_ID_IMPL(CPlayer, MAX_CLIENTS)
 

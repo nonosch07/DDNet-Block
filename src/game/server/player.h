@@ -16,9 +16,9 @@
 #include <optional>
 #include <queue>
 
-#include <game/server/blockworlds/accounts.h>
-#include <game/server/blockworlds/clans.h>
-#include <game/server/blockworlds/events/1on1/1on1_invite.h>
+#include <blockworlds/accounts.h>
+#include <blockworlds/clans.h>
+#include <blockworlds/events/1on1/1on1_invite.h>
 
 class CCharacter;
 class CGameContext;

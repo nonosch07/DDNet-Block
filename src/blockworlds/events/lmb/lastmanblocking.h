@@ -1,6 +1,6 @@
 #ifndef GAME_SERVER_BLOCKWORLDS_EVENTS_LASTMANBLOCKING_H
 #define GAME_SERVER_BLOCKWORLDS_EVENTS_LASTMANBLOCKING_H
-#include "game/server/blockworlds/events/base/event_base.h"
+#include "blockworlds/events/base/event_base.h"
 #include "game/server/entity.h"
 #include "game/server/gamecontext.h"
 #include "game/server/player.h"

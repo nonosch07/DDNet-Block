@@ -1,5 +1,5 @@
 #include "experience.h"
-#include <game/server/blockworlds/accounts.h>
+#include <blockworlds/accounts.h>
 
 #include <game/generated/protocol.h>
 #include <game/server/gamecontext.h>

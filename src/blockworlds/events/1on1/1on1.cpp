@@ -1,7 +1,7 @@
 #include "1on1.h"
 #include "base/system.h"
 #include "game/mapitems.h"
-#include "game/server/blockworlds/accounts.h"
+#include "blockworlds/accounts.h"
 #include "game/server/entities/character.h"
 #include "game/server/gamecontext.h"
 #include "game/server/gamemodes/DDRace.h"

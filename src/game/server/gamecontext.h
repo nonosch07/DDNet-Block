@@ -19,11 +19,11 @@
 #include <memory>
 #include <string>
 
-#include <game/server/blockworlds/cosmetics/animations.h>
-#include <game/server/blockworlds/cosmetics/cosmetics.h>
-#include <game/server/blockworlds/gameinterface/handler.h>
-#include <game/server/blockworlds/shop/preview.h>
-#include <game/server/blockworlds/zones/zonemanager.h>
+#include <blockworlds/cosmetics/animations.h>
+#include <blockworlds/cosmetics/cosmetics.h>
+#include <blockworlds/gameinterface/handler.h>
+#include <blockworlds/shop/preview.h>
+#include <blockworlds/zones/zonemanager.h>
 
 #include "./blockworlds/events/1on1/1on1_invite.h"
 #include "./blockworlds/events/base/event_base.h"

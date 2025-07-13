@@ -8,7 +8,7 @@
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
-#include <game/server/blockworlds/cosmetics/animations.h>
+#include <blockworlds/cosmetics/animations.h>
 
 #include "cosmetics.h"
 

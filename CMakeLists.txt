@@ -1869,12 +1869,13 @@ if(SERVER)
     upnp.h
   )
   file(GLOB_RECURSE GAME_SERVER src/game/server/*.c src/game/server/*.cpp src/game/server/*.h)
+  file(GLOB_RECURSE GAME_SERVER_EXTENDED src/blockworlds/*.cpp src/blockworlds/*.h)
   set(GAME_GENERATED_SERVER
     "src/game/generated/server_data.cpp"
     "src/game/generated/server_data.h"
     "src/game/generated/wordlist.h"
   )
-  set(SERVER_SRC ${ENGINE_SERVER} ${GAME_SERVER} ${GAME_GENERATED_SERVER})
+  set(SERVER_SRC ${ENGINE_SERVER} ${GAME_SERVER} ${GAME_SERVER_EXTENDED} ${GAME_GENERATED_SERVER})
   if(TARGET_OS STREQUAL "windows")
     set(SERVER_ICON "other/icons/DDNet-Server.rc")
   else()

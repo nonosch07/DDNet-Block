@@ -8,7 +8,7 @@
 #include <typeindex>
 
 #include <base/system.h>
-#include <game/server/blockworlds/components/core/component.h>
+#include <blockworlds/components/core/component.h>
 
 class CComponentRegistry final
 {
