@@ -716,6 +716,12 @@ private:
 	static void ConCreateLMB(IConsole::IResult *pResult, void *pUserData);
 	static void ConCreateTDM(IConsole::IResult *pResult, void *pUserData);
 	static void ConLeaveEvent(IConsole::IResult *pResult, void *pUserData);
+
+	// Components
+
+	static void ConComponentList(IConsole::IResult *pResult, void *pUserData);
+	static void ConComponentPlug(IConsole::IResult *pResult, void *pUserData);
+	static void ConComponentUnPlug(IConsole::IResult *pResult, void *pUserData);
 };
 
 static inline bool CheckClientId(int ClientId)

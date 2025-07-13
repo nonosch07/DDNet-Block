@@ -1212,3 +1212,49 @@ void CGameContext::ConLeaveEvent(IConsole::IResult *pResult, void *pUserData)
 	if(!Found)
 		pSelf->SendChatTarget(pResult->m_ClientId, "You are not in any event!");
 }
+
+// Components
+
+void CGameContext::ConComponentList(IConsole::IResult *pResult, void *pUserData)
+{
+	auto Components = g_ComponentRegistry.All();
+	auto ActiveComponents = g_ComponentRegistry.Active();
+
+	for(const auto &item : Components)
+	{
+		auto Name = g_ComponentRegistry.Name(item.first);
+		bool Active = std::find(ActiveComponents.begin(), ActiveComponents.end(), item.second) != ActiveComponents.end();
+
+		dbg_msg("Components", "[%s] %s", Active ? "+" : " ", Name.c_str());
+	}
+}
+
+void CGameContext::ConComponentPlug(IConsole::IResult *pResult, void *pUserData)
+{
+	char aName[64];
+	str_copy(aName, pResult->GetString(0));
+	str_clean_whitespaces(aName);
+
+	auto pComponent = g_ComponentRegistry.Create(aName, (CGameContext*)pUserData);
+	if(pComponent == nullptr)
+	{
+		dbg_msg("Components", "Component creation failed");
+		return;
+	}
+	dbg_msg("Components", "Component created: %s (%p)", pComponent->GetName(), pComponent);
+}
+
+void CGameContext::ConComponentUnPlug(IConsole::IResult *pResult, void *pUserData)
+{
+	char aName[64];
+	str_copy(aName, pResult->GetString(0));
+	str_clean_whitespaces(aName);
+
+	bool Removed = g_ComponentRegistry.Remove(aName);
+	if(Removed)
+	{
+		dbg_msg("Components", "Component removed: %s", aName);
+		return;
+	}
+	dbg_msg("Components", "Component creation failed");
+}

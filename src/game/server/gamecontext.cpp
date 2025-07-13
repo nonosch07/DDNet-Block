@@ -28,6 +28,9 @@
 #include <game/mapitems.h>
 #include <game/version.h>
 
+#include <game/server/blockworlds/components/core/component_factory.h>
+#include <game/server/blockworlds/components/events.h>
+
 #include <game/generated/protocol7.h>
 #include <game/generated/protocolglue.h>
 
@@ -131,6 +134,11 @@ void CGameContext::Construct(int Resetting)
 
 	m_pAccounts = nullptr;
 	m_pClans = nullptr;
+
+	if(Resetting == NO_RESET)
+	{
+		g_ComponentRegistry.Register<CEvents>(CEvents::GetNameStatic());
+	}
 }
 
 void CGameContext::Destruct(int Resetting)
@@ -1058,6 +1066,9 @@ void CGameContext::OnTick()
 	// check tuning
 	CheckPureTuning();
 
+	for(const auto &item : g_ComponentRegistry.Active())
+		item->OnTick();
+
 	if(m_TeeHistorianActive)
 	{
 		int Error = aio_error(m_pTeeHistorianFile);
@@ -1344,6 +1355,9 @@ void CGameContext::OnTick()
 		m_SqlRandomMapResult = nullptr;
 	}
 
+	for(const auto &item : g_ComponentRegistry.Active())
+		item->OnPostTick();
+
 	// Record player position at the end of the tick
 	if(m_TeeHistorianActive)
 	{
@@ -1538,6 +1552,9 @@ void CGameContext::ProgressVoteOptions(int ClientId)
 
 void CGameContext::OnClientEnter(int ClientId)
 {
+	for(const auto &item : g_ComponentRegistry.Active())
+		item->OnPlayerEntering(ClientId);
+
 	if(m_TeeHistorianActive)
 	{
 		m_TeeHistorian.RecordPlayerReady(ClientId);
@@ -1702,6 +1719,9 @@ void CGameContext::OnClientEnter(int ClientId)
 
 	GameInterface()->OnClientEnter(ClientId);
 
+	for(const auto &item : g_ComponentRegistry.Active())
+		item->OnPlayerEnter(ClientId);
+
 	LogEvent("Connect", ClientId);
 }
 
@@ -1764,6 +1784,9 @@ void CGameContext::OnClientDrop(int ClientId, const char *pReason)
 {
 	LogEvent("Disconnect", ClientId);
 
+	for(const auto &item : g_ComponentRegistry.Active())
+		item->OnPlayerDropping(ClientId);
+
 	GameInterface()->OnClientDrop(ClientId);
 
 	AbortVoteKickOnDisconnect(ClientId);
@@ -1803,6 +1826,9 @@ void CGameContext::OnClientDrop(int ClientId, const char *pReason)
 	Msg.m_pReason = pReason;
 	Msg.m_Silent = false;
 	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, -1);
+
+	for(const auto &item : g_ComponentRegistry.Active())
+		item->OnPlayerDrop(ClientId);
 
 	Server()->ExpireServerInfo();
 }
@@ -3800,6 +3826,10 @@ void CGameContext::RegisterDDRaceCommands()
 
 	Console()->Register("freezehammer", "v[id]", CFGFLAG_SERVER | CMDFLAG_TEST, ConFreezeHammer, this, "Gives a player Freeze Hammer");
 	Console()->Register("unfreezehammer", "v[id]", CFGFLAG_SERVER | CMDFLAG_TEST, ConUnFreezeHammer, this, "Removes Freeze Hammer from a player");
+
+	Console()->Register("component_list", "", CFGFLAG_SERVER, ConComponentList, this, "Removes Freeze Hammer from a player");
+	Console()->Register("component_plug", "r[name]", CFGFLAG_SERVER, ConComponentPlug, this, "Removes Freeze Hammer from a player");
+	Console()->Register("component_unplug", "r[name]", CFGFLAG_SERVER, ConComponentUnPlug, this, "Removes Freeze Hammer from a player");
 }
 
 void CGameContext::RegisterChatCommands()
@@ -4349,6 +4379,9 @@ void CGameContext::OnShutdown(void *pPersistentData)
 
 	Antibot()->RoundEnd();
 
+	for(const auto &item : g_ComponentRegistry.Active())
+		item->OnShutdown();
+
 	if(m_TeeHistorianActive)
 	{
 		m_TeeHistorian.Finish();
@@ -4424,6 +4457,9 @@ void CGameContext::OnSnap(int ClientId)
 		Server()->SendMsg(&Msg, MSGFLAG_RECORD | MSGFLAG_NOSEND, ClientId);
 	}
 
+	for(const auto &item : g_ComponentRegistry.Active())
+		item->OnSnap(ClientId);
+
 	m_pController->Snap(ClientId);
 	m_ZoneManager.Snap(ClientId);
 	m_Animations.Snap(ClientId);
@@ -4443,6 +4479,9 @@ void CGameContext::OnSnap(int ClientId)
 void CGameContext::OnPreSnap() {}
 void CGameContext::OnPostSnap()
 {
+	for(const auto &item : g_ComponentRegistry.Active())
+		item->OnPostSnap();
+
 	m_World.PostSnap();
 	m_Events.Clear();
 }
@@ -4549,6 +4588,12 @@ void CGameContext::OnSetAuthed(int ClientId, int Level)
 			m_TeeHistorian.RecordAuthLogout(ClientId);
 		}
 	}
+
+	for(const auto &item : g_ComponentRegistry.Active())
+		if(Level == AUTHED_NO)
+			item->OnPlayerUnAuthorized(ClientId);
+		else
+			item->OnPlayerAuthorized(ClientId, Level);
 }
 
 void CGameContext::SendRecord(int ClientId)

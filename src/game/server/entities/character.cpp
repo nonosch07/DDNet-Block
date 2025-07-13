@@ -21,6 +21,7 @@
 #include <game/server/teams.h>
 
 #include <game/server/blockworlds/shop/storemanager.h>
+#include <game/server/blockworlds/components/core/component_factory.h>
 
 MACRO_ALLOC_POOL_ID_IMPL(CCharacter, MAX_CLIENTS)
 
@@ -143,6 +144,9 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos, bool doEvent)
 	}
 
 	m_CurrentKillingSpree = 0;
+
+	for(const auto &item : g_ComponentRegistry.Active())
+		item->OnCharacterSpawn(pPlayer->GetCid(), Pos);
 
 	return true;
 }
@@ -1055,6 +1059,9 @@ void CCharacter::Die(int Killer, int Weapon, bool SendKillMsg)
 	GameServer()->m_World.m_Core.m_apCharacters[m_pPlayer->GetCid()] = 0;
 	GameServer()->CreateDeath(m_Pos, m_pPlayer->GetCid(), TeamMask());
 	Teams()->OnCharacterDeath(GetPlayer()->GetCid(), Weapon);
+
+	for(const auto &item : g_ComponentRegistry.Active())
+		item->OnCharacterDeath(Killer, m_pPlayer->GetCid(), Weapon);
 }
 
 bool CCharacter::TakeDamage(vec2 Force, int Dmg, int From, int Weapon)
