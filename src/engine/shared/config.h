@@ -58,6 +58,9 @@ enum
 	CFGFLAG_COLALPHA = 1 << 12,
 	CFGFLAG_INSENSITIVE = 1 << 13,
 	CMDFLAG_PRACTICE = 1 << 14,
+
+	// BW
+	CFGFLAG_ANNOUNCE = 1 << 15, // announce registration/removal of command into console
 };
 
 struct SConfigVariable

@@ -902,6 +902,13 @@ void CConsole::Register(const char *pName, const char *pParams,
 
 	if(pCommand->m_Flags & CFGFLAG_CHAT)
 		pCommand->SetAccessLevel(ACCESS_LEVEL_USER);
+
+	if(pCommand->m_Flags & CFGFLAG_ANNOUNCE)
+	{
+		char aBuf[CMDLINE_LENGTH];
+		str_format(aBuf, sizeof(aBuf), "New command registered: %s", pCommand->m_pName);
+		Print(OUTPUT_LEVEL_STANDARD, "console", aBuf);
+	}
 }
 
 void CConsole::RegisterTemp(const char *pName, const char *pParams, int Flags, const char *pHelp)
@@ -965,6 +972,13 @@ void CConsole::Deregister(const char *pName)
 	// add to recycle list
 	if(pRemoved)
 	{
+		if(pRemoved->m_Flags & CFGFLAG_ANNOUNCE)
+		{
+			char aBuf[CMDLINE_LENGTH];
+			str_format(aBuf, sizeof(aBuf), "Command removed: %s", pRemoved->m_pName);
+			Print(OUTPUT_LEVEL_STANDARD, "console", aBuf);
+		}
+
 		pRemoved->m_pNext = m_pRecycleList;
 		m_pRecycleList = pRemoved;
 	}
