@@ -1256,5 +1256,5 @@ void CGameContext::ConComponentUnPlug(IConsole::IResult *pResult, void *pUserDat
 		dbg_msg("Components", "Component removed: %s", aName);
 		return;
 	}
-	dbg_msg("Components", "Component creation failed");
+	dbg_msg("Components", "Component removal failed");
 }
