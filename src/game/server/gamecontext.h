@@ -718,4 +718,9 @@ private:
 	static void ConLeaveEvent(IConsole::IResult *pResult, void *pUserData);
 };
 
+static inline bool CheckClientId(int ClientId)
+{
+	return ClientId >= 0 && ClientId < MAX_CLIENTS;
+}
+
 #endif
