@@ -637,14 +637,9 @@ void CGameContext::SendChatTarget(int To, const char *pText, int VersionFlags) c
 	}
 }
 
-void CGameContext::SendClanChat(int ClanId, const char *pText, int VersionFlags) const
+void CGameContext::SendChatClan(int ClanId, const char *pText, int VersionFlags) const
 {
-	CNetMsg_Sv_Chat Msg;
-	Msg.m_Team = 0;
-	Msg.m_ClientId = -1;
-	Msg.m_pMessage = pText;
-
-	for(int i = 0; i < Server()->MaxClients(); i++)
+	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		CPlayer *pPlayer = m_apPlayers[i];
 		if(!pPlayer || !pPlayer->IsLoggedIn())
@@ -653,11 +648,22 @@ void CGameContext::SendClanChat(int ClanId, const char *pText, int VersionFlags)
 		if(pPlayer->GetClanId() != ClanId)
 			continue;
 
-		if(!((Server()->IsSixup(i) && (VersionFlags & FLAG_SIXUP)) ||
-			   (!Server()->IsSixup(i) && (VersionFlags & FLAG_SIX))))
+		SendChatTarget(i, pText, VersionFlags);
+	}
+}
+
+void CGameContext::SendChatAccount(int AccountId, const char *pText, int VersionFlags) const
+{
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		CPlayer *pPlayer = m_apPlayers[i];
+		if(!pPlayer || !pPlayer->IsLoggedIn())
 			continue;
 
-		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, i);
+		if(pPlayer->GetAccId() != AccountId)
+			continue;
+
+		SendChatTarget(i, pText, VersionFlags);
 	}
 }
 

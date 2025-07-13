@@ -374,7 +374,7 @@ bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		CGameContext *pGameServer = pData->m_pClanManager->GameServer();
 		char aBroadcast[256];
 		str_format(aBroadcast, sizeof(aBroadcast), "%s has joined the clan!", pData->m_aUsername);
-		pGameServer->SendClanChat(pData->m_ClanId, aBroadcast);
+		pGameServer->SendChatClan(pData->m_ClanId, aBroadcast);
 	}
 
 	// str_copy(pResult->m_aaMessages[0], "Clan assignment successful.", sizeof(pResult->m_aaMessages[0]));
@@ -440,7 +440,7 @@ bool CClanManager::RemoveFromClanThread(IDbConnection *pSqlServer, const ISqlDat
 	{
 		char aBroadcast[256];
 		str_format(aBroadcast, sizeof(aBroadcast), "'%s' has been kicked from the clan!", pData->m_aUsername);
-		pGameServer->SendClanChat(pData->m_ClanId, aBroadcast);
+		pGameServer->SendChatClan(pData->m_ClanId, aBroadcast);
 	}
 
 	// str_copy(pResult->m_aaMessages[0], "Removed from clan successfully!", sizeof(pResult->m_aaMessages[0]));

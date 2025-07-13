@@ -283,7 +283,8 @@ public:
 	// network
 	void CallVote(int ClientId, const char *pDesc, const char *pCmd, const char *pReason, const char *pChatmsg, const char *pSixupDesc = 0);
 	void SendChatTarget(int To, const char *pText, int VersionFlags = FLAG_SIX | FLAG_SIXUP) const;
-	void SendClanChat(int ClanId, const char *pText, int VersionFlags = FLAG_SIX | FLAG_SIXUP) const;
+	void SendChatClan(int ClanId, const char *pText, int VersionFlags = FLAG_SIX | FLAG_SIXUP) const;
+	void SendChatAccount(int AccountId, const char *pText, int VersionFlags = FLAG_SIX | FLAG_SIXUP) const;
 	void SendChatTeam(int Team, const char *pText) const;
 	void SendChat(int ClientId, int Team, const char *pText, int SpamProtectionClientId = -1, int VersionFlags = FLAG_SIX | FLAG_SIXUP);
 	void SendStartWarning(int ClientId, const char *pMessage);
@@ -722,6 +723,50 @@ private:
 	static void ConComponentList(IConsole::IResult *pResult, void *pUserData);
 	static void ConComponentPlug(IConsole::IResult *pResult, void *pUserData);
 	static void ConComponentUnPlug(IConsole::IResult *pResult, void *pUserData);
+
+public:
+	template<typename... TArgs>
+	void SendChatTarget(int To, const char* pFmt, TArgs&&... Args) const
+	{
+		char aBuf[1024];
+		str_format(aBuf, sizeof(aBuf), pFmt, std::forward<TArgs>(Args)...);
+		SendChatTarget(To, aBuf);
+	}
+	template<typename... TArgs>
+	void SendChatAs(int From, int Team, const char* pFmt, TArgs&&... Args)
+	{
+		char aBuf[1024];
+		str_format(aBuf, sizeof(aBuf), pFmt, std::forward<TArgs>(Args)...);
+		SendChat(From, Team, aBuf);
+	}
+	template<typename... TArgs>
+	void SendChatTargetAccount(int To, const char* pFmt, TArgs&&... Args) const
+	{
+		char aBuf[1024];
+		str_format(aBuf, sizeof(aBuf), pFmt, std::forward<TArgs>(Args)...);
+		SendChatAccount(To, aBuf);
+	}
+	template<typename... TArgs>
+	void SendBroadcast(int To, const char* pFmt, TArgs&&... Args)
+	{
+		char aBuf[1024];
+		str_format(aBuf, sizeof(aBuf), pFmt, std::forward<TArgs>(Args)...);
+		SendBroadcast(aBuf, To);
+	}
+	template<typename... TArgs>
+	void SendChatClan(int ClanId, const char* pFmt, TArgs&&... Args) const
+	{
+		char aBuf[1024];
+		str_format(aBuf, sizeof(aBuf), pFmt, std::forward<TArgs>(Args)...);
+		SendChatClan(ClanId, aBuf);
+	}
+	template<typename... TArgs>
+	void SendChatTeam(int Team, const char* pFmt, TArgs&&... Args) const
+	{
+		char aBuf[1024];
+		str_format(aBuf, sizeof(aBuf), pFmt, std::forward<TArgs>(Args)...);
+		SendChatTeam(Team, aBuf);
+	}
 };
 
 static inline bool CheckClientId(int ClientId)
