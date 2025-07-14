@@ -1036,7 +1036,7 @@ void CGameContext::Con1on1(IConsole::IResult *pResult, void *pUserData)
 	CPlayer *pTarget = pSelf->GetPlayerByName(pEnemyName);
 
 	std::vector<vec2> result;
-	GetTilePositions(BW_1ON1_START_POS, pSelf, result);
+	GetTilePositions(TILE_BW_1ON1_START_POS, pSelf, result);
 
 	// some errors handling
 	if(!pTarget)
@@ -1226,6 +1226,18 @@ void CGameContext::ConComponentList(IConsole::IResult *pResult, void *pUserData)
 		bool Active = std::find(ActiveComponents.begin(), ActiveComponents.end(), item.second) != ActiveComponents.end();
 
 		dbg_msg("Components", "[%s] %s", Active ? "+" : " ", Name.c_str());
+	}
+
+	dbg_msg("Components", "Sub-Components:");
+	// active sub-components
+	for(const auto &item : ActiveComponents)
+	{
+		auto Name = item->GetName();
+		bool SubComponent = std::find_if(Components.begin(), Components.end(), [item](auto Map) { return Map.second == item; }) == Components.end();
+		if(!SubComponent)
+			continue;
+
+		dbg_msg("Components", "[%s] %s", "+", Name);
 	}
 }
 

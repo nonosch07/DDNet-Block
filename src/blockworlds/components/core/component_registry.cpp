@@ -60,7 +60,11 @@ std::vector<CComponent*> CComponentRegistry::Active()
 	std::vector<CComponent*> vComponents;
 	vComponents.reserve(m_Components.size());
 	for(auto &item : m_Components)
+	{
 		vComponents.push_back(item.second.get());
+		if(auto vSubComponents = item.second->GetSubComponents(); !vSubComponents.empty())
+			vComponents.insert(vComponents.end(), vSubComponents.begin(), vSubComponents.end());
+	}
 	return vComponents;
 }
 
