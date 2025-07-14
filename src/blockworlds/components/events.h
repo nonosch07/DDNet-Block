@@ -10,6 +10,7 @@ class CEvents final : public CComponent
 public:
 	static constexpr const char *GetNameStatic() { return "Events"; }
 	[[nodiscard]] const char *GetName() const override { return GetNameStatic(); };
+	[[nodiscard]] std::vector<CComponent *> GetSubComponents() const override;
 
 protected:
 	void OnEnable() override;
@@ -28,6 +29,8 @@ protected:
 public:
 	explicit CEvents(CGameContext *pGameServer);
 
+private:
+	class CEventComponent *m_pActiveEvent;
 };
 
 #endif // GAME_SERVER_BLOCKWORLDS_COMPONENTS_EVENTS_H

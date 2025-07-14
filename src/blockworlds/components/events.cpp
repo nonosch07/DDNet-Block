@@ -3,8 +3,17 @@
 #include <engine/shared/config.h>
 #include <engine/server.h>
 
+#include <blockworlds/components/events/event.h>
+
 CEvents::CEvents(CGameContext *pGameServer) :
-	CComponent(pGameServer) {}
+	CComponent(pGameServer), m_pActiveEvent(nullptr) {}
+
+std::vector<CComponent *> CEvents::GetSubComponents() const
+{
+	if(m_pActiveEvent)
+		return { m_pActiveEvent };
+	return {};
+}
 
 void CEvents::OnEnable()
 {
@@ -35,9 +44,16 @@ void CEvents::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 
 void CEvents::OnTick()
 {
-	if(Server()->Tick() % (Server()->TickSpeed() * 3) == 0)
+	if(m_pActiveEvent)
 	{
-		Log("3 seconds passed, Tick %d", Server()->Tick());
+		if(m_pActiveEvent->GetState() == CEventComponent::EEventState::Finished)
+		{
+			if(m_pActiveEvent->EmergencyShutdown())
+				Log("Event '%s' did emergency shutdown. Message: %s", m_pActiveEvent->GetEventName(), m_pActiveEvent->GetEmergencyMessage());
+			Log("Event '%s' finished. Cleaning up", m_pActiveEvent->GetEventName());
+			delete m_pActiveEvent;
+			m_pActiveEvent = nullptr;
+		}
 	}
 }
 
