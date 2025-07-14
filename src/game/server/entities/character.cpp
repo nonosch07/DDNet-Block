@@ -1863,7 +1863,7 @@ void CCharacter::HandleTiles(int Index)
 			m_Core.m_Jumps = NewJumps;
 		}
 	}
-	else if(Collision()->GetSwitchType(MapIndex) == TILE_SHOP)
+	else if(Collision()->GetSwitchType(MapIndex) == TILE_BW_SHOP)
 	{
 		int Category = Collision()->GetSwitchNumber(MapIndex);
 		int Item = Collision()->GetSwitchDelay(MapIndex);

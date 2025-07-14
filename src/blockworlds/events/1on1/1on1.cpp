@@ -92,7 +92,7 @@ void C1on1::Start1v1(int Player1ID, int Player2ID)
 	CCharacter *pChr2 = pPlayer2->GetCharacter();
 
 	std::vector<vec2> spawnPosition;
-	int spawncount = GetTilePositions(BW_1ON1_START_POS, GameServer(), spawnPosition);
+	int spawncount = GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), spawnPosition);
 
 	if(!pChr1 || !pChr2)
 	{
@@ -183,7 +183,7 @@ void C1on1::Teleport(CPlayer *pPlayer1, CPlayer *pPlayer2)
 	pController->Teams().SetTeamLock(m_Team, true);
 
 	std::vector<vec2> tilePositions;
-	int foundIndex = CGameContext::GetTilePositions(BW_1ON1_START_POS, GameServer(), tilePositions);
+	int foundIndex = CGameContext::GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), tilePositions);
 	// check if there is at least one tile position
 	if(foundIndex > 0)
 	{
