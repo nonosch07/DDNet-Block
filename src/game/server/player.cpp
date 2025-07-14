@@ -159,6 +159,8 @@ void CPlayer::Reset()
 	m_RescueMode = RESCUEMODE_AUTO;
 
 	GameServer()->m_pController->m_BlockTracker.StopTrackPlayer(m_ClientId);
+	m_ExpModifiers.clear();
+	CalculateExpMultiplier();
 }
 
 static int PlayerFlags_SixToSeven(int Flags)
@@ -311,6 +313,21 @@ void CPlayer::Tick()
 			GameServer()->Clans()->SaveClan(GetCid(), GetClanId());
 			m_ClanSaveCooldown = Server()->Tick();
 		}
+	}
+
+	{
+		bool RecalculationNeeded = false;
+		auto it = m_ExpModifiers.begin();
+		for(; it != m_ExpModifiers.end(); ) {
+			if (it->second >= Server()->Tick()) {
+				it = m_ExpModifiers.erase(it);
+				RecalculationNeeded = true;
+			} else {
+				++it;
+			}
+		}
+		if(RecalculationNeeded)
+			CalculateExpMultiplier();
 	}
 }
 
@@ -1308,8 +1325,10 @@ void CPlayer::OnPlayerLogout()
 	m_Account = CAccountData();
 }
 
-void CPlayer::AddPlayerExp(int Amount)
+void CPlayer::AddPlayerExp(int Amount, bool ApplyMultiplier)
 {
+	if(ApplyMultiplier)
+		Amount *= m_CurrentExpMultiplier;
 	m_Account.m_Experience += Amount;
 
 	if(GetPlayerExperience() >= NeededAccountExp(GetPlayerLevel()))
@@ -1336,9 +1355,49 @@ void CPlayer::AddPlayerExp(int Amount)
 			GameServer()->SendChatTarget(m_ClientId, aBuf);
 		}
 
-		AddPlayerExp(ExcessiveExp);
+		AddPlayerExp(ExcessiveExp, false);
 
 		OnPlayerSave(false);
+	}
+}
+
+void CPlayer::AddExpMultiplier(float Modifier, int Duration)
+{
+	auto it = m_ExpModifiers.find((int)(Modifier * 100));
+	if(it == m_ExpModifiers.end())
+		m_ExpModifiers.emplace((int)(Modifier * 100), Server()->Tick() + Duration * Server()->TickSpeed());
+	else
+		it->second += Duration * Server()->TickSpeed();
+
+	CalculateExpMultiplier();
+}
+void CPlayer::CalculateExpMultiplier()
+{
+	if(m_ExpModifiers.empty())
+		m_CurrentExpMultiplier = 1;
+
+	float Multiplier = 0;
+	switch(g_Config.m_SvBlockExperienceMultiplierStacking)
+	{
+	case 1: // highest
+		m_CurrentExpMultiplier = (m_ExpModifiers.begin()->first)/100.f;
+	case 2: // additive
+		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &item) {
+			Multiplier += (item.first-100)/100.f;
+		});
+		m_CurrentExpMultiplier = Multiplier;
+	case 3: // logarithmic
+		Multiplier = 1;
+		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &item) {
+			Multiplier *= (item.first-100)/100.f;
+		});
+		m_CurrentExpMultiplier = log2f(Multiplier);
+	case 4: // multiplicative
+		Multiplier = 1;
+		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &item) {
+			Multiplier *= (item.first-100)/100.f;
+		});
+		m_CurrentExpMultiplier = Multiplier;
 	}
 }
 
