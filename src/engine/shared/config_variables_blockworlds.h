@@ -42,11 +42,10 @@ MACRO_CONFIG_INT(SvClanSaveInterval, sv_clan_save_interval, 600, 1, 3600, CFGFLA
 // events:
 // LMB (last man blocking)
 MACRO_CONFIG_INT(SvLMBInitialFreezeTime, sv_lmb_initial_freeze_time, 3, 0, 1000, CFGFLAG_SERVER, "")
-
+MACRO_CONFIG_INT(SvLMBActiveTime, sv_lmb_active_time, 600, 0, 1000, CFGFLAG_SERVER, "")
 
 MACRO_CONFIG_INT(SvLMBRegDuration, sv_lmb_reg_duration, 10, 0, 1000, CFGFLAG_SERVER, "Specify the duration during which LMB registration is possible (in seconds)")
 MACRO_CONFIG_INT(SvLMBFreezeTime, sv_lmb_freeze_time, 3, 5, 30, CFGFLAG_SERVER, "Specifies the time required for a player to be frozen in order to die")
-MACRO_CONFIG_INT(SvLMBTournamentTime, sv_lmb_tournament_time, 600, 0, 1000, CFGFLAG_SERVER, "Specifies the maximum duration of a tournament (in seconds)")
 MACRO_CONFIG_INT(SvLMBMinPlayer, sv_lmb_min_player, 8, 2, 64, CFGFLAG_SERVER, "Specifies the minimum number of players required to start")
 MACRO_CONFIG_INT(SvEventWinnerFlagDelay, sv_winner_flag_delay, 5, 1, 20, CFGFLAG_SERVER, "Specifies the maximum duration of the flag (in minutes)")
 // TDM (Team Deathmatch)

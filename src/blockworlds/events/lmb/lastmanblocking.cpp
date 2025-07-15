@@ -152,7 +152,7 @@ void CLastManBlocking::OnTick()
 		EndTournament(nullptr);
 		return;
 	}
-	if(m_StartTick + (GameServer()->Server()->TickSpeed() * g_Config.m_SvLMBTournamentTime) <= GameServer()->Server()->Tick())
+	if(m_StartTick + (GameServer()->Server()->TickSpeed() * g_Config.m_SvLMBActiveTime) <= GameServer()->Server()->Tick())
 	{
 		for(CPlayer *pPlayer : pPlayers)
 		{
@@ -160,8 +160,8 @@ void CLastManBlocking::OnTick()
 		}
 		char aBuf[256];
 
-		dbg_msg("Tournament", "event timed out after %d seconds.", g_Config.m_SvLMBTournamentTime);
-		str_format(aBuf, sizeof(aBuf), "The Tournament has been cancelled due to the max time of %d seconds being exceeded.", g_Config.m_SvLMBTournamentTime);
+		dbg_msg("Tournament", "event timed out after %d seconds.", g_Config.m_SvLMBActiveTime);
+		str_format(aBuf, sizeof(aBuf), "The Tournament has been cancelled due to the max time of %d seconds being exceeded.", g_Config.m_SvLMBActiveTime);
 		GameServer()->SendChat(-1, -2, aBuf);
 		GameServer()->SendBroadcast(aBuf, -1);
 		EndTournament(nullptr);
