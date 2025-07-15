@@ -62,6 +62,7 @@ void CLastManBlockingEvent::StartEvent()
 		return;
 	}
 	Teams.SetTeamLock(m_DDRaceTeam, true);
+	Teams.SetTeamInvitesOpen(m_DDRaceTeam, false);
 
 	m_SpawnOffset = 0;
 	m_pSavedPlayers.clear();

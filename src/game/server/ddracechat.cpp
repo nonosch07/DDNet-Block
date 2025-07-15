@@ -1118,15 +1118,23 @@ void CGameContext::ConInvite(IConsole::IResult *pResult, void *pUserData)
 			return;
 		}
 
-		pController->Teams().SetClientInvited(Team, Target, true);
-		pSelf->m_apPlayers[pResult->m_ClientId]->m_LastInvited = pSelf->Server()->Tick();
+		auto Success = pController->Teams().SetClientInvited(Team, Target, true);
 
-		char aBuf[512];
-		str_format(aBuf, sizeof(aBuf), "'%s' invited you to team %d. Use /team %d to join.", pSelf->Server()->ClientName(pResult->m_ClientId), Team, Team);
-		pSelf->SendChatTarget(Target, aBuf);
+		if(Success)
+		{
+			pSelf->m_apPlayers[pResult->m_ClientId]->m_LastInvited = pSelf->Server()->Tick();
 
-		str_format(aBuf, sizeof(aBuf), "'%s' invited '%s' to your team.", pSelf->Server()->ClientName(pResult->m_ClientId), pSelf->Server()->ClientName(Target));
-		pSelf->SendChatTeam(Team, aBuf);
+			char aBuf[512];
+			str_format(aBuf, sizeof(aBuf), "'%s' invited you to team %d. Use /team %d to join.", pSelf->Server()->ClientName(pResult->m_ClientId), Team, Team);
+			pSelf->SendChatTarget(Target, aBuf);
+
+			str_format(aBuf, sizeof(aBuf), "'%s' invited '%s' to your team.", pSelf->Server()->ClientName(pResult->m_ClientId), pSelf->Server()->ClientName(Target));
+			pSelf->SendChatTeam(Team, aBuf);
+		}
+		else
+		{
+			pSelf->SendChatTarget(pResult->m_ClientId, "You can't invite into this team.");
+		}
 	}
 	else
 		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp", "Can't invite players to this team");
