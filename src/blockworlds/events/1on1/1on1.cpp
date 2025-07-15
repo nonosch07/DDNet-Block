@@ -12,13 +12,13 @@
 
 C1on1::C1on1(CGameContext *pGameContext, int Player1ID, int Player2ID, int Wager) :
 	CEvent(pGameContext, CEvent::EVENT_1on1),
+	m_pTeams(nullptr),
 	m_Player1ID(Player1ID),
 	m_Player2ID(Player2ID),
 	m_Score1(0),
 	m_Score2(0),
 	m_Wager(Wager),
 	m_Team(-1),
-	m_Unfrozen(false),
 	m_FrozenSince1(-1),
 	m_FrozenSince2(-1),
 	m_TileFreezeSince1(-1),
@@ -26,6 +26,7 @@ C1on1::C1on1(CGameContext *pGameContext, int Player1ID, int Player2ID, int Wager
 	m_StartTimer(0),
 	m_oldChar1(nullptr),
 	m_oldChar2(nullptr),
+	m_Unfrozen(false),
 	m_CurrentTick(GameServer()->Server()->Tick())
 {
 	dbg_msg("1on1", "Initialized 1on1 event: Player1ID=%d, Player2ID=%d, Wager=%d",
