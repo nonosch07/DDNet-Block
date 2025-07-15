@@ -1328,7 +1328,7 @@ void CPlayer::OnPlayerLogout()
 void CPlayer::AddPlayerExp(int Amount, bool ApplyMultiplier)
 {
 	if(ApplyMultiplier)
-		Amount *= m_CurrentExpMultiplier;
+		Amount = (int)((float)Amount * GetExpMultiplier());
 	m_Account.m_Experience += Amount;
 
 	if(GetPlayerExperience() >= NeededAccountExp(GetPlayerLevel()))
@@ -1363,9 +1363,13 @@ void CPlayer::AddPlayerExp(int Amount, bool ApplyMultiplier)
 
 void CPlayer::AddExpMultiplier(float Modifier, int Duration)
 {
-	auto it = m_ExpModifiers.find((int)(Modifier * 100));
+	AddExpMultiplier((int)(Modifier*100), Duration);
+}
+void CPlayer::AddExpMultiplier(int ModifierPercent, int Duration)
+{
+	auto it = m_ExpModifiers.find(ModifierPercent);
 	if(it == m_ExpModifiers.end())
-		m_ExpModifiers.emplace((int)(Modifier * 100), Server()->Tick() + Duration * Server()->TickSpeed());
+		m_ExpModifiers.emplace(ModifierPercent, Server()->Tick() + Duration * Server()->TickSpeed());
 	else
 		it->second += Duration * Server()->TickSpeed();
 

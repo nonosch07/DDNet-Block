@@ -343,6 +343,7 @@ public:
 	void AddPlayerExp(int Amount, bool ApplyMultiplier = true);
 	float GetExpMultiplier() const { return m_CurrentExpMultiplier; }
 	void AddExpMultiplier(float Modifier, int Duration);
+	void AddExpMultiplier(int ModifierPercent, int Duration);
 
 	//events
 	// used for 1on1, default to true
