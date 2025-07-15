@@ -1381,27 +1381,31 @@ void CPlayer::CalculateExpMultiplier()
 		m_CurrentExpMultiplier = 1;
 
 	float Multiplier = 0;
-	switch(g_Config.m_SvBlockExperienceMultiplierStacking)
+	switch(g_Config.m_SvBlockExperienceMultiplierStacking) // TODO: add enum
 	{
 	case 1: // highest
-		m_CurrentExpMultiplier = (m_ExpModifiers.begin()->first)/100.f;
+		m_CurrentExpMultiplier = (float)(m_ExpModifiers.begin()->first)/100.f;
+		break;
 	case 2: // additive
 		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &item) {
 			Multiplier += (item.first-100)/100.f;
 		});
 		m_CurrentExpMultiplier = Multiplier;
+		break;
 	case 3: // logarithmic
 		Multiplier = 1;
 		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &item) {
 			Multiplier *= (item.first-100)/100.f;
 		});
 		m_CurrentExpMultiplier = log2f(Multiplier);
+		break;
 	case 4: // multiplicative
 		Multiplier = 1;
 		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &item) {
 			Multiplier *= (item.first-100)/100.f;
 		});
 		m_CurrentExpMultiplier = Multiplier;
+		break;
 	}
 }
 
