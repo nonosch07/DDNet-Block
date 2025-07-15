@@ -26,6 +26,12 @@ void CLastManBlockingEvent::OnTick()
 	if(m_State == CEventComponent::EEventState::Active)
 		CheckEndCondition();
 	if(CEventComponent::EmergencyShutdown())
+	{
+		FinishEvent();
+		return;
+	}
+
+	if(CheckEndCondition())
 		FinishEvent();
 }
 
@@ -67,6 +73,7 @@ void CLastManBlockingEvent::StartEvent()
 
 	m_State = CEventComponent::EEventState::Active;
 	m_StartTick = Server()->Tick();
+	m_Timelimit = m_StartTick + Config()->m_SvLMBActiveTime * Server()->TickSpeed();
 }
 void CLastManBlockingEvent::FinishEvent()
 {
@@ -88,6 +95,11 @@ void CLastManBlockingEvent::FinishEvent()
 
 bool CLastManBlockingEvent::CheckEndCondition()
 {
+	if(Server()->Tick() > m_StartTick + m_Timelimit)
+	{
+		m_Winner = -1;
+		return true;
+	}
 	if(m_Participants.size() == 1)
 	{
 		m_Winner = m_Participants[0];
@@ -116,7 +128,6 @@ bool CLastManBlockingEvent::Register(int ClientId)
 {
 	if(!CanPlayerRegister(ClientId))
 		return false;
-
 	m_Candidates.push_back(ClientId);
 	GameServer()->SendChatTarget(ClientId, "You successfully joined %s!", GetEventName());
 	return true;

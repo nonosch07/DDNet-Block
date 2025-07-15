@@ -34,6 +34,7 @@ private:
 	int m_SpawnOffset;
 	std::vector<vec2> m_SpawnPositions;
 
+	int m_Timelimit; // end tick
 	int m_DDRaceTeam;
 
 	int m_Winner;
