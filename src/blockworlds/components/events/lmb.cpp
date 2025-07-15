@@ -48,10 +48,11 @@ void CLastManBlockingEvent::CloseRegistration()
 }
 void CLastManBlockingEvent::StartEvent()
 {
-	for(const auto &item : m_Participants)
+	auto Participants = m_Participants;
+	for(const auto &ClientId : Participants)
 	{
-		if(GameServer()->GetPlayerChar(item))
-			Leave(item);
+		if(GameServer()->GetPlayerChar(ClientId))
+			Leave(ClientId);
 	}
 
 	auto &Teams = GameServer()->m_pController->Teams();
@@ -85,13 +86,23 @@ void CLastManBlockingEvent::FinishEvent()
 		GameServer()->SendChatTarget(-1, "'%s' has won the %s", Server()->ClientName(m_Winner), GetEventName());
 		GameServer()->SendBroadcast(-1, "'%s' has won the %s", Server()->ClientName(m_Winner), GetEventName());
 
-		GameServer()->GetPlayer(m_Winner)->m_EventWinner = true;
-		GameServer()->GetPlayer(m_Winner)->m_EventWTick = GameServer()->Server()->TickSpeed() * 60 * g_Config.m_SvEventWinnerFlagDelay;
-		GameServer()->SendChatTarget(m_Winner, "Double exp enabled");
+		GameServer()->GetPlayer(m_Winner)->AddExpMultiplier(Config()->m_SvLMBWinnerExpMultiplier, Config()->m_SvLMBWinnerExpMultiplierDuration);
+		GameServer()->SendChatTarget(m_Winner, "%d%% experience bonus enabled for %d minutes!", Config()->m_SvLMBWinnerExpMultiplier, Config()->m_SvLMBWinnerExpMultiplierDuration);
 	}
 	else
 	{
+		const char *pReason = m_Timelimit <= Server()->Tick() ? "Timelimit" : "Tie";
+
+		GameServer()->SendChatTarget(-1, "No one has won the %s (%s)", Server()->ClientName(m_Winner), GetEventName(), pReason);
+		GameServer()->SendBroadcast(-1, "No one has won the %s (%s)", Server()->ClientName(m_Winner), GetEventName(), pReason);
 	}
+
+	auto RemainingParticipants = m_Participants;
+	for(const auto& ClientId : RemainingParticipants)
+		Leave(ClientId);
+
+	if(m_DDRaceTeam != -1)
+		GameServer()->m_pController->Teams().ResetRoundState(m_DDRaceTeam);
 }
 
 bool CLastManBlockingEvent::CheckEndCondition()
@@ -164,6 +175,7 @@ bool CLastManBlockingEvent::Leave(int ClientId)
 		return false;
 	m_Participants.erase(ClientIdIt);
 	LoadPosition(ClientId);
+	GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, TEAM_FLOCK);
 	return true;
 }
 
