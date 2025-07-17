@@ -113,7 +113,7 @@ void CEvents::ConEventsStart(IConsole::IResult *pResult, void *pUserData)
 	}
 
 	pThis->m_pActiveEvent = it->second(pThis->GameServer());
-	pThis->m_pActiveEvent->SetStateChangeCallback(OnEventStateChange, pThis);
+	pThis->m_pActiveEvent->SetStateChangeCallback([pThis](auto OldState, auto NewState){ pThis->OnEventStateChange(OldState, NewState); });
 	if(!pThis->m_pActiveEvent->EmergencyShutdown())
 		pThis->m_pActiveEvent->OpenRegistration();
 }
@@ -126,8 +126,7 @@ void CEvents::ConEventsForceEnd(IConsole::IResult *pResult, void *pUserData)
 	auto *pThis = (CEvents *)pUserData;
 }
 
-void CEvents::OnEventStateChange(CEventComponent::EEventState OldState, CEventComponent::EEventState NewState, void *pUserData)
+void CEvents::OnEventStateChange(CEventComponent::EEventState OldState, CEventComponent::EEventState NewState)
 {
-	auto *pThis = (CEvents *)pUserData;
-	pThis->LogDebug("Event state changed: from %s to %s", CEventComponent::GetStateName(OldState), CEventComponent::GetStateName(NewState));
+	LogDebug("Event state changed: from %s to %s", CEventComponent::GetStateName(OldState), CEventComponent::GetStateName(NewState));
 }

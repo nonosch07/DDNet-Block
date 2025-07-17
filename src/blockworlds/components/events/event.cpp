@@ -26,7 +26,7 @@ void CEventComponent::SetState(CEventComponent::EEventState NewState)
 
 	if(m_pfnOnStateChange)
 	{
-		m_pfnOnStateChange(OldState, NewState, m_pOnStateChangeUserData);
+		m_pfnOnStateChange(OldState, NewState);
 	}
 }
 
