@@ -1,5 +1,5 @@
-#ifndef GAME_SERVER_BLOCKWORLDS_CLANMANAGER_H
-#define GAME_SERVER_BLOCKWORLDS_CLANMANAGER_H
+#ifndef BLOCKWORLDS_CLANS_H
+#define BLOCKWORLDS_CLANS_H
 
 #include "engine/server/databases/connection_pool.h"
 #include <memory>
@@ -169,4 +169,4 @@ public:
 	void AddClanExp(int ClanId, int Amount);
 };
 
-#endif // GAME_SERVER_BLOCKWORLDS_CLANMANAGER_H
+#endif // BLOCKWORLDS_CLANS_H

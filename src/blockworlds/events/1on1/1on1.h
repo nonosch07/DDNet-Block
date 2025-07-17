@@ -1,5 +1,5 @@
-#ifndef GAME_SERVER_BLOCKWORLDS_EVENTS_1ON1_H
-#define GAME_SERVER_BLOCKWORLDS_EVENTS_1ON1_H
+#ifndef BLOCKWORLDS_EVENTS_1ON1_1ON1__H
+#define BLOCKWORLDS_EVENTS_1ON1_1ON1__H
 #include "blockworlds/events/base/event_base.h"
 #include "game/server/entity.h"
 #include "game/server/gamecontext.h"
@@ -53,4 +53,4 @@ private:
 	int m_CurrentTick = GameServer()->Server()->Tick();
 };
 
-#endif
+#endif // BLOCKWORLDS_EVENTS_1ON1_1ON1__H

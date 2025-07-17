@@ -1,5 +1,5 @@
-#ifndef GAME_SERVER_BLOCKWORLDS_EVENTS_EVENTHANDLER_H
-#define GAME_SERVER_BLOCKWORLDS_EVENTS_EVENTHANDLER_H
+#ifndef BLOCKWORLDS_EVENTS_BASE_EVENTHANDLER_H
+#define BLOCKWORLDS_EVENTS_BASE_EVENTHANDLER_H
 
 #include "event_base.h"
 #include "game/server/gamecontext.h"
@@ -31,4 +31,4 @@ public:
 	bool Leave(CPlayer *pPlayer) override;
 	void OnPlayerDisconnect(CPlayer *pPlayer, bool disconnect) override;
 };
-#endif
+#endif // BLOCKWORLDS_EVENTS_BASE_EVENTHANDLER_H

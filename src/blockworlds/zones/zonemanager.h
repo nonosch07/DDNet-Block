@@ -1,5 +1,5 @@
-#ifndef GAME_SERVER_ZONEMANAGER_H
-#define GAME_SERVER_ZONEMANAGER_H
+#ifndef BLOCKWORLDS_ZONES_ZONEMANAGER_H
+#define BLOCKWORLDS_ZONES_ZONEMANAGER_H
 
 class IZone;
 class CGameContext;
@@ -29,4 +29,4 @@ public:
 	void Snap(int ClientID);
 };
 
-#endif // GAME_SERVER_ZONEMANAGER_H
+#endif // BLOCKWORLDS_ZONES_ZONEMANAGER_H

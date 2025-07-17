@@ -1,5 +1,5 @@
-#ifndef GAME_SERVER_BLOCKWORLDS_EVENTS_BASE_BASE_H
-#define GAME_SERVER_BLOCKWORLDS_EVENTS_BASE_BASE_H
+#ifndef BLOCKWORLDS_EVENTS_BASE_EVENT_BASE_H
+#define BLOCKWORLDS_EVENTS_BASE_EVENT_BASE_H
 #include "game/server/save.h"
 
 class CPlayer;
@@ -68,4 +68,4 @@ public:
 	virtual void LoadPosition(CPlayer *pChr);
 };
 
-#endif
+#endif // BLOCKWORLDS_EVENTS_BASE_EVENT_BASE_H

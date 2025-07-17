@@ -1,5 +1,5 @@
-#ifndef GAME_SERVER_BLOCKWORLDS__STORE_PURCHASE_H
-#define GAME_SERVER_BLOCKWORLDS__STORE_PURCHASE_H
+#ifndef BLOCKWORLDS_SHOP_STOREMANAGER_H
+#define BLOCKWORLDS_SHOP_STOREMANAGER_H
 
 class CGameContext;
 class CPlayer;
@@ -39,4 +39,4 @@ public:
 	CCosmeticsHandler *CosmeticsHandler() { return m_pCosmeticsHandler; }
 };
 
-#endif
+#endif // BLOCKWORLDS_SHOP_STOREMANAGER_H

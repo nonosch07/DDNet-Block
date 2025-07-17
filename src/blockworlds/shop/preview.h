@@ -1,5 +1,5 @@
-#ifndef GAME_SERVER_BLOCKWORLDS_STORE_PREVIEW_H
-#define GAME_SERVER_BLOCKWORLDS_STORE_PREVIEW_H
+#ifndef BLOCKWORLDS_SHOP_PREVIEW_H
+#define BLOCKWORLDS_SHOP_PREVIEW_H
 
 #include "base/vmath.h"
 class CGameContext;
@@ -35,4 +35,4 @@ public:
 	CCosmeticsHandler *CosmeticsHandler() { return m_pCosmeticsHandler; }
 };
 
-#endif
+#endif // BLOCKWORLDS_SHOP_PREVIEW_H

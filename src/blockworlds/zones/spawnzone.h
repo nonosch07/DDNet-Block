@@ -1,5 +1,5 @@
-#ifndef GAME_SERVER_SPAWNZONE_H
-#define GAME_SERVER_SPAWNZONE_H
+#ifndef BLOCKWORLDS_ZONES_SPAWNZONE_H
+#define BLOCKWORLDS_ZONES_SPAWNZONE_H
 
 #include "zone.h"
 
@@ -23,4 +23,4 @@ private:
 	void KeepInSpawn(int ClientID, int Ticks);
 };
 
-#endif // GAME_SERVER_SPAWNZONE_H
+#endif // BLOCKWORLDS_ZONES_SPAWNZONE_H

@@ -1,5 +1,5 @@
-#ifndef GAME_SERVER_BLOCKWORLDS_EVENTS_LASTMANBLOCKING_H
-#define GAME_SERVER_BLOCKWORLDS_EVENTS_LASTMANBLOCKING_H
+#ifndef BLOCKWORLDS_EVENTS_LMB_LASTMANBLOCKING_H
+#define BLOCKWORLDS_EVENTS_LMB_LASTMANBLOCKING_H
 #include "blockworlds/events/base/event_base.h"
 #include "game/server/entity.h"
 #include "game/server/gamecontext.h"
@@ -39,4 +39,4 @@ public:
 	const char *getEventString() override { return "LMB"; };
 };
 
-#endif
+#endif // BLOCKWORLDS_EVENTS_LMB_LASTMANBLOCKING_H

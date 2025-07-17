@@ -1,5 +1,5 @@
-#ifndef GAME_SERVER_BASICZONE_H
-#define GAME_SERVER_BASICZONE_H
+#ifndef BLOCKWORLDS_ZONES_ZONE_H
+#define BLOCKWORLDS_ZONES_ZONE_H
 
 #include <array>
 #include <vector>
@@ -36,4 +36,4 @@ public:
 	CGameContext *GameServer() const { return m_pGameServer; }
 };
 
-#endif // GAME_SERVER_BASICZONE_H
+#endif // BLOCKWORLDS_ZONES_ZONE_H

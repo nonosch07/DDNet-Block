@@ -1,5 +1,5 @@
-#ifndef GAME_SERVER_BLOCKWORLDS_ACCOUNTS_H
-#define GAME_SERVER_BLOCKWORLDS_ACCOUNTS_H
+#ifndef BLOCKWORLDS_ACCOUNTS_H
+#define BLOCKWORLDS_ACCOUNTS_H
 
 #include <array>
 #include <cstdint>

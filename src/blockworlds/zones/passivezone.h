@@ -1,5 +1,5 @@
-#ifndef GAME_SERVER_PASSIVEZONE_H
-#define GAME_SERVER_PASSIVEZONE_H
+#ifndef BLOCKWORLDS_ZONES_PASSIVEZONE_H
+#define BLOCKWORLDS_ZONES_PASSIVEZONE_H
 
 #include "zone.h"
 
@@ -28,4 +28,4 @@ private:
 	void Unprotect(int ClientID);
 };
 
-#endif // GAME_SERVER_PASSIVEZONE_H
+#endif // BLOCKWORLDS_ZONES_PASSIVEZONE_H

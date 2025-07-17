@@ -1,5 +1,5 @@
-#ifndef GAME_SERVER_BLOCKWORLDS_BLOCKTRACKER_H
-#define GAME_SERVER_BLOCKWORLDS_BLOCKTRACKER_H
+#ifndef BLOCKWORLDS_BLOCKTRACKER_H
+#define BLOCKWORLDS_BLOCKTRACKER_H
 
 #include <cstdint>
 #include <engine/shared/protocol.h>
@@ -45,4 +45,4 @@ public:
 	void OnPlayerDeath(int ClientID);
 };
 
-#endif // GAME_SERVER_BLOCKWORLDS_BLOCKTRACKER_H
+#endif // BLOCKWORLDS_BLOCKTRACKER_H

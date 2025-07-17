@@ -1,5 +1,5 @@
-#ifndef GAME_SERVER_BLOCKWORLDS_EVENTS_INVITE_H
-#define GAME_SERVER_BLOCKWORLDS_EVENTS_INVITE_H
+#ifndef BLOCKWORLDS_EVENTS_1ON1_1ON1_INVITE_H
+#define BLOCKWORLDS_EVENTS_1ON1_1ON1_INVITE_H
 
 class CPlayer;
 class CGameContext;
@@ -22,4 +22,4 @@ public:
 	void Destroy();
 	void OnTick();
 };
-#endif
+#endif // BLOCKWORLDS_EVENTS_1ON1_1ON1_INVITE_H

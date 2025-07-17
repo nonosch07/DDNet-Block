@@ -1,5 +1,5 @@
-#ifndef GAME_SERVER_BLOCKWORLDS_ANIMATIONS_CONTENT_H
-#define GAME_SERVER_BLOCKWORLDS_ANIMATIONS_CONTENT_H
+#ifndef BLOCKWORLDS_COSMETICS_CONTENT_H
+#define BLOCKWORLDS_COSMETICS_CONTENT_H
 
 #include <engine/server.h>
 #include <game/server/gamecontext.h>
@@ -340,4 +340,4 @@ public:
 	}
 };
 
-#endif
+#endif // BLOCKWORLDS_COSMETICS_CONTENT_H

@@ -1,5 +1,5 @@
-#ifndef GAME_SERVER_BLOCKWORLDS_COSMETICS_HANDLER_H
-#define GAME_SERVER_BLOCKWORLDS_COSMETICS_HANDLER_H
+#ifndef BLOCKWORLDS_COSMETICS_COSMETICS_H
+#define BLOCKWORLDS_COSMETICS_COSMETICS_H
 
 #include "base/vmath.h"
 #include <engine/server.h>
@@ -93,4 +93,4 @@ public:
 	bool ShopInfoGundesign(int Index, int &Price, int &Level, vec2 &PreviewPos);
 };
 
-#endif
+#endif // BLOCKWORLDS_COSMETICS_COSMETICS_H
