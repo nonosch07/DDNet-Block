@@ -32,7 +32,7 @@ protected:
 
 public:
 	explicit CEvents(CGameContext *pGameServer);
-	~CEvents();
+	~CEvents() override;
 
 private:
 	std::shared_ptr<CEventComponent> m_pActiveEvent;

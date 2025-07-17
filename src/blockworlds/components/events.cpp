@@ -13,7 +13,7 @@
 CEvents::CEvents(CGameContext *pGameServer) :
 	CComponent(pGameServer), m_pActiveEvent(nullptr), m_pEventToDelete(nullptr)
 {
-	m_EventsFactory.emplace("lmb", [](class CGameContext *pGameServer) { return std::make_shared<CLastManBlockingEvent>(pGameServer); });
+	m_EventsFactory.emplace("lmb", [](class CGameContext *pGS) { return std::make_shared<CLastManBlockingEvent>(pGS); });
 }
 
 CEvents::~CEvents()
