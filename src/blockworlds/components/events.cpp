@@ -3,6 +3,8 @@
 #include <engine/server.h>
 #include <engine/shared/config.h>
 
+#include <blockworlds/utils/memory.h>
+
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events/event.h>
 #include <blockworlds/components/events/lmb.h>
@@ -121,7 +123,12 @@ void CEvents::ConEventsStart(IConsole::IResult *pResult, void *pUserData)
 		return;
 	}
 
+	// Don't ask, just believe
+	auto pThisShared = ((CEvents*)pUserData)->Registry()->Get<CEvents>();
 	pThis->m_pActiveEvent = it->second(pThis->GameServer());
+	pThis->m_pActiveEvent->SetStateChangeCallback(
+		MakeSafeCallback(&CEvents::OnEventStateChange, pThisShared)
+	);
 	pThis->m_pActiveEvent->SetStateChangeCallback([pThis](auto OldState, auto NewState){ pThis->OnEventStateChange(OldState, NewState); });
 	if(!pThis->m_pActiveEvent->EmergencyShutdown())
 		pThis->m_pActiveEvent->OpenRegistration();
