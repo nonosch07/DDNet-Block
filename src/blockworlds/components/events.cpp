@@ -15,10 +15,6 @@ std::vector<CComponent *> CEvents::GetSubComponents() const
 	return {};
 }
 
-void CEvents::OnEnable()
-{
-	Log("Enabled!");
-}
 void CEvents::OnDisable()
 {
 	Log("Disabled!");
@@ -31,15 +27,6 @@ void CEvents::OnConsoleInit()
 void CEvents::OnConsoleTerminate()
 {
 	Console()->Deregister("events_test");
-}
-
-void CEvents::OnPlayerDrop(int ClientId)
-{
-	CComponent::OnPlayerDrop(ClientId);
-}
-void CEvents::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
-{
-	CComponent::OnCharacterDeath(KillerId, ClientId, Weapon);
 }
 
 void CEvents::OnTick()

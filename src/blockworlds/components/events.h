@@ -13,14 +13,10 @@ public:
 	[[nodiscard]] std::vector<CComponent *> GetSubComponents() const override;
 
 protected:
-	void OnEnable() override;
 	void OnDisable() override;
 
 	void OnConsoleInit() override;
 	void OnConsoleTerminate() override;
-
-	void OnPlayerDrop(int ClientId) override;
-	void OnCharacterDeath(int KillerId, int ClientId, int Weapon) override;
 
 	void OnTick() override;
 
