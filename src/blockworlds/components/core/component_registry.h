@@ -48,11 +48,6 @@ public:
 	{
 		static_assert(std::is_base_of_v<CComponent, T>, "T must derive from CComponent");
 		return ComponentAccessor<T>(std::static_pointer_cast<T>(Get(typeid(T)).m_pPtr));
-
-		auto Base = Get(typeid(T));
-		std::shared_ptr<CComponent> BaseShared = Base.m_pPtr;
-		std::shared_ptr<T> TShared = std::static_pointer_cast<T>(BaseShared);
-		return ComponentAccessor(TShared);
 	}
 	ComponentAccessor<CComponent> Get(std::type_index Type);
 	ComponentAccessor<CComponent> Get(const std::string &Name);
