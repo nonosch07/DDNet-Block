@@ -19,6 +19,7 @@ protected:
 	void OnConsoleTerminate() override;
 
 	void OnTick() override;
+	void OnPostTick() override;
 
 	static void ConEventsTest(IConsole::IResult *pResult, void *pUserData);
 
@@ -27,6 +28,7 @@ public:
 
 private:
 	class CEventComponent *m_pActiveEvent;
+	class CEventComponent *m_pEventToDelete;
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_H
