@@ -30,6 +30,7 @@
 
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
+#include <blockworlds/components/promises.h>
 
 #include <game/generated/protocol7.h>
 #include <game/generated/protocolglue.h>
@@ -137,6 +138,7 @@ void CGameContext::Construct(int Resetting)
 
 	if(Resetting == NO_RESET)
 	{
+		g_ComponentRegistry.Register<CPromises>(CPromises::GetNameStatic());
 		g_ComponentRegistry.Register<CEvents>(CEvents::GetNameStatic());
 	}
 }
