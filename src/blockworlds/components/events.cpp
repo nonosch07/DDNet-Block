@@ -3,16 +3,26 @@
 #include <engine/server.h>
 #include <engine/shared/config.h>
 
+#include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events/event.h>
 #include <blockworlds/components/events/lmb.h>
 
 CEvents::CEvents(CGameContext *pGameServer) :
 	CComponent(pGameServer), m_pActiveEvent(nullptr), m_pEventToDelete(nullptr)
 {
-	m_EventsFactory.emplace("lmb", [](class CGameContext *pGameServer) { return new CLastManBlockingEvent(pGameServer); });
+	m_EventsFactory.emplace("lmb", [](class CGameContext *pGameServer) { return std::make_shared<CLastManBlockingEvent>(pGameServer); });
 }
 
-std::vector<CComponent *> CEvents::GetSubComponents() const
+CEvents::~CEvents()
+{
+	if(m_pEventToDelete)
+	{
+		m_pEventToDelete.reset();
+		m_pEventToDelete = nullptr;
+	}
+}
+
+std::vector<std::shared_ptr<CComponent>> CEvents::GetSubComponents() const
 {
 	if(m_pActiveEvent)
 		return { m_pActiveEvent };
@@ -24,8 +34,8 @@ void CEvents::OnDisable()
 	if(m_pActiveEvent)
 	{
 		m_pActiveEvent->EmergencyShutdown("Events Shutdown");
-		delete m_pActiveEvent;
-		m_pActiveEvent = nullptr;
+		m_pEventToDelete = m_pActiveEvent;
+		m_pActiveEvent.reset();
 	}
 }
 
@@ -62,7 +72,7 @@ void CEvents::OnTick()
 				Log("'%s' did emergency shutdown. Message: %s", m_pActiveEvent->GetEventName(), m_pActiveEvent->GetEmergencyMessage());
 			Log("'%s' finished. Marking for clean up", m_pActiveEvent->GetEventName());
 			m_pEventToDelete = m_pActiveEvent;
-			m_pActiveEvent = nullptr;
+			m_pActiveEvent.reset();
 		}
 	}
 }
@@ -71,8 +81,7 @@ void CEvents::OnPostTick()
 {
 	if(m_pEventToDelete)
 	{
-		delete m_pEventToDelete;
-		m_pEventToDelete = nullptr;
+		m_pEventToDelete.reset();
 		Log("Cleanup finished");
 	}
 }

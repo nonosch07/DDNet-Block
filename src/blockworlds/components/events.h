@@ -13,7 +13,7 @@ class CEvents final : public CComponent
 public:
 	static constexpr const char *GetNameStatic() { return "Events"; }
 	[[nodiscard]] const char *GetName() const override { return GetNameStatic(); };
-	[[nodiscard]] std::vector<CComponent *> GetSubComponents() const override;
+	[[nodiscard]] std::vector<std::shared_ptr<CComponent>> GetSubComponents() const override;
 
 protected:
 	void OnDisable() override;
@@ -32,15 +32,16 @@ protected:
 
 public:
 	explicit CEvents(CGameContext *pGameServer);
+	~CEvents();
 
 private:
-	class CEventComponent *m_pActiveEvent;
-	class CEventComponent *m_pEventToDelete;
+	std::shared_ptr<CEventComponent> m_pActiveEvent;
+	std::shared_ptr<CEventComponent> m_pEventToDelete;
 
-	using FnFactory = std::function<class CEventComponent*(class CGameContext*)>;
+	using FnFactory = std::function<std::shared_ptr<CEventComponent>(class CGameContext*)>;
 	std::map<std::string, FnFactory> m_EventsFactory;
 
-	static void OnEventStateChange(CEventComponent::EEventState OldState, CEventComponent::EEventState NewState, void *pUserData);
+	void OnEventStateChange(CEventComponent::EEventState OldState, CEventComponent::EEventState NewState);
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_H
