@@ -23,13 +23,14 @@ CLastManBlockingEvent::CLastManBlockingEvent(CGameContext *pGameContext) :
 
 void CLastManBlockingEvent::OnTick()
 {
-	if(m_State == CEventComponent::EEventState::Active)
-		CheckEndCondition();
 	if(CEventComponent::EmergencyShutdown())
 	{
 		FinishEvent();
 		return;
 	}
+
+	if(GetState() != CEventComponent::EEventState::Active)
+		return;
 
 	if(CheckEndCondition())
 		FinishEvent();
@@ -38,11 +39,11 @@ void CLastManBlockingEvent::OnTick()
 void CLastManBlockingEvent::OpenRegistration()
 {
 	m_Candidates.clear();
-	m_State = CEventComponent::EEventState::Registration;
+	SetState(CEventComponent::EEventState::Registration);
 }
 void CLastManBlockingEvent::CloseRegistration()
 {
-	m_State = CEventComponent::EEventState::Preparation;
+	SetState(CEventComponent::EEventState::Preparation);
 	m_Participants = m_Candidates;
 	m_Candidates.clear();
 }
@@ -73,14 +74,14 @@ void CLastManBlockingEvent::StartEvent()
 		m_SpawnOffset++;
 	}
 
-	m_State = CEventComponent::EEventState::Active;
+	SetState(CEventComponent::EEventState::Active);
 	m_StartTick = Server()->Tick();
 	m_Timelimit = m_StartTick + Config()->m_SvLMBActiveTime * Server()->TickSpeed();
 }
 void CLastManBlockingEvent::FinishEvent()
 {
-	m_State = CEventComponent::EEventState::Finished;
 	if(m_Winner != -1)
+	SetState(CEventComponent::EEventState::Ending);
 	{
 		// lame
 		GameServer()->SendChatTarget(-1, "'%s' has won the %s", Server()->ClientName(m_Winner), GetEventName());
@@ -103,6 +104,8 @@ void CLastManBlockingEvent::FinishEvent()
 
 	if(m_DDRaceTeam != -1)
 		GameServer()->m_pController->Teams().ResetRoundState(m_DDRaceTeam);
+
+	SetState(CEventComponent::EEventState::Finished);
 }
 
 bool CLastManBlockingEvent::CheckEndCondition()

@@ -2,6 +2,7 @@
 #define BLOCKWORLDS_COMPONENTS_EVENTS_H
 
 #include "core/component.h"
+#include "events/event.h"
 
 #include <engine/console.h>
 
@@ -29,6 +30,8 @@ public:
 private:
 	class CEventComponent *m_pActiveEvent;
 	class CEventComponent *m_pEventToDelete;
+
+	static void OnEventStateChange(CEventComponent::EEventState OldState, CEventComponent::EEventState NewState, void *pUserData);
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_H

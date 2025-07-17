@@ -16,11 +16,17 @@ public:
 		Registration,
 		Preparation, // transitional, registration closed, setting up arena and players
 		Active,
-		Finished // transitional, event finished, announcing results, returning players, freeing up resources
+		Ending, // transitional, event finished, announcing results, returning players, freeing up resources
+		Finished
 	};
+	using FnOnStateChange = std::function<void(EEventState OldState, EEventState NewState, void *pUserData)>;
+
 
 protected:
 	EEventState m_State = EEventState::Created;
+	FnOnStateChange m_pfnOnStateChange;
+	void *m_pOnStateChangeUserData;
+	void SetState(EEventState NewState);
 
 	std::map<int, class CSaveTee*> m_pSavedPlayers;
 
@@ -55,6 +61,9 @@ public:
 	[[nodiscard]] const std::vector<int>& Participants() const { return m_Participants; }
 	[[nodiscard]] const std::vector<int>& Candidates() const { return m_Candidates; }
 	[[nodiscard]] EEventState GetState() const { return m_State; }
+	[[nodiscard]] const char *GetStateName() const;
+	[[nodiscard]] static const char *GetStateName(EEventState State);
+	void SetStateChangeCallback(FnOnStateChange pfnCallback, void *pUserData) { m_pfnOnStateChange = std::move(pfnCallback); m_pOnStateChangeUserData = pUserData; }
 
 protected:
 	void SavePosition(int ClientId);

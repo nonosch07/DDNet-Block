@@ -16,6 +16,20 @@ CEventComponent::CEventComponent(CGameContext *pGameServer) :
 	m_EmergencyMessage[0] = '\0';
 }
 
+void CEventComponent::SetState(CEventComponent::EEventState NewState)
+{
+	if(m_State == NewState)
+		return;
+
+	EEventState OldState = m_State;
+	m_State = NewState;
+
+	if(m_pfnOnStateChange)
+	{
+		m_pfnOnStateChange(OldState, NewState, m_pOnStateChangeUserData);
+	}
+}
+
 void CEventComponent::SavePosition(int ClientId)
 {
 	auto *pSavedTee = new CSaveTee();
@@ -41,4 +55,27 @@ void CEventComponent::LoadPosition(int ClientId)
 	{
 		pChar->Die(-1, WEAPON_WORLD);
 	}
+}
+const char *CEventComponent::GetStateName() const
+{
+	return GetStateName(m_State);
+}
+const char *CEventComponent::GetStateName(CEventComponent::EEventState State)
+{
+	switch(State)
+	{
+	case EEventState::Created:
+		return "created";
+	case EEventState::Registration:
+		return "registration";
+	case EEventState::Preparation:
+		return "preparation";
+	case EEventState::Active:
+		return "active";
+	case EEventState::Ending:
+		return "ending";
+	case EEventState::Finished:
+		return "finished";
+	}
+	return "";
 }
