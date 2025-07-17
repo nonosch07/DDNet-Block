@@ -9,8 +9,8 @@ public:
 	explicit CLastManBlockingEvent(CGameContext *pGameContext);
 
 public:
-	const char *GetName() const override { return "LMB"; }
- 	const char *GetEventName() const override { return "LMB"; }
+	[[nodiscard]] const char *GetName() const override { return "LMB"; }
+ 	[[nodiscard]] const char *GetEventName() const override { return "LMB"; }
 
 	void OnTick() override;
 
@@ -18,6 +18,8 @@ public:
 	void CloseRegistration() override;
 	void StartEvent() override;
 	void FinishEvent() override;
+
+	void ForceNextStage() override;
 
 	bool CheckEndCondition() override;
 

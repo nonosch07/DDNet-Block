@@ -45,6 +45,8 @@ public:
 	virtual void StartEvent() = 0;
 	virtual void FinishEvent() = 0;
 
+	virtual void ForceNextStage() = 0;
+
 	virtual bool CheckEndCondition() = 0;
 
 	[[nodiscard]] virtual bool CanPlayerRegister(int ClientId) const = 0;
@@ -60,6 +62,7 @@ public:
 
 	[[nodiscard]] const std::vector<int>& Participants() const { return m_Participants; }
 	[[nodiscard]] const std::vector<int>& Candidates() const { return m_Candidates; }
+	[[nodiscard]] int GetStartTick() const { return m_StartTick; }
 	[[nodiscard]] EEventState GetState() const { return m_State; }
 	[[nodiscard]] const char *GetStateName() const;
 	[[nodiscard]] static const char *GetStateName(EEventState State);

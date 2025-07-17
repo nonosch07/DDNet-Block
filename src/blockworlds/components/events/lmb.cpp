@@ -10,7 +10,7 @@
 #include <game/server/player.h>
 
 CLastManBlockingEvent::CLastManBlockingEvent(CGameContext *pGameContext) :
-	CEventComponent(pGameContext), m_SpawnOffset(0), m_DDRaceTeam(-1), m_Winner(-1)
+	CEventComponent(pGameContext), m_SpawnOffset(0), m_Timelimit(-1), m_DDRaceTeam(-1), m_Winner(-1)
 {
 	m_SpawnPositions.clear();
 	int Found = CGameContext::GetTilePositions(TILE_BW_LMB_START_POS, GameServer(), m_SpawnPositions);
@@ -52,7 +52,7 @@ void CLastManBlockingEvent::StartEvent()
 	auto Participants = m_Participants;
 	for(const auto &ClientId : Participants)
 	{
-		if(GameServer()->GetPlayerChar(ClientId))
+		if(!GameServer()->GetPlayerChar(ClientId))
 			Leave(ClientId);
 	}
 
@@ -106,6 +106,10 @@ void CLastManBlockingEvent::FinishEvent()
 		GameServer()->m_pController->Teams().ResetRoundState(m_DDRaceTeam);
 
 	SetState(CEventComponent::EEventState::Finished);
+}
+
+void CLastManBlockingEvent::ForceNextStage()
+{
 }
 
 bool CLastManBlockingEvent::CheckEndCondition()
