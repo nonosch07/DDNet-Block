@@ -40,9 +40,9 @@ public:
 	CComponent *Create(const std::string &Name, class CGameContext *pGameServer);
 
 	template<typename T>
-	CComponent *Get()
+	T *Get()
 	{
-		return Get(typeid(T));
+		return static_cast<T*>(Get(typeid(T)));
 	}
 	CComponent* Get(std::type_index Type);
 	CComponent* Get(const std::string &Name);
