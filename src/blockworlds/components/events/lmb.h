@@ -3,7 +3,7 @@
 
 #include "event.h"
 
-class CLastManBlockingEvent final : public CEventComponent
+class CLastManBlockingEvent final : public CEventComponent, public std::enable_shared_from_this<CLastManBlockingEvent>
 {
 public:
 	explicit CLastManBlockingEvent(CGameContext *pGameContext);

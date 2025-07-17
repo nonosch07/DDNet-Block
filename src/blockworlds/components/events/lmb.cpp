@@ -43,13 +43,14 @@ void CLastManBlockingEvent::OpenRegistration()
 {
 	m_Candidates.clear();
 	SetState(CEventComponent::EEventState::Registration);
-	auto *pPromises = Registry()->Get<CPromises>();
+	auto pPromises = Registry()->Get<CPromises>();
 	if(pPromises)
 		pPromises->AddPromise(
 			Server()->Tick() + Config()->m_SvLMBRegistrationTime * Server()->TickSpeed(),
-			this,
-			[](void *pUserData){
-				((CLastManBlockingEvent*)pUserData)->CloseRegistration();
+			shared_from_this(),
+			[](std::shared_ptr<void> pUserData){
+				auto pThis = std::static_pointer_cast<CLastManBlockingEvent>(pUserData);
+				pThis->CloseRegistration();
 			});
 	else
 		EmergencyShutdown("Promises are not plugged in"); // TODO: dependencies
