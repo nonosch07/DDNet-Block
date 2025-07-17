@@ -8,6 +8,7 @@
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events/event.h>
 #include <blockworlds/components/events/lmb.h>
+#include <blockworlds/components/promises.h>
 
 CEvents::CEvents(CGameContext *pGameServer) :
 	CComponent(pGameServer), m_pActiveEvent(nullptr), m_pEventToDelete(nullptr)

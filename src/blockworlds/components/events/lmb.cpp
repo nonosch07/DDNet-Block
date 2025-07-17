@@ -22,6 +22,13 @@ CLastManBlockingEvent::CLastManBlockingEvent(CGameContext *pGameContext) :
 		EmergencyShutdown("Map has no LMB start tiles");
 		return;
 	}
+
+	m_Promises = Registry()->Get<CPromises>().Store();
+	if(!m_Promises.lock())
+	{
+		EmergencyShutdown("Promises are not plugged in");
+		return;
+	}
 }
 
 void CLastManBlockingEvent::OnTick()
@@ -43,17 +50,13 @@ void CLastManBlockingEvent::OpenRegistration()
 {
 	m_Candidates.clear();
 	SetState(CEventComponent::EEventState::Registration);
-	auto pPromises = Registry()->Get<CPromises>();
-	if(pPromises)
-		pPromises->AddPromise(
-			Server()->Tick() + Config()->m_SvLMBRegistrationTime * Server()->TickSpeed(),
-			shared_from_this(),
-			[](std::shared_ptr<void> pUserData){
-				auto pThis = std::static_pointer_cast<CLastManBlockingEvent>(pUserData);
-				pThis->CloseRegistration();
-			});
-	else
-		EmergencyShutdown("Promises are not plugged in"); // TODO: dependencies
+	Promises()->AddPromise(
+		Server()->Tick() + Config()->m_SvLMBRegistrationTime * Server()->TickSpeed(),
+		shared_from_this(),
+		[](std::shared_ptr<void> pUserData){
+			auto pThis = std::static_pointer_cast<CLastManBlockingEvent>(pUserData);
+			pThis->CloseRegistration();
+		});
 }
 void CLastManBlockingEvent::CloseRegistration()
 {

@@ -48,6 +48,9 @@ private:
 		EMERGENCY,
 	} m_FinishingReason;
 	void FinishEvent(FinishingReason Reason) { m_FinishingReason = Reason; FinishEvent(); };
+
+	std::weak_ptr<class CPromises> m_Promises;
+	[[nodiscard]] std::shared_ptr<class CPromises> Promises() const { return m_Promises.lock(); }
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_LMB_H
