@@ -9,6 +9,9 @@
 #include <game/server/entities/character.h>
 #include <game/server/player.h>
 
+#include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/components/promises.h>
+
 CLastManBlockingEvent::CLastManBlockingEvent(CGameContext *pGameContext) :
 	CEventComponent(pGameContext), m_SpawnOffset(0), m_Timelimit(-1), m_DDRaceTeam(-1), m_Winner(-1)
 {
@@ -40,6 +43,16 @@ void CLastManBlockingEvent::OpenRegistration()
 {
 	m_Candidates.clear();
 	SetState(CEventComponent::EEventState::Registration);
+	auto *pPromises = Registry()->Get<CPromises>();
+	if(pPromises)
+		pPromises->AddPromise(
+			Server()->Tick() + Config()->m_SvLMBRegistrationTime * Server()->TickSpeed(),
+			this,
+			[](void *pUserData){
+				((CLastManBlockingEvent*)pUserData)->CloseRegistration();
+			});
+	else
+		EmergencyShutdown("Promises are not plugged in"); // TODO: dependencies
 }
 void CLastManBlockingEvent::CloseRegistration()
 {
