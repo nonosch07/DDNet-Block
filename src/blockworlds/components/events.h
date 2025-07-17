@@ -6,6 +6,8 @@
 
 #include <engine/console.h>
 
+#include <map>
+
 class CEvents final : public CComponent
 {
 public:
@@ -30,6 +32,9 @@ public:
 private:
 	class CEventComponent *m_pActiveEvent;
 	class CEventComponent *m_pEventToDelete;
+
+	using FnFactory = std::function<class CEventComponent*(class CGameContext*)>;
+	std::map<std::string, FnFactory> m_EventsFactory;
 
 	static void OnEventStateChange(CEventComponent::EEventState OldState, CEventComponent::EEventState NewState, void *pUserData);
 };

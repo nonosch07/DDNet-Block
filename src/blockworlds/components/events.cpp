@@ -4,9 +4,13 @@
 #include <engine/server.h>
 
 #include <blockworlds/components/events/event.h>
+#include <blockworlds/components/events/lmb.h>
 
 CEvents::CEvents(CGameContext *pGameServer) :
 	CComponent(pGameServer), m_pActiveEvent(nullptr), m_pEventToDelete(nullptr)
+{
+	m_EventsFactory.emplace("lmb", [](class CGameContext *pGameServer) { return new CLastManBlockingEvent(pGameServer); });
+}
 
 std::vector<CComponent *> CEvents::GetSubComponents() const
 {
