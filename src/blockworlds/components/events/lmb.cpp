@@ -25,7 +25,7 @@ void CLastManBlockingEvent::OnTick()
 {
 	if(CEventComponent::EmergencyShutdown())
 	{
-		FinishEvent();
+		FinishEvent(EMERGENCY);
 		return;
 	}
 
@@ -33,7 +33,7 @@ void CLastManBlockingEvent::OnTick()
 		return;
 
 	if(CheckEndCondition())
-		FinishEvent();
+		FinishEvent(NATURAL);
 }
 
 void CLastManBlockingEvent::OpenRegistration()
@@ -44,8 +44,16 @@ void CLastManBlockingEvent::OpenRegistration()
 void CLastManBlockingEvent::CloseRegistration()
 {
 	SetState(CEventComponent::EEventState::Preparation);
+
+	if(m_Candidates.size() < 2)
+	{
+		FinishEvent(NOT_ENOUGH_CANDIDATES);
+		return;
+	}
+
 	m_Participants = m_Candidates;
 	m_Candidates.clear();
+	StartEvent();
 }
 void CLastManBlockingEvent::StartEvent()
 {
@@ -80,22 +88,36 @@ void CLastManBlockingEvent::StartEvent()
 }
 void CLastManBlockingEvent::FinishEvent()
 {
-	if(m_Winner != -1)
 	SetState(CEventComponent::EEventState::Ending);
+	if(m_FinishingReason == NATURAL)
 	{
-		// lame
-		GameServer()->SendChatTarget(-1, "'%s' has won the %s", Server()->ClientName(m_Winner), GetEventName());
-		GameServer()->SendBroadcast(-1, "'%s' has won the %s", Server()->ClientName(m_Winner), GetEventName());
+		if(m_Winner != -1)
+		{
+			// lame
+			GameServer()->SendChatTarget(-1, "'%s' has won the %s", Server()->ClientName(m_Winner), GetEventName());
+			GameServer()->SendBroadcast(-1, "'%s' has won the %s", Server()->ClientName(m_Winner), GetEventName());
 
-		GameServer()->GetPlayer(m_Winner)->AddExpMultiplier(Config()->m_SvLMBWinnerExpMultiplier, Config()->m_SvLMBWinnerExpMultiplierDuration);
-		GameServer()->SendChatTarget(m_Winner, "%d%% experience bonus enabled for %d minutes!", Config()->m_SvLMBWinnerExpMultiplier, Config()->m_SvLMBWinnerExpMultiplierDuration);
+			GameServer()->GetPlayer(m_Winner)->AddExpMultiplier(Config()->m_SvLMBWinnerExpMultiplier, Config()->m_SvLMBWinnerExpMultiplierDuration);
+			GameServer()->SendChatTarget(m_Winner, "%d%% experience bonus enabled for %d minutes!", Config()->m_SvLMBWinnerExpMultiplier, Config()->m_SvLMBWinnerExpMultiplierDuration);
+		}
+		else
+		{
+			const char *pReason = m_Timelimit <= Server()->Tick() ? "Timelimit" :
+										     "Tie";
+
+			GameServer()->SendChatTarget(-1, "No one has won the %s (%s)", GetEventName(), pReason);
+			GameServer()->SendBroadcast(-1, "No one has won the %s (%s)", GetEventName(), pReason);
+		}
 	}
-	else
+	else if(m_FinishingReason == NOT_ENOUGH_CANDIDATES)
 	{
-		const char *pReason = m_Timelimit <= Server()->Tick() ? "Timelimit" : "Tie";
-
-		GameServer()->SendChatTarget(-1, "No one has won the %s (%s)", Server()->ClientName(m_Winner), GetEventName(), pReason);
-		GameServer()->SendBroadcast(-1, "No one has won the %s (%s)", Server()->ClientName(m_Winner), GetEventName(), pReason);
+		GameServer()->SendChatTarget(-1, "Not enough candidates joined %s", GetEventName());
+		GameServer()->SendBroadcast(-1, "Not enough candidates joined %s", GetEventName());
+	}
+	else if(m_FinishingReason == EMERGENCY)
+	{
+		GameServer()->SendChatTarget(-1, "%s finished prematurely", GetEventName());
+		GameServer()->SendBroadcast(-1, "%s finished prematurely", GetEventName());
 	}
 
 	auto RemainingParticipants = m_Participants;
@@ -189,6 +211,6 @@ bool CLastManBlockingEvent::Leave(int ClientId)
 void CLastManBlockingEvent::EmergencyShutdown(const char *pMsg)
 {
 	CEventComponent::EmergencyShutdown(pMsg);
-
-	m_State = CEventComponent::EEventState::Finished;
+	if(GetState() != CEventComponent::EEventState::Finished)
+		FinishEvent(EMERGENCY);
 }

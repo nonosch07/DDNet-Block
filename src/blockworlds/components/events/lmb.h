@@ -40,6 +40,14 @@ private:
 	int m_DDRaceTeam;
 
 	int m_Winner;
+
+	enum FinishingReason
+	{
+		NATURAL = 0,
+		NOT_ENOUGH_CANDIDATES,
+		EMERGENCY,
+	} m_FinishingReason;
+	void FinishEvent(FinishingReason Reason) { m_FinishingReason = Reason; FinishEvent(); };
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_LMB_H
