@@ -18,14 +18,15 @@ unsigned long CPromises::GetCallbackHash(std::function<void(void *)> FnCallback)
 	return Hash;
 }
 
-void CPromises::AddPromise(const int ExecuteTick, void *pUserData, std::function<void(void *)> FnCallback)
+const SPromise *CPromises::AddPromise(const int ExecuteTick, void *pUserData, std::function<void(void *)> FnCallback)
 {
 	SPromise NewPromise;
 	NewPromise.m_ExecuteTick = ExecuteTick;
 	NewPromise.m_pUserData = pUserData;
 	NewPromise.m_Callback = std::move(FnCallback);
 	m_Promises.push_back(NewPromise);
-	LogDebug("New Promise. Execution: %d, Callback: %" PRIzu, NewPromise.m_ExecuteTick, GetCallbackHash(NewPromise.m_Callback));
+	LogDebug("Promise Created. Execution: %d, Callback: %" PRIzu, NewPromise.m_ExecuteTick, GetCallbackHash(NewPromise.m_Callback));
+	return (m_Promises.cend() - 1).base();
 }
 
 void CPromises::OnTick()
@@ -39,7 +40,7 @@ void CPromises::OnTick()
 			it++;
 			continue;
 		}
-		LogDebug("Promise Expired. Callback: %" PRIzu, GetCallbackHash(Promise.m_Callback));
+		LogDebug("Promise Finished. Callback: %" PRIzu, GetCallbackHash(Promise.m_Callback));
 		Promise.m_Callback(Promise.m_pUserData);
 		m_Promises.erase(it);
 	}

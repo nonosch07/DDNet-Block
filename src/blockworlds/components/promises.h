@@ -26,7 +26,7 @@ protected:
 public:
 	explicit CPromises(CGameContext *pGameServer);
 
-	void AddPromise(int ExecuteTick, void *pUserData, std::function<void(void *)> FnCallback);
+	const SPromise *AddPromise(int ExecuteTick, void *pUserData, std::function<void(void *)> FnCallback);
 
 private:
 	std::vector<SPromise> m_Promises;
