@@ -25,7 +25,7 @@ void CPromises::AddPromise(const int ExecuteTick, void *pUserData, std::function
 	NewPromise.m_pUserData = pUserData;
 	NewPromise.m_Callback = std::move(FnCallback);
 	m_Promises.push_back(NewPromise);
-	LogDebug("New Promise. Execution: %d, Callback: " PRIzu, NewPromise.m_ExecuteTick, GetCallbackHash(NewPromise.m_Callback));
+	LogDebug("New Promise. Execution: %d, Callback: %" PRIzu, NewPromise.m_ExecuteTick, GetCallbackHash(NewPromise.m_Callback));
 }
 
 void CPromises::OnTick()
@@ -39,7 +39,7 @@ void CPromises::OnTick()
 			it++;
 			continue;
 		}
-		LogDebug("Promise Expired. Callback: " PRIzu, GetCallbackHash(Promise.m_Callback));
+		LogDebug("Promise Expired. Callback: %" PRIzu, GetCallbackHash(Promise.m_Callback));
 		Promise.m_Callback(Promise.m_pUserData);
 		m_Promises.erase(it);
 	}
@@ -60,7 +60,7 @@ void CPromises::OnShutdown()
 	for(; it != m_Promises.end();)
 	{
 		auto &Promise = *it;
-		LogDebug("Promise Forcefully Discarded. Callback: " PRIzu, GetCallbackHash(Promise.m_Callback));
+		LogDebug("Promise Forcefully Discarded. Callback: %" PRIzu, GetCallbackHash(Promise.m_Callback));
 //		Promise.m_Callback(Promise.m_pUserData);
 		m_Promises.erase(it);
 	}
@@ -72,7 +72,7 @@ void CPromises::OnDisable()
 	for(; it != m_Promises.end();)
 	{
 		auto &Promise = *it;
-		LogDebug("Promise Forcefully Discarded. Callback: " PRIzu, GetCallbackHash(Promise.m_Callback));
+		LogDebug("Promise Forcefully Discarded. Callback: %" PRIzu, GetCallbackHash(Promise.m_Callback));
 		//		Promise.m_Callback(Promise.m_pUserData);
 		m_Promises.erase(it);
 	}
