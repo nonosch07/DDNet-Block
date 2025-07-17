@@ -24,7 +24,11 @@ protected:
 	void OnTick() override;
 	void OnPostTick() override;
 
-	static void ConEventsTest(IConsole::IResult *pResult, void *pUserData);
+	static void ConEventsStatus(IConsole::IResult *pResult, void *pUserData);
+	static void ConEventsList(IConsole::IResult *pResult, void *pUserData);
+	static void ConEventsStart(IConsole::IResult *pResult, void *pUserData);
+	static void ConEventsForceNextState(IConsole::IResult *pResult, void *pUserData);
+	static void ConEventsForceEnd(IConsole::IResult *pResult, void *pUserData);
 
 public:
 	explicit CEvents(CGameContext *pGameServer);
