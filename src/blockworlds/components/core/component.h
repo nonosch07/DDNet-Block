@@ -7,6 +7,7 @@
 #include <typeindex>
 #include <utility>
 #include <vector>
+#include <memory>
 
 class CComponent
 {
@@ -31,7 +32,7 @@ public:
 //	virtual std::vector<SComponentDependency> GetDependencies() const { return {}; };
 //	virtual void InjectDependency(const std::type_index& Type, CComponent* pComponent) {};
 
-	[[nodiscard]] virtual std::vector<CComponent*> GetSubComponents() const { return {}; }; // basically, it's set of components that are not registered, but require ticking, like events
+	[[nodiscard]] virtual std::vector<std::shared_ptr<CComponent>> GetSubComponents() const { return {}; }; // basically, it's set of components that are not registered, but require ticking, like events
 
 	[[nodiscard]] virtual const char *GetName() const = 0;
 	[[nodiscard]] virtual bool IsDebug() const;

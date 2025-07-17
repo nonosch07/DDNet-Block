@@ -13,39 +13,42 @@
 class CComponentRegistry final
 {
 public:
-	using FnFactory = std::function<class CComponent*(class CGameContext*)>;
+	using FnFactory = std::function<std::shared_ptr<CComponent>(class CGameContext*)>;
 
 private:
 	std::unordered_map<std::type_index, FnFactory> m_TypeToFactory;
 	std::unordered_map<std::string, std::type_index> m_NameToType;
 	std::unordered_map<std::type_index, std::string> m_TypeToName;
 
-	std::unordered_map<std::type_index, std::unique_ptr<class CComponent>> m_Components;
+	std::unordered_map<std::type_index, std::shared_ptr<CComponent>> m_Components;
 
 public:
 	template<typename T>
 	void Register(const std::string &Name)
 	{
-		m_TypeToFactory[typeid(T)] = [](class CGameContext *pGameServer) { return new T(pGameServer); };
+		static_assert(std::is_base_of_v<CComponent, T>, "T must derive from CComponent");
+		m_TypeToFactory[typeid(T)] = [](class CGameContext *pGameServer) { return std::make_shared<T>(pGameServer); };
 		m_NameToType.try_emplace(Name, typeid(T));
 		m_TypeToName.try_emplace(typeid(T), Name);
 	}
 
 	template<typename T>
-	CComponent *Create(class CGameContext *pGameServer)
+	std::shared_ptr<T> Create(class CGameContext *pGameServer)
 	{
-		return Create(typeid(T), pGameServer);
+		static_assert(std::is_base_of_v<CComponent, T>, "T must derive from CComponent");
+		return std::static_pointer_cast<T>(Create(typeid(T), pGameServer));
 	}
-	CComponent *Create(std::type_index Type, class CGameContext *pGameServer);
-	CComponent *Create(const std::string &Name, class CGameContext *pGameServer);
+	std::shared_ptr<CComponent> Create(std::type_index Type, class CGameContext *pGameServer);
+	std::shared_ptr<CComponent> Create(const std::string &Name, class CGameContext *pGameServer);
 
 	template<typename T>
-	T *Get()
+	std::shared_ptr<T> Get()
 	{
-		return static_cast<T*>(Get(typeid(T)));
+		static_assert(std::is_base_of_v<CComponent, T>, "T must derive from CComponent");
+		return std::static_pointer_cast<T>(Get(typeid(T)));
 	}
-	CComponent* Get(std::type_index Type);
-	CComponent* Get(const std::string &Name);
+	std::shared_ptr<CComponent> Get(std::type_index Type);
+	std::shared_ptr<CComponent> Get(const std::string &Name);
 
 	template<typename T>
 	bool Remove()
@@ -55,12 +58,13 @@ public:
 	bool Remove(std::type_index Type);
 	bool Remove(const std::string &Name);
 
-	std::vector<class CComponent*> Active();
-	std::unordered_map<std::type_index, class CComponent*> All();
+	std::vector<std::shared_ptr<CComponent>> Active();
+	std::unordered_map<std::type_index, std::shared_ptr<CComponent>> All();
 
 	template<typename T>
 	std::string Name()
 	{
+		static_assert(std::is_base_of_v<CComponent, T>, "T must derive from CComponent");
 		return Name(typeid(T));
 	}
 	std::string Name(std::type_index Type)
