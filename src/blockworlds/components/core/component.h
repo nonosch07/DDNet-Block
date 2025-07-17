@@ -4,6 +4,8 @@
 #include <base/vmath.h>
 #include <base/system.h>
 
+#include <blockworlds/utils/memory.h>
+
 #include <typeindex>
 #include <utility>
 #include <vector>
@@ -32,7 +34,7 @@ public:
 //	virtual std::vector<SComponentDependency> GetDependencies() const { return {}; };
 //	virtual void InjectDependency(const std::type_index& Type, CComponent* pComponent) {};
 
-	[[nodiscard]] virtual std::vector<std::shared_ptr<CComponent>> GetSubComponents() const { return {}; }; // basically, it's set of components that are not registered, but require ticking, like events
+	[[nodiscard]] virtual std::vector<ComponentAccessor<CComponent>> GetSubComponents() const { return {}; }; // basically, it's set of components that are not registered, but require ticking, like events
 
 	[[nodiscard]] virtual const char *GetName() const = 0;
 	[[nodiscard]] virtual bool IsDebug() const;

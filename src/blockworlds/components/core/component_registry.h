@@ -8,7 +8,9 @@
 #include <typeindex>
 
 #include <base/system.h>
+
 #include <blockworlds/components/core/component.h>
+#include <blockworlds/utils/memory.h>
 
 class CComponentRegistry final
 {
@@ -33,22 +35,27 @@ public:
 	}
 
 	template<typename T>
-	std::shared_ptr<T> Create(class CGameContext *pGameServer)
+	ComponentAccessor<T> Create(class CGameContext *pGameServer)
 	{
 		static_assert(std::is_base_of_v<CComponent, T>, "T must derive from CComponent");
-		return std::static_pointer_cast<T>(Create(typeid(T), pGameServer));
+		return ComponentAccessor(std::static_pointer_cast<T>(Create(typeid(T), pGameServer).m_pPtr));
 	}
-	std::shared_ptr<CComponent> Create(std::type_index Type, class CGameContext *pGameServer);
-	std::shared_ptr<CComponent> Create(const std::string &Name, class CGameContext *pGameServer);
+	ComponentAccessor<CComponent> Create(std::type_index Type, class CGameContext *pGameServer);
+	ComponentAccessor<CComponent> Create(const std::string &Name, class CGameContext *pGameServer);
 
 	template<typename T>
-	std::shared_ptr<T> Get()
+	ComponentAccessor<T> Get()
 	{
 		static_assert(std::is_base_of_v<CComponent, T>, "T must derive from CComponent");
-		return std::static_pointer_cast<T>(Get(typeid(T)));
+		return ComponentAccessor<T>(std::static_pointer_cast<T>(Get(typeid(T)).m_pPtr));
+
+		auto Base = Get(typeid(T));
+		std::shared_ptr<CComponent> BaseShared = Base.m_pPtr;
+		std::shared_ptr<T> TShared = std::static_pointer_cast<T>(BaseShared);
+		return ComponentAccessor(TShared);
 	}
-	std::shared_ptr<CComponent> Get(std::type_index Type);
-	std::shared_ptr<CComponent> Get(const std::string &Name);
+	ComponentAccessor<CComponent> Get(std::type_index Type);
+	ComponentAccessor<CComponent> Get(const std::string &Name);
 
 	template<typename T>
 	bool Remove()
@@ -58,8 +65,8 @@ public:
 	bool Remove(std::type_index Type);
 	bool Remove(const std::string &Name);
 
-	std::vector<std::shared_ptr<CComponent>> Active();
-	std::unordered_map<std::type_index, std::shared_ptr<CComponent>> All();
+	std::vector<ComponentAccessor<CComponent>> Active();
+	std::unordered_map<std::type_index, ComponentAccessor<CComponent>> All();
 
 	template<typename T>
 	std::string Name()

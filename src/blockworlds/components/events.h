@@ -13,7 +13,7 @@ class CEvents final : public CComponent
 public:
 	static constexpr const char *GetNameStatic() { return "Events"; }
 	[[nodiscard]] const char *GetName() const override { return GetNameStatic(); };
-	[[nodiscard]] std::vector<std::shared_ptr<CComponent>> GetSubComponents() const override;
+	[[nodiscard]] std::vector<ComponentAccessor<CComponent>> GetSubComponents() const override;
 
 protected:
 	void OnDisable() override;

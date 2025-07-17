@@ -24,11 +24,12 @@ CEvents::~CEvents()
 	}
 }
 
-std::vector<std::shared_ptr<CComponent>> CEvents::GetSubComponents() const
+std::vector<ComponentAccessor<CComponent>> CEvents::GetSubComponents() const
 {
+	std::vector<ComponentAccessor<CComponent>> vSubComponents;
 	if(m_pActiveEvent)
-		return { m_pActiveEvent };
-	return {};
+		vSubComponents.emplace_back(m_pActiveEvent);
+	return vSubComponents;
 }
 
 void CEvents::OnDisable()
@@ -127,7 +128,7 @@ void CEvents::ConEventsStart(IConsole::IResult *pResult, void *pUserData)
 	auto pThisShared = ((CEvents*)pUserData)->Registry()->Get<CEvents>();
 	pThis->m_pActiveEvent = it->second(pThis->GameServer());
 	pThis->m_pActiveEvent->SetStateChangeCallback(
-		MakeSafeCallback(&CEvents::OnEventStateChange, pThisShared)
+		MakeSafeCallback(&CEvents::OnEventStateChange, pThisShared.Store())
 	);
 	pThis->m_pActiveEvent->SetStateChangeCallback([pThis](auto OldState, auto NewState){ pThis->OnEventStateChange(OldState, NewState); });
 	if(!pThis->m_pActiveEvent->EmergencyShutdown())

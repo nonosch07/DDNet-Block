@@ -1220,24 +1220,26 @@ void CGameContext::ConComponentList(IConsole::IResult *pResult, void *pUserData)
 	auto Components = g_ComponentRegistry.All();
 	auto ActiveComponents = g_ComponentRegistry.Active();
 
-	for(const auto &item : Components)
+	std::unordered_set<CComponent*> MainComponentPtrs;
+	for (const auto& [Type, pSharedComp] : Components)
 	{
-		auto Name = g_ComponentRegistry.Name(item.first);
-		bool Active = std::find(ActiveComponents.begin(), ActiveComponents.end(), item.second) != ActiveComponents.end();
-
-		dbg_msg("Components", "[%s] %s", Active ? "+" : " ", Name.c_str());
+		if(pSharedComp)
+			MainComponentPtrs.insert(&*pSharedComp);
 	}
 
-	dbg_msg("Components", "Sub-Components:");
-	// active sub-components
-	for(const auto &item : ActiveComponents)
+	dbg_msg("Components", "Registered Components");
+	for(const auto& [Type, pSharedComp] : Components)
 	{
-		auto Name = item->GetName();
-		bool SubComponent = std::find_if(Components.begin(), Components.end(), [item](auto Map) { return Map.second == item; }) == Components.end();
-		if(!SubComponent)
-			continue;
+		auto Name = g_ComponentRegistry.Name(Type);
+		const bool IsActive = (bool)pSharedComp; // lol
+		dbg_msg("Components", "[%s] %s", IsActive ? "+" : " ", Name.c_str());
+	}
 
-		dbg_msg("Components", "[%s] %s", "+", Name);
+	dbg_msg("Components", "Active Sub-Components");
+	for(const auto& pActiveComp : ActiveComponents)
+	{
+		if(MainComponentPtrs.count(&*pActiveComp) == 0)
+			dbg_msg("Components", "[+] %s", pActiveComp->GetName());
 	}
 }
 
@@ -1248,12 +1250,12 @@ void CGameContext::ConComponentPlug(IConsole::IResult *pResult, void *pUserData)
 	str_clean_whitespaces(aName);
 
 	auto pComponent = g_ComponentRegistry.Create(aName, (CGameContext*)pUserData);
-	if(pComponent == nullptr)
+	if(!pComponent)
 	{
 		dbg_msg("Components", "Component creation failed");
 		return;
 	}
-	dbg_msg("Components", "Component created: %s (%p)", pComponent->GetName(), pComponent);
+	dbg_msg("Components", "Component created: %s (%p)", pComponent->GetName(), &*pComponent);
 }
 
 void CGameContext::ConComponentUnPlug(IConsole::IResult *pResult, void *pUserData)

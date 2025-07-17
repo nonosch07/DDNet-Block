@@ -2,7 +2,7 @@
 
 CComponentRegistry g_ComponentRegistry;
 
-std::shared_ptr<CComponent> CComponentRegistry::Create(std::type_index Type, class CGameContext *pGameServer)
+ComponentAccessor<CComponent> CComponentRegistry::Create(std::type_index Type, class CGameContext *pGameServer)
 {
 	auto Result = m_Components.try_emplace(Type, m_TypeToFactory[Type](pGameServer));
 	if(!Result.second)
@@ -12,9 +12,9 @@ std::shared_ptr<CComponent> CComponentRegistry::Create(std::type_index Type, cla
 	pComponent->OnEnable();
 	pComponent->OnConsoleInit(); // we call it here since console is already initialized at any point of component creation
 
-	return pComponent;
+	return ComponentAccessor(pComponent);
 }
-std::shared_ptr<CComponent> CComponentRegistry::Create(const std::string &Name, class CGameContext *pGameServer)
+ComponentAccessor<CComponent> CComponentRegistry::Create(const std::string &Name, class CGameContext *pGameServer)
 {
 	auto Result = m_NameToType.find(Name);
 	if(Result == m_NameToType.end())
@@ -22,13 +22,13 @@ std::shared_ptr<CComponent> CComponentRegistry::Create(const std::string &Name, 
 	return Create(Result->second, pGameServer);
 }
 
-std::shared_ptr<CComponent> CComponentRegistry::Get(std::type_index Type)
+ComponentAccessor<CComponent> CComponentRegistry::Get(std::type_index Type)
 {
 	if (auto it = m_Components.find(Type); it != m_Components.end())
-		return it->second;
+		return ComponentAccessor(it->second);
 	return nullptr;
 }
-std::shared_ptr<CComponent> CComponentRegistry::Get(const std::string &Name)
+ComponentAccessor<CComponent> CComponentRegistry::Get(const std::string &Name)
 {
 	auto Result = m_NameToType.find(Name);
 	if(Result == m_NameToType.end())
@@ -55,27 +55,27 @@ bool CComponentRegistry::Remove(const std::string &Name)
 	return Remove(Result->second);
 }
 
-std::vector<std::shared_ptr<CComponent>> CComponentRegistry::Active()
+std::vector<ComponentAccessor<CComponent>> CComponentRegistry::Active()
 {
-	std::vector<std::shared_ptr<CComponent>> vComponents;
+	std::vector<ComponentAccessor<CComponent>> vComponents;
 	vComponents.reserve(m_Components.size());
 	for(auto &item : m_Components)
 	{
-		vComponents.push_back(item.second);
+		vComponents.emplace_back(item.second);
 		if(auto vSubComponents = item.second->GetSubComponents(); !vSubComponents.empty())
-			vComponents.insert(vComponents.end(), vSubComponents.begin(), vSubComponents.end());
+			vComponents.insert(vComponents.end(), std::make_move_iterator(vSubComponents.begin()), std::make_move_iterator(vSubComponents.end()));
 	}
 	return vComponents;
 }
 
-std::unordered_map<std::type_index, std::shared_ptr<CComponent>> CComponentRegistry::All()
+std::unordered_map<std::type_index, ComponentAccessor<CComponent>> CComponentRegistry::All()
 {
-	std::unordered_map<std::type_index, std::shared_ptr<CComponent>> vComponents;
+	std::unordered_map<std::type_index, ComponentAccessor<CComponent>> vComponents;
 	vComponents.reserve(m_TypeToFactory.size());
 	for(auto &item : m_TypeToFactory)
 	{
 		if(auto it = m_Components.find(item.first); it != m_Components.end())
-			vComponents.emplace(item.first, it->second.get());
+			vComponents.emplace(item.first, it->second);
 		else
 			vComponents.emplace(item.first, nullptr);
 	}
