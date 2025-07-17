@@ -6,7 +6,7 @@
 CPromises::CPromises(CGameContext *pGameServer) :
 	CComponent(pGameServer) {}
 
-unsigned long CPromises::GetCallbackHash(std::function<void(void *)> FnCallback)
+unsigned long CPromises::GetCallbackHash(std::function<void(std::shared_ptr<void>)> FnCallback)
 {
 	if(!IsDebug())
 		return 0L;
@@ -18,11 +18,11 @@ unsigned long CPromises::GetCallbackHash(std::function<void(void *)> FnCallback)
 	return Hash;
 }
 
-const SPromise *CPromises::AddPromise(const int ExecuteTick, void *pUserData, std::function<void(void *)> FnCallback)
+const SPromise *CPromises::AddPromise(int ExecuteTick, std::weak_ptr<void> pUserData, std::function<void(std::shared_ptr<void>)> FnCallback)
 {
 	SPromise NewPromise;
 	NewPromise.m_ExecuteTick = ExecuteTick;
-	NewPromise.m_pUserData = pUserData;
+	NewPromise.m_pUserData = std::move(pUserData);
 	NewPromise.m_Callback = std::move(FnCallback);
 	m_Promises.push_back(NewPromise);
 	LogDebug("Promise Created. Execution: %d, Callback: %" PRIzu, NewPromise.m_ExecuteTick, GetCallbackHash(NewPromise.m_Callback));
@@ -31,18 +31,23 @@ const SPromise *CPromises::AddPromise(const int ExecuteTick, void *pUserData, st
 
 void CPromises::OnTick()
 {
-	auto it = m_Promises.begin();
-	for(; it != m_Promises.end();)
+	for(auto it = m_Promises.begin(); it != m_Promises.end();)
 	{
-		auto &Promise = *it;
-		if(Server()->Tick() < Promise.m_ExecuteTick)
+		if(Server()->Tick() < it->m_ExecuteTick)
 		{
 			it++;
 			continue;
 		}
-		LogDebug("Promise Finished. Callback: %" PRIzu, GetCallbackHash(Promise.m_Callback));
-		Promise.m_Callback(Promise.m_pUserData);
-		m_Promises.erase(it);
+
+		if(auto pLockedUserData = it->m_pUserData.lock())
+		{
+			LogDebug("Promise Finished. Callback: %" PRIzu, GetCallbackHash(it->m_Callback));
+			it->m_Callback(pLockedUserData);
+		}
+		else
+			LogDebug("Promise Discarded. Owner is dead. Callback: %" PRIzu, GetCallbackHash(it->m_Callback));
+
+		it = m_Promises.erase(it);
 	}
 }
 

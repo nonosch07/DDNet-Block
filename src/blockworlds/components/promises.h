@@ -8,8 +8,8 @@
 struct SPromise
 {
 	int m_ExecuteTick;
-	void *m_pUserData;
-	std::function<void(void *)> m_Callback;
+	std::weak_ptr<void> m_pUserData;
+	std::function<void(std::shared_ptr<void>)> m_Callback;
 };
 
 class CPromises final : public CComponent
@@ -26,11 +26,11 @@ protected:
 public:
 	explicit CPromises(CGameContext *pGameServer);
 
-	const SPromise *AddPromise(int ExecuteTick, void *pUserData, std::function<void(void *)> FnCallback);
+	const SPromise *AddPromise(int ExecuteTick, std::weak_ptr<void> pUserData, std::function<void(std::shared_ptr<void>)> FnCallback);
 
 private:
 	std::vector<SPromise> m_Promises;
-	unsigned long GetCallbackHash(std::function<void(void *)> FnCallback);
+	unsigned long GetCallbackHash(std::function<void(std::shared_ptr<void>)> FnCallback);
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_PROMISES_H
