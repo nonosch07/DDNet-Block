@@ -39,9 +39,9 @@ std::function<void(TArgs...)> MakeSafeCallback(void (T::*pMemberFunc)(TArgs...),
 }
 
 /**
- * ComponentAccessor is made to explicitly prohibit storing (copying) it
+ * ComponentAccessor is made to explicitly prohibit storing (copying) shared_ptr
  * However you can access weak_ptr to store it
- * This was done to remove chance of accidental storing of shared_ptr to any component
+ * This was done to remove chance of accidental copying shared_ptr of any component
  * As it will result in potentially infinite lifetime, when only ComponentRegistry owns and manages them
  * (unique_ptr adds too much pain in the ass, shared_ptr allows to make some mistakes in architecture)
  */
