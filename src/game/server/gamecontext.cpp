@@ -3835,9 +3835,9 @@ void CGameContext::RegisterDDRaceCommands()
 	Console()->Register("freezehammer", "v[id]", CFGFLAG_SERVER | CMDFLAG_TEST, ConFreezeHammer, this, "Gives a player Freeze Hammer");
 	Console()->Register("unfreezehammer", "v[id]", CFGFLAG_SERVER | CMDFLAG_TEST, ConUnFreezeHammer, this, "Removes Freeze Hammer from a player");
 
-	Console()->Register("component_list", "", CFGFLAG_SERVER, ConComponentList, this, "Removes Freeze Hammer from a player");
-	Console()->Register("component_plug", "r[name]", CFGFLAG_SERVER, ConComponentPlug, this, "Removes Freeze Hammer from a player");
-	Console()->Register("component_unplug", "r[name]", CFGFLAG_SERVER, ConComponentUnPlug, this, "Removes Freeze Hammer from a player");
+	Console()->Register("component_list", "", CFGFLAG_SERVER, ConComponentList, this, "List of all components and active sub-components");
+	Console()->Register("component_plug", "r[name]", CFGFLAG_SERVER, ConComponentPlug, this, "Plug-in component");
+	Console()->Register("component_unplug", "r[name]", CFGFLAG_SERVER, ConComponentUnPlug, this, "Un-plug component");
 }
 
 void CGameContext::RegisterChatCommands()
