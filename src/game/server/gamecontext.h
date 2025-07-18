@@ -714,7 +714,6 @@ private:
 	static void Con1on1Decline(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConJoinEvent(IConsole::IResult *pResult, void *pUserData);
-	static void ConCreateLMB(IConsole::IResult *pResult, void *pUserData);
 	static void ConCreateTDM(IConsole::IResult *pResult, void *pUserData);
 	static void ConLeaveEvent(IConsole::IResult *pResult, void *pUserData);
 

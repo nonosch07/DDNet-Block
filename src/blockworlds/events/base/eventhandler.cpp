@@ -1,5 +1,4 @@
 #include "eventhandler.h"
-#include "../lmb/lastmanblocking.h"
 #include "../tdm/teamdeathmatch.h"
 #include "event_base.h"
 #include "game/server/gamecontext.h"
@@ -11,18 +10,14 @@ BW_CEventHandler::BW_CEventHandler(CGameContext *pGameContext, CPlayer *pInviteF
 	CEvent(pGameContext, CEvent::EVENT_INVITE)
 {
 	m_pGameContext = pGameContext;
-	m_pExpireTick = GameServer()->Server()->Tick() + g_Config.m_SvLMBRegDuration * GameServer()->Server()->TickSpeed();
+	m_pExpireTick = GameServer()->Server()->Tick() + g_Config.m_SvLMBRegistrationTime * GameServer()->Server()->TickSpeed();
 	m_pInviteFrom = pInviteFrom;
 	m_pEvent = _pEvent;
 
 	char aBuf[256];
 	const char *pEventString;
 
-	if(_pEvent == CEvent::EVENT_LMB)
-	{
-		pEventString = "LMB";
-	}
-	else if(_pEvent == CEvent::EVENT_TDM)
+	if(_pEvent == CEvent::EVENT_TDM)
 	{
 		pEventString = "TDM";
 	}
@@ -73,7 +68,7 @@ void BW_CEventHandler::OnTick()
 {
 	if(GameServer()->Server()->Tick() >= m_pExpireTick)
 	{
-		if(m_pJoined.size() >= static_cast<std::vector<CPlayer *>::size_type>(g_Config.m_SvLMBMinPlayer))
+		if(m_pJoined.size() >= static_cast<std::vector<CPlayer *>::size_type>(g_Config.m_SvLMBMinimumCandidates))
 		{
 			StartEvent();
 			Destroy();
@@ -98,7 +93,7 @@ void BW_CEventHandler::OnTick()
 	{
 		if(leftSeconds == 0)
 		{
-			if(m_pJoined.size() >= static_cast<std::vector<CPlayer *>::size_type>(g_Config.m_SvLMBMinPlayer))
+			if(m_pJoined.size() >= static_cast<std::vector<CPlayer *>::size_type>(g_Config.m_SvLMBMinimumCandidates))
 			{
 				str_format(firstLine, sizeof(firstLine), "Event '%s' is starting..", m_pEventString);
 			}
@@ -145,7 +140,7 @@ void BW_CEventHandler::OnTick()
 				       "%d participant%s (min %d)\n"
 				       "Write '/sub' to take part!\n"
 				       "                                                                                                                                                                               ",
-		firstLine, (int)m_pJoined.size(), m_pJoined.size() == 1 ? "" : "s", g_Config.m_SvLMBMinPlayer);
+		firstLine, (int)m_pJoined.size(), m_pJoined.size() == 1 ? "" : "s", g_Config.m_SvLMBMinimumCandidates);
 	GameServer()->SendBroadcast(aBuf, -1, true);
 
 	m_StartTimer--;
@@ -153,16 +148,7 @@ void BW_CEventHandler::OnTick()
 
 void BW_CEventHandler::StartEvent()
 {
-	if(m_pEvent == CEvent::EVENT_LMB)
-	{
-		CLastManBlocking *pLMB = new CLastManBlocking(GameServer());
-		for(CPlayer *pPlayer : m_pJoined)
-		{
-			pLMB->Join(pPlayer, true);
-		}
-		pLMB->Start();
-	}
-	else if(m_pEvent == CEvent::EVENT_TDM)
+	if(m_pEvent == CEvent::EVENT_TDM)
 	{
 		CTeamDeathmatch *pTDM = new CTeamDeathmatch(GameServer());
 		int i = 0;

@@ -28,7 +28,6 @@ public:
 	enum
 	{
 		EVENT_1on1 = 1,
-		EVENT_LMB,
 		EVENT_TDM,
 		EVENT_INVITE
 	};

@@ -138,7 +138,7 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos, bool doEvent)
 	for(CEvent *Event : GameServer()->m_vEvents)
 	{
 		//TODO:: store event types in a bool set, i hate looking at that || shit
-		if((Event->pGetGametype() == CEvent::EVENT_1on1 || Event->pGetGametype() == CEvent::EVENT_LMB || Event->pGetGametype() == CEvent::EVENT_TDM) && !doEvent)
+		if((Event->pGetGametype() == CEvent::EVENT_1on1 || Event->pGetGametype() == CEvent::EVENT_TDM) && !doEvent)
 			continue;
 		Event->OnCharacterSpawn(this);
 	}

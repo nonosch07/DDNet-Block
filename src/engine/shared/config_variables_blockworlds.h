@@ -50,10 +50,6 @@ MACRO_CONFIG_INT(SvLMBFreezeTimeout, sv_lmb_freeze_timeout, 150, 1, 50000, CFGFL
 MACRO_CONFIG_INT(SvLMBBroadcastRate, sv_lmb_broadcast_rate, 50, 1, 500, CFGFLAG_SERVER, "Rate at which information broadcasts will be sent (ticks, 50 ticks = 1 second)") // not related to lmb?
 MACRO_CONFIG_INT(SvLMBMinimumCandidates, sv_lmb_minimum_candidates, 8, 2, MAX_CLIENTS, CFGFLAG_SERVER, "Minimum amount of candidates to start the active phase")
 
-MACRO_CONFIG_INT(SvLMBRegDuration, sv_lmb_reg_duration, 10, 0, 1000, CFGFLAG_SERVER, "Specify the duration during which LMB registration is possible (in seconds)")
-MACRO_CONFIG_INT(SvLMBFreezeTime, sv_lmb_freeze_time, 3, 5, 30, CFGFLAG_SERVER, "Specifies the time required for a player to be frozen in order to die")
-MACRO_CONFIG_INT(SvLMBMinPlayer, sv_lmb_min_player, 8, 2, 64, CFGFLAG_SERVER, "Specifies the minimum number of players required to start")
-MACRO_CONFIG_INT(SvEventWinnerFlagDelay, sv_winner_flag_delay, 5, 1, 20, CFGFLAG_SERVER, "Specifies the maximum duration of the flag (in minutes)")
 // TDM (Team Deathmatch)
 MACRO_CONFIG_INT(SvTDMRegDuration, sv_tdm_reg_duration, 10, 0, 1000, CFGFLAG_SERVER, "Specifies the duration during which TDM registration is possible in seconds")
 MACRO_CONFIG_INT(SvTDMFreezeTime, sv_tdm_freeze_time, 3, 5, 30, CFGFLAG_SERVER, "Specifies the time required for a player to be frozen in order to die")

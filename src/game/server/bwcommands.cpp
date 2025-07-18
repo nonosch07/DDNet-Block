@@ -1166,19 +1166,6 @@ void CGameContext::ConJoinEvent(IConsole::IResult *pResult, void *pUserData)
 	}
 }
 
-void CGameContext::ConCreateLMB(IConsole::IResult *pResult, void *pUserData)
-{
-	CGameContext *pSelf = (CGameContext *)pUserData;
-
-	if(!g_Config.m_SvAccountsystem)
-		return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
-
-	if(pSelf->isInEvent(pResult->m_ClientId))
-		return pSelf->SendChatTarget(pResult->m_ClientId, "You must finish your current event first (Or use '/leave' to leave).");
-
-	new BW_CEventHandler(pSelf, nullptr, CEvent::EVENT_LMB, &pSelf->m_apPlayers);
-}
-
 void CGameContext::ConCreateTDM(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
