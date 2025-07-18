@@ -40,8 +40,11 @@ protected:
 	bool IsCandidate(int ClientId) const;
 	bool IsParticipant(int ClientId) const;
 
+	void CheckFreezeTime();
+
 private:
 	int m_RegistrationEndTick;
+	int m_ActiveStartTick;
 	int m_ActiveEndTick;
 
 	int m_SpawnOffset;
@@ -50,6 +53,8 @@ private:
 	int m_DDRaceTeam;
 
 	int m_Winner;
+
+	std::map<int, int> m_FrozenSince;
 
 	enum FinishingReason
 	{

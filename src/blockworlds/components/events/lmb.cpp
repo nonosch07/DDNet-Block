@@ -14,8 +14,9 @@
 CLastManBlockingEvent::CLastManBlockingEvent(CGameContext *pGameContext) :
 	CEventComponent(pGameContext), m_SpawnOffset(0), m_DDRaceTeam(-1), m_Winner(-1), m_FinishingReason(NATURAL)
 {
-	m_ActiveEndTick = -1;
 	m_RegistrationEndTick = -1;
+	m_ActiveStartTick = -1;
+	m_ActiveEndTick = -1;
 
 	m_SpawnPositions.clear();
 	int Found = CGameContext::GetTilePositions(TILE_BW_LMB_START_POS, GameServer(), m_SpawnPositions);
@@ -72,6 +73,12 @@ void CLastManBlockingEvent::OnTick()
 					"                                                                                     "
 					"                                                                                     "
 					"                                                                                     ");
+
+		if(Server()->Tick() > m_ActiveStartTick + Config()->m_SvLMBInitialFreezeTime * Server()->TickSpeed())
+		{
+			CheckFreezeTime();
+		}
+
 		if(CheckEndCondition())
 			FinishEvent(NATURAL);
 	}
@@ -147,12 +154,14 @@ void CLastManBlockingEvent::StartEvent()
 
 	m_SpawnOffset = 0;
 	m_pSavedPlayers.clear();
+	m_FrozenSince.clear();
 	for(const auto &item : m_Participants)
 	{
 		Join(item);
 		m_SpawnOffset++;
 	}
 
+	m_ActiveStartTick = Server()->Tick();
 	m_ActiveEndTick = Server()->Tick() + Config()->m_SvLMBActiveTime * Server()->TickSpeed();
 
 	SetState(CEventComponent::EEventState::Active);
@@ -267,6 +276,7 @@ bool CLastManBlockingEvent::Join(int ClientId)
 {
 	SavePosition(ClientId);
 
+	m_FrozenSince.insert_or_assign(ClientId, 0);
 	auto *pChar = GameServer()->GetPlayerChar(ClientId);
 	GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, m_DDRaceTeam);
 	pChar->ResetVelocity();
@@ -331,4 +341,38 @@ bool CLastManBlockingEvent::IsCandidate(int ClientId) const
 bool CLastManBlockingEvent::IsParticipant(int ClientId) const
 {
 	return std::find(m_Participants.begin(), m_Participants.end(), ClientId) != m_Participants.end();
+}
+void CLastManBlockingEvent::CheckFreezeTime()
+{
+	auto Participants = m_Participants;
+	for(const auto &item : Participants)
+	{
+		auto *pChar = GameServer()->GetPlayerChar(item);
+		if(!pChar || !pChar->IsAlive())
+			continue;
+		auto FrozenSinceIt = m_FrozenSince.find(item);
+		if(FrozenSinceIt == m_FrozenSince.end())
+		{
+			Leave(item);
+			continue;
+		}
+
+		bool WasFrozenTickBefore = FrozenSinceIt->second != 0;
+		bool IsFrozenNow = pChar->m_FreezeTime;
+		if(IsFrozenNow && !WasFrozenTickBefore)
+		{
+			LogDebug("%d frozen", item);
+			FrozenSinceIt->second = Server()->Tick();
+		}
+		if(!IsFrozenNow && WasFrozenTickBefore)
+		{
+			LogDebug("%d stops being freezed: %d ", item, Server()->Tick() - FrozenSinceIt->second);
+			FrozenSinceIt->second = 0;
+		}
+
+		if(IsFrozenNow && Server()->Tick() - FrozenSinceIt->second >= Config()->m_SvLMBFreezeTimeout)
+		{
+			Leave(item);
+		}
+	}
 }
