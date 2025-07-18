@@ -13,7 +13,7 @@ unsigned long CPromises::GetCallbackHash(std::function<void(std::shared_ptr<void
 
 	const auto Raw = FnCallback.target<void(void *)>();
 	const auto Hash = Raw ?
-				  (size_t)(uintptr_t)(void*)*Raw :
+				  (size_t)(uintptr_t)(void *)*Raw :
 				  FnCallback.target_type().hash_code();
 	return Hash;
 }
@@ -67,10 +67,8 @@ void CPromises::OnShutdown()
 	{
 		auto &Promise = *it;
 		LogDebug("Promise Forcefully Discarded. Callback: %" PRIzu, GetCallbackHash(Promise.m_Callback));
-//		Promise.m_Callback(Promise.m_pUserData);
 		m_Promises.erase(it);
 	}
-
 }
 void CPromises::OnDisable()
 {
@@ -79,7 +77,6 @@ void CPromises::OnDisable()
 	{
 		auto &Promise = *it;
 		LogDebug("Promise Forcefully Discarded. Callback: %" PRIzu, GetCallbackHash(Promise.m_Callback));
-		//		Promise.m_Callback(Promise.m_pUserData);
 		m_Promises.erase(it);
 	}
 }

@@ -20,7 +20,7 @@ std::function<void(TArgs...)> MakeSafeCallback(void (T::*pMemberFunc)(TArgs...),
 {
 	std::weak_ptr<T> pWeakOwner = pOwner;
 	return [pWeakOwner, pMemberFunc](TArgs... args) {
-		if (auto pStrongOwner = pWeakOwner.lock())
+		if(auto pStrongOwner = pWeakOwner.lock())
 		{
 			(pStrongOwner.get()->*pMemberFunc)(std::forward<TArgs>(args)...);
 		}
@@ -31,7 +31,7 @@ std::function<void(TArgs...)> MakeSafeCallback(void (T::*pMemberFunc)(TArgs...),
 {
 	std::weak_ptr<T> pWeakOwner = pOwner;
 	return [pWeakOwner, pMemberFunc](TArgs... args) {
-		if (auto pStrongOwner = pWeakOwner.lock())
+		if(auto pStrongOwner = pWeakOwner.lock())
 		{
 			(pStrongOwner.get()->*pMemberFunc)(std::forward<TArgs>(args)...);
 		}
@@ -49,18 +49,21 @@ template<typename T>
 class ComponentAccessor
 {
 	friend class CComponentRegistry;
+
 public:
-	explicit ComponentAccessor(std::shared_ptr<T> pPtr) : m_pPtr(std::move(pPtr)) {}
-	ComponentAccessor(std::nullptr_t) noexcept : m_pPtr(nullptr) {} // lol
+	explicit ComponentAccessor(std::shared_ptr<T> pPtr) :
+		m_pPtr(std::move(pPtr)) {}
+	ComponentAccessor(std::nullptr_t) noexcept :
+		m_pPtr(nullptr) {} // lol
 
-	ComponentAccessor(const ComponentAccessor&) = delete;
-	ComponentAccessor& operator=(const ComponentAccessor&) = delete;
+	ComponentAccessor(const ComponentAccessor &) = delete;
+	ComponentAccessor &operator=(const ComponentAccessor &) = delete;
 
-	ComponentAccessor(ComponentAccessor&&) noexcept = default;
-	ComponentAccessor& operator=(ComponentAccessor&&) noexcept = default;
+	ComponentAccessor(ComponentAccessor &&) noexcept = default;
+	ComponentAccessor &operator=(ComponentAccessor &&) noexcept = default;
 
-	T* operator->() const noexcept { return m_pPtr.get(); }
-	T& operator*() const noexcept { return *m_pPtr; }
+	T *operator->() const noexcept { return m_pPtr.get(); }
+	T &operator*() const noexcept { return *m_pPtr; }
 
 	explicit operator bool() const noexcept { return m_pPtr != nullptr; }
 

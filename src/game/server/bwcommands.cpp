@@ -10,7 +10,7 @@
 #include <game/server/save.h>
 #include <game/server/teams.h>
 
- #include <blockworlds/accounts.h>
+#include <blockworlds/accounts.h>
 #include <blockworlds/clans.h>
 #include <blockworlds/events/base/eventhandler.h>
 #include <blockworlds/requests/clan_requests/requests.h>
@@ -1220,15 +1220,15 @@ void CGameContext::ConComponentList(IConsole::IResult *pResult, void *pUserData)
 	auto Components = g_ComponentRegistry.All();
 	auto ActiveComponents = g_ComponentRegistry.Active();
 
-	std::unordered_set<CComponent*> MainComponentPtrs;
-	for (const auto& [Type, pSharedComp] : Components)
+	std::unordered_set<CComponent *> MainComponentPtrs;
+	for(const auto &[Type, pSharedComp] : Components)
 	{
 		if(pSharedComp)
 			MainComponentPtrs.insert(&*pSharedComp);
 	}
 
 	dbg_msg("Components", "Registered Components");
-	for(const auto& [Type, pSharedComp] : Components)
+	for(const auto &[Type, pSharedComp] : Components)
 	{
 		auto Name = g_ComponentRegistry.Name(Type);
 		const bool IsActive = (bool)pSharedComp; // lol
@@ -1236,7 +1236,7 @@ void CGameContext::ConComponentList(IConsole::IResult *pResult, void *pUserData)
 	}
 
 	dbg_msg("Components", "Active Sub-Components");
-	for(const auto& pActiveComp : ActiveComponents)
+	for(const auto &pActiveComp : ActiveComponents)
 	{
 		if(MainComponentPtrs.count(&*pActiveComp) == 0)
 			dbg_msg("Components", "[+] %s", pActiveComp->GetName());
@@ -1249,7 +1249,7 @@ void CGameContext::ConComponentPlug(IConsole::IResult *pResult, void *pUserData)
 	str_copy(aName, pResult->GetString(0));
 	str_clean_whitespaces(aName);
 
-	auto pComponent = g_ComponentRegistry.Create(aName, (CGameContext*)pUserData);
+	auto pComponent = g_ComponentRegistry.Create(aName, (CGameContext *)pUserData);
 	if(!pComponent)
 	{
 		dbg_msg("Components", "Component creation failed");

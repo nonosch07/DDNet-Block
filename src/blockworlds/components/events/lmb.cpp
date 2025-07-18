@@ -2,12 +2,12 @@
 
 #include <engine/shared/config.h>
 
-#include <game/teamscore.h>
 #include <game/mapitems.h>
+#include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/gamecontroller.h>
-#include <game/server/entities/character.h>
 #include <game/server/player.h>
+#include <game/teamscore.h>
 
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/promises.h>
@@ -53,7 +53,7 @@ void CLastManBlockingEvent::OpenRegistration()
 	Promises()->AddPromise(
 		Server()->Tick() + Config()->m_SvLMBRegistrationTime * Server()->TickSpeed(),
 		shared_from_this(),
-		[](std::shared_ptr<void> pUserData){
+		[](std::shared_ptr<void> pUserData) {
 			auto pThis = std::static_pointer_cast<CLastManBlockingEvent>(pUserData);
 			pThis->CloseRegistration();
 		});
@@ -120,7 +120,7 @@ void CLastManBlockingEvent::FinishEvent()
 		else
 		{
 			const char *pReason = m_Timelimit <= Server()->Tick() ? "Timelimit" :
-										     "Tie";
+										"Tie";
 
 			GameServer()->SendChatTarget(-1, "No one has won the %s (%s)", GetEventName(), pReason);
 			GameServer()->SendBroadcast(-1, "No one has won the %s (%s)", GetEventName(), pReason);
@@ -138,7 +138,7 @@ void CLastManBlockingEvent::FinishEvent()
 	}
 
 	auto RemainingParticipants = m_Participants;
-	for(const auto& ClientId : RemainingParticipants)
+	for(const auto &ClientId : RemainingParticipants)
 		Leave(ClientId);
 
 	if(m_DDRaceTeam != -1)

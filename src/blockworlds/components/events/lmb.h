@@ -10,7 +10,7 @@ public:
 
 public:
 	[[nodiscard]] const char *GetName() const override { return "LMB"; }
- 	[[nodiscard]] const char *GetEventName() const override { return "LMB"; }
+	[[nodiscard]] const char *GetEventName() const override { return "LMB"; }
 
 	void OnTick() override;
 
@@ -47,7 +47,11 @@ private:
 		NOT_ENOUGH_CANDIDATES,
 		EMERGENCY,
 	} m_FinishingReason;
-	void FinishEvent(FinishingReason Reason) { m_FinishingReason = Reason; FinishEvent(); };
+	void FinishEvent(FinishingReason Reason)
+	{
+		m_FinishingReason = Reason;
+		FinishEvent();
+	};
 
 	std::weak_ptr<class CPromises> m_Promises;
 	[[nodiscard]] std::shared_ptr<class CPromises> Promises() const { return m_Promises.lock(); }

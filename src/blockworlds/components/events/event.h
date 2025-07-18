@@ -12,7 +12,8 @@ class CEventComponent : public CComponent
 public:
 	explicit CEventComponent(CGameContext *pGameServer);
 
-	enum class EEventState {
+	enum class EEventState
+	{
 		Created, // transitional, just created, setting up registration
 		Registration,
 		Preparation, // transitional, registration closed, setting up arena and players
@@ -22,13 +23,12 @@ public:
 	};
 	using FnOnStateChange = std::function<void(EEventState OldState, EEventState NewState)>;
 
-
 protected:
 	EEventState m_State = EEventState::Created;
 	FnOnStateChange m_pfnOnStateChange;
 	void SetState(EEventState NewState);
 
-	std::map<int, class CSaveTee*> m_pSavedPlayers;
+	std::map<int, class CSaveTee *> m_pSavedPlayers;
 
 	std::vector<int> m_Candidates;
 	std::vector<int> m_Participants;
@@ -56,12 +56,16 @@ public:
 	virtual bool Join(int ClientId) = 0;
 	virtual bool Leave(int ClientId) = 0;
 
-	virtual void EmergencyShutdown(const char *pMsg) { str_copy(m_EmergencyMessage, pMsg); m_EmergencyShutdown = true; };
+	virtual void EmergencyShutdown(const char *pMsg)
+	{
+		str_copy(m_EmergencyMessage, pMsg);
+		m_EmergencyShutdown = true;
+	};
 	const char *GetEmergencyMessage() const { return m_EmergencyMessage; };
 	bool EmergencyShutdown() const { return m_EmergencyShutdown; };
 
-	[[nodiscard]] const std::vector<int>& Participants() const { return m_Participants; }
-	[[nodiscard]] const std::vector<int>& Candidates() const { return m_Candidates; }
+	[[nodiscard]] const std::vector<int> &Participants() const { return m_Participants; }
+	[[nodiscard]] const std::vector<int> &Candidates() const { return m_Candidates; }
 	[[nodiscard]] int GetStartTick() const { return m_StartTick; }
 	[[nodiscard]] EEventState GetState() const { return m_State; }
 	[[nodiscard]] const char *GetStateName() const;

@@ -1,15 +1,15 @@
 #ifndef BLOCKWORLDS_COMPONENTS_CORE_COMPONENT_H
 #define BLOCKWORLDS_COMPONENTS_CORE_COMPONENT_H
 
-#include <base/vmath.h>
 #include <base/system.h>
+#include <base/vmath.h>
 
 #include <blockworlds/utils/memory.h>
 
+#include <memory>
 #include <typeindex>
 #include <utility>
 #include <vector>
-#include <memory>
 
 class CComponent
 {
@@ -27,12 +27,12 @@ public:
 	virtual ~CComponent() = default;
 
 	// TODO
-//	struct SComponentDependency {
-//		std::type_index m_Type;
-//		bool m_Required;
-//	};
-//	virtual std::vector<SComponentDependency> GetDependencies() const { return {}; };
-//	virtual void InjectDependency(const std::type_index& Type, CComponent* pComponent) {};
+	//	struct SComponentDependency {
+	//		std::type_index m_Type;
+	//		bool m_Required;
+	//	};
+	//	virtual std::vector<SComponentDependency> GetDependencies() const { return {}; };
+	//	virtual void InjectDependency(const std::type_index& Type, CComponent* pComponent) {};
 
 	[[nodiscard]] virtual std::vector<ComponentAccessor<CComponent>> GetSubComponents() const { return {}; }; // basically, it's set of components that are not registered, but require ticking, like events
 
@@ -40,13 +40,13 @@ public:
 	[[nodiscard]] virtual bool IsDebug() const;
 
 	template<typename... TArgs>
-	void Log(const char* pFmt, TArgs&&... Args) const
+	void Log(const char *pFmt, TArgs &&...Args) const
 	{
 		dbg_msg(GetName(), pFmt, std::forward<TArgs>(Args)...);
 	}
 
 	template<typename... TArgs>
-	void LogDebug(const char* pFmt, TArgs&&... Args) const
+	void LogDebug(const char *pFmt, TArgs &&...Args) const
 	{
 		if(IsDebug())
 		{

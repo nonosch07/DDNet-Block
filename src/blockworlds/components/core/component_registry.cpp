@@ -24,7 +24,7 @@ ComponentAccessor<CComponent> CComponentRegistry::Create(const std::string &Name
 
 ComponentAccessor<CComponent> CComponentRegistry::Get(std::type_index Type)
 {
-	if (auto it = m_Components.find(Type); it != m_Components.end())
+	if(auto it = m_Components.find(Type); it != m_Components.end())
 		return ComponentAccessor(it->second);
 	return nullptr;
 }
@@ -38,7 +38,7 @@ ComponentAccessor<CComponent> CComponentRegistry::Get(const std::string &Name)
 
 bool CComponentRegistry::Remove(std::type_index Type)
 {
-	if (auto it = m_Components.find(Type); it != m_Components.end())
+	if(auto it = m_Components.find(Type); it != m_Components.end())
 	{
 		it->second->OnConsoleTerminate();
 		it->second->OnDisable();

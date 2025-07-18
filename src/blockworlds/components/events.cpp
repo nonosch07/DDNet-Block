@@ -126,12 +126,11 @@ void CEvents::ConEventsStart(IConsole::IResult *pResult, void *pUserData)
 	}
 
 	// Don't ask, just believe
-	auto pThisShared = ((CEvents*)pUserData)->Registry()->Get<CEvents>();
+	auto pThisShared = ((CEvents *)pUserData)->Registry()->Get<CEvents>();
 	pThis->m_pActiveEvent = it->second(pThis->GameServer());
 	pThis->m_pActiveEvent->SetStateChangeCallback(
-		MakeSafeCallback(&CEvents::OnEventStateChange, pThisShared.Store())
-	);
-	pThis->m_pActiveEvent->SetStateChangeCallback([pThis](auto OldState, auto NewState){ pThis->OnEventStateChange(OldState, NewState); });
+		MakeSafeCallback(&CEvents::OnEventStateChange, pThisShared.Store()));
+	pThis->m_pActiveEvent->SetStateChangeCallback([pThis](auto OldState, auto NewState) { pThis->OnEventStateChange(OldState, NewState); });
 	if(!pThis->m_pActiveEvent->EmergencyShutdown())
 		pThis->m_pActiveEvent->OpenRegistration();
 }

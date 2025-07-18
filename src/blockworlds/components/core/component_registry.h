@@ -15,7 +15,7 @@
 class CComponentRegistry final
 {
 public:
-	using FnFactory = std::function<std::shared_ptr<CComponent>(class CGameContext*)>;
+	using FnFactory = std::function<std::shared_ptr<CComponent>(class CGameContext *)>;
 
 private:
 	std::unordered_map<std::type_index, FnFactory> m_TypeToFactory;

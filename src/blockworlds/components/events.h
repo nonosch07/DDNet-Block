@@ -38,7 +38,7 @@ private:
 	std::shared_ptr<CEventComponent> m_pActiveEvent;
 	std::shared_ptr<CEventComponent> m_pEventToDelete;
 
-	using FnFactory = std::function<std::shared_ptr<CEventComponent>(class CGameContext*)>;
+	using FnFactory = std::function<std::shared_ptr<CEventComponent>(class CGameContext *)>;
 	std::map<std::string, FnFactory> m_EventsFactory;
 
 	void OnEventStateChange(CEventComponent::EEventState OldState, CEventComponent::EEventState NewState);
