@@ -293,6 +293,37 @@ void CLastManBlockingEvent::EmergencyShutdown(const char *pMsg)
 	if(GetState() != CEventComponent::EEventState::Finished)
 		FinishEvent(EMERGENCY);
 }
+
+void CLastManBlockingEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
+{
+	if(GetState() == CEventComponent::EEventState::Active)
+	{
+		if(IsParticipant(ClientId))
+		{
+			Leave(ClientId);
+			GameServer()->SendChatTarget(ClientId, "You was disqualified!");
+			GameServer()->SendBroadcast(ClientId, "You was disqualified!");
+		}
+	}
+}
+void CLastManBlockingEvent::OnPlayerDropping(int ClientId)
+{
+	if(GetState() == CEventComponent::EEventState::Active)
+	{
+		if(IsParticipant(ClientId))
+		{
+			Leave(ClientId);
+		}
+	}
+	else if(GetState() == CEventComponent::EEventState::Registration)
+	{
+		if(IsCandidate(ClientId))
+		{
+			DeRegister(ClientId);
+		}
+	}
+}
+
 bool CLastManBlockingEvent::IsCandidate(int ClientId) const
 {
 	return std::find(m_Candidates.begin(), m_Candidates.end(), ClientId) != m_Candidates.end();

@@ -13,6 +13,11 @@ public:
 	[[nodiscard]] const char *GetEventName() const override { return "LMB"; }
 
 	void OnTick() override;
+	void OnSnapClientInfo(int ClientId, int SnappingClient, class CNetObj_ClientInfo *pClientInfo) override;
+	void OnSnapPlayerInfo(int ClientId, int SnappingClient, class CNetObj_PlayerInfo *pPlayerInfo) override;
+
+	void OnCharacterSpawn(int ClientId, vec2 SpawnPos) override;
+	void OnPlayerDropping(int ClientId) override;
 
 	void OpenRegistration() override;
 	void CloseRegistration() override;
