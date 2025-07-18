@@ -16,6 +16,7 @@
 #include <game/gamecore.h>
 #include <game/teamscore.h>
 
+#include <blockworlds/common.h>
 #include <blockworlds/accounts.h>
 #include <blockworlds/clans.h>
 
@@ -1389,23 +1390,23 @@ void CPlayer::CalculateExpMultiplier()
 	float Multiplier = 0;
 	switch(g_Config.m_SvBlockExperienceMultiplierStacking) // TODO: add enum
 	{
-	case 1: // highest
+	case HIGHEST: // highest
 		m_CurrentExpMultiplier = (float)(m_ExpModifiers.begin()->first)/100.f;
 		break;
-	case 2: // additive
+	case ADDITIVE: // additive
 		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &item) {
 			Multiplier += (item.first-100)/100.f;
 		});
 		m_CurrentExpMultiplier = Multiplier;
 		break;
-	case 3: // logarithmic
+	case LOGARITHMIC: // logarithmic
 		Multiplier = 1;
 		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &item) {
 			Multiplier *= (item.first-100)/100.f;
 		});
 		m_CurrentExpMultiplier = log2f(Multiplier);
 		break;
-	case 4: // multiplicative
+	case MULTIPLICATIVE: // multiplicative
 		Multiplier = 1;
 		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &item) {
 			Multiplier *= (item.first-100)/100.f;
