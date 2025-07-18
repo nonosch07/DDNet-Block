@@ -63,6 +63,9 @@ public:
 	virtual void OnConsoleTerminate() {}
 	virtual void OnShutdown() {}
 
+	virtual void OnSnapClientInfo(int ClientId, int SnappingClient, class CNetObj_ClientInfo *pClientInfo) {}
+	virtual void OnSnapPlayerInfo(int ClientId, int SnappingClient, class CNetObj_PlayerInfo *pPlayerInfo) {}
+
 	virtual void OnPlayerEntering(int ClientId) {}
 	virtual void OnPlayerEnter(int ClientId) {}
 	virtual void OnPlayerDropping(int ClientId) {}

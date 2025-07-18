@@ -18,8 +18,8 @@
 
 #include <blockworlds/accounts.h>
 #include <blockworlds/clans.h>
-#include <blockworlds/cosmetics/animations.h>
-#include <blockworlds/cosmetics/cosmetics.h>
+
+#include <blockworlds/components/core/component_registry.h>
 
 MACRO_ALLOC_POOL_ID_IMPL(CPlayer, MAX_CLIENTS)
 
@@ -403,6 +403,9 @@ void CPlayer::Snap(int SnappingClient)
 	if(GetSkinMani() != -1)
 		GameServer()->Cosmetics()->SnapSkinmani(m_ClientId, m_DieTick, pClientInfo);
 
+	for(const auto &item : g_ComponentRegistry.Active())
+		item->OnSnapClientInfo(GetCid(), SnappingClient, pClientInfo);
+
 	int SnappingClientVersion = GameServer()->GetClientVersion(SnappingClient);
 	int Latency = SnappingClient == SERVER_DEMO_CLIENT ? m_Latency.m_Min : GameServer()->m_apPlayers[SnappingClient]->m_aCurLatency[m_ClientId];
 
@@ -456,6 +459,9 @@ void CPlayer::Snap(int SnappingClient)
 			// In older versions the SPECTATORS TEAM was also used if the own player is in PAUSE_PAUSED or if any player is in PAUSE_SPEC.
 			pPlayerInfo->m_Team = (m_Paused != PAUSE_PAUSED || m_ClientId != SnappingClient) && m_Paused < PAUSE_SPEC ? m_Team : TEAM_SPECTATORS;
 		}
+
+		for(const auto &item : g_ComponentRegistry.Active())
+			item->OnSnapClientInfo(GetCid(), SnappingClient, pClientInfo);
 	}
 	else
 	{
