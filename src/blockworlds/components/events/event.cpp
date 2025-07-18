@@ -49,6 +49,7 @@ void CEventComponent::LoadPosition(int ClientId)
 	if(it != m_pSavedPlayers.end())
 	{
 		it->second->Load(pChar, TEAM_FLOCK, false);
+		pChar->ResetVelocity();
 		m_pSavedPlayers.erase(it);
 	}
 	else if(pChar->IsAlive())
