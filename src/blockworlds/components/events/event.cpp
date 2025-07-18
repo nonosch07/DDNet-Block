@@ -10,7 +10,6 @@ CEventComponent::CEventComponent(CGameContext *pGameServer) :
 	CComponent(pGameServer)
 {
 	m_State = EEventState::Created;
-	m_StartTick = 0;
 
 	m_EmergencyShutdown = false;
 	m_EmergencyMessage[0] = '\0';

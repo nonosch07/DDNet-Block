@@ -23,7 +23,6 @@ public:
 
 	bool CheckEndCondition() override;
 
-	bool CanPlayerRegister(int ClientId) const override;
 	bool Register(int ClientId) override;
 	bool DeRegister(int ClientId) override;
 
@@ -31,6 +30,10 @@ public:
 	bool Leave(int ClientId) override;
 
 	void EmergencyShutdown(const char *pMsg) override;
+
+protected:
+	bool IsCandidate(int ClientId) const;
+	bool IsParticipant(int ClientId) const;
 
 private:
 	int m_RegistrationEndTick;

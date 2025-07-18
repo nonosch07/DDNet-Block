@@ -32,7 +32,6 @@ protected:
 
 	std::vector<int> m_Candidates;
 	std::vector<int> m_Participants;
-	int m_StartTick;
 
 	bool m_EmergencyShutdown;
 	char m_EmergencyMessage[256];
@@ -49,7 +48,6 @@ public:
 
 	virtual bool CheckEndCondition() = 0;
 
-	[[nodiscard]] virtual bool CanPlayerRegister(int ClientId) const = 0;
 	virtual bool Register(int ClientId) = 0;
 	virtual bool DeRegister(int ClientId) = 0;
 
@@ -66,7 +64,6 @@ public:
 
 	[[nodiscard]] const std::vector<int> &Participants() const { return m_Participants; }
 	[[nodiscard]] const std::vector<int> &Candidates() const { return m_Candidates; }
-	[[nodiscard]] int GetStartTick() const { return m_StartTick; }
 	[[nodiscard]] EEventState GetState() const { return m_State; }
 	[[nodiscard]] const char *GetStateName() const;
 	[[nodiscard]] static const char *GetStateName(EEventState State);

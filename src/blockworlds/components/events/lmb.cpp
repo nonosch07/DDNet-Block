@@ -225,30 +225,39 @@ bool CLastManBlockingEvent::CheckEndCondition()
 	return false;
 }
 
-bool CLastManBlockingEvent::CanPlayerRegister(int ClientId) const
+bool CLastManBlockingEvent::Register(int ClientId)
 {
 	if(!CheckClientId(ClientId))
 		return false;
 	if(GetState() != CEventComponent::EEventState::Registration)
+	{
+		GameServer()->SendChatTarget(ClientId, "Registration phase is over!");
 		return false;
-	if(std::find(Candidates().begin(), Candidates().end(), ClientId) != Candidates().end())
+	}
+	if(IsCandidate(ClientId))
+	{
+		GameServer()->SendChatTarget(ClientId, "You already registered to participate.");
 		return false;
-	return true;
-}
+	}
 
-bool CLastManBlockingEvent::Register(int ClientId)
-{
-	if(!CanPlayerRegister(ClientId))
-		return false;
 	m_Candidates.push_back(ClientId);
 	GameServer()->SendChatTarget(ClientId, "You successfully joined %s!", GetEventName());
 	return true;
 }
 bool CLastManBlockingEvent::DeRegister(int ClientId)
 {
-	auto ClientIdIt = std::find(Participants().begin(), Participants().end(), ClientId);
-	if(ClientIdIt == Participants().end())
+	if(GetState() != CEventComponent::EEventState::Registration)
+	{
+		GameServer()->SendChatTarget(ClientId, "Registration phase is over!");
 		return false;
+	}
+	auto ClientIdIt = std::find(Candidates().begin(), Candidates().end(), ClientId);
+	if(ClientIdIt == Candidates().end())
+	{
+		GameServer()->SendChatTarget(ClientId, "You aren't registered to participate.");
+		return false;
+	}
+
 	m_Candidates.erase(ClientIdIt);
 	GameServer()->SendChatTarget(ClientId, "You successfully left %s.", GetEventName());
 	return true;
@@ -284,4 +293,12 @@ void CLastManBlockingEvent::EmergencyShutdown(const char *pMsg)
 	CEventComponent::EmergencyShutdown(pMsg);
 	if(GetState() != CEventComponent::EEventState::Finished)
 		FinishEvent(EMERGENCY);
+}
+bool CLastManBlockingEvent::IsCandidate(int ClientId) const
+{
+	return std::find(m_Candidates.begin(), m_Candidates.end(), ClientId) != m_Candidates.end();
+}
+bool CLastManBlockingEvent::IsParticipant(int ClientId) const
+{
+	return std::find(m_Participants.begin(), m_Participants.end(), ClientId) != m_Participants.end();
 }
