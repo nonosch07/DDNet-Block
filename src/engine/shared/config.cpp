@@ -9,6 +9,8 @@
 #include <engine/shared/protocol.h>
 #include <engine/storage.h>
 
+#include <blockworlds/common.h>
+
 CConfig g_Config;
 
 // ----------------------- Config Variables
