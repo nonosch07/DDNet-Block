@@ -42,11 +42,66 @@ void CLastManBlockingEvent::OnTick()
 			return;
 		}
 
+		// TODO: broadcast manager
+		if(Server()->Tick() % Config()->m_SvLMBBroadcastRate == 0)
+		{
+			GameServer()->SendBroadcast(-1, "%s is about to start!\n"
+							"Register with /join\n"
+							"Time left: %d seconds\n\n"
+							"Candidates: %" PRIzu "\n\n"
+							"%s\n"
+							"%s",
+				GetEventName(),
+				(int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()),
+				Candidates().size(),
+				Candidates().size() < 2 ? "Not enough candidates!" : "",
+				"                                                                                     "
+				"                                                                                     "
+				"                                                                                     ");
+		}
 	}
 	else if(GetState() == CEventComponent::EEventState::Active)
 	{
+		if(Server()->Tick() % Config()->m_SvLMBBroadcastRate == 0)
+			for(const auto &item : Participants())
+				GameServer()->SendBroadcast(item, "Participants left: %" PRIzu "\n"
+								  "Time left: %d seconds\n"
+								  "%s",
+					Participants().size(),
+					(int)((m_ActiveEndTick - Server()->Tick()) / Server()->TickSpeed()),
+					"                                                                                     "
+					"                                                                                     "
+					"                                                                                     ");
 		if(CheckEndCondition())
 			FinishEvent(NATURAL);
+	}
+}
+
+void CLastManBlockingEvent::OnSnapClientInfo(int ClientId, int SnappingClient, struct CNetObj_ClientInfo *pClientInfo)
+{
+	if(GetState() != CEventComponent::EEventState::Active)
+		return;
+
+	if(!Server()->ClientAuthed(ClientId) && IsParticipant(SnappingClient))
+	{
+		StrToInts(&pClientInfo->m_Name0, 4, " ");
+		StrToInts(&pClientInfo->m_Clan0, 3, " ");
+		StrToInts(&pClientInfo->m_Skin0, 6, "default");
+		pClientInfo->m_Country = 0;
+		pClientInfo->m_UseCustomColor = false;
+		pClientInfo->m_ColorBody = 0;
+		pClientInfo->m_ColorFeet = 0;
+	}
+}
+
+void CLastManBlockingEvent::OnSnapPlayerInfo(int ClientId, int SnappingClient, struct CNetObj_PlayerInfo *pPlayerInfo)
+{
+	if(GetState() != CEventComponent::EEventState::Active)
+		return;
+
+	if(IsParticipant(ClientId) && IsParticipant(SnappingClient))
+	{
+		pPlayerInfo->m_Score = 0;
 	}
 }
 
@@ -87,7 +142,7 @@ void CLastManBlockingEvent::StartEvent()
 		EmergencyShutdown("No free team was found");
 		return;
 	}
-	Teams.SetTeamLock(m_DDRaceTeam, true);
+	Teams.SetTeamLock(m_DDRaceTeam, false);
 	Teams.SetTeamInvitesOpen(m_DDRaceTeam, false);
 
 	m_SpawnOffset = 0;
@@ -220,7 +275,7 @@ bool CLastManBlockingEvent::Leave(int ClientId)
 		return false;
 	m_Participants.erase(ClientIdIt);
 	LoadPosition(ClientId);
-	GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, TEAM_FLOCK);
+
 	return true;
 }
 
