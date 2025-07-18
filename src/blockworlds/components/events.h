@@ -30,6 +30,9 @@ protected:
 	static void ConEventsForceNextState(IConsole::IResult *pResult, void *pUserData);
 	static void ConEventsForceEnd(IConsole::IResult *pResult, void *pUserData);
 
+	static void ConJoin(IConsole::IResult *pResult, void *pUserData);
+	static void ConLeave(IConsole::IResult *pResult, void *pUserData);
+
 public:
 	explicit CEvents(CGameContext *pGameServer);
 	~CEvents() override;

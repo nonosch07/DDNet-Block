@@ -3,6 +3,8 @@
 #include <engine/server.h>
 #include <engine/shared/config.h>
 
+#include <game/server/gamecontext.h>
+
 #include <blockworlds/utils/memory.h>
 
 #include <blockworlds/components/core/component_registry.h>
@@ -48,7 +50,11 @@ void CEvents::OnDisable()
 	DEF("events_list", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsList, this, "") \
 	DEF("events_start", "r[name]", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsStart, this, "") \
 	DEF("events_next_stage", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsForceNextState, this, "") \
-	DEF("events_end", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsForceEnd, this, "")
+	DEF("events_end", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsForceEnd, this, "")  \
+                                  \
+	DEF("join", "", CFGFLAG_SERVER | CFGFLAG_CHAT | CFGFLAG_ANNOUNCE, ConJoin, this, "")  \
+	DEF("leave", "", CFGFLAG_SERVER | CFGFLAG_CHAT | CFGFLAG_ANNOUNCE, ConLeave, this, "")
+
 
 void CEvents::OnConsoleInit()
 {
@@ -98,7 +104,6 @@ void CEvents::ConEventsStatus(IConsole::IResult *pResult, void *pUserData)
 	pThis->Log("State: %s", pThis->m_pActiveEvent ? pThis->m_pActiveEvent->GetStateName() : "none");
 	pThis->Log("Candidates: %" PRIzu, pThis->m_pActiveEvent ? pThis->m_pActiveEvent->Candidates().size() : 0);
 	pThis->Log("Participants: %" PRIzu, pThis->m_pActiveEvent ? pThis->m_pActiveEvent->Participants().size() : 0);
-	pThis->Log("Started: %d seconds ago", pThis->m_pActiveEvent ? ((pThis->Server()->Tick() - pThis->m_pActiveEvent->GetStartTick()) / pThis->Server()->TickSpeed()) : 0);
 }
 void CEvents::ConEventsList(IConsole::IResult *pResult, void *pUserData)
 {
@@ -141,6 +146,31 @@ void CEvents::ConEventsForceNextState(IConsole::IResult *pResult, void *pUserDat
 void CEvents::ConEventsForceEnd(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pThis = (CEvents *)pUserData;
+}
+
+void CEvents::ConJoin(IConsole::IResult *pResult, void *pUserData)
+{
+	auto *pThis = (CEvents *)pUserData;
+
+	if(pThis->m_pActiveEvent)
+	{
+		pThis->m_pActiveEvent->Register(pResult->m_ClientId);
+		return;
+	}
+
+	pThis->GameServer()->SendChatTarget(pResult->m_ClientId, "No active event at this time");
+}
+void CEvents::ConLeave(IConsole::IResult *pResult, void *pUserData)
+{
+	auto *pThis = (CEvents *)pUserData;
+
+	if(pThis->m_pActiveEvent)
+	{
+		pThis->m_pActiveEvent->DeRegister(pResult->m_ClientId);
+		return;
+	}
+
+	pThis->GameServer()->SendChatTarget(pResult->m_ClientId, "No active event at this time");
 }
 
 void CEvents::OnEventStateChange(CEventComponent::EEventState OldState, CEventComponent::EEventState NewState)
