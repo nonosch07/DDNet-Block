@@ -10,23 +10,18 @@
 #include <game/teamscore.h>
 
 #include <blockworlds/components/core/component_registry.h>
-#include <blockworlds/components/promises.h>
 
 CLastManBlockingEvent::CLastManBlockingEvent(CGameContext *pGameContext) :
-	CEventComponent(pGameContext), m_SpawnOffset(0), m_Timelimit(-1), m_DDRaceTeam(-1), m_Winner(-1), m_FinishingReason(NATURAL)
+	CEventComponent(pGameContext), m_SpawnOffset(0), m_DDRaceTeam(-1), m_Winner(-1), m_FinishingReason(NATURAL)
 {
+	m_ActiveEndTick = -1;
+	m_RegistrationEndTick = -1;
+
 	m_SpawnPositions.clear();
 	int Found = CGameContext::GetTilePositions(TILE_BW_LMB_START_POS, GameServer(), m_SpawnPositions);
 	if(Found == 0)
 	{
 		EmergencyShutdown("Map has no LMB start tiles");
-		return;
-	}
-
-	m_Promises = Registry()->Get<CPromises>().Store();
-	if(!m_Promises.lock())
-	{
-		EmergencyShutdown("Promises are not plugged in");
 		return;
 	}
 }
@@ -39,24 +34,28 @@ void CLastManBlockingEvent::OnTick()
 		return;
 	}
 
-	if(GetState() != CEventComponent::EEventState::Active)
-		return;
+	if(GetState() == CEventComponent::EEventState::Registration)
+	{
+		if(Server()->Tick() >= m_RegistrationEndTick)
+		{
+			CloseRegistration();
+			return;
+		}
 
-	if(CheckEndCondition())
-		FinishEvent(NATURAL);
+	}
+	else if(GetState() == CEventComponent::EEventState::Active)
+	{
+		if(CheckEndCondition())
+			FinishEvent(NATURAL);
+	}
 }
 
 void CLastManBlockingEvent::OpenRegistration()
 {
 	m_Candidates.clear();
+	m_RegistrationEndTick = Server()->Tick() + Config()->m_SvLMBRegistrationTime * Server()->TickSpeed();
+
 	SetState(CEventComponent::EEventState::Registration);
-	Promises()->AddPromise(
-		Server()->Tick() + Config()->m_SvLMBRegistrationTime * Server()->TickSpeed(),
-		shared_from_this(),
-		[](std::shared_ptr<void> pUserData) {
-			auto pThis = std::static_pointer_cast<CLastManBlockingEvent>(pUserData);
-			pThis->CloseRegistration();
-		});
 }
 void CLastManBlockingEvent::CloseRegistration()
 {
@@ -99,9 +98,9 @@ void CLastManBlockingEvent::StartEvent()
 		m_SpawnOffset++;
 	}
 
+	m_ActiveEndTick = Server()->Tick() + Config()->m_SvLMBActiveTime * Server()->TickSpeed();
+
 	SetState(CEventComponent::EEventState::Active);
-	m_StartTick = Server()->Tick();
-	m_Timelimit = m_StartTick + Config()->m_SvLMBActiveTime * Server()->TickSpeed();
 }
 void CLastManBlockingEvent::FinishEvent()
 {
@@ -119,7 +118,7 @@ void CLastManBlockingEvent::FinishEvent()
 		}
 		else
 		{
-			const char *pReason = m_Timelimit <= Server()->Tick() ? "Timelimit" :
+			const char *pReason = m_ActiveEndTick <= Server()->Tick() ? "Timelimit" :
 										"Tie";
 
 			GameServer()->SendChatTarget(-1, "No one has won the %s (%s)", GetEventName(), pReason);
@@ -153,7 +152,7 @@ void CLastManBlockingEvent::ForceNextStage()
 
 bool CLastManBlockingEvent::CheckEndCondition()
 {
-	if(Server()->Tick() > m_StartTick + m_Timelimit)
+	if(Server()->Tick() > m_ActiveEndTick)
 	{
 		m_Winner = -1;
 		return true;

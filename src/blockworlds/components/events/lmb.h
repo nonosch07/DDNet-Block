@@ -33,10 +33,12 @@ public:
 	void EmergencyShutdown(const char *pMsg) override;
 
 private:
+	int m_RegistrationEndTick;
+	int m_ActiveEndTick;
+
 	int m_SpawnOffset;
 	std::vector<vec2> m_SpawnPositions;
 
-	int m_Timelimit; // end tick
 	int m_DDRaceTeam;
 
 	int m_Winner;
@@ -52,9 +54,6 @@ private:
 		m_FinishingReason = Reason;
 		FinishEvent();
 	};
-
-	std::weak_ptr<class CPromises> m_Promises;
-	[[nodiscard]] std::shared_ptr<class CPromises> Promises() const { return m_Promises.lock(); }
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_LMB_H
