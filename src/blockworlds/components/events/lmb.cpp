@@ -265,8 +265,7 @@ bool CLastManBlockingEvent::DeRegister(int ClientId)
 
 bool CLastManBlockingEvent::Join(int ClientId)
 {
-	for(const auto &item : m_Participants)
-		SavePosition(item);
+	SavePosition(ClientId);
 
 	auto *pChar = GameServer()->GetPlayerChar(ClientId);
 	GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, m_DDRaceTeam);
