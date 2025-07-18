@@ -16,10 +16,11 @@
 #include <game/gamecore.h>
 #include <game/teamscore.h>
 
-#include <game/server/blockworlds/accounts.h>
-#include <game/server/blockworlds/clans.h>
-#include <game/server/blockworlds/cosmetics/animations.h>
-#include <game/server/blockworlds/cosmetics/cosmetics.h>
+#include <blockworlds/common.h>
+#include <blockworlds/accounts.h>
+#include <blockworlds/clans.h>
+
+#include <blockworlds/components/core/component_registry.h>
 
 MACRO_ALLOC_POOL_ID_IMPL(CPlayer, MAX_CLIENTS)
 
@@ -159,6 +160,8 @@ void CPlayer::Reset()
 	m_RescueMode = RESCUEMODE_AUTO;
 
 	GameServer()->m_pController->m_BlockTracker.StopTrackPlayer(m_ClientId);
+	m_ExpModifiers.clear();
+	CalculateExpMultiplier();
 }
 
 static int PlayerFlags_SixToSeven(int Flags)
@@ -312,6 +315,21 @@ void CPlayer::Tick()
 			m_ClanSaveCooldown = Server()->Tick();
 		}
 	}
+
+	{
+		bool RecalculationNeeded = false;
+		auto it = m_ExpModifiers.begin();
+		for(; it != m_ExpModifiers.end(); ) {
+			if (it->second >= Server()->Tick()) {
+				it = m_ExpModifiers.erase(it);
+				RecalculationNeeded = true;
+			} else {
+				++it;
+			}
+		}
+		if(RecalculationNeeded)
+			CalculateExpMultiplier();
+	}
 }
 
 void CPlayer::PostTick()
@@ -386,6 +404,9 @@ void CPlayer::Snap(int SnappingClient)
 	if(GetSkinMani() != -1)
 		GameServer()->Cosmetics()->SnapSkinmani(m_ClientId, m_DieTick, pClientInfo);
 
+	for(const auto &item : g_ComponentRegistry.Active())
+		item->OnSnapClientInfo(GetCid(), SnappingClient, pClientInfo);
+
 	int SnappingClientVersion = GameServer()->GetClientVersion(SnappingClient);
 	int Latency = SnappingClient == SERVER_DEMO_CLIENT ? m_Latency.m_Min : GameServer()->m_apPlayers[SnappingClient]->m_aCurLatency[m_ClientId];
 
@@ -439,6 +460,9 @@ void CPlayer::Snap(int SnappingClient)
 			// In older versions the SPECTATORS TEAM was also used if the own player is in PAUSE_PAUSED or if any player is in PAUSE_SPEC.
 			pPlayerInfo->m_Team = (m_Paused != PAUSE_PAUSED || m_ClientId != SnappingClient) && m_Paused < PAUSE_SPEC ? m_Team : TEAM_SPECTATORS;
 		}
+
+		for(const auto &item : g_ComponentRegistry.Active())
+			item->OnSnapClientInfo(GetCid(), SnappingClient, pClientInfo);
 	}
 	else
 	{
@@ -1308,8 +1332,10 @@ void CPlayer::OnPlayerLogout()
 	m_Account = CAccountData();
 }
 
-void CPlayer::AddPlayerExp(int Amount)
+void CPlayer::AddPlayerExp(int Amount, bool ApplyMultiplier)
 {
+	if(ApplyMultiplier)
+		Amount = (int)((float)Amount * GetExpMultiplier());
 	m_Account.m_Experience += Amount;
 
 	if(GetPlayerExperience() >= NeededAccountExp(GetPlayerLevel()))
@@ -1336,9 +1362,57 @@ void CPlayer::AddPlayerExp(int Amount)
 			GameServer()->SendChatTarget(m_ClientId, aBuf);
 		}
 
-		AddPlayerExp(ExcessiveExp);
+		AddPlayerExp(ExcessiveExp, false);
 
 		OnPlayerSave(false);
+	}
+}
+
+void CPlayer::AddExpMultiplier(float Modifier, int Duration)
+{
+	AddExpMultiplier((int)(Modifier*100), Duration);
+}
+void CPlayer::AddExpMultiplier(int ModifierPercent, int Duration)
+{
+	auto it = m_ExpModifiers.find(ModifierPercent);
+	if(it == m_ExpModifiers.end())
+		m_ExpModifiers.emplace(ModifierPercent, Server()->Tick() + Duration * Server()->TickSpeed());
+	else
+		it->second += Duration * Server()->TickSpeed();
+
+	CalculateExpMultiplier();
+}
+void CPlayer::CalculateExpMultiplier()
+{
+	if(m_ExpModifiers.empty())
+		m_CurrentExpMultiplier = 1;
+
+	float Multiplier = 0;
+	switch(g_Config.m_SvBlockExperienceMultiplierStacking) // TODO: add enum
+	{
+	case HIGHEST: // highest
+		m_CurrentExpMultiplier = (float)(m_ExpModifiers.begin()->first)/100.f;
+		break;
+	case ADDITIVE: // additive
+		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &item) {
+			Multiplier += (item.first-100)/100.f;
+		});
+		m_CurrentExpMultiplier = Multiplier;
+		break;
+	case LOGARITHMIC: // logarithmic
+		Multiplier = 1;
+		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &item) {
+			Multiplier *= (item.first-100)/100.f;
+		});
+		m_CurrentExpMultiplier = log2f(Multiplier);
+		break;
+	case MULTIPLICATIVE: // multiplicative
+		Multiplier = 1;
+		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &item) {
+			Multiplier *= (item.first-100)/100.f;
+		});
+		m_CurrentExpMultiplier = Multiplier;
+		break;
 	}
 }
 

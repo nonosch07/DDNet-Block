@@ -30,6 +30,7 @@ void CGameTeams::Reset()
 
 	for(int i = 0; i < NUM_DDRACE_TEAMS; ++i)
 	{
+		m_aTeamInvitesOpen[i] = true;
 		m_aTeamState[i] = TEAMSTATE_EMPTY;
 		m_aTeamLocked[i] = false;
 		m_aTeamFlock[i] = false;
@@ -1174,15 +1175,19 @@ void CGameTeams::ResetInvited(int Team)
 	m_aInvited[Team].reset();
 }
 
-void CGameTeams::SetClientInvited(int Team, int ClientId, bool Invited)
+bool CGameTeams::SetClientInvited(int Team, int ClientId, bool Invited)
 {
 	if(Team > TEAM_FLOCK && Team < TEAM_SUPER)
 	{
+		if(!m_aTeamInvitesOpen[Team])
+			return false;
 		if(Invited)
 			m_aInvited[Team].set(ClientId);
 		else
 			m_aInvited[Team].reset(ClientId);
+		return true;
 	}
+	return false;
 }
 
 void CGameTeams::KillSavedTeam(int ClientId, int Team)
@@ -1222,4 +1227,14 @@ int CGameTeams::GetFirstEmptyTeam() const
 		if(m_aTeamState[i] == TEAMSTATE_EMPTY)
 			return i;
 	return -1;
+}
+
+void CGameTeams::SetTeamInvitesOpen(int Team, bool Open)
+{
+	if(Team > TEAM_FLOCK && Team < TEAM_SUPER)
+	{
+		m_aTeamInvitesOpen[Team] = Open;
+		if(!Open)
+			ResetInvited(Team);
+	}
 }

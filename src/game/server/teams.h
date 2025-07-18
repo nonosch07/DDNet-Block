@@ -23,6 +23,8 @@ class CGameTeams
 	bool m_aTeeFinished[MAX_CLIENTS];
 	int m_aLastChat[MAX_CLIENTS];
 
+	bool m_aTeamInvitesOpen[NUM_DDRACE_TEAMS];
+
 	int m_aTeamState[NUM_DDRACE_TEAMS];
 	bool m_aTeamLocked[NUM_DDRACE_TEAMS];
 	bool m_aTeamFlock[NUM_DDRACE_TEAMS];
@@ -108,11 +110,13 @@ public:
 	void ResetRoundState(int Team);
 	void ResetSwitchers(int Team);
 
+	void SetTeamInvitesOpen(int Team, bool Open);
+
 	void SendTeamsState(int ClientId);
 	void SetTeamLock(int Team, bool Lock);
 	void SetTeamFlock(int Team, bool Mode);
 	void ResetInvited(int Team);
-	void SetClientInvited(int Team, int ClientId, bool Invited);
+	bool SetClientInvited(int Team, int ClientId, bool Invited);
 
 	int GetDDRaceState(CPlayer *Player);
 	int GetStartTime(CPlayer *Player);

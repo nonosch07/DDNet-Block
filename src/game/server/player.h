@@ -16,9 +16,9 @@
 #include <optional>
 #include <queue>
 
-#include <game/server/blockworlds/accounts.h>
-#include <game/server/blockworlds/clans.h>
-#include <game/server/blockworlds/events/1on1/1on1_invite.h>
+#include <blockworlds/accounts.h>
+#include <blockworlds/clans.h>
+#include <blockworlds/events/1on1/1on1_invite.h>
 
 class CCharacter;
 class CGameContext;
@@ -326,8 +326,6 @@ public:
 	int GetPlayerLastBodyColor() { return m_Account.m_LastBodyColor; }
 	int GetPlayerLastFeetColor() { return m_Account.m_LastFeetColor; }
 
-	void AddPlayerExp(int Amount);
-
 	CAccountData m_Account;
 
 	bool m_IsNpc = false;
@@ -335,6 +333,17 @@ public:
 	int64_t m_LastDeathnote;
 	int64_t m_LastExpAccountAlert;
 	int64_t m_ClanSaveCooldown;
+
+private:
+	std::map<int /* modifier (percent) */, int /* end tick */> m_ExpModifiers;
+	float m_CurrentExpMultiplier;
+	void CalculateExpMultiplier();
+
+public:
+	void AddPlayerExp(int Amount, bool ApplyMultiplier = true);
+	float GetExpMultiplier() const { return m_CurrentExpMultiplier; }
+	void AddExpMultiplier(float Modifier, int Duration);
+	void AddExpMultiplier(int ModifierPercent, int Duration);
 
 	//events
 	// used for 1on1, default to true

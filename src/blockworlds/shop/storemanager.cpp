@@ -1,0 +1,192 @@
+#include "storemanager.h"
+#include <blockworlds/accounts.h>
+#include <game/server/entities/character.h>
+#include <game/server/gamecontext.h>
+#include <game/server/player.h>
+
+CShop::CShop(CGameContext *pGameContext, CPlayer *pOwner, int pCategory, int pCosmetics, int ExpireInS) :
+	m_pGameContext(pGameContext), m_pOwner(pOwner), m_pProduct(pCosmetics), m_pCategory(pCategory)
+{
+	m_pExpireTick = GameServer()->Server()->Tick() + ExpireInS * GameServer()->Server()->TickSpeed();
+
+	if(!pOwner->IsLoggedIn())
+	{
+		GameServer()->SendChatTarget(pOwner->GetCid(), "You need to be logged in to make purchases.");
+		GameServer()->SendChatTarget(pOwner->GetCid(), "Use /accounts for information on the account system.");
+		Destroy(true);
+		return;
+	}
+
+	bool HasCosmetic = false;
+	switch(pCategory)
+	{
+	case CATEGORY_GUNDESIGN:
+		HasCosmetic = (pOwner->GetPlayerGundesign()[pCosmetics] == '1');
+		break;
+	case CATEGORY_KNOCKOUT:
+		HasCosmetic = (pOwner->GetPlayerKnockouts()[pCosmetics] == '1');
+		break;
+	case CATEGORY_SKINMANI:
+		HasCosmetic = (pOwner->GetPlayerSkinmani()[pCosmetics] == '1');
+		break;
+	default:
+		GameServer()->SendChatTarget(pOwner->GetCid(), "Invalid cosmetic category.");
+		Destroy(true);
+		return;
+	}
+
+	if(HasCosmetic)
+	{
+		GameServer()->SendChatTarget(pOwner->GetCid(), "You already own this cosmetic.");
+		Destroy(true);
+		return;
+	}
+
+	if(!SetProductInfo(pCategory, pCosmetics))
+	{
+		Destroy(true);
+		return;
+	}
+
+	if(m_pPrice == 0)
+	{
+		Destroy(true);
+		return;
+	}
+
+	if(pOwner->GetCharacter())
+	{
+		if(pOwner->GetCharacter()->m_PendingPurchase)
+		{
+			pOwner->GetCharacter()->m_PendingPurchase->Destroy(false);
+		}
+		pOwner->GetCharacter()->m_PendingPurchase = this;
+
+		char aBuf[256];
+		str_format(aBuf, sizeof(aBuf), "Do you want to buy '%s' for %d blockpoints? (/yes, /no)", m_pCosmeticName, m_pPrice);
+		GameServer()->SendChatTarget(m_pOwner->GetCid(), aBuf);
+	}
+	else
+	{
+		Destroy(true);
+	}
+}
+
+bool CShop::SetProductInfo(int Category, int Cosmetics)
+{
+	bool Success = false;
+
+	vec2 PreviewPos;
+
+	switch(Category)
+	{
+	case CATEGORY_SKINMANI:
+		Success = m_pCosmeticsHandler->ShopInfoSkinmani(Cosmetics, m_pPrice, m_pLevel, PreviewPos);
+		m_pCosmeticName = CCosmeticsHandler::ms_SkinmaniNames[Cosmetics];
+		break;
+	case CATEGORY_KNOCKOUT:
+		Success = m_pCosmeticsHandler->ShopInfoKnockout(Cosmetics, m_pPrice, m_pLevel, PreviewPos);
+		m_pCosmeticName = CCosmeticsHandler::ms_KnockoutNames[Cosmetics];
+		break;
+	case CATEGORY_GUNDESIGN:
+		Success = m_pCosmeticsHandler->ShopInfoGundesign(Cosmetics, m_pPrice, m_pLevel, PreviewPos);
+		m_pCosmeticName = CCosmeticsHandler::ms_GundesignNames[Cosmetics];
+		break;
+	default:
+		return false;
+	}
+	return Success;
+}
+
+void CShop::OnTick()
+{
+	if(GameServer()->Server()->Tick() >= m_pExpireTick)
+	{
+		Expire();
+	}
+}
+
+void CShop::Expire()
+{
+	char aBuf[256];
+	str_format(aBuf, sizeof(aBuf), "Your buying time for '%s' has expired. Aborting purchase..", m_pCosmeticName);
+	GameServer()->SendChatTarget(m_pOwner->GetCid(), aBuf);
+	Destroy(true);
+}
+
+void CShop::Destroy(bool Silent)
+{
+	dbg_msg("shop", "destroying purchase from %s", GameServer()->Server()->ClientName(m_pOwner->GetCid()));
+
+	if(!Silent)
+	{
+		char aBuf[256];
+		str_format(aBuf, sizeof(aBuf), "Your purchase for '%s' has been aborted.", m_pCosmeticName);
+		GameServer()->SendChatTarget(m_pOwner->GetCid(), aBuf);
+	}
+
+	if(m_pOwner && m_pOwner->GetCharacter())
+		m_pOwner->GetCharacter()->m_PendingPurchase = nullptr;
+
+	delete this;
+}
+
+void CShop::Purchase()
+{
+	if(!m_pOwner->IsLoggedIn())
+	{
+		GameServer()->SendChatTarget(m_pOwner->GetCid(), "You are not logged in yet.");
+		Destroy(true);
+		return;
+	}
+
+	if(m_pPrice > m_pOwner->GetPlayerBlockpoints())
+	{
+		char aBuf[256];
+		str_format(aBuf, sizeof(aBuf), "You do not have enough blockpoints for '%s'. You need %d blockpoints, but you only have %d bp.", m_pCosmeticName, m_pPrice, m_pOwner->GetPlayerBlockpoints());
+		GameServer()->SendChatTarget(m_pOwner->GetCid(), aBuf);
+		Destroy(false);
+		return;
+	}
+	else if(m_pLevel > m_pOwner->GetPlayerLevel())
+	{
+		char aBuf[256];
+		str_format(aBuf, sizeof(aBuf), "You need to be at least level %d to purchase this item.", m_pLevel);
+		GameServer()->SendChatTarget(m_pOwner->GetCid(), aBuf);
+		Destroy(false);
+		return;
+	}
+
+	m_pOwner->SetPlayerBlockpoints(m_pOwner->GetPlayerBlockpoints() - m_pPrice);
+
+	char aBuf[256];
+	str_format(aBuf, sizeof(aBuf), "You have successfully bought '%s'.", m_pCosmeticName);
+	GameServer()->SendChatTarget(m_pOwner->GetCid(), aBuf);
+
+	switch(m_pCategory)
+	{
+	case CATEGORY_KNOCKOUT:
+		m_pOwner->SetPlayerKnockouts(m_pProduct, '1');
+		break;
+
+	case CATEGORY_GUNDESIGN:
+		m_pOwner->SetPlayerGundesign(m_pProduct, '1');
+		break;
+
+	case CATEGORY_SKINMANI:
+		m_pOwner->SetPlayerSkinmani(m_pProduct, '1');
+		break;
+
+	default:
+		GameServer()->SendChatTarget(m_pOwner->GetCid(), "Unknown category.");
+		break;
+	}
+	GameServer()->ClearVotes(m_pOwner->GetCid());
+	GameServer()->ProgressVoteOptions(m_pOwner->GetCid());
+	Destroy(true);
+}
+
+void CShop::Decline()
+{
+	Destroy(false);
+}

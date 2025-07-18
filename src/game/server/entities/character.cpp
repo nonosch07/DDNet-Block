@@ -20,7 +20,8 @@
 #include <game/server/score.h>
 #include <game/server/teams.h>
 
-#include <game/server/blockworlds/shop/storemanager.h>
+#include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/shop/storemanager.h>
 
 MACRO_ALLOC_POOL_ID_IMPL(CCharacter, MAX_CLIENTS)
 
@@ -137,12 +138,15 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos, bool doEvent)
 	for(CEvent *Event : GameServer()->m_vEvents)
 	{
 		//TODO:: store event types in a bool set, i hate looking at that || shit
-		if((Event->pGetGametype() == CEvent::EVENT_1on1 || Event->pGetGametype() == CEvent::EVENT_LMB || Event->pGetGametype() == CEvent::EVENT_TDM) && !doEvent)
+		if((Event->pGetGametype() == CEvent::EVENT_1on1 || Event->pGetGametype() == CEvent::EVENT_TDM) && !doEvent)
 			continue;
 		Event->OnCharacterSpawn(this);
 	}
 
 	m_CurrentKillingSpree = 0;
+
+	for(const auto &item : g_ComponentRegistry.Active())
+		item->OnCharacterSpawn(pPlayer->GetCid(), Pos);
 
 	return true;
 }
@@ -1055,6 +1059,9 @@ void CCharacter::Die(int Killer, int Weapon, bool SendKillMsg)
 	GameServer()->m_World.m_Core.m_apCharacters[m_pPlayer->GetCid()] = 0;
 	GameServer()->CreateDeath(m_Pos, m_pPlayer->GetCid(), TeamMask());
 	Teams()->OnCharacterDeath(GetPlayer()->GetCid(), Weapon);
+
+	for(const auto &item : g_ComponentRegistry.Active())
+		item->OnCharacterDeath(Killer, m_pPlayer->GetCid(), Weapon);
 }
 
 bool CCharacter::TakeDamage(vec2 Force, int Dmg, int From, int Weapon)
@@ -1856,7 +1863,7 @@ void CCharacter::HandleTiles(int Index)
 			m_Core.m_Jumps = NewJumps;
 		}
 	}
-	else if(Collision()->GetSwitchType(MapIndex) == TILE_SHOP)
+	else if(Collision()->GetSwitchType(MapIndex) == TILE_BW_SHOP)
 	{
 		int Category = Collision()->GetSwitchNumber(MapIndex);
 		int Item = Collision()->GetSwitchDelay(MapIndex);
