@@ -55,7 +55,7 @@ void CLastManBlockingEvent::OnTick()
 				GetEventName(),
 				(int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()),
 				Candidates().size(),
-				Candidates().size() < 2 ? "Not enough candidates!" : "",
+				(int)Candidates().size() < Config()->m_SvLMBMinimumCandidates ? "Not enough candidates!" : "",
 				"                                                                                     "
 				"                                                                                     "
 				"                                                                                     ");
@@ -123,7 +123,7 @@ void CLastManBlockingEvent::CloseRegistration()
 {
 	SetState(CEventComponent::EEventState::Preparation);
 
-	if(m_Candidates.size() < 2)
+	if((int)m_Candidates.size() < Config()->m_SvLMBMinimumCandidates)
 	{
 		FinishEvent(NOT_ENOUGH_CANDIDATES);
 		return;
