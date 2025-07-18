@@ -116,8 +116,13 @@ void CEvents::ConEventsStart(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pThis = (CEvents *)pUserData;
 
-	const char *pName = pResult->GetString(0);
+	if(pThis->m_pActiveEvent)
+	{
+		pThis->Log("Event is already running");
+		return;
+	}
 
+	const char *pName = pResult->GetString(0);
 	char aClearName[64];
 	str_copy(aClearName, pName);
 	str_clean_whitespaces(aClearName);
@@ -132,8 +137,7 @@ void CEvents::ConEventsStart(IConsole::IResult *pResult, void *pUserData)
 	// Don't ask, just believe
 	auto pThisShared = ((CEvents *)pUserData)->Registry()->Get<CEvents>();
 	pThis->m_pActiveEvent = it->second(pThis->GameServer());
-	pThis->m_pActiveEvent->SetStateChangeCallback(
-		MakeSafeCallback(&CEvents::OnEventStateChange, pThisShared.Store()));
+	pThis->m_pActiveEvent->SetStateChangeCallback(MakeSafeCallback(&CEvents::OnEventStateChange, pThisShared.Store()));
 	pThis->m_pActiveEvent->SetStateChangeCallback([pThis](auto OldState, auto NewState) { pThis->OnEventStateChange(OldState, NewState); });
 	if(!pThis->m_pActiveEvent->EmergencyShutdown())
 		pThis->m_pActiveEvent->OpenRegistration();
@@ -141,10 +145,26 @@ void CEvents::ConEventsStart(IConsole::IResult *pResult, void *pUserData)
 void CEvents::ConEventsForceNextState(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pThis = (CEvents *)pUserData;
+
+	if(!pThis->m_pActiveEvent)
+	{
+		pThis->Log("No active event at this time");
+		return;
+	}
+
+	pThis->m_pActiveEvent->ForceNextStage();
 }
 void CEvents::ConEventsForceEnd(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pThis = (CEvents *)pUserData;
+
+	if(!pThis->m_pActiveEvent)
+	{
+		pThis->Log("No active event at this time");
+		return;
+	}
+
+	pThis->m_pActiveEvent->EmergencyShutdown("Forced");
 }
 
 void CEvents::ConJoin(IConsole::IResult *pResult, void *pUserData)

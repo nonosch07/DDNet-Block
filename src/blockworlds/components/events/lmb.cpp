@@ -212,6 +212,10 @@ void CLastManBlockingEvent::FinishEvent()
 
 void CLastManBlockingEvent::ForceNextStage()
 {
+	if(GetState() == CEventComponent::EEventState::Registration)
+		CloseRegistration();
+	else if(GetState() == CEventComponent::EEventState::Active)
+		FinishEvent(NATURAL);
 }
 
 bool CLastManBlockingEvent::CheckEndCondition()
