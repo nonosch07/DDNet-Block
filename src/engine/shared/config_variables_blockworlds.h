@@ -41,14 +41,14 @@ MACRO_CONFIG_INT(SvClanSaveInterval, sv_clan_save_interval, 600, 1, 3600, CFGFLA
 
 // events:
 // LMB (last man blocking)
-MACRO_CONFIG_INT(SvLMBInitialFreezeTime, sv_lmb_initial_freeze_time, 3, 0, 1000, CFGFLAG_SERVER, "")
-MACRO_CONFIG_INT(SvLMBRegistrationTime, sv_lmb_registration_time, 30, 0, 1000, CFGFLAG_SERVER, "")
-MACRO_CONFIG_INT(SvLMBActiveTime, sv_lmb_active_time, 600, 0, 1000, CFGFLAG_SERVER, "")
-MACRO_CONFIG_INT(SvLMBWinnerExpMultiplier, sv_lmb_winner_exp_multiplier, 200, 100, 10000, CFGFLAG_SERVER, "percentages")
-MACRO_CONFIG_INT(SvLMBWinnerExpMultiplierDuration, sv_lmb_winner_exp_multiplier_duration, 5, 1, 60, CFGFLAG_SERVER, "minutes") // make more precise?
-MACRO_CONFIG_INT(SvLMBFreezeTimeout, sv_lmb_freeze_timeout, 150, 1, 1000, CFGFLAG_SERVER, "broadcast every X ticks (50 ticks = 1 second)") // not related to lmb?
-MACRO_CONFIG_INT(SvLMBBroadcastRate, sv_lmb_broadcast_rate, 50, 1, 1000, CFGFLAG_SERVER, "broadcast every X ticks (50 ticks = 1 second)") // not related to lmb?
-MACRO_CONFIG_INT(SvLMBMinimumCandidates, sv_lmb_minimum_candidates, 8, 2, MAX_CLIENTS, CFGFLAG_SERVER, "Specifies the minimum number of players required to start")
+MACRO_CONFIG_INT(SvLMBInitialFreezeTime, sv_lmb_initial_freeze_time, 3, 0, 1000, CFGFLAG_SERVER, " Duration of character freeze after teleportation to the arena (seconds)")
+MACRO_CONFIG_INT(SvLMBRegistrationTime, sv_lmb_registration_time, 30, 0, 1000, CFGFLAG_SERVER, "Duration of registration phase (seconds)")
+MACRO_CONFIG_INT(SvLMBActiveTime, sv_lmb_active_time, 600, 0, 1000, CFGFLAG_SERVER, "Duration of active phase (seconds)")
+MACRO_CONFIG_INT(SvLMBWinnerExpMultiplier, sv_lmb_winner_exp_multiplier, 200, 100, 10000, CFGFLAG_SERVER, "Exp multiplier for the winner (percents)")
+MACRO_CONFIG_INT(SvLMBWinnerExpMultiplierDuration, sv_lmb_winner_exp_multiplier_duration, 5, 1, 60, CFGFLAG_SERVER, " Exp multiplier duration (minutes)") // make more precise?
+MACRO_CONFIG_INT(SvLMBFreezeTimeout, sv_lmb_freeze_timeout, 150, 1, 50000, CFGFLAG_SERVER, "Duration of character freeze to be counted as loss (ticks, 50 ticks = 1 second)") // not related to lmb?
+MACRO_CONFIG_INT(SvLMBBroadcastRate, sv_lmb_broadcast_rate, 50, 1, 500, CFGFLAG_SERVER, "Rate at which information broadcasts will be sent (ticks, 50 ticks = 1 second)") // not related to lmb?
+MACRO_CONFIG_INT(SvLMBMinimumCandidates, sv_lmb_minimum_candidates, 8, 2, MAX_CLIENTS, CFGFLAG_SERVER, "Minimum amount of candidates to start the active phase")
 
 MACRO_CONFIG_INT(SvLMBRegDuration, sv_lmb_reg_duration, 10, 0, 1000, CFGFLAG_SERVER, "Specify the duration during which LMB registration is possible (in seconds)")
 MACRO_CONFIG_INT(SvLMBFreezeTime, sv_lmb_freeze_time, 3, 5, 30, CFGFLAG_SERVER, "Specifies the time required for a player to be frozen in order to die")

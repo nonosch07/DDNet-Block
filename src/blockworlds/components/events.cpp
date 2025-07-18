@@ -45,14 +45,14 @@ void CEvents::OnDisable()
 }
 
 #define LIST_OF_ALL_COMMANDS(DEF) \
-	DEF("events_status", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsStatus, this, "") \
-	DEF("events_list", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsList, this, "") \
-	DEF("events_start", "r[name]", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsStart, this, "") \
-	DEF("events_next_stage", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsForceNextState, this, "") \
-	DEF("events_end", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsForceEnd, this, "")  \
+	DEF("events_status", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsStatus, this, "Status of current event") \
+	DEF("events_list", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsList, this, "List of available to start events") \
+	DEF("events_start", "r[name]", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsStart, this, "Start specified event") \
+	DEF("events_next_stage", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsForceNextState, this, "Force current event to next stage") \
+	DEF("events_end", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsForceEnd, this, "Forcefully end current event")  \
                                   \
-	DEF("join", "", CFGFLAG_SERVER | CFGFLAG_CHAT | CFGFLAG_ANNOUNCE, ConJoin, this, "")  \
-	DEF("leave", "", CFGFLAG_SERVER | CFGFLAG_CHAT | CFGFLAG_ANNOUNCE, ConLeave, this, "")
+	DEF("join", "", CFGFLAG_SERVER | CFGFLAG_CHAT | CFGFLAG_ANNOUNCE, ConJoin, this, "Chat command, try to register to current event")  \
+	DEF("leave", "", CFGFLAG_SERVER | CFGFLAG_CHAT | CFGFLAG_ANNOUNCE, ConLeave, this, "Chat command, try to deregister from current event")
 
 
 void CEvents::OnConsoleInit()
