@@ -5197,7 +5197,8 @@ void CGameContext::RegisterBlockworldsChatCommands()
 {
 	Console()->Register("register", "s[username] s[password]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConRegister, this, "Create a new account.");
 	Console()->Register("login", "s[username] s[password]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConLogin, this, "Log in to your account.");
-	Console()->Register("logout", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConAccountLogout, this, "Log out of your MySQL account.");
+	// TODO: CFGFLAG_CHAT_ONLY ???
+	Console()->Register("logout_account", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConAccountLogout, this, "Log out of your MySQL account.");
 	Console()->Register("password", "s[oldpassword] s[newpassword]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConChangePassword, this, "Change your account password.");
 	Console()->Register("exp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConExp, this, "Display your current experience progress.");
 
