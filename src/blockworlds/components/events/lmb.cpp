@@ -106,7 +106,7 @@ void CLastManBlockingEvent::OnSnapPlayerInfo(int ClientId, int SnappingClient, s
 	if(GetState() != CEventComponent::EEventState::Active)
 		return;
 
-	if(IsParticipant(ClientId) && IsParticipant(SnappingClient))
+	if(!Server()->ClientAuthed(ClientId) && IsParticipant(SnappingClient))
 	{
 		pPlayerInfo->m_Score = 0;
 	}
