@@ -404,8 +404,8 @@ void CPlayer::Snap(int SnappingClient)
 	if(GetSkinMani() != -1)
 		GameServer()->Cosmetics()->SnapSkinmani(m_ClientId, m_DieTick, pClientInfo);
 
-	for(const auto &item : g_ComponentRegistry.Active())
-		item->OnSnapClientInfo(GetCid(), SnappingClient, pClientInfo);
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnSnapClientInfo(GetCid(), SnappingClient, pClientInfo);
 
 	int SnappingClientVersion = GameServer()->GetClientVersion(SnappingClient);
 	int Latency = SnappingClient == SERVER_DEMO_CLIENT ? m_Latency.m_Min : GameServer()->m_apPlayers[SnappingClient]->m_aCurLatency[m_ClientId];
@@ -461,8 +461,8 @@ void CPlayer::Snap(int SnappingClient)
 			pPlayerInfo->m_Team = (m_Paused != PAUSE_PAUSED || m_ClientId != SnappingClient) && m_Paused < PAUSE_SPEC ? m_Team : TEAM_SPECTATORS;
 		}
 
-		for(const auto &item : g_ComponentRegistry.Active())
-			item->OnSnapClientInfo(GetCid(), SnappingClient, pClientInfo);
+		for(const auto &Component : g_ComponentRegistry.Active())
+			Component->OnSnapClientInfo(GetCid(), SnappingClient, pClientInfo);
 	}
 	else
 	{
@@ -1394,22 +1394,22 @@ void CPlayer::CalculateExpMultiplier()
 		m_CurrentExpMultiplier = (float)(m_ExpModifiers.begin()->first)/100.f;
 		break;
 	case ADDITIVE: // additive
-		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &item) {
-			Multiplier += (item.first-100)/100.f;
+		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &ExpMultiplier) {
+			Multiplier += (ExpMultiplier.first-100)/100.f;
 		});
 		m_CurrentExpMultiplier = Multiplier;
 		break;
 	case LOGARITHMIC: // logarithmic
 		Multiplier = 1;
-		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &item) {
-			Multiplier *= (item.first-100)/100.f;
+		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &ExpMultiplier) {
+			Multiplier *= (ExpMultiplier.first-100)/100.f;
 		});
 		m_CurrentExpMultiplier = log2f(Multiplier);
 		break;
 	case MULTIPLICATIVE: // multiplicative
 		Multiplier = 1;
-		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &item) {
-			Multiplier *= (item.first-100)/100.f;
+		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &ExpMultiplier) {
+			Multiplier *= (ExpMultiplier.first-100)/100.f;
 		});
 		m_CurrentExpMultiplier = Multiplier;
 		break;

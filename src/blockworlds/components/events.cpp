@@ -109,8 +109,8 @@ void CEvents::ConEventsList(IConsole::IResult *pResult, void *pUserData)
 	auto *pThis = (CEvents *)pUserData;
 
 	pThis->Log("Available Events:");
-	for(const auto &item : pThis->m_EventsFactory)
-		pThis->Log(" - %s", item.first.c_str());
+	for(const auto &[Name, Factory] : pThis->m_EventsFactory)
+		pThis->Log(" - %s", Name.c_str());
 }
 void CEvents::ConEventsStart(IConsole::IResult *pResult, void *pUserData)
 {

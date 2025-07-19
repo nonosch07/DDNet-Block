@@ -1074,8 +1074,8 @@ void CGameContext::OnTick()
 	// check tuning
 	CheckPureTuning();
 
-	for(const auto &item : g_ComponentRegistry.Active())
-		item->OnTick();
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnTick();
 
 	if(m_TeeHistorianActive)
 	{
@@ -1363,8 +1363,8 @@ void CGameContext::OnTick()
 		m_SqlRandomMapResult = nullptr;
 	}
 
-	for(const auto &item : g_ComponentRegistry.Active())
-		item->OnPostTick();
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnPostTick();
 
 	// Record player position at the end of the tick
 	if(m_TeeHistorianActive)
@@ -1560,8 +1560,8 @@ void CGameContext::ProgressVoteOptions(int ClientId)
 
 void CGameContext::OnClientEnter(int ClientId)
 {
-	for(const auto &item : g_ComponentRegistry.Active())
-		item->OnPlayerEntering(ClientId);
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnPlayerEntering(ClientId);
 
 	if(m_TeeHistorianActive)
 	{
@@ -1727,8 +1727,8 @@ void CGameContext::OnClientEnter(int ClientId)
 
 	GameInterface()->OnClientEnter(ClientId);
 
-	for(const auto &item : g_ComponentRegistry.Active())
-		item->OnPlayerEnter(ClientId);
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnPlayerEnter(ClientId);
 
 	LogEvent("Connect", ClientId);
 }
@@ -1792,8 +1792,8 @@ void CGameContext::OnClientDrop(int ClientId, const char *pReason)
 {
 	LogEvent("Disconnect", ClientId);
 
-	for(const auto &item : g_ComponentRegistry.Active())
-		item->OnPlayerDropping(ClientId);
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnPlayerDropping(ClientId);
 
 	GameInterface()->OnClientDrop(ClientId);
 
@@ -1835,8 +1835,8 @@ void CGameContext::OnClientDrop(int ClientId, const char *pReason)
 	Msg.m_Silent = false;
 	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, -1);
 
-	for(const auto &item : g_ComponentRegistry.Active())
-		item->OnPlayerDrop(ClientId);
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnPlayerDrop(ClientId);
 
 	Server()->ExpireServerInfo();
 }
@@ -4387,8 +4387,8 @@ void CGameContext::OnShutdown(void *pPersistentData)
 
 	Antibot()->RoundEnd();
 
-	for(const auto &item : g_ComponentRegistry.Active())
-		item->OnShutdown();
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnShutdown();
 
 	if(m_TeeHistorianActive)
 	{
@@ -4465,8 +4465,8 @@ void CGameContext::OnSnap(int ClientId)
 		Server()->SendMsg(&Msg, MSGFLAG_RECORD | MSGFLAG_NOSEND, ClientId);
 	}
 
-	for(const auto &item : g_ComponentRegistry.Active())
-		item->OnSnap(ClientId);
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnSnap(ClientId);
 
 	m_pController->Snap(ClientId);
 	m_ZoneManager.Snap(ClientId);
@@ -4487,8 +4487,8 @@ void CGameContext::OnSnap(int ClientId)
 void CGameContext::OnPreSnap() {}
 void CGameContext::OnPostSnap()
 {
-	for(const auto &item : g_ComponentRegistry.Active())
-		item->OnPostSnap();
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnPostSnap();
 
 	m_World.PostSnap();
 	m_Events.Clear();
@@ -4597,11 +4597,11 @@ void CGameContext::OnSetAuthed(int ClientId, int Level)
 		}
 	}
 
-	for(const auto &item : g_ComponentRegistry.Active())
+	for(const auto &Component : g_ComponentRegistry.Active())
 		if(Level == AUTHED_NO)
-			item->OnPlayerUnAuthorized(ClientId);
+			Component->OnPlayerUnAuthorized(ClientId);
 		else
-			item->OnPlayerAuthorized(ClientId, Level);
+			Component->OnPlayerAuthorized(ClientId, Level);
 }
 
 void CGameContext::SendRecord(int ClientId)

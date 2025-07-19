@@ -55,6 +55,8 @@ private:
 	int m_Winner;
 
 	std::map<int, int> m_FrozenSince;
+	int GetFrozenSince(int ClientId) const;
+	void SetFrozenSince(int ClientId, int Tick);
 
 	enum FinishingReason
 	{

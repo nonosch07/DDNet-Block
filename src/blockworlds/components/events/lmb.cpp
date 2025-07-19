@@ -64,8 +64,8 @@ void CLastManBlockingEvent::OnTick()
 	else if(GetState() == CEventComponent::EEventState::Active)
 	{
 		if(Server()->Tick() % Config()->m_SvLMBBroadcastRate == 0)
-			for(const auto &item : Participants())
-				GameServer()->SendBroadcast(item, "Participants left: %" PRIzu "\n"
+			for(const auto &ClientId : Participants())
+				GameServer()->SendBroadcast(ClientId, "Participants left: %" PRIzu "\n"
 								  "Time left: %d seconds\n"
 								  "%s",
 					Participants().size(),
@@ -155,9 +155,9 @@ void CLastManBlockingEvent::StartEvent()
 	m_SpawnOffset = 0;
 	m_pSavedPlayers.clear();
 	m_FrozenSince.clear();
-	for(const auto &item : m_Participants)
+	for(const auto &ClientId : m_Participants)
 	{
-		Join(item);
+		Join(ClientId);
 		m_SpawnOffset++;
 	}
 
@@ -280,7 +280,7 @@ bool CLastManBlockingEvent::Join(int ClientId)
 {
 	SavePosition(ClientId);
 
-	m_FrozenSince.insert_or_assign(ClientId, 0);
+	m_FrozenSince.emplace(ClientId, 0);
 	auto *pChar = GameServer()->GetPlayerChar(ClientId);
 	GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, m_DDRaceTeam);
 	pChar->ResetVelocity();
@@ -349,34 +349,37 @@ bool CLastManBlockingEvent::IsParticipant(int ClientId) const
 void CLastManBlockingEvent::CheckFreezeTime()
 {
 	auto Participants = m_Participants;
-	for(const auto &item : Participants)
+	for(const auto &ClientId : Participants)
 	{
-		auto *pChar = GameServer()->GetPlayerChar(item);
+		auto *pChar = GameServer()->GetPlayerChar(ClientId);
 		if(!pChar || !pChar->IsAlive())
 			continue;
-		auto FrozenSinceIt = m_FrozenSince.find(item);
-		if(FrozenSinceIt == m_FrozenSince.end())
-		{
-			Leave(item);
-			continue;
-		}
 
-		bool WasFrozenTickBefore = FrozenSinceIt->second != 0;
+		auto FrozenSince = GetFrozenSince(ClientId);
+		bool WasFrozenTickBefore = FrozenSince != 0;
 		bool IsFrozenNow = pChar->m_FreezeTime;
 		if(IsFrozenNow && !WasFrozenTickBefore)
 		{
-			LogDebug("%d frozen", item);
-			FrozenSinceIt->second = Server()->Tick();
+			LogDebug("%d frozen", ClientId);
+			SetFrozenSince(ClientId, Server()->Tick());
 		}
 		if(!IsFrozenNow && WasFrozenTickBefore)
 		{
-			LogDebug("%d stops being freezed: %d ", item, Server()->Tick() - FrozenSinceIt->second);
-			FrozenSinceIt->second = 0;
+			LogDebug("%d stops being freezed: %d ", ClientId, Server()->Tick() - FrozenSince);
+			SetFrozenSince(ClientId, 0);
 		}
 
-		if(IsFrozenNow && Server()->Tick() - FrozenSinceIt->second >= Config()->m_SvLMBFreezeTimeout)
+		if(IsFrozenNow && Server()->Tick() - FrozenSince >= Config()->m_SvLMBFreezeTimeout)
 		{
-			Leave(item);
+			Leave(ClientId);
 		}
 	}
+}
+int CLastManBlockingEvent::GetFrozenSince(int ClientId) const
+{
+	return m_FrozenSince.at(ClientId);
+}
+void CLastManBlockingEvent::SetFrozenSince(int ClientId, int Tick)
+{
+	m_FrozenSince[ClientId] = Tick;
 }
