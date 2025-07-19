@@ -89,7 +89,7 @@ void CLastManBlockingEvent::OnSnapClientInfo(int ClientId, int SnappingClient, s
 	if(GetState() != CEventComponent::EEventState::Active)
 		return;
 
-	if(!Server()->ClientAuthed(ClientId) && IsParticipant(SnappingClient))
+	if(!Server()->ClientAuthed(SnappingClient) && IsParticipant(ClientId))
 	{
 		StrToInts(&pClientInfo->m_Name0, 4, " ");
 		StrToInts(&pClientInfo->m_Clan0, 3, " ");
@@ -106,7 +106,7 @@ void CLastManBlockingEvent::OnSnapPlayerInfo(int ClientId, int SnappingClient, s
 	if(GetState() != CEventComponent::EEventState::Active)
 		return;
 
-	if(!Server()->ClientAuthed(ClientId) && IsParticipant(SnappingClient))
+	if(!Server()->ClientAuthed(SnappingClient) && IsParticipant(ClientId))
 	{
 		pPlayerInfo->m_Score = 0;
 	}
