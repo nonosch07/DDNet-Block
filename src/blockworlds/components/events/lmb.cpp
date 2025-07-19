@@ -19,10 +19,10 @@ CLastManBlockingEvent::CLastManBlockingEvent(CGameContext *pGameContext) :
 	m_ActiveEndTick = -1;
 
 	m_SpawnPositions.clear();
-	int Found = CGameContext::GetTilePositions(TILE_BW_LMB_START_POS, GameServer(), m_SpawnPositions);
+	int Found = CGameContext::GetTilePositions(TILE_BW_EVENT_START_POS, GameServer(), m_SpawnPositions);
 	if(Found == 0)
 	{
-		EmergencyShutdown("Map has no LMB start tiles");
+		EmergencyShutdown("Map has no event start tiles");
 		return;
 	}
 }
