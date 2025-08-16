@@ -19,12 +19,14 @@
 #include <memory>
 #include <string>
 
-#include <game/server/blockworlds/cosmetics/animations.h>
-#include <game/server/blockworlds/cosmetics/cosmetics.h>
-#include <game/server/blockworlds/gameinterface/handler.h>
-#include <game/server/blockworlds/shop/preview.h>
-#include <game/server/blockworlds/zones/zonemanager.h>
+#include <blockworlds/cosmetics/animations.h>
+#include <blockworlds/cosmetics/cosmetics.h>
+#include <blockworlds/gameinterface/handler.h>
+#include <blockworlds/shop/preview.h>
+#include <blockworlds/zones/zonemanager.h>
 
+#include "./blockworlds/events/1on1/1on1_invite.h"
+#include "./blockworlds/events/base/event_base.h"
 /*
 	Tick
 		Game Context (CGameContext::tick)
@@ -281,7 +283,8 @@ public:
 	// network
 	void CallVote(int ClientId, const char *pDesc, const char *pCmd, const char *pReason, const char *pChatmsg, const char *pSixupDesc = 0);
 	void SendChatTarget(int To, const char *pText, int VersionFlags = FLAG_SIX | FLAG_SIXUP) const;
-	void SendClanChat(int ClanId, const char *pText, int VersionFlags = FLAG_SIX | FLAG_SIXUP) const;
+	void SendChatClan(int ClanId, const char *pText, int VersionFlags = FLAG_SIX | FLAG_SIXUP) const;
+	void SendChatAccount(int AccountId, const char *pText, int VersionFlags = FLAG_SIX | FLAG_SIXUP) const;
 	void SendChatTeam(int Team, const char *pText) const;
 	void SendChat(int ClientId, int Team, const char *pText, int SpamProtectionClientId = -1, int VersionFlags = FLAG_SIX | FLAG_SIXUP);
 	void SendStartWarning(int ClientId, const char *pMessage);
@@ -312,6 +315,7 @@ public:
 	void OnShutdown(void *pPersistentData) override;
 
 	void OnTick() override;
+	void BW_OnTick(); // only runs events, no need to override in child classes
 	void OnPreSnap() override;
 	void OnSnap(int ClientId) override;
 	void OnPostSnap() override;
@@ -627,6 +631,12 @@ public:
 	//Blockworlds
 
 public:
+	//events
+	static int GetTilePositions(int TileID, CGameContext *pSelf, std::vector<vec2> &result);
+	static int getSwitchTilePositions(int Type, int Delay, int Number, CGameContext *pSelf, std::vector<vec2> &result);
+	std::vector<CEvent *> m_vEvents;
+	std::vector<CInvite *> m_vEventInvites;
+	//commands
 	void RegisterBlockworldsChatCommands();
 	CPlayer *GetPlayerByName(const char *pName);
 	CPlayer *GetPlayer(int ClientID);
@@ -647,6 +657,11 @@ public:
 	void SetVoteDescriptionAtIndex(int *pIndex, const char *pStr, CNetMsg_Sv_VoteOptionListAdd *pOptionMsg);
 	void CreateStripline(char *pDst, int DstSize, const char *pTitle);
 	void ClearVotes(int ClientID);
+
+	//public Event getters and checks
+	CInvite *getInvite(int pPlayer1ID, int pPlayer2ID = -1, int pEventID = -1);
+	std::vector<CInvite *> getInvites(int pPlayer1ID, int pPlayer2ID = -1, int pEventID = -1);
+	int isInEvent(int pPlayerID);
 
 private:
 	CAccounts *m_pAccounts;
@@ -691,6 +706,71 @@ private:
 	static void ConClanInvite(IConsole::IResult *pResult, void *pUserData);
 	static void ConClanAccept(IConsole::IResult *pResult, void *pUserData);
 	static void ConClanDecline(IConsole::IResult *pResult, void *pUserData);
+
+	//Event commands
+
+	static void Con1on1(IConsole::IResult *pResult, void *pUserData);
+	static void Con1on1Accept(IConsole::IResult *pResult, void *pUserData);
+	static void Con1on1Decline(IConsole::IResult *pResult, void *pUserData);
+
+	static void ConJoinEvent(IConsole::IResult *pResult, void *pUserData);
+	static void ConCreateTDM(IConsole::IResult *pResult, void *pUserData);
+	static void ConLeaveEvent(IConsole::IResult *pResult, void *pUserData);
+
+	// Components
+
+	static void ConComponentList(IConsole::IResult *pResult, void *pUserData);
+	static void ConComponentPlug(IConsole::IResult *pResult, void *pUserData);
+	static void ConComponentUnPlug(IConsole::IResult *pResult, void *pUserData);
+
+public:
+	template<typename... TArgs>
+	void SendChatTarget(int To, const char* pFmt, TArgs&&... Args) const
+	{
+		char aBuf[1024];
+		str_format(aBuf, sizeof(aBuf), pFmt, std::forward<TArgs>(Args)...);
+		SendChatTarget(To, aBuf);
+	}
+	template<typename... TArgs>
+	void SendChatAs(int From, int Team, const char* pFmt, TArgs&&... Args)
+	{
+		char aBuf[1024];
+		str_format(aBuf, sizeof(aBuf), pFmt, std::forward<TArgs>(Args)...);
+		SendChat(From, Team, aBuf);
+	}
+	template<typename... TArgs>
+	void SendChatTargetAccount(int To, const char* pFmt, TArgs&&... Args) const
+	{
+		char aBuf[1024];
+		str_format(aBuf, sizeof(aBuf), pFmt, std::forward<TArgs>(Args)...);
+		SendChatAccount(To, aBuf);
+	}
+	template<typename... TArgs>
+	void SendBroadcast(int To, const char* pFmt, TArgs&&... Args)
+	{
+		char aBuf[1024];
+		str_format(aBuf, sizeof(aBuf), pFmt, std::forward<TArgs>(Args)...);
+		SendBroadcast(aBuf, To);
+	}
+	template<typename... TArgs>
+	void SendChatClan(int ClanId, const char* pFmt, TArgs&&... Args) const
+	{
+		char aBuf[1024];
+		str_format(aBuf, sizeof(aBuf), pFmt, std::forward<TArgs>(Args)...);
+		SendChatClan(ClanId, aBuf);
+	}
+	template<typename... TArgs>
+	void SendChatTeam(int Team, const char* pFmt, TArgs&&... Args) const
+	{
+		char aBuf[1024];
+		str_format(aBuf, sizeof(aBuf), pFmt, std::forward<TArgs>(Args)...);
+		SendChatTeam(Team, aBuf);
+	}
 };
+
+static inline bool CheckClientId(int ClientId)
+{
+	return ClientId >= 0 && ClientId < MAX_CLIENTS;
+}
 
 #endif

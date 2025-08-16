@@ -97,6 +97,7 @@ elseif(TARGET_OS STREQUAL "mac")
   set(AUTO_VULKAN_BACKEND OFF)
 endif()
 
+option(RUST_BRIDGE "Enables rust-bridge" OFF)
 option(WEBSOCKETS "Enable websockets support" OFF)
 option(MYSQL "Enable mysql support" OFF)
 option(TEST_MYSQL "Test mysql support in unit tests (also sets -DMYSQL=ON)" OFF)
@@ -528,7 +529,11 @@ find_package(Opus)
 find_package(Opusfile)
 find_package(PNG)
 find_package(Python3)
+if(RUST_BRIDGE)
 find_package(Rust)
+else()
+  set(RUST_VERSION_STRING "DISABLED")
+endif()
 find_package(SDL2)
 find_package(SQLite3)
 if(DISCORD)
@@ -642,7 +647,7 @@ endif()
 if(NOT(Python3_FOUND))
   message(SEND_ERROR "You must install Python to compile ${CMAKE_PROJECT_NAME}")
 endif()
-if(NOT(RUST_FOUND))
+if(RUST_BRIDGE AND NOT(RUST_FOUND))
   message(SEND_ERROR "You must install Rust and Cargo to compile ${CMAKE_PROJECT_NAME}")
 endif()
 if(NOT(SQLite3_FOUND))
@@ -715,7 +720,9 @@ if(TARGET_OS STREQUAL "windows")
   set(PLATFORM_LIBS)
   list(APPEND PLATFORM_LIBS shlwapi) # PathIsRelativeW
   list(APPEND PLATFORM_LIBS version ws2_32) # Windows sockets
+  if(RUST_BRIDGE)
   list(APPEND PLATFORM_LIBS bcrypt userenv) # for Rust (https://github.com/rust-lang/rust/issues/91974)
+  endif()
   list(APPEND PLATFORM_LIBS ole32) # CoInitialize(Ex)
   list(APPEND PLATFORM_LIBS shell32)
   list(APPEND PLATFORM_LIBS ntdll) # https://github.com/ddnet/ddnet/issues/6725
@@ -752,7 +759,9 @@ else()
   if(TARGET_OS STREQUAL "linux")
     set(PLATFORM_LIBS)
     list(APPEND PLATFORM_LIBS rt) # clock_gettime for glibc < 2.17
+    if(RUST_BRIDGE)
     list(APPEND PLATFORM_LIBS dl) # for Rust
+    endif()
   else()
     set(PLATFORM_LIBS)
   endif()
@@ -833,6 +842,8 @@ endif()
 ########################################################################
 # RUST
 ########################################################################
+
+if(RUST_BRIDGE)
 
 set_glob(RUST_BASE GLOB_RECURSE "rs;toml" src/base
   Cargo.toml
@@ -989,6 +1000,8 @@ else()
       DEPENDS ${RUST_SRC}
     )
   endforeach()
+endif()
+
 endif()
 
 ########################################################################
@@ -1217,6 +1230,7 @@ set_src(ENGINE_SHARED GLOB_RECURSE src/engine/shared
   config.cpp
   config.h
   config_variables.h
+  config_variables_blockworlds.h
   console.cpp
   console.h
   csv.cpp
@@ -1699,7 +1713,7 @@ if(CLIENT)
     ${VULKAN_LIBRARIES}
 
     ${TARGET_STEAMAPI}
-    rust_engine_shared
+    $<$<BOOL:${RUST_BRIDGE}>:rust_engine_shared>
 
     ${PLATFORM_CLIENT_LIBS}
     ${LIBS}
@@ -1737,7 +1751,7 @@ if(CLIENT)
       $<TARGET_OBJECTS:engine-gfx>
       $<TARGET_OBJECTS:engine-shared>
       $<TARGET_OBJECTS:game-shared>
-      $<TARGET_OBJECTS:rust-bridge-shared>
+      $<$<BOOL:${RUST_BRIDGE}>:$<TARGET_OBJECTS:rust-bridge-shared>>
     )
   else()
     add_executable(game-client WIN32
@@ -1748,7 +1762,7 @@ if(CLIENT)
       $<TARGET_OBJECTS:engine-gfx>
       $<TARGET_OBJECTS:engine-shared>
       $<TARGET_OBJECTS:game-shared>
-      $<TARGET_OBJECTS:rust-bridge-shared>
+      $<$<BOOL:${RUST_BRIDGE}>:$<TARGET_OBJECTS:rust-bridge-shared>>
     )
   endif()
   set_property(TARGET game-client
@@ -1855,12 +1869,13 @@ if(SERVER)
     upnp.h
   )
   file(GLOB_RECURSE GAME_SERVER src/game/server/*.c src/game/server/*.cpp src/game/server/*.h)
+  file(GLOB_RECURSE GAME_SERVER_EXTENDED src/blockworlds/*.cpp src/blockworlds/*.h)
   set(GAME_GENERATED_SERVER
     "src/game/generated/server_data.cpp"
     "src/game/generated/server_data.h"
     "src/game/generated/wordlist.h"
   )
-  set(SERVER_SRC ${ENGINE_SERVER} ${GAME_SERVER} ${GAME_GENERATED_SERVER})
+  set(SERVER_SRC ${ENGINE_SERVER} ${GAME_SERVER} ${GAME_SERVER_EXTENDED} ${GAME_GENERATED_SERVER})
   if(TARGET_OS STREQUAL "windows")
     set(SERVER_ICON "other/icons/DDNet-Server.rc")
   else()
@@ -1879,7 +1894,7 @@ if(SERVER)
     ${MINIUPNPC_LIBRARIES}
     ${MYSQL_LIBRARIES}
     ${TARGET_ANTIBOT}
-    rust_engine_shared
+    $<$<BOOL:${RUST_BRIDGE}>:rust_engine_shared>
 
     ${LIBS}
   )
@@ -1891,7 +1906,7 @@ if(SERVER)
     ${SERVER_ICON}
     $<TARGET_OBJECTS:engine-shared>
     $<TARGET_OBJECTS:game-shared>
-    $<TARGET_OBJECTS:rust-bridge-shared>
+    $<$<BOOL:${RUST_BRIDGE}>:$<TARGET_OBJECTS:rust-bridge-shared>>
   )
   set_property(TARGET game-server
       PROPERTY OUTPUT_NAME ${SERVER_EXECUTABLE}
@@ -2121,6 +2136,8 @@ if(GTEST_FOUND OR DOWNLOAD_GTEST)
   add_custom_target(run_tests
     DEPENDS run_cxx_tests
   )
+
+  if(RUST_BRIDGE)
   if(NOT MSVC OR CMAKE_BUILD_TYPE STREQUAL Release)
     # On MSVC, Rust tests only work in the release mode because we link our C++
     # code with the debug C standard library (/MTd) but Rust only supports
@@ -2129,7 +2146,10 @@ if(GTEST_FOUND OR DOWNLOAD_GTEST)
     # See also https://github.com/rust-lang/rust/issues/39016.
     add_dependencies(run_tests run_rust_tests)
   endif()
+  endif()
 endif()
+
+if(RUST_BRIDGE)
 
 add_library(rust_test STATIC EXCLUDE_FROM_ALL
   $<TARGET_OBJECTS:engine-gfx>
@@ -2151,6 +2171,8 @@ add_custom_target(run_rust_tests
   DEPENDS rust_test
   VERBATIM
 )
+
+endif()
 
 add_custom_target(run_integration_tests
   COMMAND ${PROJECT_BINARY_DIR}/integration_test.sh ${INTEGRATIONTESTRUNNER_ARGS}
@@ -2650,7 +2672,10 @@ foreach(target ${TARGETS_OWN})
   endif()
   target_include_directories(${target} PRIVATE ${PROJECT_BINARY_DIR}/src)
   target_include_directories(${target} PRIVATE src)
+  if(RUST_BRIDGE)
   target_include_directories(${target} PRIVATE src/rust-bridge)
+  target_compile_definitions(${target} PRIVATE CONF_RUST_BRIDGE)
+  endif()
   target_compile_definitions(${target} PRIVATE $<$<CONFIG:Debug>:CONF_DEBUG>)
   target_include_directories(${target} SYSTEM PRIVATE ${CURL_INCLUDE_DIRS} ${SQLite3_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS})
   target_compile_definitions(${target} PRIVATE GLEW_STATIC)

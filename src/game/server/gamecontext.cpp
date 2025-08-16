@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "game/server/blockworlds/cosmetics/cosmetics.h"
+#include "blockworlds/cosmetics/cosmetics.h"
 #include "game/server/gameworld.h"
 #include "teeinfo.h"
 #include <antibot/antibot_data.h>
@@ -28,6 +28,10 @@
 #include <game/mapitems.h>
 #include <game/version.h>
 
+#include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/components/events.h>
+#include <blockworlds/components/promises.h>
+
 #include <game/generated/protocol7.h>
 #include <game/generated/protocolglue.h>
 
@@ -37,9 +41,9 @@
 #include "player.h"
 #include "score.h"
 
-#include <game/server/blockworlds/gameinterface/handler.h>
-#include <game/server/blockworlds/shop/preview.h>
-#include <game/server/blockworlds/zones/zonemanager.h>
+#include <blockworlds/gameinterface/handler.h>
+#include <blockworlds/shop/preview.h>
+#include <blockworlds/zones/zonemanager.h>
 
 // Not thread-safe!
 class CClientChatLogger : public ILogger
@@ -130,6 +134,13 @@ void CGameContext::Construct(int Resetting)
 	m_TeeHistorianActive = false;
 
 	m_pAccounts = nullptr;
+	m_pClans = nullptr;
+
+	if(Resetting == NO_RESET)
+	{
+		g_ComponentRegistry.Register<CPromises>(CPromises::GetNameStatic());
+		g_ComponentRegistry.Register<CEvents>(CEvents::GetNameStatic());
+	}
 }
 
 void CGameContext::Destruct(int Resetting)
@@ -628,30 +639,35 @@ void CGameContext::SendChatTarget(int To, const char *pText, int VersionFlags) c
 	}
 }
 
-void CGameContext::SendClanChat(int ClanId, const char *pText, int VersionFlags) const
+void CGameContext::SendChatClan(int ClanId, const char *pText, int VersionFlags) const
 {
-    CNetMsg_Sv_Chat Msg;
-    Msg.m_Team = 0;
-    Msg.m_ClientId = -1;
-    Msg.m_pMessage = pText;
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		CPlayer *pPlayer = m_apPlayers[i];
+		if(!pPlayer || !pPlayer->IsLoggedIn())
+			continue;
 
-    for(int i = 0; i < Server()->MaxClients(); i++)
-    {
-        CPlayer *pPlayer = m_apPlayers[i];
-        if(!pPlayer || !pPlayer->IsLoggedIn())
-            continue;
+		if(pPlayer->GetClanId() != ClanId)
+			continue;
 
-        if(pPlayer->GetClanId() != ClanId)
-            continue;
-
-        if(!((Server()->IsSixup(i) && (VersionFlags & FLAG_SIXUP)) ||
-             (!Server()->IsSixup(i) && (VersionFlags & FLAG_SIX))))
-            continue;
-
-        Server()->SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, i);
-    }
+		SendChatTarget(i, pText, VersionFlags);
+	}
 }
 
+void CGameContext::SendChatAccount(int AccountId, const char *pText, int VersionFlags) const
+{
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		CPlayer *pPlayer = m_apPlayers[i];
+		if(!pPlayer || !pPlayer->IsLoggedIn())
+			continue;
+
+		if(pPlayer->GetAccId() != AccountId)
+			continue;
+
+		SendChatTarget(i, pText, VersionFlags);
+	}
+}
 
 void CGameContext::SendChatTeam(int Team, const char *pText) const
 {
@@ -1058,6 +1074,9 @@ void CGameContext::OnTick()
 	// check tuning
 	CheckPureTuning();
 
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnTick();
+
 	if(m_TeeHistorianActive)
 	{
 		int Error = aio_error(m_pTeeHistorianFile);
@@ -1084,6 +1103,9 @@ void CGameContext::OnTick()
 
 	//if(world.paused) // make sure that the game object always updates
 	m_pController->Tick();
+
+	//blockworlds OnTicks.
+	BW_OnTick();
 	m_Animations.Tick();
 	m_ZoneManager.Tick();
 	if(g_Config.m_SvShopServer)
@@ -1341,6 +1363,9 @@ void CGameContext::OnTick()
 		m_SqlRandomMapResult = nullptr;
 	}
 
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnPostTick();
+
 	// Record player position at the end of the tick
 	if(m_TeeHistorianActive)
 	{
@@ -1535,6 +1560,9 @@ void CGameContext::ProgressVoteOptions(int ClientId)
 
 void CGameContext::OnClientEnter(int ClientId)
 {
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnPlayerEntering(ClientId);
+
 	if(m_TeeHistorianActive)
 	{
 		m_TeeHistorian.RecordPlayerReady(ClientId);
@@ -1699,6 +1727,9 @@ void CGameContext::OnClientEnter(int ClientId)
 
 	GameInterface()->OnClientEnter(ClientId);
 
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnPlayerEnter(ClientId);
+
 	LogEvent("Connect", ClientId);
 }
 
@@ -1761,6 +1792,9 @@ void CGameContext::OnClientDrop(int ClientId, const char *pReason)
 {
 	LogEvent("Disconnect", ClientId);
 
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnPlayerDropping(ClientId);
+
 	GameInterface()->OnClientDrop(ClientId);
 
 	AbortVoteKickOnDisconnect(ClientId);
@@ -1800,6 +1834,9 @@ void CGameContext::OnClientDrop(int ClientId, const char *pReason)
 	Msg.m_pReason = pReason;
 	Msg.m_Silent = false;
 	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, -1);
+
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnPlayerDrop(ClientId);
 
 	Server()->ExpireServerInfo();
 }
@@ -3797,6 +3834,10 @@ void CGameContext::RegisterDDRaceCommands()
 
 	Console()->Register("freezehammer", "v[id]", CFGFLAG_SERVER | CMDFLAG_TEST, ConFreezeHammer, this, "Gives a player Freeze Hammer");
 	Console()->Register("unfreezehammer", "v[id]", CFGFLAG_SERVER | CMDFLAG_TEST, ConUnFreezeHammer, this, "Removes Freeze Hammer from a player");
+
+	Console()->Register("component_list", "", CFGFLAG_SERVER, ConComponentList, this, "List of all components and active sub-components");
+	Console()->Register("component_plug", "r[name]", CFGFLAG_SERVER, ConComponentPlug, this, "Plug-in component");
+	Console()->Register("component_unplug", "r[name]", CFGFLAG_SERVER, ConComponentUnPlug, this, "Un-plug component");
 }
 
 void CGameContext::RegisterChatCommands()
@@ -4102,7 +4143,7 @@ void CGameContext::OnInit(const void *pPersistentData)
 	m_ZoneManager.Init(this);
 	if(g_Config.m_SvShopServer)
 		m_ShopPreview.Init(this);
-	// m_GameInterfaceHandler.Init(this);
+	m_GameInterfaceHandler.Init(this);
 
 	m_pAccounts->ClearLogins();
 	m_pClans->LoadAllClans();
@@ -4346,6 +4387,9 @@ void CGameContext::OnShutdown(void *pPersistentData)
 
 	Antibot()->RoundEnd();
 
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnShutdown();
+
 	if(m_TeeHistorianActive)
 	{
 		m_TeeHistorian.Finish();
@@ -4421,6 +4465,9 @@ void CGameContext::OnSnap(int ClientId)
 		Server()->SendMsg(&Msg, MSGFLAG_RECORD | MSGFLAG_NOSEND, ClientId);
 	}
 
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnSnap(ClientId);
+
 	m_pController->Snap(ClientId);
 	m_ZoneManager.Snap(ClientId);
 	m_Animations.Snap(ClientId);
@@ -4440,6 +4487,9 @@ void CGameContext::OnSnap(int ClientId)
 void CGameContext::OnPreSnap() {}
 void CGameContext::OnPostSnap()
 {
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnPostSnap();
+
 	m_World.PostSnap();
 	m_Events.Clear();
 }
@@ -4546,6 +4596,12 @@ void CGameContext::OnSetAuthed(int ClientId, int Level)
 			m_TeeHistorian.RecordAuthLogout(ClientId);
 		}
 	}
+
+	for(const auto &Component : g_ComponentRegistry.Active())
+		if(Level == AUTHED_NO)
+			Component->OnPlayerUnAuthorized(ClientId);
+		else
+			Component->OnPlayerAuthorized(ClientId, Level);
 }
 
 void CGameContext::SendRecord(int ClientId)
@@ -5087,6 +5143,48 @@ void CGameContext::ReadCensorList()
 
 //Blockworlds
 
+int CGameContext::isInEvent(int pPlayerID)
+{
+	for(CEvent *pEvent : m_vEvents)
+	{
+		if(pEvent->playersInclude(pPlayerID))
+		{
+			return pEvent->pGetGametype();
+		}
+	}
+	return 0;
+}
+
+CInvite *CGameContext::getInvite(int Player1ID, int Player2ID, int EventID)
+{
+	for(CInvite *pInvite : m_vEventInvites)
+	{
+		if(EventID != -1 && pInvite->m_Event != EventID)
+			continue;
+		if(Player1ID != -1 && (pInvite->m_pInviteFrom->GetCid() != Player1ID && pInvite->m_pInviteTo->GetCid() != Player1ID))
+			continue;
+		if(Player2ID != -1 && (pInvite->m_pInviteFrom->GetCid() != Player2ID && pInvite->m_pInviteTo->GetCid() != Player2ID))
+			continue;
+		return pInvite;
+	}
+	return nullptr;
+}
+
+std::vector<CInvite *> CGameContext::getInvites(int Player1ID, int Player2ID, int pEventID)
+{
+	std::vector<CInvite *> rInvites = std::vector<CInvite *>();
+	for(CInvite *pInvite : m_vEventInvites)
+	{
+		if(pEventID != -1 && pInvite->m_Event != pEventID)
+			continue;
+		if(Player1ID != -1 && (pInvite->m_pInviteFrom->GetCid() != Player1ID && pInvite->m_pInviteTo->GetCid() != Player1ID))
+			continue;
+		if(Player2ID != -1 && (pInvite->m_pInviteFrom->GetCid() != Player2ID && pInvite->m_pInviteTo->GetCid() != Player2ID))
+			continue;
+		rInvites.push_back(pInvite);
+	}
+	return rInvites;
+}
 SHA256_DIGEST CGameContext::HashPassword(const char *pPassword)
 {
 	SHA256_CTX Sha256Ctx;
@@ -5099,7 +5197,8 @@ void CGameContext::RegisterBlockworldsChatCommands()
 {
 	Console()->Register("register", "s[username] s[password]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConRegister, this, "Create a new account.");
 	Console()->Register("login", "s[username] s[password]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConLogin, this, "Log in to your account.");
-	Console()->Register("logout", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConAccountLogout, this, "Log out of your MySQL account.");
+	// TODO: CFGFLAG_CHAT_ONLY ???
+	Console()->Register("logout_account", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConAccountLogout, this, "Log out of your MySQL account.");
 	Console()->Register("password", "s[oldpassword] s[newpassword]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConChangePassword, this, "Change your account password.");
 	Console()->Register("exp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConExp, this, "Display your current experience progress.");
 
@@ -5135,6 +5234,13 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("clan_decline", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanDecline, this, "Decline a pending clan invitation.");
 
 	Console()->Register("clan_exp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanExp, this, "Display the current experience progress of your clan.");
+
+	// events
+	Console()->Register("1on1", "s[player name] ?i[wager]", CFGFLAG_CHAT, Con1on1, this, "Fight against another player");
+	Console()->Register("accept", "r[player name]", CFGFLAG_CHAT, Con1on1Accept, this, "Accept the 1vs1 request from player r");
+	Console()->Register("decline", "r[player name]", CFGFLAG_CHAT, Con1on1Decline, this, "Decline the 1vs1 request from player r");
+	Console()->Register("sub", "", CFGFLAG_CHAT, ConJoinEvent, this, "Join the current ongoing event");
+	Console()->Register("leave", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConLeaveEvent, this, "Leave current event");
 }
 
 CPlayer *CGameContext::GetPlayerByName(const char *pName)
@@ -5379,4 +5485,20 @@ bool CGameContext::HandleCosmeticsVote(const CNetMsg_Cl_CallVote *pMsg, int Clie
 	SendCosmeticsVoteOptions(ClientId);
 
 	return true;
+}
+
+// Event ticker
+void CGameContext::BW_OnTick()
+{
+	for(CEvent *Event : m_vEvents)
+	{
+		if(Event != nullptr)
+		{
+			Event->OnTick();
+		}
+	}
+	for(CInvite *pInvite : m_vEventInvites)
+	{
+		pInvite->OnTick();
+	}
 }

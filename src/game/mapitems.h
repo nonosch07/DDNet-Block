@@ -213,7 +213,9 @@ enum
 	ENTITY_OFFSET = 255 - 16 * 4,
 
 	// Blockworlds
-	TILE_SHOP = 170
+	TILE_BW_SHOP = 170,
+	TILE_BW_EVENT_START_POS = 193,
+	TILE_BW_1ON1_START_POS = 194,
 };
 
 static constexpr size_t MAX_MAPIMAGES = 64;

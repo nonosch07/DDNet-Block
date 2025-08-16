@@ -902,6 +902,13 @@ void CConsole::Register(const char *pName, const char *pParams,
 
 	if(pCommand->m_Flags & CFGFLAG_CHAT)
 		pCommand->SetAccessLevel(ACCESS_LEVEL_USER);
+
+	if(pCommand->m_Flags & CFGFLAG_ANNOUNCE)
+	{
+		char aBuf[CMDLINE_LENGTH];
+		str_format(aBuf, sizeof(aBuf), "Command registered: %s", pCommand->m_pName);
+		Print(OUTPUT_LEVEL_STANDARD, "console", aBuf);
+	}
 }
 
 void CConsole::RegisterTemp(const char *pName, const char *pParams, int Flags, const char *pHelp)
@@ -936,6 +943,45 @@ void CConsole::RegisterTemp(const char *pName, const char *pParams, int Flags, c
 	pCommand->m_Temp = true;
 
 	AddCommandSorted(pCommand);
+}
+
+void CConsole::Deregister(const char *pName)
+{
+	if(!m_pFirstCommand)
+		return;
+
+	CCommand *pRemoved = nullptr;
+
+	// remove entry from command list
+	if(str_comp(m_pFirstCommand->m_pName, pName) == 0)
+	{
+		pRemoved = m_pFirstCommand;
+		m_pFirstCommand = m_pFirstCommand->m_pNext;
+	}
+	else
+	{
+		for(CCommand *pCommand = m_pFirstCommand; pCommand->m_pNext; pCommand = pCommand->m_pNext)
+			if(str_comp(pCommand->m_pNext->m_pName, pName) == 0)
+			{
+				pRemoved = pCommand->m_pNext;
+				pCommand->m_pNext = pCommand->m_pNext->m_pNext;
+				break;
+			}
+	}
+
+	// add to recycle list
+	if(pRemoved)
+	{
+		if(pRemoved->m_Flags & CFGFLAG_ANNOUNCE)
+		{
+			char aBuf[CMDLINE_LENGTH];
+			str_format(aBuf, sizeof(aBuf), "Command removed: %s", pRemoved->m_pName);
+			Print(OUTPUT_LEVEL_STANDARD, "console", aBuf);
+		}
+
+		pRemoved->m_pNext = m_pRecycleList;
+		m_pRecycleList = pRemoved;
+	}
 }
 
 void CConsole::DeregisterTemp(const char *pName)

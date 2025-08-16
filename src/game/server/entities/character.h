@@ -3,8 +3,8 @@
 #ifndef GAME_SERVER_ENTITIES_CHARACTER_H
 #define GAME_SERVER_ENTITIES_CHARACTER_H
 
-#include "game/server/blockworlds/shop/storemanager.h"
-#include <game/server/blockworlds/requests/clan_requests/requests.h>
+#include <blockworlds/shop/storemanager.h>
+#include <blockworlds/requests/clan_requests/requests.h>
 #include <game/server/entity.h>
 #include <game/server/save.h>
 
@@ -74,7 +74,7 @@ public:
 	void Die(int Killer, int Weapon, bool SendKillMsg = true);
 	bool TakeDamage(vec2 Force, int Dmg, int From, int Weapon);
 
-	bool Spawn(class CPlayer *pPlayer, vec2 Pos);
+	bool Spawn(class CPlayer *pPlayer, vec2 Pos, bool doEvent = true);
 	bool Remove();
 
 	bool IncreaseHealth(int Amount);
@@ -244,7 +244,7 @@ public:
 	void SetArmor(int Armor) { m_Armor = Armor; }
 	CCharacterCore GetCore() { return m_Core; }
 	void SetCore(CCharacterCore Core) { m_Core = Core; }
-	const CCharacterCore *Core() const { return &m_Core; }
+	CCharacterCore *Core() { return &m_Core; } // we modify core quite a bunch, dont make it const (THIS COULD BVREAK A LOT OF FUCKING SHIT);
 	bool GetWeaponGot(int Type) { return m_Core.m_aWeapons[Type].m_Got; }
 	void SetWeaponGot(int Type, bool Value) { m_Core.m_aWeapons[Type].m_Got = Value; }
 	int GetWeaponAmmo(int Type) { return m_Core.m_aWeapons[Type].m_Ammo; }

@@ -16,8 +16,9 @@
 #include <optional>
 #include <queue>
 
-#include <game/server/blockworlds/accounts.h>
-#include <game/server/blockworlds/clans.h>
+#include <blockworlds/accounts.h>
+#include <blockworlds/clans.h>
+#include <blockworlds/events/1on1/1on1_invite.h>
 
 class CCharacter;
 class CGameContext;
@@ -48,7 +49,7 @@ public:
 
 	void TryRespawn();
 	void Respawn(bool WeakHook = false); // with WeakHook == true the character will be spawned after all calls of Tick from other Players
-	CCharacter *ForceSpawn(vec2 Pos); // required for loading savegames
+	CCharacter *ForceSpawn(vec2 Pos, bool doEvent); // required for loading savegames
 	void SetTeam(int Team, bool DoChatMsg = true);
 	int GetTeam() const { return m_Team; }
 	int GetCid() const { return m_ClientId; }
@@ -325,23 +326,43 @@ public:
 	int GetPlayerLastBodyColor() { return m_Account.m_LastBodyColor; }
 	int GetPlayerLastFeetColor() { return m_Account.m_LastFeetColor; }
 
-	void AddPlayerExp(int Amount);
-
 	CAccountData m_Account;
 
-	bool m_allowDeath;
-	int sent1on1InviteTo;
-	bool m_HideInfo = false;
-	bool m_ShowLevel = true;
-	bool m_EventWinner = false;
-	int m_EventWTick = -1;
 	bool m_IsNpc = false;
-	bool m_HideInfoInScoreboard;
 
 	int64_t m_LastDeathnote;
 	int64_t m_LastExpAccountAlert;
 	int64_t m_ClanSaveCooldown;
 
+private:
+	std::map<int /* modifier (percent) */, int /* end tick */> m_ExpModifiers;
+	float m_CurrentExpMultiplier;
+	void CalculateExpMultiplier();
+
+public:
+	void AddPlayerExp(int Amount, bool ApplyMultiplier = true);
+	float GetExpMultiplier() const { return m_CurrentExpMultiplier; }
+	void AddExpMultiplier(float Modifier, int Duration);
+	void AddExpMultiplier(int ModifierPercent, int Duration);
+
+	//events
+	// used for 1on1, default to true
+	bool m_allowDeath;
+	int sent1on1InviteTo;
+	std::vector<CInvite *> m_EventInvites;
+	bool m_HideInfo = false;
+	bool m_ShowLevel = true;
+	bool m_EventWinner = false;
+	int m_EventWTick = -1;
+	bool m_IsDummy = false;
+	bool m_HideInfoInScoreboard;
+	// 0 = not in TDM, 1 = inside TDM, 2 has sent an invite (only leaders can), 3 received leader invite, 4 received clan user invite, 5 accepted & waiting
+	int s_TDM;
+	int s_TDM_team;
+	int s_TDM_start;
+	int TDM_invited_by;
+	CTeeInfo m_OldTeeInfos;
+	bool m_spectateTDM = false;
 	//cosmetics
 private:
 	int m_CurrentKnockout = -1;
