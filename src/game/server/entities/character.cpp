@@ -15,6 +15,7 @@
 #include <game/mapitems.h>
 
 #include <game/server/gamecontext.h>
+#include <blockworlds/zones/passivezone.h>
 #include <game/server/gamecontroller.h>
 #include <game/server/player.h>
 #include <game/server/score.h>
@@ -1027,6 +1028,10 @@ void CCharacter::Die(int Killer, int Weapon, bool SendKillMsg)
 
 	int ModeSpecial = GameServer()->m_pController->OnCharacterDeath(this, GameServer()->m_apPlayers[Killer], Weapon);
 
+	CPassiveZone *pPassiveZone = dynamic_cast<CPassiveZone *>(GameServer()->ZoneManager()->GetZone(ZONE_PASSIVE));
+	if(pPassiveZone)
+		pPassiveZone->OnCharacterDeath(this);
+
 	char aBuf[256];
 	str_format(aBuf, sizeof(aBuf), "kill killer='%d:%s' victim='%d:%s' weapon=%d special=%d",
 		Killer, Server()->ClientName(Killer),
@@ -1878,6 +1883,18 @@ void CCharacter::HandleTiles(int Index)
 
 			pChr->m_LastShopTick = CurrentTick;
 			new CShop(GameServer(), m_pPlayer, Category, Item, 15);
+		}
+	}
+
+	if(((m_TileIndex == TILE_BW_PASSIVE) || (m_TileFIndex == TILE_BW_PASSIVE)))
+	{
+		GameServer()->SendChatTarget(GetPlayer()->GetCid(), "Wayblock Protection unlocked for 2 hours!");
+
+		if (!m_pPlayer->IsLoggedIn())
+			m_pPlayer->m_LocalPassiveDuration = 7200;
+		else
+		{
+			m_pPlayer->SetPlayerPassive(7200);
 		}
 	}
 

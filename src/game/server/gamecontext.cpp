@@ -1,3 +1,4 @@
+
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "gamecontext.h"
@@ -1122,7 +1123,16 @@ void CGameContext::OnTick()
 			m_apPlayers[i]->PostTick();
 
 			if(m_apPlayers[i]->IsLoggedIn() && UpdatePlaytimeThisSkibidiTick)
+			{
 				m_apPlayers[i]->SetPlayerPlaytime(m_apPlayers[i]->GetPlayerPlaytime() + 1);
+
+				int PassiveTime = m_apPlayers[i]->GetPlayerPassive();
+				if(PassiveTime > 0)
+					m_apPlayers[i]->SetPlayerPassive(PassiveTime - 1);
+
+				if(m_apPlayers[i]->m_LocalPassiveDuration > 0)
+					m_apPlayers[i]->m_LocalPassiveDuration--;
+			}
 		}
 	}
 
@@ -5315,83 +5325,52 @@ void CGameContext::CreateStripline(char *pDst, int DstSize, const char *pTitle)
 		str_append(pDst, "#", DstSize);
 }
 
-static std::vector<std::string> ms_SVCosmeticVoteOptions; // move this skibidi shit
+struct CosmeticCategory {
+	const char* Header;
+	int NumItems;
+	const char** Names;
+	const char* (CPlayer::*GetOwned)();
+	int (CPlayer::*GetActive)() const;
+};
 
+static std::vector<std::string> ms_SVCosmeticVoteOptions;
 void CGameContext::SendCosmeticsVoteOptions(int ClientID)
 {
 	CPlayer *pPlayer = GetPlayer(ClientID);
 	ms_SVCosmeticVoteOptions.clear();
 	char aHeader[128];
 
-	if(!pPlayer || !pPlayer->IsLoggedIn())
-	{
+	if(!pPlayer || !pPlayer->IsLoggedIn()) {
 		CreateStripline(aHeader, sizeof(aHeader), "Login to unlock cosmetics!");
 		ms_SVCosmeticVoteOptions.push_back(aHeader);
-	}
-	else
-	{
-		std::vector<std::string> SkinLines;
-		std::vector<std::string> GunLines;
-		std::vector<std::string> KnockoutLines;
+	} else {
+		CosmeticCategory categoriesArr[] = {
+			{"Skin Manipulations", CCosmeticsHandler::NUM_SKINMANIS, CCosmeticsHandler::ms_SkinmaniNames,
+				&CPlayer::GetPlayerSkinmani, &CPlayer::GetSkinMani},
+			{"Gun Designs", CCosmeticsHandler::NUM_GUNDESIGNS, CCosmeticsHandler::ms_GundesignNames,
+				&CPlayer::GetPlayerGundesign, &CPlayer::GetGunDesign},
+			{"Knockout Effects", CCosmeticsHandler::NUM_KNOCKOUTS, CCosmeticsHandler::ms_KnockoutNames,
+				&CPlayer::GetPlayerKnockouts, &CPlayer::GetKnockout}
+		};
+	std::vector<CosmeticCategory> categories(categoriesArr, categoriesArr + sizeof(categoriesArr)/sizeof(categoriesArr[0]));
 
-		int activeSM = pPlayer->GetSkinMani();
-		const char *pSkinManis = pPlayer->GetPlayerSkinmani();
-		for(int i = 0; i < CCosmeticsHandler::NUM_SKINMANIS; i++)
-		{
-			if(pSkinManis[i] == '1')
-			{
-				std::string Line;
-				Line += (activeSM == i ? "☒ " : "☐ ");
-				Line += CCosmeticsHandler::ms_SkinmaniNames[i];
-				SkinLines.push_back(Line);
+		for(const auto& cat : categories) {
+			std::vector<std::string> lines;
+			int active = (pPlayer->*(cat.GetActive))();
+			const char* owned = (pPlayer->*(cat.GetOwned))();
+			for(int i = 0; i < cat.NumItems; i++) {
+				if(owned[i] == '1') {
+					std::string line = (active == i ? "☒ " : "☐ ");
+					line += cat.Names[i];
+					lines.push_back(line);
+				}
 			}
-		}
-		if(!SkinLines.empty())
-		{
-			CreateStripline(aHeader, sizeof(aHeader), "Skin Manipulations");
-			ms_SVCosmeticVoteOptions.push_back(aHeader);
-			for(auto &s : SkinLines)
-				ms_SVCosmeticVoteOptions.push_back(s);
-		}
-
-		int activeGD = pPlayer->GetGunDesign();
-		const char *pGunDesigns = pPlayer->GetPlayerGundesign();
-		for(int i = 0; i < CCosmeticsHandler::NUM_GUNDESIGNS; i++)
-		{
-			if(pGunDesigns[i] == '1')
-			{
-				std::string Line;
-				Line += (activeGD == i ? "☒ " : "☐ ");
-				Line += CCosmeticsHandler::ms_GundesignNames[i];
-				GunLines.push_back(Line);
+			if(!lines.empty()) {
+				CreateStripline(aHeader, sizeof(aHeader), cat.Header);
+				ms_SVCosmeticVoteOptions.push_back(aHeader);
+				for(auto& s : lines)
+					ms_SVCosmeticVoteOptions.push_back(s);
 			}
-		}
-		if(!GunLines.empty())
-		{
-			CreateStripline(aHeader, sizeof(aHeader), "Gun Designs");
-			ms_SVCosmeticVoteOptions.push_back(aHeader);
-			for(auto &s : GunLines)
-				ms_SVCosmeticVoteOptions.push_back(s);
-		}
-
-		int activeKO = pPlayer->GetKnockout();
-		const char *pKnockouts = pPlayer->GetPlayerKnockouts();
-		for(int i = 0; i < CCosmeticsHandler::NUM_KNOCKOUTS; i++)
-		{
-			if(pKnockouts[i] == '1')
-			{
-				std::string Line;
-				Line += (activeKO == i ? "☒ " : "☐ ");
-				Line += CCosmeticsHandler::ms_KnockoutNames[i];
-				KnockoutLines.push_back(Line);
-			}
-		}
-		if(!KnockoutLines.empty())
-		{
-			CreateStripline(aHeader, sizeof(aHeader), "Knockout Effects");
-			ms_SVCosmeticVoteOptions.push_back(aHeader);
-			for(auto &s : KnockoutLines)
-				ms_SVCosmeticVoteOptions.push_back(s);
 		}
 	}
 

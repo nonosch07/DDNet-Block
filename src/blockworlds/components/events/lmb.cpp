@@ -287,7 +287,7 @@ bool CLastManBlockingEvent::Join(int ClientId)
 	pChar->Freeze(Config()->m_SvLMBInitialFreezeTime);
 	GameServer()->Teleport(pChar, m_SpawnPositions[m_SpawnOffset % m_SpawnPositions.size()]);
 
-	GameServer()->SendBroadcast(ClientId, " ");
+	GameServer()->SendBroadcast(" ", ClientId);
 	return true;
 }
 bool CLastManBlockingEvent::Leave(int ClientId)
@@ -316,7 +316,7 @@ void CLastManBlockingEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 		{
 			Leave(ClientId);
 			GameServer()->SendChatTarget(ClientId, "You was disqualified!");
-			GameServer()->SendBroadcast(ClientId, "You was disqualified!");
+			GameServer()->SendBroadcast("You was disqualified!", ClientId);
 		}
 	}
 }

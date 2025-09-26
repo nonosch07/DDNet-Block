@@ -51,7 +51,7 @@ struct CAccountData
 		m_aKnockouts[0] = '\0';
 		m_aGundesign[0] = '\0';
 		m_aSkinmani[0] = '\0';
-		m_aExtras[0] = '\0';
+		m_Passive = 0;
 		m_RegisterDate[0] = '\0';
 		m_RankedGames = 0;
 		m_RankedKills = 0;
@@ -87,7 +87,7 @@ struct CAccountData
 	char m_aKnockouts[256];
 	char m_aGundesign[256];
 	char m_aSkinmani[256];
-	char m_aExtras[256];
+	int m_Passive;
 	char m_RegisterDate[64];
 	int m_RankedGames;
 	int m_RankedKills;

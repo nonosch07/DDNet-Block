@@ -38,7 +38,7 @@ CREATE TABLE `accounts` (
                             `knockouts` varchar(256) DEFAULT '00000000000',
                             `gundesign` varchar(256) DEFAULT '0000000000',
                             `skinmani` varchar(256) DEFAULT '0000000000',
-                            `extras` varchar(256) DEFAULT '00000000000000',
+                            `passive` int(4) DEFAULT 0,
                             `registerdate` timestamp NOT NULL DEFAULT current_timestamp(),
                             `ranked_games` int(11) DEFAULT 0,
                             `ranked_kills` int(11) DEFAULT 0,

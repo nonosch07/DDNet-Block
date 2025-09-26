@@ -216,6 +216,7 @@ enum
 	TILE_BW_SHOP = 170,
 	TILE_BW_EVENT_START_POS = 193,
 	TILE_BW_1ON1_START_POS = 194,
+	TILE_BW_PASSIVE = 176,
 };
 
 static constexpr size_t MAX_MAPIMAGES = 64;
