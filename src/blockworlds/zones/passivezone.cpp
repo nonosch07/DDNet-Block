@@ -5,9 +5,8 @@
 #include "passivezone.h"
 #include "zonemanager.h"
 
-
-CPassiveZone::CPassiveZone(CGameContext *pGameServer)
-	: IZone(pGameServer, ZONE_PASSIVE)
+CPassiveZone::CPassiveZone(CGameContext *pGameServer) :
+	IZone(pGameServer, ZONE_PASSIVE)
 {
 	mem_zero(m_aProtectionTicks, sizeof(m_aProtectionTicks));
 	mem_zero(m_aFreezedTicks, sizeof(m_aFreezedTicks));
@@ -60,7 +59,7 @@ void CPassiveZone::Tick()
 void CPassiveZone::Snap(int ClientID)
 {
 	// nothing to snap
-	return;	
+	return;
 }
 
 void CPassiveZone::OnCharacterDeath(CCharacter *pCharacter)
@@ -73,7 +72,6 @@ void CPassiveZone::OnCharacterDeath(CCharacter *pCharacter)
 	pCharacter->Core()->m_Passive = false;
 	dbg_msg("passivezone", "OnCharacterDeath called for %d", ClientID);
 }
-
 
 void CPassiveZone::HandleProtection(int ClientID, CPlayer *pPlayer, CCharacter *pChar, bool InZone, bool WasInZone)
 {

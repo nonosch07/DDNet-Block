@@ -5,7 +5,6 @@
 
 class CCharacter;
 
-
 class CPassiveZone final : public IZone
 {
 	int m_aProtectionTicks[MAX_CLIENTS];

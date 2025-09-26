@@ -40,13 +40,13 @@ public:
 	[[nodiscard]] virtual bool IsDebug() const;
 
 	template<typename... TArgs>
-	void Log(const char *pFmt, TArgs &&...Args) const
+	void Log(const char *pFmt, TArgs &&... Args) const
 	{
 		dbg_msg(GetName(), pFmt, std::forward<TArgs>(Args)...);
 	}
 
 	template<typename... TArgs>
-	void LogDebug(const char *pFmt, TArgs &&...Args) const
+	void LogDebug(const char *pFmt, TArgs &&... Args) const
 	{
 		if(IsDebug())
 		{

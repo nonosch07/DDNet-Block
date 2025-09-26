@@ -1,10 +1,10 @@
 #ifndef BLOCKWORLDS_EVENTS_TDM_TEAMDEATHMATCH_H
 #define BLOCKWORLDS_EVENTS_TDM_TEAMDEATHMATCH_H
 
+#include "../base/event_base.h"
 #include <game/server/entity.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
-#include "../base/event_base.h"
 class CPlayer;
 class CCharacter;
 class CTeamDeathmatch : public CEvent

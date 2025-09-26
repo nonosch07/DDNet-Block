@@ -66,8 +66,8 @@ void CLastManBlockingEvent::OnTick()
 		if(Server()->Tick() % Config()->m_SvLMBBroadcastRate == 0)
 			for(const auto &ClientId : Participants())
 				GameServer()->SendBroadcast(ClientId, "Participants left: %" PRIzu "\n"
-								  "Time left: %d seconds\n"
-								  "%s",
+								      "Time left: %d seconds\n"
+								      "%s",
 					Participants().size(),
 					(int)((m_ActiveEndTick - Server()->Tick()) / Server()->TickSpeed()),
 					"                                                                                     "
@@ -183,7 +183,7 @@ void CLastManBlockingEvent::FinishEvent()
 		else
 		{
 			const char *pReason = m_ActiveEndTick <= Server()->Tick() ? "Timelimit" :
-										"Tie";
+										    "Tie";
 
 			GameServer()->SendChatTarget(-1, "No one has won the %s (%s)", GetEventName(), pReason);
 			GameServer()->SendBroadcast(-1, "No one has won the %s (%s)", GetEventName(), pReason);

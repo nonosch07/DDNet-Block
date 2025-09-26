@@ -561,7 +561,6 @@ void CGameContext::ConBuy(IConsole::IResult *pResult, void *pUserData)
 {
 	// test command - replace that with tiles
 
-
 	CGameContext *pSelf = (CGameContext *)pUserData;
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 	CCharacter *pChr = pPlayer->GetCharacter();

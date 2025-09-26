@@ -48,7 +48,6 @@
 
 #include <blockworlds/votes/cosmetics.h>
 
-
 // Not thread-safe!
 class CClientChatLogger : public ILogger
 {

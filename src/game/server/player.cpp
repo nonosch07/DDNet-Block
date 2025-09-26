@@ -16,9 +16,9 @@
 #include <game/gamecore.h>
 #include <game/teamscore.h>
 
-#include <blockworlds/common.h>
 #include <blockworlds/accounts.h>
 #include <blockworlds/clans.h>
+#include <blockworlds/common.h>
 
 #include <blockworlds/components/core/component_registry.h>
 
@@ -319,11 +319,15 @@ void CPlayer::Tick()
 	{
 		bool RecalculationNeeded = false;
 		auto it = m_ExpModifiers.begin();
-		for(; it != m_ExpModifiers.end(); ) {
-			if (it->second >= Server()->Tick()) {
+		for(; it != m_ExpModifiers.end();)
+		{
+			if(it->second >= Server()->Tick())
+			{
 				it = m_ExpModifiers.erase(it);
 				RecalculationNeeded = true;
-			} else {
+			}
+			else
+			{
 				++it;
 			}
 		}
@@ -1370,7 +1374,7 @@ void CPlayer::AddPlayerExp(int Amount, bool ApplyMultiplier)
 
 void CPlayer::AddExpMultiplier(float Modifier, int Duration)
 {
-	AddExpMultiplier((int)(Modifier*100), Duration);
+	AddExpMultiplier((int)(Modifier * 100), Duration);
 }
 void CPlayer::AddExpMultiplier(int ModifierPercent, int Duration)
 {
@@ -1391,25 +1395,25 @@ void CPlayer::CalculateExpMultiplier()
 	switch(g_Config.m_SvBlockExperienceMultiplierStacking) // TODO: add enum
 	{
 	case HIGHEST: // highest
-		m_CurrentExpMultiplier = (float)(m_ExpModifiers.begin()->first)/100.f;
+		m_CurrentExpMultiplier = (float)(m_ExpModifiers.begin()->first) / 100.f;
 		break;
 	case ADDITIVE: // additive
 		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &ExpMultiplier) {
-			Multiplier += (ExpMultiplier.first-100)/100.f;
+			Multiplier += (ExpMultiplier.first - 100) / 100.f;
 		});
 		m_CurrentExpMultiplier = Multiplier;
 		break;
 	case LOGARITHMIC: // logarithmic
 		Multiplier = 1;
 		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &ExpMultiplier) {
-			Multiplier *= (ExpMultiplier.first-100)/100.f;
+			Multiplier *= (ExpMultiplier.first - 100) / 100.f;
 		});
 		m_CurrentExpMultiplier = log2f(Multiplier);
 		break;
 	case MULTIPLICATIVE: // multiplicative
 		Multiplier = 1;
 		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &ExpMultiplier) {
-			Multiplier *= (ExpMultiplier.first-100)/100.f;
+			Multiplier *= (ExpMultiplier.first - 100) / 100.f;
 		});
 		m_CurrentExpMultiplier = Multiplier;
 		break;

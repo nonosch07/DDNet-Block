@@ -14,8 +14,8 @@
 #include <game/generated/server_data.h>
 #include <game/mapitems.h>
 
-#include <game/server/gamecontext.h>
 #include <blockworlds/zones/passivezone.h>
+#include <game/server/gamecontext.h>
 #include <game/server/gamecontroller.h>
 #include <game/server/player.h>
 #include <game/server/score.h>
@@ -1890,7 +1890,7 @@ void CCharacter::HandleTiles(int Index)
 	{
 		GameServer()->SendChatTarget(GetPlayer()->GetCid(), "Wayblock Protection unlocked for 2 hours!");
 
-		if (!m_pPlayer->IsLoggedIn())
+		if(!m_pPlayer->IsLoggedIn())
 			m_pPlayer->m_LocalPassiveDuration = 7200;
 		else
 		{
