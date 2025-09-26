@@ -46,6 +46,9 @@
 #include <blockworlds/shop/preview.h>
 #include <blockworlds/zones/zonemanager.h>
 
+#include <blockworlds/votes/cosmetics.h>
+
+
 // Not thread-safe!
 class CClientChatLogger : public ILogger
 {
@@ -2317,9 +2320,8 @@ void CGameContext::OnCallVoteNetMessage(const CNetMsg_Cl_CallVote *pMsg, int Cli
 {
 	if(RateLimitPlayerVote(ClientId) || m_VoteCloseTime)
 		return;
-	// if(GameInterface()->OnCallVote(ClientId, pMsg->m_pValue, pMsg->m_pReason))
-	// 	return;
-
+	if(HandleCosmeticsVote(pMsg, ClientId)) // if cosmetics have been found, return
+		return;
 	m_apPlayers[ClientId]->UpdatePlaytime();
 
 	m_VoteType = VOTE_TYPE_UNKNOWN;
@@ -2332,8 +2334,6 @@ void CGameContext::OnCallVoteNetMessage(const CNetMsg_Cl_CallVote *pMsg, int Cli
 	{
 		str_copy(aReason, pMsg->m_pReason, sizeof(aReason));
 	}
-	if(HandleCosmeticsVote(pMsg, ClientId)) // if cosmetics have been found, return
-		return;
 	int Authed = Server()->GetAuthedState(ClientId);
 
 	if(str_comp_nocase(pMsg->m_pType, "option") == 0)
@@ -5284,7 +5284,7 @@ void CGameContext::ClearVotes(int ClientID)
 	pPlayer->m_SendVoteIndex = 0;
 }
 
-void CGameContext::SetVoteDescriptionAtIndex(int *pIndex, const char *pStr, CNetMsg_Sv_VoteOptionListAdd *pOptionMsg)
+void SetVoteDescriptionAtIndex(int *pIndex, const char *pStr, CNetMsg_Sv_VoteOptionListAdd *pOptionMsg)
 {
 	switch(*pIndex)
 	{
@@ -5325,86 +5325,13 @@ void CGameContext::CreateStripline(char *pDst, int DstSize, const char *pTitle)
 		str_append(pDst, "#", DstSize);
 }
 
-struct CosmeticCategory {
-	const char* Header;
-	int NumItems;
-	const char** Names;
-	const char* (CPlayer::*GetOwned)();
-	int (CPlayer::*GetActive)() const;
-};
+static CosmeticsVoteManager g_CosmeticsVoteManager;
 
-static std::vector<std::string> ms_SVCosmeticVoteOptions;
 void CGameContext::SendCosmeticsVoteOptions(int ClientID)
 {
 	CPlayer *pPlayer = GetPlayer(ClientID);
-	ms_SVCosmeticVoteOptions.clear();
-	char aHeader[128];
-
-	if(!pPlayer || !pPlayer->IsLoggedIn()) {
-		CreateStripline(aHeader, sizeof(aHeader), "Login to unlock cosmetics!");
-		ms_SVCosmeticVoteOptions.push_back(aHeader);
-	} else {
-		CosmeticCategory categoriesArr[] = {
-			{"Skin Manipulations", CCosmeticsHandler::NUM_SKINMANIS, CCosmeticsHandler::ms_SkinmaniNames,
-				&CPlayer::GetPlayerSkinmani, &CPlayer::GetSkinMani},
-			{"Gun Designs", CCosmeticsHandler::NUM_GUNDESIGNS, CCosmeticsHandler::ms_GundesignNames,
-				&CPlayer::GetPlayerGundesign, &CPlayer::GetGunDesign},
-			{"Knockout Effects", CCosmeticsHandler::NUM_KNOCKOUTS, CCosmeticsHandler::ms_KnockoutNames,
-				&CPlayer::GetPlayerKnockouts, &CPlayer::GetKnockout}
-		};
-	std::vector<CosmeticCategory> categories(categoriesArr, categoriesArr + sizeof(categoriesArr)/sizeof(categoriesArr[0]));
-
-		for(const auto& cat : categories) {
-			std::vector<std::string> lines;
-			int active = (pPlayer->*(cat.GetActive))();
-			const char* owned = (pPlayer->*(cat.GetOwned))();
-			for(int i = 0; i < cat.NumItems; i++) {
-				if(owned[i] == '1') {
-					std::string line = (active == i ? "☒ " : "☐ ");
-					line += cat.Names[i];
-					lines.push_back(line);
-				}
-			}
-			if(!lines.empty()) {
-				CreateStripline(aHeader, sizeof(aHeader), cat.Header);
-				ms_SVCosmeticVoteOptions.push_back(aHeader);
-				for(auto& s : lines)
-					ms_SVCosmeticVoteOptions.push_back(s);
-			}
-		}
-	}
-
-	CNetMsg_Sv_VoteOptionListAdd OptionMsg;
-	OptionMsg.m_pDescription0 = "";
-	OptionMsg.m_pDescription1 = "";
-	OptionMsg.m_pDescription2 = "";
-	OptionMsg.m_pDescription3 = "";
-	OptionMsg.m_pDescription4 = "";
-	OptionMsg.m_pDescription5 = "";
-	OptionMsg.m_pDescription6 = "";
-	OptionMsg.m_pDescription7 = "";
-	OptionMsg.m_pDescription8 = "";
-	OptionMsg.m_pDescription9 = "";
-	OptionMsg.m_pDescription10 = "";
-	OptionMsg.m_pDescription11 = "";
-	OptionMsg.m_pDescription12 = "";
-	OptionMsg.m_pDescription13 = "";
-	OptionMsg.m_pDescription14 = "";
-
-	int TotalOptions = ms_SVCosmeticVoteOptions.size();
-	int OptionsSent = 0;
-	while(OptionsSent < TotalOptions)
-	{
-		int index = 0;
-		while(index < 15 && OptionsSent < TotalOptions)
-		{
-			const char *pOption = ms_SVCosmeticVoteOptions[OptionsSent].c_str();
-			SetVoteDescriptionAtIndex(&index, pOption, &OptionMsg);
-			OptionsSent++;
-		}
-		OptionMsg.m_NumOptions = index;
-		Server()->SendPackMsg(&OptionMsg, MSGFLAG_VITAL, ClientID);
-	}
+	g_CosmeticsVoteManager.EnsureCategoriesInitialized();
+	g_CosmeticsVoteManager.SendOptions(pPlayer, ClientID, Server(), this);
 }
 
 bool CGameContext::HandleCosmeticsVote(const CNetMsg_Cl_CallVote *pMsg, int ClientId)
@@ -5412,58 +5339,7 @@ bool CGameContext::HandleCosmeticsVote(const CNetMsg_Cl_CallVote *pMsg, int Clie
 	CPlayer *pPlayer = GetPlayer(ClientId);
 	if(!pPlayer)
 		return false;
-
-	std::string voteInput = pMsg->m_pValue;
-
-	bool Found = false;
-
-	for(int i = 0; i < CCosmeticsHandler::NUM_SKINMANIS; i++)
-	{
-		std::string Name = CCosmeticsHandler::ms_SkinmaniNames[i];
-		if(voteInput.find(Name) != std::string::npos)
-		{
-			if(Cosmetics()->ToggleSkinmani(ClientId, Name.c_str()))
-				Found = true;
-			break;
-		}
-	}
-	if(!Found)
-	{
-		for(int i = 0; i < CCosmeticsHandler::NUM_GUNDESIGNS; i++)
-		{
-			std::string Name = CCosmeticsHandler::ms_GundesignNames[i];
-			if(voteInput.find(Name) != std::string::npos)
-			{
-				if(Cosmetics()->ToggleGundesign(ClientId, Name.c_str()))
-					Found = true;
-				break;
-			}
-		}
-	}
-	if(!Found)
-	{
-		for(int i = 0; i < CCosmeticsHandler::NUM_KNOCKOUTS; i++)
-		{
-			std::string Name = CCosmeticsHandler::ms_KnockoutNames[i];
-			if(voteInput.find(Name) != std::string::npos)
-			{
-				if(Cosmetics()->ToggleKnockout(ClientId, Name.c_str()))
-					Found = true;
-				break;
-			}
-		}
-	}
-
-	if(!Found)
-	{
-		SendChatTarget(ClientId, "Unknown cosmetics option selected.");
-		return false;
-	}
-
-	ClearVotes(ClientId);
-	SendCosmeticsVoteOptions(ClientId);
-
-	return true;
+	return g_CosmeticsVoteManager.HandleVote(pPlayer, pMsg->m_pValue, ClientId, this);
 }
 
 // Event ticker
