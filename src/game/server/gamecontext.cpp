@@ -350,8 +350,18 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon, bool NoDamag
 		if(!(int)Dmg)
 			continue;
 
-		if((pChr->GetPlayer()->GetCid() != Owner && pChr->Core()->m_Protected) || (pChr->GetPlayer()->GetCid() != Owner && pChr->Core()->m_Passive))
-			continue;
+		// if the shooter is passive/protected, only affect the shooter
+		CCharacter *pOwnerChar = GetPlayerChar(Owner);
+		if(pOwnerChar && (pOwnerChar->Core()->m_Passive || pOwnerChar->Core()->m_Protected))
+		{
+			if(pChr->GetPlayer()->GetCid() != Owner)
+				continue;
+		}
+		else
+		{
+			if((pChr->GetPlayer()->GetCid() != Owner && pChr->Core()->m_Protected) || (pChr->GetPlayer()->GetCid() != Owner && pChr->Core()->m_Passive))
+				continue;
+		}
 
 		if((GetPlayerChar(Owner) ? !GetPlayerChar(Owner)->GrenadeHitDisabled() : g_Config.m_SvHit) || NoDamage || Owner == pChr->GetPlayer()->GetCid())
 		{

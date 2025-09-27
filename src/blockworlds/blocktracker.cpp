@@ -27,9 +27,13 @@ bool CBlockTracker::Blocked(int ClientID, int BlockerID)
 {
 	if(!m_pGameContext->PlayerExists(ClientID) || !m_pGameContext->PlayerExists(BlockerID))
 		return false;
-
 	if(m_pGameContext->Server()->IsClientsSameAddr(ClientID, BlockerID) && !g_Config.m_SvAllowExpFromSameIp)
 		return false;
+	for(CEvent *pEvent : m_pGameContext->m_vEvents) // not needed?
+	{
+		if(pEvent->playersInclude(ClientID) || pEvent->playersInclude(BlockerID))
+			return false;
+	}
 
 	CCharacter *pChr = m_pGameContext->GetPlayerChar(ClientID);
 	if(!pChr)
@@ -179,6 +183,12 @@ void CBlockTracker::OnPlayerImpacted(int ClientID, int InitiatorID)
 {
 	if(ClientID == InitiatorID)
 		return;
+
+	for(CEvent *pEvent : m_pGameContext->m_vEvents)
+	{
+		if(pEvent->playersInclude(ClientID) || pEvent->playersInclude(InitiatorID))
+			return;
+	}
 
 	STrackedPlayer &Player = m_aTrackedPlayers[ClientID];
 	if(!Player.m_Tracked || Player.m_FreezedTick >= 0 || SecondsPassed(Player.m_UnfreezedTick) < g_Config.m_SvBlockUnfreezeNoImpactInterval)

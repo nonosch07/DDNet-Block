@@ -1,11 +1,22 @@
-
+#include <algorithm>
+#include <cctype>
 #include <engine/server/databases/connection.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
+#include <mutex>
+#include <unordered_map>
 
 #include "clans.h"
 #include "engine/shared/config.h"
 #include "engine/shared/protocol.h"
+
+#define MAX_CLAN_NAME_LENGTH 12
+
+void ToLowercase(char *str)
+{
+	for(; *str; ++str)
+		*str = std::tolower(*str);
+}
 
 // --- CClanResult Implementation ---
 CClanResult::CClanResult()
@@ -22,6 +33,12 @@ CClanManager::CClanManager(CGameContext *pGameServer, CDbConnectionPool *pPool) 
 }
 
 CClanManager::~CClanManager() = default;
+
+// for thread safety of m_vClansData and clan maps
+std::mutex g_ClansDataMutex;
+// definitions for global clan maps and mutex for external linkage
+std::unordered_map<int, CClansData> g_ClanIdMap;
+std::unordered_map<std::string, int> g_ClanNameToId;
 
 std::shared_ptr<CClanResult> CClanManager::NewSqlClanResult(int ClientId)
 {
@@ -226,11 +243,13 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	{
 		CClansData NewClan;
 		NewClan.m_Id = ClanId;
-		str_copy(NewClan.m_ClanName, pData->m_aClanName, sizeof(NewClan.m_ClanName));
+		str_copy(NewClan.m_ClanName, pData->m_aClanName, MAX_CLAN_NAME_LENGTH);
+		ToLowercase(NewClan.m_ClanName);
 		NewClan.m_Level = 1;
 		NewClan.m_Experience = 0;
 		if(pData->m_pClanManager)
 		{
+			std::lock_guard<std::mutex> lock(g_ClansDataMutex);
 			pData->m_pClanManager->m_vClansData.push_back(NewClan);
 		}
 	}
@@ -299,11 +318,18 @@ bool CClanManager::DeleteClanThread(IDbConnection *pSqlServer, const ISqlData *p
 
 	if(pData->m_pClanManager)
 	{
+		CGameContext *pGameServer = pData->m_pClanManager->GameServer();
+		for(int i = 0; i < MAX_CLIENTS; i++)
+		{
+			CPlayer *pPlayer = pGameServer->m_apPlayers[i];
+			if(pPlayer && pPlayer->m_Account.m_ClanId == pData->m_ClanId)
+			{
+				pGameServer->SendChatTarget(i, "Your clan has been deleted.");
+			}
+		}
 		pData->m_pClanManager->ResetPlayersClan(pData->m_ClanId);
-	}
 
-	if(pData->m_pClanManager)
-	{
+		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
 		auto &vec = pData->m_pClanManager->m_vClansData;
 		for(auto it = vec.begin(); it != vec.end(); ++it)
 		{
@@ -628,26 +654,51 @@ bool CClanManager::LoadClansThread(IDbConnection *pSqlServer, const ISqlData *pG
 	return false;
 }
 
-// helper functions because I need help (i'm going crazy)
+void CClanManager::OnClansLoaded(const std::vector<CClansData> &vClans)
+{
+	std::lock_guard<std::mutex> lock(g_ClansDataMutex);
+	m_vClansData = vClans; // atomic swap
+	g_ClanIdMap.clear();
+	g_ClanNameToId.clear();
+	for(const auto &clan : vClans)
+	{
+		// validate for duplicate IDs or names
+		if(g_ClanIdMap.count(clan.m_Id))
+		{
+			dbg_msg("clan", "Duplicate clan id %d detected!", clan.m_Id);
+			continue;
+		}
+		std::string nameLower(clan.m_ClanName);
+		std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
+		if(g_ClanNameToId.count(nameLower))
+		{
+			dbg_msg("clan", "Duplicate clan name '%s' detected!", clan.m_ClanName);
+			continue;
+		}
+		g_ClanIdMap[clan.m_Id] = clan;
+		g_ClanNameToId[nameLower] = clan.m_Id;
+	}
+	dbg_msg("clan", "Loaded %d clans into memory (map size: %zu)", (int)m_vClansData.size(), g_ClanIdMap.size());
+}
 
+// helper functions because I need help (i'm going crazy)
 int CClanManager::GetClanIdByName(const char *pClanName)
 {
-	for(const auto &Clan : m_vClansData)
-	{
-		if(str_comp(Clan.m_ClanName, pClanName) == 0)
-			return Clan.m_Id;
-	}
+	std::string nameLower(pClanName);
+	std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
+	std::lock_guard<std::mutex> lock(g_ClansDataMutex);
+	auto it = g_ClanNameToId.find(nameLower);
+	if(it != g_ClanNameToId.end())
+		return it->second;
 	return -1;
 }
 
 const char *CClanManager::GetClanName(int ClanId)
 {
-	const auto &vClans = GetClansData();
-	for(const auto &Clan : vClans)
-	{
-		if(Clan.m_Id == ClanId)
-			return Clan.m_ClanName;
-	}
+	std::lock_guard<std::mutex> lock(g_ClansDataMutex);
+	auto it = g_ClanIdMap.find(ClanId);
+	if(it != g_ClanIdMap.end())
+		return it->second.m_ClanName;
 	return "Unknown Clan";
 }
 
@@ -659,8 +710,11 @@ void CClanManager::UpdatePlayerClan(int ClientId, int ClanId, int AuthLevel)
 
 	pPlayer->m_Account.m_ClanId = ClanId;
 	pPlayer->m_Account.m_AuthLevel = AuthLevel;
-
-	pPlayer->m_Account.m_pClanData = GetClanDataById(ClanId, m_vClansData);
+	{
+		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
+		auto it = g_ClanIdMap.find(ClanId);
+		pPlayer->m_Account.m_pClanData = (it != g_ClanIdMap.end()) ? &it->second : nullptr;
+	}
 }
 
 void CClanManager::ResetPlayersClan(int ClanId)
@@ -678,25 +732,31 @@ void CClanManager::ResetPlayersClan(int ClanId)
 
 void CClanManager::AddClanExp(int ClanId, int Amount)
 {
-	for(auto &Clan : m_vClansData)
+	std::lock_guard<std::mutex> lock(g_ClansDataMutex);
+	auto it = g_ClanIdMap.find(ClanId);
+	if(it != g_ClanIdMap.end())
 	{
-		if(Clan.m_Id == ClanId)
+		CClansData &Clan = it->second;
+		Clan.m_Experience += Amount;
+		while(Clan.m_Experience >= NeededClanExp(Clan.m_Level))
 		{
-			Clan.m_Experience += g_Config.m_SvBlockExperience;
+			int ExcessiveExp = Clan.m_Experience - NeededClanExp(Clan.m_Level);
+			Clan.m_Level++;
+			Clan.m_Experience = ExcessiveExp;
 
-			if(Clan.m_Experience >= NeededClanExp(Clan.m_Level))
+			char aBuf[256];
+			str_format(aBuf, sizeof(aBuf), "[Clan LevelUp+]: Clan '%s' is now level %d!", Clan.m_ClanName, Clan.m_Level);
+			GameServer()->SendChatTarget(-1, aBuf);
+		}
+
+		for(auto &vecClan : m_vClansData)
+		{
+			if(vecClan.m_Id == ClanId)
 			{
-				int ExcessiveExp = Clan.m_Experience - NeededClanExp(Clan.m_Level);
-				Clan.m_Level++;
-				Clan.m_Experience = 0;
-
-				char aBuf[256];
-				str_format(aBuf, sizeof(aBuf), "[Clan LevelUp+]: Clan '%s' is now level %d!", Clan.m_ClanName, Clan.m_Level);
-				GameServer()->SendChatTarget(-1, aBuf);
-
-				AddClanExp(ClanId, ExcessiveExp);
+				vecClan.m_Experience = Clan.m_Experience;
+				vecClan.m_Level = Clan.m_Level;
+				break;
 			}
-			return;
 		}
 	}
 }

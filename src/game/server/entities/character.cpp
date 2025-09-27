@@ -1040,16 +1040,29 @@ void CCharacter::Die(int Killer, int Weapon, bool SendKillMsg)
 
 	if(!Blocked)
 	{
-		// send the kill message
-		CNetMsg_Sv_KillMsg Msg;
-		Msg.m_Killer = Killer;
-		Msg.m_Victim = m_pPlayer->GetCid();
-		Msg.m_Weapon = Weapon;
-		Msg.m_ModeSpecial = ModeSpecial;
-		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, -1);
-		m_KillStreak = 0;
+		bool InEvent = false;
+		CPlayer *pKiller = GameServer()->m_apPlayers[Killer];
+		CPlayer *pVictim = m_pPlayer;
+		for(CEvent *pEvent : GameServer()->m_vEvents)
+		{
+			if((pKiller && pEvent->playersInclude(pKiller->GetCid())) || (pVictim && pEvent->playersInclude(pVictim->GetCid())))
+			{
+				InEvent = true;
+				break;
+			}
+		}
+		if(!InEvent)
+		{
+			// send the kill message
+			CNetMsg_Sv_KillMsg Msg;
+			Msg.m_Killer = Killer;
+			Msg.m_Victim = m_pPlayer->GetCid();
+			Msg.m_Weapon = Weapon;
+			Msg.m_ModeSpecial = ModeSpecial;
+			Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, -1);
+			m_KillStreak = 0;
+		}
 	}
-
 	// a nice sound
 	GameServer()->CreateSound(m_Pos, SOUND_PLAYER_DIE, TeamMask());
 
@@ -1576,6 +1589,34 @@ void CCharacter::HandleTiles(int Index)
 	if(!m_Alive)
 		return;
 
+	if((m_TileIndex == TILE_BW_VIP) || (m_TileFIndex == TILE_BW_VIP))
+	{
+		dbg_msg("bw vip tile", "entered");
+		if(!m_pPlayer->IsLoggedIn())
+		{
+			GameServer()->SendChatTarget(GetPlayer()->GetCid(), "You need to be logged in to access this zone!");
+			Die(m_pPlayer->GetCid(), WEAPON_WORLD);
+		}
+		else if(!m_pPlayer->GetPlayerVip())
+		{
+			GameServer()->SendChatTarget(GetPlayer()->GetCid(), "You need to be a VIP to access this zone!");
+			Die(m_pPlayer->GetCid(), WEAPON_WORLD);
+		}
+	}
+
+	if(((m_TileIndex == TILE_BW_PASSIVE) || (m_TileFIndex == TILE_BW_PASSIVE)))
+	{
+		GameServer()->SendChatTarget(GetPlayer()->GetCid(), "Wayblock Protection unlocked for 2 hours!");
+		dbg_msg("bw passive tile", "entered");
+
+		if(!m_pPlayer->IsLoggedIn())
+			m_pPlayer->m_LocalPassiveDuration = 7200;
+		else
+		{
+			m_pPlayer->SetPlayerPassive(7200);
+		}
+	}
+
 	// freeze
 	if(((m_TileIndex == TILE_FREEZE) || (m_TileFIndex == TILE_FREEZE)) && !m_Core.m_Super && !m_Core.m_Invincible && !m_Core.m_DeepFrozen)
 	{
@@ -1883,18 +1924,6 @@ void CCharacter::HandleTiles(int Index)
 
 			pChr->m_LastShopTick = CurrentTick;
 			new CShop(GameServer(), m_pPlayer, Category, Item, 15);
-		}
-	}
-
-	if(((m_TileIndex == TILE_BW_PASSIVE) || (m_TileFIndex == TILE_BW_PASSIVE)))
-	{
-		GameServer()->SendChatTarget(GetPlayer()->GetCid(), "Wayblock Protection unlocked for 2 hours!");
-
-		if(!m_pPlayer->IsLoggedIn())
-			m_pPlayer->m_LocalPassiveDuration = 7200;
-		else
-		{
-			m_pPlayer->SetPlayerPassive(7200);
 		}
 	}
 
