@@ -10,156 +10,154 @@ CPassiveZone::CPassiveZone(CGameContext *pGameServer) :
 {
 	mem_zero(m_aProtectionTicks, sizeof(m_aProtectionTicks));
 	mem_zero(m_aFreezedTicks, sizeof(m_aFreezedTicks));
-	mem_zero(m_aSnapIds, sizeof(m_aSnapIds));
-	mem_zero(m_aHasProtectInZone, sizeof(m_aHasProtectInZone));
-	mem_zero(m_aTouchedTile, sizeof(m_aTouchedTile));
 	mem_zero(m_ProtectionUsed, sizeof(m_ProtectionUsed));
+	mem_zero(m_aWasInZone, sizeof(m_aWasInZone));
 }
 
 void CPassiveZone::Tick()
 {
-	return; // not implemented yet (with db)
+	const int TickSpeed = GameServer()->Server()->TickSpeed();
 
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
-
 		if(!pPlayer)
 			continue;
-
 		CCharacter *pChar = pPlayer->GetCharacter();
-
 		if(!pChar)
 			continue;
 
+		// track how many ticks you've been frozen for (in a row)
 		if(pChar->m_FreezeTime)
 			m_aFreezedTicks[i]++;
 		else
 			m_aFreezedTicks[i] = 0;
 
 		bool InZone = IsInZone(pChar->m_Pos);
+		bool WasInZone = m_aWasInZone[i];
 
-		if(m_aHasProtectInZone[i])
-		{
-			if(InZone)
-			{
-				Protect(i, GameServer()->Server()->TickSpeed());
-
-				if(m_aFreezedTicks[i] >= 3 * GameServer()->Server()->TickSpeed())
-				{
-					GameServer()->SendChatTarget(i, "You will lose protection in 3 sec.");
-					Unprotect(i);
-				}
-			}
-			else
-			{
-				GameServer()->SendChatTarget(i, "You are no longer protected!");
-				Unprotect(i);
-			}
-		}
-		else
-		{
-			if(!m_aProtectionTicks[i] && !m_aFreezedTicks[i] && InZone && !m_ProtectionUsed[i])
-			{
-				m_aHasProtectInZone[i] = true;
-				m_ProtectionUsed[i] = true;
-			}
-		}
-
+		// if the grace timer's running, tick it down
+		// this is how many grace ticks you got left after leaving the zone while frozen
 		if(m_aProtectionTicks[i] > 0)
+		{
 			m_aProtectionTicks[i]--;
+			if(m_aProtectionTicks[i] == 0)
+			{
+				// grace is up, removing protection
+				GameServer()->SendChatTarget(i, "You are no longer protected!");
+				pChar->Core()->m_Passive = false;
+			}
+		}
 
-		pChar->Core()->m_Passive = (m_aProtectionTicks[i] > 0);
+		HandleProtection(i, pPlayer, pChar, InZone, WasInZone);
+
+		// update wasInZone for next tick
+		m_aWasInZone[i] = InZone;
 	}
 }
 
 void CPassiveZone::Snap(int ClientID)
 {
-	for(int i = 0; i < MAX_CLIENTS; i++)
-	{
-		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
-
-		if(!pPlayer)
-			continue;
-
-		CCharacter *pChar = pPlayer->GetCharacter();
-
-		if(!pChar)
-			continue;
-
-		int ID = i;
-
-		if(!GameServer()->Server()->Translate(ID, ClientID))
-			return;
-
-		if(!pChar->CanSnapCharacter(ClientID))
-			return;
-
-		if(!pChar->IsSnappingCharacterInView(ClientID))
-			return;
-
-		/*
-		if(pChar->Core()->m_Passive)
-		{
-			// afair 0 can be an id too, but you'll never run into situation
-			// where some random zone would set first ever snap
-			if(!m_aSnapIds[i])
-				m_aSnapIds[i] = GameServer()->Server()->SnapNewID();
-
-			int SnappingClientVersion = GameServer()->GetClientVersion(ClientID);
-			bool Sixup = GameServer()->Server()->IsSixup(ClientID);
-
-			GameServer()->SnapPickup(CSnapContext(SnappingClientVersion, Sixup), m_aSnapIds[i], vec2{pChar->m_Pos.x, pChar->m_Pos.y - 48.0f}, POWERUP_ARMOR, 0, 0);
-		}
-		else if(m_aSnapIds[i])
-		{
-			GameServer()->Server()->SnapFreeID(m_aSnapIds[i]);
-			m_aSnapIds[i] = 0;
-		}
-		*/
-	}
-}
-
-void CPassiveZone::OnProtectionTile(int ClientID)
-{
-	if(m_aTouchedTile[ClientID])
-		return;
-
-	m_aTouchedTile[ClientID] = true;
-	Protect(ClientID, GameServer()->Server()->TickSpeed() * 60 * 60 * 2); // 2 hours
+	// nothing to snap
+	return;
 }
 
 void CPassiveZone::OnCharacterDeath(CCharacter *pCharacter)
 {
 	int ClientID = pCharacter->GetPlayer()->GetCid();
-
 	m_aProtectionTicks[ClientID] = 0;
 	m_aFreezedTicks[ClientID] = 0;
-	m_aSnapIds[ClientID] = 0;
-	m_aHasProtectInZone[ClientID] = false;
-	m_aTouchedTile[ClientID] = false;
-	m_ProtectionUsed[ClientID] = false;
-
-	// it's useless though but
+	m_ProtectionUsed[ClientID] = false; // reset per life
+	m_aWasInZone[ClientID] = false;
 	pCharacter->Core()->m_Passive = false;
+	dbg_msg("passivezone", "OnCharacterDeath called for %d", ClientID);
 }
 
-void CPassiveZone::Protect(int ClientID, int Ticks)
+void CPassiveZone::HandleProtection(int ClientID, CPlayer *pPlayer, CCharacter *pChar, bool InZone, bool WasInZone)
 {
-	CCharacter *pChar = GameServer()->GetPlayerChar(ClientID);
-	if(!pChar)
+	const int TickSpeed = GameServer()->Server()->TickSpeed();
+
+	const int GraceTicks = 3 * TickSpeed;
+	const int MaxFreezeInsideTicks = 3 * TickSpeed;
+
+	bool Eligible = ((pPlayer->IsLoggedIn() && pPlayer->GetPlayerPassive() > 0) || pPlayer->m_LocalPassiveDuration > 0);
+
+	// if you're not eligible, clear protection
+	if(!Eligible)
+	{
+		m_aProtectionTicks[ClientID] = 0;
+		pChar->Core()->m_Passive = false;
 		return;
+	}
 
-	pChar->Core()->m_Passive = true;
-	m_aProtectionTicks[ClientID] = Ticks;
-}
+	// leaving the zone (was in, now out)
+	if(WasInZone && !InZone)
+	{
+		if(pChar->Core()->m_Passive)
+		{
+			if(m_aFreezedTicks[ClientID] > 0)
+			{
+				if(m_aProtectionTicks[ClientID] == 0)
+				{
+					m_aProtectionTicks[ClientID] = GraceTicks;
+					GameServer()->SendChatTarget(ClientID, "You left the passive zone while frozen — protection will remain briefly.");
+				}
+				return;
+			}
+			else
+			{
+				GameServer()->SendChatTarget(ClientID, "You are no longer protected!");
+				m_aProtectionTicks[ClientID] = 0;
+				pChar->Core()->m_Passive = false;
+				return;
+			}
+		}
+	}
 
-void CPassiveZone::Unprotect(int ClientID)
-{
-	CCharacter *pChar = GameServer()->GetPlayerChar(ClientID);
-	if(!pChar)
-		return;
+	// in the zone and eligible
+	if(InZone)
+	{
+		// if you've been frozen inside the zone too long, drop your protection
+		if(m_aFreezedTicks[ClientID] >= MaxFreezeInsideTicks)
+		{
+			if(pChar->Core()->m_Passive)
+			{
+				GameServer()->SendChatTarget(ClientID, "You lost passive protection due to prolonged freeze inside the zone.");
+				m_aProtectionTicks[ClientID] = 0;
+				pChar->Core()->m_Passive = false;
+			}
+			return;
+		}
 
-	m_aHasProtectInZone[ClientID] = false;
-	Protect(ClientID, 0); // if player isn't frozen, unprotect instantly, otherwise, if frozen for more than 3 sec, unprotect.
+		// only give protection once per life
+		if(!m_ProtectionUsed[ClientID])
+		{
+			GameServer()->SendChatTarget(ClientID, "You are now protected.");
+			m_ProtectionUsed[ClientID] = true;
+			pChar->Core()->m_Passive = true;
+		}
+		else
+		{
+			// fix:
+			// don't re-enable passive on re-entering if you've already used your protection this life
+			// if it's still active (you never left or lost it), keep it on
+			// if it's off (you lost it earlier), don't set it back on
+			// also reset the grace timer when you're in the zone
+			if(pChar->Core()->m_Passive)
+			{
+				// still active, keep it on
+			}
+			// otherwise just chill and don't re-grant protection
+			m_aProtectionTicks[ClientID] = 0;
+		}
+	}
+	else
+	{
+		// not in zone:
+		if(m_aFreezedTicks[ClientID] == 0 && m_aProtectionTicks[ClientID] == 0)
+		{
+			m_aProtectionTicks[ClientID] = 0;
+			pChar->Core()->m_Passive = false;
+		}
+	}
 }

@@ -565,6 +565,9 @@ void CGameContext::ConBuy(IConsole::IResult *pResult, void *pUserData)
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 	CCharacter *pChr = pPlayer->GetCharacter();
 
+	pPlayer->SetPlayerPassive(50);
+	return;
+
 	if(!pPlayer)
 	{
 		pSelf->SendChatTarget(pResult->m_ClientId, "Player not found.");

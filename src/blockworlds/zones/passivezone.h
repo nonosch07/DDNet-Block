@@ -9,23 +9,18 @@ class CPassiveZone final : public IZone
 {
 	int m_aProtectionTicks[MAX_CLIENTS];
 	int m_aFreezedTicks[MAX_CLIENTS];
-	int m_aSnapIds[MAX_CLIENTS];
-	bool m_aHasProtectInZone[MAX_CLIENTS];
-	bool m_aTouchedTile[MAX_CLIENTS];
 	bool m_ProtectionUsed[MAX_CLIENTS];
+	bool m_aWasInZone[MAX_CLIENTS];
 
 public:
 	CPassiveZone(class CGameContext *pGameServer);
 
 	void Tick() override;
 	void Snap(int ClientID) override;
-
-	void OnProtectionTile(int ClientID);
 	void OnCharacterDeath(CCharacter *pCharacter);
 
 private:
-	void Protect(int ClientID, int Ticks);
-	void Unprotect(int ClientID);
+	void HandleProtection(int ClientID, CPlayer *pPlayer, CCharacter *pChar, bool InZone, bool WasInZone);
 };
 
 #endif // BLOCKWORLDS_ZONES_PASSIVEZONE_H

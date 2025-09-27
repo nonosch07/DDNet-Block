@@ -137,6 +137,8 @@ private:
 	CMysqlConfig m_Config;
 
 	std::atomic_bool m_InUse;
+
+	bool m_LastStmtHadResultSet = false;
 };
 
 void CMysqlConnection::CStmtDeleter::operator()(MYSQL_STMT *pStmt) const
@@ -223,7 +225,7 @@ bool CMysqlConnection::ConnectImpl()
 {
 	if(m_HaveConnection)
 	{
-		if(m_pStmt && mysql_stmt_free_result(m_pStmt.get()))
+		if(m_pStmt && m_LastStmtHadResultSet && mysql_stmt_free_result(m_pStmt.get()))
 		{
 			StoreErrorStmt("free_result");
 			dbg_msg("mysql", "can't free last result %s", m_aErrorDetail);
@@ -337,6 +339,7 @@ bool CMysqlConnection::PrepareStatement(const char *pStmt, char *pError, int Err
 		mem_zero(m_vStmtParameters.data(), sizeof(m_vStmtParameters[0]) * m_vStmtParameters.size());
 		mem_zero(m_vStmtParameterExtras.data(), sizeof(m_vStmtParameterExtras[0]) * m_vStmtParameterExtras.size());
 	}
+	m_LastStmtHadResultSet = (strncasecmp(pStmt, "SELECT", 6) == 0);
 	return false;
 }
 

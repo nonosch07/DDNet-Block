@@ -59,10 +59,10 @@ std::vector<ComponentAccessor<CComponent>> CComponentRegistry::Active()
 {
 	std::vector<ComponentAccessor<CComponent>> vComponents;
 	vComponents.reserve(m_Components.size());
-	for(auto &item : m_Components)
+	for(auto &[Type, pComponent] : m_Components)
 	{
-		vComponents.emplace_back(item.second);
-		if(auto vSubComponents = item.second->GetSubComponents(); !vSubComponents.empty())
+		vComponents.emplace_back(pComponent);
+		if(auto vSubComponents = pComponent->GetSubComponents(); !vSubComponents.empty())
 			vComponents.insert(vComponents.end(), std::make_move_iterator(vSubComponents.begin()), std::make_move_iterator(vSubComponents.end()));
 	}
 	return vComponents;
@@ -72,12 +72,12 @@ std::unordered_map<std::type_index, ComponentAccessor<CComponent>> CComponentReg
 {
 	std::unordered_map<std::type_index, ComponentAccessor<CComponent>> vComponents;
 	vComponents.reserve(m_TypeToFactory.size());
-	for(auto &item : m_TypeToFactory)
+	for(auto &[Type, Factory] : m_TypeToFactory)
 	{
-		if(auto it = m_Components.find(item.first); it != m_Components.end())
-			vComponents.emplace(item.first, it->second);
+		if(auto it = m_Components.find(Type); it != m_Components.end())
+			vComponents.emplace(Type, it->second);
 		else
-			vComponents.emplace(item.first, nullptr);
+			vComponents.emplace(Type, nullptr);
 	}
 	return vComponents;
 }

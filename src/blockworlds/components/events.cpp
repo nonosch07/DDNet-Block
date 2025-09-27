@@ -49,11 +49,10 @@ void CEvents::OnDisable()
 	DEF("events_list", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsList, this, "List of available to start events") \
 	DEF("events_start", "r[name]", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsStart, this, "Start specified event") \
 	DEF("events_next_stage", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsForceNextState, this, "Force current event to next stage") \
-	DEF("events_end", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsForceEnd, this, "Forcefully end current event")  \
-                                  \
-	DEF("join", "", CFGFLAG_SERVER | CFGFLAG_CHAT | CFGFLAG_ANNOUNCE, ConJoin, this, "Chat command, try to register to current event")  \
+	DEF("events_end", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsForceEnd, this, "Forcefully end current event") \
+\
+	DEF("join", "", CFGFLAG_SERVER | CFGFLAG_CHAT | CFGFLAG_ANNOUNCE, ConJoin, this, "Chat command, try to register to current event") \
 	DEF("leave", "", CFGFLAG_SERVER | CFGFLAG_CHAT | CFGFLAG_ANNOUNCE, ConLeave, this, "Chat command, try to deregister from current event")
-
 
 void CEvents::OnConsoleInit()
 {
@@ -109,8 +108,8 @@ void CEvents::ConEventsList(IConsole::IResult *pResult, void *pUserData)
 	auto *pThis = (CEvents *)pUserData;
 
 	pThis->Log("Available Events:");
-	for(const auto &item : pThis->m_EventsFactory)
-		pThis->Log(" - %s", item.first.c_str());
+	for(const auto &[Name, Factory] : pThis->m_EventsFactory)
+		pThis->Log(" - %s", Name.c_str());
 }
 void CEvents::ConEventsStart(IConsole::IResult *pResult, void *pUserData)
 {

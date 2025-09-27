@@ -1,3 +1,4 @@
+
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "gamecontext.h"
@@ -44,6 +45,8 @@
 #include <blockworlds/gameinterface/handler.h>
 #include <blockworlds/shop/preview.h>
 #include <blockworlds/zones/zonemanager.h>
+
+#include <blockworlds/votes/cosmetics.h>
 
 // Not thread-safe!
 class CClientChatLogger : public ILogger
@@ -1074,8 +1077,8 @@ void CGameContext::OnTick()
 	// check tuning
 	CheckPureTuning();
 
-	for(const auto &item : g_ComponentRegistry.Active())
-		item->OnTick();
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnTick();
 
 	if(m_TeeHistorianActive)
 	{
@@ -1122,7 +1125,16 @@ void CGameContext::OnTick()
 			m_apPlayers[i]->PostTick();
 
 			if(m_apPlayers[i]->IsLoggedIn() && UpdatePlaytimeThisSkibidiTick)
+			{
 				m_apPlayers[i]->SetPlayerPlaytime(m_apPlayers[i]->GetPlayerPlaytime() + 1);
+
+				int PassiveTime = m_apPlayers[i]->GetPlayerPassive();
+				if(PassiveTime > 0)
+					m_apPlayers[i]->SetPlayerPassive(PassiveTime - 1);
+
+				if(m_apPlayers[i]->m_LocalPassiveDuration > 0)
+					m_apPlayers[i]->m_LocalPassiveDuration--;
+			}
 		}
 	}
 
@@ -1363,8 +1375,8 @@ void CGameContext::OnTick()
 		m_SqlRandomMapResult = nullptr;
 	}
 
-	for(const auto &item : g_ComponentRegistry.Active())
-		item->OnPostTick();
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnPostTick();
 
 	// Record player position at the end of the tick
 	if(m_TeeHistorianActive)
@@ -1560,8 +1572,8 @@ void CGameContext::ProgressVoteOptions(int ClientId)
 
 void CGameContext::OnClientEnter(int ClientId)
 {
-	for(const auto &item : g_ComponentRegistry.Active())
-		item->OnPlayerEntering(ClientId);
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnPlayerEntering(ClientId);
 
 	if(m_TeeHistorianActive)
 	{
@@ -1727,8 +1739,8 @@ void CGameContext::OnClientEnter(int ClientId)
 
 	GameInterface()->OnClientEnter(ClientId);
 
-	for(const auto &item : g_ComponentRegistry.Active())
-		item->OnPlayerEnter(ClientId);
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnPlayerEnter(ClientId);
 
 	LogEvent("Connect", ClientId);
 }
@@ -1792,8 +1804,8 @@ void CGameContext::OnClientDrop(int ClientId, const char *pReason)
 {
 	LogEvent("Disconnect", ClientId);
 
-	for(const auto &item : g_ComponentRegistry.Active())
-		item->OnPlayerDropping(ClientId);
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnPlayerDropping(ClientId);
 
 	GameInterface()->OnClientDrop(ClientId);
 
@@ -1835,8 +1847,8 @@ void CGameContext::OnClientDrop(int ClientId, const char *pReason)
 	Msg.m_Silent = false;
 	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, -1);
 
-	for(const auto &item : g_ComponentRegistry.Active())
-		item->OnPlayerDrop(ClientId);
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnPlayerDrop(ClientId);
 
 	Server()->ExpireServerInfo();
 }
@@ -2307,9 +2319,8 @@ void CGameContext::OnCallVoteNetMessage(const CNetMsg_Cl_CallVote *pMsg, int Cli
 {
 	if(RateLimitPlayerVote(ClientId) || m_VoteCloseTime)
 		return;
-	// if(GameInterface()->OnCallVote(ClientId, pMsg->m_pValue, pMsg->m_pReason))
-	// 	return;
-
+	if(HandleCosmeticsVote(pMsg, ClientId)) // if cosmetics have been found, return
+		return;
 	m_apPlayers[ClientId]->UpdatePlaytime();
 
 	m_VoteType = VOTE_TYPE_UNKNOWN;
@@ -2322,8 +2333,6 @@ void CGameContext::OnCallVoteNetMessage(const CNetMsg_Cl_CallVote *pMsg, int Cli
 	{
 		str_copy(aReason, pMsg->m_pReason, sizeof(aReason));
 	}
-	if(HandleCosmeticsVote(pMsg, ClientId)) // if cosmetics have been found, return
-		return;
 	int Authed = Server()->GetAuthedState(ClientId);
 
 	if(str_comp_nocase(pMsg->m_pType, "option") == 0)
@@ -4387,8 +4396,8 @@ void CGameContext::OnShutdown(void *pPersistentData)
 
 	Antibot()->RoundEnd();
 
-	for(const auto &item : g_ComponentRegistry.Active())
-		item->OnShutdown();
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnShutdown();
 
 	if(m_TeeHistorianActive)
 	{
@@ -4465,8 +4474,8 @@ void CGameContext::OnSnap(int ClientId)
 		Server()->SendMsg(&Msg, MSGFLAG_RECORD | MSGFLAG_NOSEND, ClientId);
 	}
 
-	for(const auto &item : g_ComponentRegistry.Active())
-		item->OnSnap(ClientId);
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnSnap(ClientId);
 
 	m_pController->Snap(ClientId);
 	m_ZoneManager.Snap(ClientId);
@@ -4487,8 +4496,8 @@ void CGameContext::OnSnap(int ClientId)
 void CGameContext::OnPreSnap() {}
 void CGameContext::OnPostSnap()
 {
-	for(const auto &item : g_ComponentRegistry.Active())
-		item->OnPostSnap();
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnPostSnap();
 
 	m_World.PostSnap();
 	m_Events.Clear();
@@ -4597,11 +4606,11 @@ void CGameContext::OnSetAuthed(int ClientId, int Level)
 		}
 	}
 
-	for(const auto &item : g_ComponentRegistry.Active())
+	for(const auto &Component : g_ComponentRegistry.Active())
 		if(Level == AUTHED_NO)
-			item->OnPlayerUnAuthorized(ClientId);
+			Component->OnPlayerUnAuthorized(ClientId);
 		else
-			item->OnPlayerAuthorized(ClientId, Level);
+			Component->OnPlayerAuthorized(ClientId, Level);
 }
 
 void CGameContext::SendRecord(int ClientId)
@@ -5197,7 +5206,8 @@ void CGameContext::RegisterBlockworldsChatCommands()
 {
 	Console()->Register("register", "s[username] s[password]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConRegister, this, "Create a new account.");
 	Console()->Register("login", "s[username] s[password]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConLogin, this, "Log in to your account.");
-	Console()->Register("logout", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConAccountLogout, this, "Log out of your MySQL account.");
+	// TODO: CFGFLAG_CHAT_ONLY ???
+	Console()->Register("logout_account", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConAccountLogout, this, "Log out of your MySQL account.");
 	Console()->Register("password", "s[oldpassword] s[newpassword]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConChangePassword, this, "Change your account password.");
 	Console()->Register("exp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConExp, this, "Display your current experience progress.");
 
@@ -5273,7 +5283,7 @@ void CGameContext::ClearVotes(int ClientID)
 	pPlayer->m_SendVoteIndex = 0;
 }
 
-void CGameContext::SetVoteDescriptionAtIndex(int *pIndex, const char *pStr, CNetMsg_Sv_VoteOptionListAdd *pOptionMsg)
+void SetVoteDescriptionAtIndex(int *pIndex, const char *pStr, CNetMsg_Sv_VoteOptionListAdd *pOptionMsg)
 {
 	switch(*pIndex)
 	{
@@ -5314,117 +5324,13 @@ void CGameContext::CreateStripline(char *pDst, int DstSize, const char *pTitle)
 		str_append(pDst, "#", DstSize);
 }
 
-static std::vector<std::string> ms_SVCosmeticVoteOptions; // move this skibidi shit
+static CosmeticsVoteManager g_CosmeticsVoteManager;
 
 void CGameContext::SendCosmeticsVoteOptions(int ClientID)
 {
 	CPlayer *pPlayer = GetPlayer(ClientID);
-	ms_SVCosmeticVoteOptions.clear();
-	char aHeader[128];
-
-	if(!pPlayer || !pPlayer->IsLoggedIn())
-	{
-		CreateStripline(aHeader, sizeof(aHeader), "Login to unlock cosmetics!");
-		ms_SVCosmeticVoteOptions.push_back(aHeader);
-	}
-	else
-	{
-		std::vector<std::string> SkinLines;
-		std::vector<std::string> GunLines;
-		std::vector<std::string> KnockoutLines;
-
-		int activeSM = pPlayer->GetSkinMani();
-		const char *pSkinManis = pPlayer->GetPlayerSkinmani();
-		for(int i = 0; i < CCosmeticsHandler::NUM_SKINMANIS; i++)
-		{
-			if(pSkinManis[i] == '1')
-			{
-				std::string Line;
-				Line += (activeSM == i ? "☒ " : "☐ ");
-				Line += CCosmeticsHandler::ms_SkinmaniNames[i];
-				SkinLines.push_back(Line);
-			}
-		}
-		if(!SkinLines.empty())
-		{
-			CreateStripline(aHeader, sizeof(aHeader), "Skin Manipulations");
-			ms_SVCosmeticVoteOptions.push_back(aHeader);
-			for(auto &s : SkinLines)
-				ms_SVCosmeticVoteOptions.push_back(s);
-		}
-
-		int activeGD = pPlayer->GetGunDesign();
-		const char *pGunDesigns = pPlayer->GetPlayerGundesign();
-		for(int i = 0; i < CCosmeticsHandler::NUM_GUNDESIGNS; i++)
-		{
-			if(pGunDesigns[i] == '1')
-			{
-				std::string Line;
-				Line += (activeGD == i ? "☒ " : "☐ ");
-				Line += CCosmeticsHandler::ms_GundesignNames[i];
-				GunLines.push_back(Line);
-			}
-		}
-		if(!GunLines.empty())
-		{
-			CreateStripline(aHeader, sizeof(aHeader), "Gun Designs");
-			ms_SVCosmeticVoteOptions.push_back(aHeader);
-			for(auto &s : GunLines)
-				ms_SVCosmeticVoteOptions.push_back(s);
-		}
-
-		int activeKO = pPlayer->GetKnockout();
-		const char *pKnockouts = pPlayer->GetPlayerKnockouts();
-		for(int i = 0; i < CCosmeticsHandler::NUM_KNOCKOUTS; i++)
-		{
-			if(pKnockouts[i] == '1')
-			{
-				std::string Line;
-				Line += (activeKO == i ? "☒ " : "☐ ");
-				Line += CCosmeticsHandler::ms_KnockoutNames[i];
-				KnockoutLines.push_back(Line);
-			}
-		}
-		if(!KnockoutLines.empty())
-		{
-			CreateStripline(aHeader, sizeof(aHeader), "Knockout Effects");
-			ms_SVCosmeticVoteOptions.push_back(aHeader);
-			for(auto &s : KnockoutLines)
-				ms_SVCosmeticVoteOptions.push_back(s);
-		}
-	}
-
-	CNetMsg_Sv_VoteOptionListAdd OptionMsg;
-	OptionMsg.m_pDescription0 = "";
-	OptionMsg.m_pDescription1 = "";
-	OptionMsg.m_pDescription2 = "";
-	OptionMsg.m_pDescription3 = "";
-	OptionMsg.m_pDescription4 = "";
-	OptionMsg.m_pDescription5 = "";
-	OptionMsg.m_pDescription6 = "";
-	OptionMsg.m_pDescription7 = "";
-	OptionMsg.m_pDescription8 = "";
-	OptionMsg.m_pDescription9 = "";
-	OptionMsg.m_pDescription10 = "";
-	OptionMsg.m_pDescription11 = "";
-	OptionMsg.m_pDescription12 = "";
-	OptionMsg.m_pDescription13 = "";
-	OptionMsg.m_pDescription14 = "";
-
-	int TotalOptions = ms_SVCosmeticVoteOptions.size();
-	int OptionsSent = 0;
-	while(OptionsSent < TotalOptions)
-	{
-		int index = 0;
-		while(index < 15 && OptionsSent < TotalOptions)
-		{
-			const char *pOption = ms_SVCosmeticVoteOptions[OptionsSent].c_str();
-			SetVoteDescriptionAtIndex(&index, pOption, &OptionMsg);
-			OptionsSent++;
-		}
-		OptionMsg.m_NumOptions = index;
-		Server()->SendPackMsg(&OptionMsg, MSGFLAG_VITAL, ClientID);
-	}
+	g_CosmeticsVoteManager.EnsureCategoriesInitialized();
+	g_CosmeticsVoteManager.SendOptions(pPlayer, ClientID, Server(), this);
 }
 
 bool CGameContext::HandleCosmeticsVote(const CNetMsg_Cl_CallVote *pMsg, int ClientId)
@@ -5432,58 +5338,7 @@ bool CGameContext::HandleCosmeticsVote(const CNetMsg_Cl_CallVote *pMsg, int Clie
 	CPlayer *pPlayer = GetPlayer(ClientId);
 	if(!pPlayer)
 		return false;
-
-	std::string voteInput = pMsg->m_pValue;
-
-	bool Found = false;
-
-	for(int i = 0; i < CCosmeticsHandler::NUM_SKINMANIS; i++)
-	{
-		std::string Name = CCosmeticsHandler::ms_SkinmaniNames[i];
-		if(voteInput.find(Name) != std::string::npos)
-		{
-			if(Cosmetics()->ToggleSkinmani(ClientId, Name.c_str()))
-				Found = true;
-			break;
-		}
-	}
-	if(!Found)
-	{
-		for(int i = 0; i < CCosmeticsHandler::NUM_GUNDESIGNS; i++)
-		{
-			std::string Name = CCosmeticsHandler::ms_GundesignNames[i];
-			if(voteInput.find(Name) != std::string::npos)
-			{
-				if(Cosmetics()->ToggleGundesign(ClientId, Name.c_str()))
-					Found = true;
-				break;
-			}
-		}
-	}
-	if(!Found)
-	{
-		for(int i = 0; i < CCosmeticsHandler::NUM_KNOCKOUTS; i++)
-		{
-			std::string Name = CCosmeticsHandler::ms_KnockoutNames[i];
-			if(voteInput.find(Name) != std::string::npos)
-			{
-				if(Cosmetics()->ToggleKnockout(ClientId, Name.c_str()))
-					Found = true;
-				break;
-			}
-		}
-	}
-
-	if(!Found)
-	{
-		SendChatTarget(ClientId, "Unknown cosmetics option selected.");
-		return false;
-	}
-
-	ClearVotes(ClientId);
-	SendCosmeticsVoteOptions(ClientId);
-
-	return true;
+	return g_CosmeticsVoteManager.HandleVote(pPlayer, pMsg->m_pValue, ClientId, this);
 }
 
 // Event ticker

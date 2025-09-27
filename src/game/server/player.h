@@ -275,7 +275,7 @@ public:
 	void SetPlayerKnockouts(int Index, char Value) { m_Account.m_aKnockouts[Index] = Value; }
 	void SetPlayerGundesign(int Index, char Value) { m_Account.m_aGundesign[Index] = Value; }
 	void SetPlayerSkinmani(int Index, char Value) { m_Account.m_aSkinmani[Index] = Value; }
-	void SetPlayerExtras(const char *Extras) { strncpy(m_Account.m_aExtras, Extras, sizeof(m_Account.m_aExtras) - 1); }
+	void SetPlayerPassive(int PassiveDuration) { m_Account.m_Passive = PassiveDuration; }
 	void SetPlayerRegisterDate(const char *RegisterDate) { strncpy(m_Account.m_RegisterDate, RegisterDate, sizeof(m_Account.m_RegisterDate) - 1); }
 	void SetPlayerRankedGames(int RankedGames) { m_Account.m_RankedGames = RankedGames; }
 	void SetPlayerRankedKills(int RankedKills) { m_Account.m_RankedKills = RankedKills; }
@@ -310,7 +310,7 @@ public:
 	const char *GetPlayerKnockouts() { return m_Account.m_aKnockouts; }
 	const char *GetPlayerGundesign() { return m_Account.m_aGundesign; }
 	const char *GetPlayerSkinmani() { return m_Account.m_aSkinmani; }
-	const char *GetPlayerExtras() { return m_Account.m_aExtras; }
+	int GetPlayerPassive() { return m_Account.m_Passive; }
 	const char *GetPlayerRegisterDate() { return m_Account.m_RegisterDate; }
 	int GetPlayerRankedGames() { return m_Account.m_RankedGames; }
 	int GetPlayerRankedKills() { return m_Account.m_RankedKills; }
@@ -395,6 +395,8 @@ public:
 		m_CurrentSkinMani = m_CurrentSkinMani == SkinMani ? -1 : SkinMani;
 		return m_CurrentSkinMani;
 	}
+
+	int m_LocalPassiveDuration = 0;
 };
 
 #endif

@@ -19,10 +19,10 @@ CLastManBlockingEvent::CLastManBlockingEvent(CGameContext *pGameContext) :
 	m_ActiveEndTick = -1;
 
 	m_SpawnPositions.clear();
-	int Found = CGameContext::GetTilePositions(TILE_BW_LMB_START_POS, GameServer(), m_SpawnPositions);
+	int Found = CGameContext::GetTilePositions(TILE_BW_EVENT_START_POS, GameServer(), m_SpawnPositions);
 	if(Found == 0)
 	{
-		EmergencyShutdown("Map has no LMB start tiles");
+		EmergencyShutdown("Map has no event start tiles");
 		return;
 	}
 }
@@ -64,10 +64,10 @@ void CLastManBlockingEvent::OnTick()
 	else if(GetState() == CEventComponent::EEventState::Active)
 	{
 		if(Server()->Tick() % Config()->m_SvLMBBroadcastRate == 0)
-			for(const auto &item : Participants())
-				GameServer()->SendBroadcast(item, "Participants left: %" PRIzu "\n"
-								  "Time left: %d seconds\n"
-								  "%s",
+			for(const auto &ClientId : Participants())
+				GameServer()->SendBroadcast(ClientId, "Participants left: %" PRIzu "\n"
+								      "Time left: %d seconds\n"
+								      "%s",
 					Participants().size(),
 					(int)((m_ActiveEndTick - Server()->Tick()) / Server()->TickSpeed()),
 					"                                                                                     "
@@ -89,7 +89,7 @@ void CLastManBlockingEvent::OnSnapClientInfo(int ClientId, int SnappingClient, s
 	if(GetState() != CEventComponent::EEventState::Active)
 		return;
 
-	if(!Server()->ClientAuthed(ClientId) && IsParticipant(SnappingClient))
+	if(!Server()->ClientAuthed(SnappingClient) && IsParticipant(ClientId))
 	{
 		StrToInts(&pClientInfo->m_Name0, 4, " ");
 		StrToInts(&pClientInfo->m_Clan0, 3, " ");
@@ -106,7 +106,7 @@ void CLastManBlockingEvent::OnSnapPlayerInfo(int ClientId, int SnappingClient, s
 	if(GetState() != CEventComponent::EEventState::Active)
 		return;
 
-	if(IsParticipant(ClientId) && IsParticipant(SnappingClient))
+	if(!Server()->ClientAuthed(SnappingClient) && IsParticipant(ClientId))
 	{
 		pPlayerInfo->m_Score = 0;
 	}
@@ -155,9 +155,9 @@ void CLastManBlockingEvent::StartEvent()
 	m_SpawnOffset = 0;
 	m_pSavedPlayers.clear();
 	m_FrozenSince.clear();
-	for(const auto &item : m_Participants)
+	for(const auto &ClientId : m_Participants)
 	{
-		Join(item);
+		Join(ClientId);
 		m_SpawnOffset++;
 	}
 
@@ -183,7 +183,7 @@ void CLastManBlockingEvent::FinishEvent()
 		else
 		{
 			const char *pReason = m_ActiveEndTick <= Server()->Tick() ? "Timelimit" :
-										"Tie";
+										    "Tie";
 
 			GameServer()->SendChatTarget(-1, "No one has won the %s (%s)", GetEventName(), pReason);
 			GameServer()->SendBroadcast(-1, "No one has won the %s (%s)", GetEventName(), pReason);
@@ -280,14 +280,14 @@ bool CLastManBlockingEvent::Join(int ClientId)
 {
 	SavePosition(ClientId);
 
-	m_FrozenSince.insert_or_assign(ClientId, 0);
+	m_FrozenSince.emplace(ClientId, 0);
 	auto *pChar = GameServer()->GetPlayerChar(ClientId);
 	GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, m_DDRaceTeam);
 	pChar->ResetVelocity();
 	pChar->Freeze(Config()->m_SvLMBInitialFreezeTime);
 	GameServer()->Teleport(pChar, m_SpawnPositions[m_SpawnOffset % m_SpawnPositions.size()]);
 
-	GameServer()->SendBroadcast(ClientId, " ");
+	GameServer()->SendBroadcast(" ", ClientId);
 	return true;
 }
 bool CLastManBlockingEvent::Leave(int ClientId)
@@ -316,7 +316,7 @@ void CLastManBlockingEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 		{
 			Leave(ClientId);
 			GameServer()->SendChatTarget(ClientId, "You was disqualified!");
-			GameServer()->SendBroadcast(ClientId, "You was disqualified!");
+			GameServer()->SendBroadcast("You was disqualified!", ClientId);
 		}
 	}
 }
@@ -349,34 +349,37 @@ bool CLastManBlockingEvent::IsParticipant(int ClientId) const
 void CLastManBlockingEvent::CheckFreezeTime()
 {
 	auto Participants = m_Participants;
-	for(const auto &item : Participants)
+	for(const auto &ClientId : Participants)
 	{
-		auto *pChar = GameServer()->GetPlayerChar(item);
+		auto *pChar = GameServer()->GetPlayerChar(ClientId);
 		if(!pChar || !pChar->IsAlive())
 			continue;
-		auto FrozenSinceIt = m_FrozenSince.find(item);
-		if(FrozenSinceIt == m_FrozenSince.end())
-		{
-			Leave(item);
-			continue;
-		}
 
-		bool WasFrozenTickBefore = FrozenSinceIt->second != 0;
+		auto FrozenSince = GetFrozenSince(ClientId);
+		bool WasFrozenTickBefore = FrozenSince != 0;
 		bool IsFrozenNow = pChar->m_FreezeTime;
 		if(IsFrozenNow && !WasFrozenTickBefore)
 		{
-			LogDebug("%d frozen", item);
-			FrozenSinceIt->second = Server()->Tick();
+			LogDebug("%d frozen", ClientId);
+			SetFrozenSince(ClientId, Server()->Tick());
 		}
 		if(!IsFrozenNow && WasFrozenTickBefore)
 		{
-			LogDebug("%d stops being freezed: %d ", item, Server()->Tick() - FrozenSinceIt->second);
-			FrozenSinceIt->second = 0;
+			LogDebug("%d stops being freezed: %d ", ClientId, Server()->Tick() - FrozenSince);
+			SetFrozenSince(ClientId, 0);
 		}
 
-		if(IsFrozenNow && Server()->Tick() - FrozenSinceIt->second >= Config()->m_SvLMBFreezeTimeout)
+		if(IsFrozenNow && Server()->Tick() - FrozenSince >= Config()->m_SvLMBFreezeTimeout)
 		{
-			Leave(item);
+			Leave(ClientId);
 		}
 	}
+}
+int CLastManBlockingEvent::GetFrozenSince(int ClientId) const
+{
+	return m_FrozenSince.at(ClientId);
+}
+void CLastManBlockingEvent::SetFrozenSince(int ClientId, int Tick)
+{
+	m_FrozenSince[ClientId] = Tick;
 }

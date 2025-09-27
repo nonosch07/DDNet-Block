@@ -166,7 +166,7 @@ bool CAccounts::SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData,
 	str_copy(aBuf,
 		"UPDATE accounts SET "
 		"address = ?, vip = ?, pages = ?, level = ?, experience = ?, weaponkits = ?, ranking = ?, "
-		"clanID = ?, auth_level = ?, blockpoints = ?, knockouts = ?, gundesign = ?, skinmani = ?, extras = ?, ranked_games = ?, "
+		"clanID = ?, auth_level = ?, blockpoints = ?, knockouts = ?, gundesign = ?, skinmani = ?, passive = ?, ranked_games = ?, "
 		"ranked_kills = ?, ranked_deaths = ?, ranked_wins = ?, kills = ?, deaths = ?, tourney_win = ?, playtime = ?, killstreak = ?, "
 		"last_name = ?, last_skin = ?, last_body_color = ?, last_feet_color = ? "
 		"WHERE id = ?;",
@@ -198,7 +198,7 @@ bool CAccounts::SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData,
 	BIND_STRING(pAcc->m_aKnockouts);
 	BIND_STRING(pAcc->m_aGundesign);
 	BIND_STRING(pAcc->m_aSkinmani);
-	BIND_STRING(pAcc->m_aExtras);
+	BIND_INT(pAcc->m_Passive);
 	BIND_INT(pAcc->m_RankedGames);
 	BIND_INT(pAcc->m_RankedKills);
 	BIND_INT(pAcc->m_RankedDeaths);
@@ -309,7 +309,7 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 	str_copy(aBuf,
 		"SELECT "
 		"id, name, password, address, vip, pages, level, experience, weaponkits, ranking, "
-		"clanID, auth_level, blockpoints, knockouts, gundesign, skinmani, extras, registerdate, ranked_games, "
+		"clanID, auth_level, blockpoints, knockouts, gundesign, skinmani, passive, registerdate, ranked_games, "
 		"ranked_kills, ranked_deaths, ranked_wins, kills, deaths, tourney_win, playtime, killstreak, "
 		"last_name, last_skin, last_body_color, last_feet_color "
 		"FROM accounts "
@@ -353,7 +353,7 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 	SQL_GET_STRING(Index++, pResult->m_Account.m_aKnockouts);
 	SQL_GET_STRING(Index++, pResult->m_Account.m_aGundesign);
 	SQL_GET_STRING(Index++, pResult->m_Account.m_aSkinmani);
-	SQL_GET_STRING(Index++, pResult->m_Account.m_aExtras);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Passive);
 	SQL_GET_STRING(Index++, pResult->m_Account.m_RegisterDate);
 	SQL_GET_INT(Index++, pResult->m_Account.m_RankedGames);
 	SQL_GET_INT(Index++, pResult->m_Account.m_RankedKills);
