@@ -17,6 +17,9 @@
 
 #include <blockworlds/components/core/component_registry.h>
 
+extern std::mutex g_ClansDataMutex;
+extern std::unordered_map<int, CClansData> g_ClanIdMap;
+
 inline bool CheckValidChars(const char *pStr)
 {
 	int Len = str_length(pStr);
@@ -509,15 +512,22 @@ void CGameContext::ConClanExp(IConsole::IResult *pResult, void *pUserData)
 	if(!pPlayer->GetClanId())
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You are not in a clan");
 
-	// make sure the clan data pointer is valid.
-	if(!pPlayer->m_Account.m_pClanData)
+	// use safe map lookup for clan data
+	const CClansData *pClanData = nullptr;
+	{
+		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
+		auto it = g_ClanIdMap.find(pPlayer->GetClanId());
+		if(it != g_ClanIdMap.end())
+			pClanData = &it->second;
+	}
+	if(!pClanData)
 	{
 		pSelf->SendChatTarget(pResult->m_ClientId, "Error: Something weird happened, try to login again.");
 		return;
 	}
 
 	static const int s_MaxNum = 17;
-	float Ratio = (float)pPlayer->GetClanExperience() / NeededClanExp(pPlayer->GetClanLevel());
+	float Ratio = (float)pClanData->m_Experience / NeededClanExp(pClanData->m_Level);
 	int Num = round_to_int(Ratio * s_MaxNum);
 
 	static char s_ExpTopLeft[] = {-30, -107, -108, 0};
@@ -549,11 +559,11 @@ void CGameContext::ConClanExp(IConsole::IResult *pResult, void *pUserData)
 	pSelf->SendChatTarget(pResult->m_ClientId, "Clan Experience Bar:");
 	pSelf->SendChatTarget(pResult->m_ClientId, aBarTop);
 	pSelf->SendChatTarget(pResult->m_ClientId, aBarBot);
-	str_format(aBuf, sizeof(aBuf), "Clan level: %i", pPlayer->GetClanLevel());
+	str_format(aBuf, sizeof(aBuf), "Clan level: %i", pClanData->m_Level);
 	pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
-	str_format(aBuf, sizeof(aBuf), "Clan Exp: %i", pPlayer->GetClanExperience());
+	str_format(aBuf, sizeof(aBuf), "Clan Exp: %i", pClanData->m_Experience);
 	pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
-	str_format(aBuf, sizeof(aBuf), "Needed Exp: %i", NeededClanExp(pPlayer->GetClanLevel()));
+	str_format(aBuf, sizeof(aBuf), "Needed Exp: %i", NeededClanExp(pClanData->m_Level));
 	pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
 }
 

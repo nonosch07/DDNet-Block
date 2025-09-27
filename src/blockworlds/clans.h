@@ -153,10 +153,7 @@ public:
 
 	void LoadAllClans();
 
-	void OnClansLoaded(const std::vector<CClansData> &vClans)
-	{
-		m_vClansData = vClans;
-	}
+	void OnClansLoaded(const std::vector<CClansData> &vClans);
 
 	int GetClanIdByName(const char *pClanName);
 	const char *GetClanName(int ClanId);
