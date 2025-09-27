@@ -1040,16 +1040,29 @@ void CCharacter::Die(int Killer, int Weapon, bool SendKillMsg)
 
 	if(!Blocked)
 	{
-		// send the kill message
-		CNetMsg_Sv_KillMsg Msg;
-		Msg.m_Killer = Killer;
-		Msg.m_Victim = m_pPlayer->GetCid();
-		Msg.m_Weapon = Weapon;
-		Msg.m_ModeSpecial = ModeSpecial;
-		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, -1);
-		m_KillStreak = 0;
+		bool InEvent = false;
+		CPlayer *pKiller = GameServer()->m_apPlayers[Killer];
+		CPlayer *pVictim = m_pPlayer;
+		for(CEvent *pEvent : GameServer()->m_vEvents)
+		{
+			if((pKiller && pEvent->playersInclude(pKiller->GetCid())) || (pVictim && pEvent->playersInclude(pVictim->GetCid())))
+			{
+				InEvent = true;
+				break;
+			}
+		}
+		if(!InEvent)
+		{
+			// send the kill message
+			CNetMsg_Sv_KillMsg Msg;
+			Msg.m_Killer = Killer;
+			Msg.m_Victim = m_pPlayer->GetCid();
+			Msg.m_Weapon = Weapon;
+			Msg.m_ModeSpecial = ModeSpecial;
+			Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, -1);
+			m_KillStreak = 0;
+		}
 	}
-
 	// a nice sound
 	GameServer()->CreateSound(m_Pos, SOUND_PLAYER_DIE, TeamMask());
 
