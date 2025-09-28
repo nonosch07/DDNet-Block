@@ -57,27 +57,8 @@ void CPassiveZone::Tick()
 
 void CPassiveZone::Snap(int ClientID)
 {
-    CPlayer *pPlayer = GameServer()->m_apPlayers[ClientID];
-    if(!pPlayer)
-        return;
-    
-    CCharacter *pChar = pPlayer->GetCharacter();
-    if(!pChar)
-        return;
-    
-    if(pChar->Core()->m_Passive)
-    {
-        vec2 PickupPos = pChar->m_Pos + vec2(0, -48.0f);
-        
-        GameServer()->SnapPickup(
-            CSnapContext(pPlayer->GetClientVersion(), GameServer()->Server()->IsSixup(ClientID)), 
-            1000,
-            PickupPos, 
-            POWERUP_ARMOR, 
-            0, 
-            0
-        );
-    }
+   // nothing for now :(
+   return;
 }
 
 
