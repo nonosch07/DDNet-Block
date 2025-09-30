@@ -1913,23 +1913,6 @@ void CCharacter::HandleTiles(int Index)
 			m_Core.m_Jumps = NewJumps;
 		}
 	}
-	else if(Collision()->GetSwitchType(MapIndex) == TILE_BW_SHOP)
-	{
-		int Category = Collision()->GetSwitchNumber(MapIndex);
-		int Item = Collision()->GetSwitchDelay(MapIndex);
-		int CurrentTick = GameServer()->Server()->Tick();
-
-		if(m_pPlayer && m_pPlayer->GetCharacter())
-		{
-			CCharacter *pChr = m_pPlayer->GetCharacter();
-			if(pChr->m_PendingPurchase != nullptr ||
-				CurrentTick < pChr->m_LastShopTick + (GameServer()->Server()->TickSpeed() * 2))
-				return;
-
-			pChr->m_LastShopTick = CurrentTick;
-			new CShop(GameServer(), m_pPlayer, Category, Item, 15);
-		}
-	}
 
 	else if(Collision()->GetSwitchType(MapIndex) == TILE_ADD_TIME && !m_LastPenalty)
 	{

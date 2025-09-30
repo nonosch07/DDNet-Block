@@ -16,11 +16,13 @@ class CZoneManager
 {
 	CGameContext *m_pGameServer;
 	IZone *m_aZones[NUM_ZONES];
+	std::vector<IZone *> m_vExtraZones; // dynamic zones (shops, custom zones)
 
 	CGameContext *GameServer() const { return m_pGameServer; }
 
 public:
 	CZoneManager();
+	~CZoneManager();
 
 	void Init(CGameContext *pGameServer);
 	IZone *GetZone(int Type);

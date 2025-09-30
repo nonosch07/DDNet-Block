@@ -7,12 +7,29 @@
 CShop::CShop(CGameContext *pGameContext, CPlayer *pOwner, int pCategory, int pCosmetics, int ExpireInS) :
 	m_pGameContext(pGameContext), m_pOwner(pOwner), m_pProduct(pCosmetics), m_pCategory(pCategory)
 {
-	m_pExpireTick = GameServer()->Server()->Tick() + ExpireInS * GameServer()->Server()->TickSpeed();
+	// initialize cosmetics handler pointer and a safe default name
+	m_pCosmeticsHandler = pGameContext ? pGameContext->Cosmetics() : nullptr;
+	m_pCosmeticName = "<unknown>";
+
+	if(!m_pGameContext || !m_pOwner)
+	{
+		dbg_msg("shop", "invalid arguments when creating shop (null game context or owner)");
+		// cannot proceed, destroy this instance
+		if(m_pGameContext)
+			Destroy(true);
+		else
+			delete this;
+		return;
+	}
+	m_pExpireTick = (m_pGameContext ? m_pGameContext->Server()->Tick() : 0) + ExpireInS * (m_pGameContext ? m_pGameContext->Server()->TickSpeed() : 50);
 
 	if(!pOwner->IsLoggedIn())
 	{
-		GameServer()->SendChatTarget(pOwner->GetCid(), "You need to be logged in to make purchases.");
-		GameServer()->SendChatTarget(pOwner->GetCid(), "Use /accounts for information on the account system.");
+		if(m_pGameContext)
+		{
+			m_pGameContext->SendChatTarget(pOwner->GetCid(), "You need to be logged in to make purchases.");
+			m_pGameContext->SendChatTarget(pOwner->GetCid(), "Use /accounts for information on the account system.");
+		}
 		Destroy(true);
 		return;
 	}
@@ -34,7 +51,8 @@ CShop::CShop(CGameContext *pGameContext, CPlayer *pOwner, int pCategory, int pCo
 	}
 	if(!validIndex)
 	{
-		GameServer()->SendChatTarget(pOwner->GetCid(), "Invalid cosmetic selection.");
+		if(m_pGameContext)
+			m_pGameContext->SendChatTarget(pOwner->GetCid(), "Invalid cosmetic selection.");
 		Destroy(true);
 		return;
 	}
@@ -52,20 +70,23 @@ CShop::CShop(CGameContext *pGameContext, CPlayer *pOwner, int pCategory, int pCo
 		HasCosmetic = (pOwner->GetPlayerSkinmani()[pCosmetics] == '1');
 		break;
 	default:
-		GameServer()->SendChatTarget(pOwner->GetCid(), "Invalid cosmetic category.");
+		if(m_pGameContext)
+			m_pGameContext->SendChatTarget(pOwner->GetCid(), "Invalid cosmetic category.");
 		Destroy(true);
 		return;
 	}
 	if(HasCosmetic)
 	{
-		GameServer()->SendChatTarget(pOwner->GetCid(), "You already own this cosmetic.");
+		if(m_pGameContext)
+			m_pGameContext->SendChatTarget(pOwner->GetCid(), "You already own this cosmetic.");
 		Destroy(true);
 		return;
 	}
 
 	if(!SetProductInfo(pCategory, pCosmetics) || m_pPrice <= 0)
 	{
-		GameServer()->SendChatTarget(pOwner->GetCid(), "Could not retrieve product info or invalid price.");
+		if(m_pGameContext)
+			m_pGameContext->SendChatTarget(pOwner->GetCid(), "Could not retrieve product info or invalid price.");
 		Destroy(true);
 		return;
 	}
@@ -92,6 +113,12 @@ bool CShop::SetProductInfo(int Category, int Cosmetics)
 {
 	bool Success = false;
 	vec2 PreviewPos;
+	if(!m_pCosmeticsHandler)
+	{
+		dbg_msg("shop", "Cosmetics handler not available when setting product info");
+		m_pCosmeticName = "<unknown>";
+		return false;
+	}
 	switch(Category)
 	{
 	case CATEGORY_SKINMANI:
@@ -125,34 +152,55 @@ void CShop::OnTick()
 
 void CShop::Expire()
 {
+	if(!m_pOwner || !m_pGameContext)
+	{
+		dbg_msg("shop", "Expire called on invalid shop object");
+		delete this;
+		return;
+	}
+
 	char aBuf[256];
 	str_format(aBuf, sizeof(aBuf), "Your buying time for '%s' has expired. Aborting purchase..", m_pCosmeticName);
-	GameServer()->SendChatTarget(m_pOwner->GetCid(), aBuf);
+	m_pGameContext->SendChatTarget(m_pOwner->GetCid(), aBuf);
 	Destroy(true);
 }
 
 void CShop::Destroy(bool Silent)
 {
-	dbg_msg("shop", "destroying purchase from %s", GameServer()->Server()->ClientName(m_pOwner->GetCid()));
-
-	if(!Silent)
+	if(m_pGameContext && m_pOwner)
 	{
-		char aBuf[256];
-		str_format(aBuf, sizeof(aBuf), "Your purchase for '%s' has been aborted.", m_pCosmeticName);
-		GameServer()->SendChatTarget(m_pOwner->GetCid(), aBuf);
-	}
+		dbg_msg("shop", "destroying purchase from %s", m_pGameContext->Server()->ClientName(m_pOwner->GetCid()));
 
-	if(m_pOwner && m_pOwner->GetCharacter())
-		m_pOwner->GetCharacter()->m_PendingPurchase = nullptr;
+		if(!Silent)
+		{
+			char aBuf[256];
+			str_format(aBuf, sizeof(aBuf), "Your purchase for '%s' has been aborted.", m_pCosmeticName);
+			m_pGameContext->SendChatTarget(m_pOwner->GetCid(), aBuf);
+		}
+
+		if(m_pOwner->GetCharacter())
+			m_pOwner->GetCharacter()->m_PendingPurchase = nullptr;
+	}
+	else
+	{
+		dbg_msg("shop", "destroying purchase: missing game context or owner");
+	}
 
 	delete this;
 }
 
 void CShop::Purchase()
 {
+	if(!m_pOwner || !m_pGameContext)
+	{
+		dbg_msg("shop", "Purchase called on invalid shop object");
+		delete this;
+		return;
+	}
+
 	if(!m_pOwner->IsLoggedIn())
 	{
-		GameServer()->SendChatTarget(m_pOwner->GetCid(), "You are not logged in yet.");
+		m_pGameContext->SendChatTarget(m_pOwner->GetCid(), "You are not logged in yet.");
 		Destroy(true);
 		return;
 	}

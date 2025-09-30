@@ -8,7 +8,10 @@
 
 #include "nocollisionzone.h"
 #include "passivezone.h"
+#include "shoppointzone.h"
+#include "shopzone.h"
 #include "spawnzone.h"
+#include <blockworlds/shop/storemanager.h>
 
 #include "zone.h"
 #include "zonemanager.h"
@@ -43,6 +46,12 @@ CZoneManager::CZoneManager()
 	mem_zero(m_aZones, sizeof(m_aZones));
 }
 
+CZoneManager::~CZoneManager()
+{
+	for(auto z : m_vExtraZones)
+		delete z;
+}
+
 void CZoneManager::Init(CGameContext *pGameServer)
 {
 	m_pGameServer = pGameServer;
@@ -52,6 +61,18 @@ void CZoneManager::Init(CGameContext *pGameServer)
 
 	pMap->GetType(MAPITEMTYPE_GROUP, &GroupsStart, &GroupsNum);
 	pMap->GetType(MAPITEMTYPE_LAYER, &LayersStart, &LayersNum);
+
+	// prepare covered flags; we'll fill them as we detect quad-based shops
+	std::vector<bool> covered_skin;
+	std::vector<bool> covered_gun;
+	std::vector<bool> covered_ko;
+
+	if(GameServer()->Cosmetics())
+	{
+		covered_skin.assign(GameServer()->Cosmetics()->NUM_SKINMANIS, false);
+		covered_gun.assign(GameServer()->Cosmetics()->NUM_GUNDESIGNS, false);
+		covered_ko.assign(GameServer()->Cosmetics()->NUM_KNOCKOUTS, false);
+	}
 
 	for(int g = 0; g < GroupsNum; g++)
 	{
@@ -100,6 +121,111 @@ void CZoneManager::Init(CGameContext *pGameServer)
 
 						dbg_msg("zones", "loaded spawn zone with %d quads", pQuads->m_NumQuads);
 					}
+					else if(str_comp_nocase_num(aName, "shop", 4) == 0)
+					{
+						// aName formats supported:
+						// shop
+						// shop_<category_number>[_<item_number>]
+						// shop_<category_name>[_<item_number>]
+						int Category = CShop::CATEGORY_SKINMANI;
+						int Item = 0;
+						char aBuf[64];
+						str_copy(aBuf, aName, sizeof(aBuf));
+						// tokenize by '_'
+						char *tokens[4] = {0};
+						int t = 0;
+						char *tok = strtok(aBuf, "_");
+						while(tok && t < 4)
+						{
+							tokens[t++] = tok;
+							tok = strtok(nullptr, "_");
+						}
+						// tokens[0] == "shop"
+						if(t >= 2 && tokens[1])
+						{
+							if(isdigit(tokens[1][0]))
+							{
+								Category = atoi(tokens[1]);
+							}
+							else
+							{
+								if(str_comp_nocase(tokens[1], "skin") == 0 || str_comp_nocase(tokens[1], "skinmani") == 0)
+									Category = CShop::CATEGORY_SKINMANI;
+								else if(str_comp_nocase(tokens[1], "gundesign") == 0 || str_comp_nocase(tokens[1], "gun") == 0)
+									Category = CShop::CATEGORY_GUNDESIGN;
+								else if(str_comp_nocase(tokens[1], "knockout") == 0 || str_comp_nocase(tokens[1], "ko") == 0)
+									Category = CShop::CATEGORY_KNOCKOUT;
+								else
+								{
+									Category = atoi(tokens[1]);
+								}
+							}
+						}
+						if(t >= 3 && tokens[2] && isdigit(tokens[2][0]))
+							Item = atoi(tokens[2]);
+						CShopZone *pShopZone = new CShopZone(GameServer(), Category, Item);
+						pShopZone->Init(pQuads);
+						m_vExtraZones.push_back(pShopZone);
+						// mark covered
+						if(GameServer()->Cosmetics())
+						{
+							if(Category == CShop::CATEGORY_SKINMANI && Item >= 0 && Item < (int)covered_skin.size())
+								covered_skin[Item] = true;
+							else if(Category == CShop::CATEGORY_GUNDESIGN && Item >= 0 && Item < (int)covered_gun.size())
+								covered_gun[Item] = true;
+							else if(Category == CShop::CATEGORY_KNOCKOUT && Item >= 0 && Item < (int)covered_ko.size())
+								covered_ko[Item] = true;
+						}
+						dbg_msg("zones", "loaded shop zone '%s' cat=%d item=%d with %d quads", aName, Category, Item, pQuads->m_NumQuads);
+					}
+				}
+			}
+		}
+
+		if(GameServer()->Cosmetics())
+		{
+			// Skinmani
+			for(int i = 0; i < GameServer()->Cosmetics()->NUM_SKINMANIS; ++i)
+			{
+				if(i < (int)covered_skin.size() && covered_skin[i])
+					continue; // already covered by a quad shop
+				int Price = 0, Level = 0;
+				vec2 PreviewPos;
+				if(GameServer()->Cosmetics()->ShopInfoSkinmani(i, Price, Level, PreviewPos))
+				{
+					CShopPointZone *p = new CShopPointZone(GameServer(), PreviewPos, 32.0f, CShop::CATEGORY_SKINMANI, i);
+					m_vExtraZones.push_back(p);
+					dbg_msg("zones", "created skinmani shop point zone for item %d at %.1f,%.1f", i, PreviewPos.x, PreviewPos.y);
+				}
+			}
+
+			// Gundesigns
+			for(int i = 0; i < GameServer()->Cosmetics()->NUM_GUNDESIGNS; ++i)
+			{
+				if(i < (int)covered_gun.size() && covered_gun[i])
+					continue;
+				int Price = 0, Level = 0;
+				vec2 PreviewPos;
+				if(GameServer()->Cosmetics()->ShopInfoGundesign(i, Price, Level, PreviewPos))
+				{
+					CShopPointZone *p = new CShopPointZone(GameServer(), PreviewPos, 32.0f, CShop::CATEGORY_GUNDESIGN, i);
+					m_vExtraZones.push_back(p);
+					dbg_msg("zones", "created gundesign shop point zone for item %d at %.1f,%.1f", i, PreviewPos.x, PreviewPos.y);
+				}
+			}
+
+			// Knockouts
+			for(int i = 0; i < GameServer()->Cosmetics()->NUM_KNOCKOUTS; ++i)
+			{
+				if(i < (int)covered_ko.size() && covered_ko[i])
+					continue;
+				int Price = 0, Level = 0;
+				vec2 PreviewPos;
+				if(GameServer()->Cosmetics()->ShopInfoKnockout(i, Price, Level, PreviewPos))
+				{
+					CShopPointZone *p = new CShopPointZone(GameServer(), PreviewPos, 32.0f, CShop::CATEGORY_KNOCKOUT, i);
+					m_vExtraZones.push_back(p);
+					dbg_msg("zones", "created knockout shop point zone for item %d at %.1f,%.1f", i, PreviewPos.x, PreviewPos.y);
 				}
 			}
 		}
@@ -113,11 +239,21 @@ void CZoneManager::Tick()
 		if(pZone && pZone->IsEnabled())
 			pZone->Tick();
 	}
+	for(auto *pZone : m_vExtraZones)
+	{
+		if(pZone && pZone->IsEnabled())
+			pZone->Tick();
+	}
 }
 
 void CZoneManager::Snap(int ClientID)
 {
 	for(auto *pZone : m_aZones)
+	{
+		if(pZone && pZone->IsEnabled())
+			pZone->Snap(ClientID);
+	}
+	for(auto *pZone : m_vExtraZones)
 	{
 		if(pZone && pZone->IsEnabled())
 			pZone->Snap(ClientID);

@@ -107,9 +107,9 @@ bool CVoteExtras::HandleVote(CPlayer *pPlayer, const std::string &voteInput, int
 		pPlayer->TogglePassive();
 		char aBuf[256];
 		if(pPlayer->IsUsingPassiveProtection())
-			str_format(aBuf, sizeof(aBuf), "Passive protection enabled.");
+			str_copy(aBuf, "Passive protection enabled.", sizeof(aBuf));
 		else
-			str_format(aBuf, sizeof(aBuf), "Passive protection disabled.");
+			str_copy(aBuf, "Passive protection disabled.", sizeof(aBuf));
 		pGameContext->SendChatTarget(ClientId, aBuf);
 
 		pGameContext->ClearVotes(ClientId);
