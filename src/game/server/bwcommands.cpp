@@ -271,6 +271,51 @@ void CGameContext::ConDisplayProfile(IConsole::IResult *pResult, void *pUserData
 	pSelf->SendChatTarget(ClientId, aBuf);
 }
 
+void CGameContext::ConStatusAccounts(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	const char *pFilter = pResult->NumArguments() == 1 ? pResult->GetString(0) : "";
+	char aBuf[512];
+
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		CPlayer *pPlayer = pSelf->m_apPlayers[i];
+		if(!pPlayer)
+			continue;
+		if(!pPlayer->IsLoggedIn())
+			continue;
+
+		// filter by name (client name or account name)
+		if(pFilter[0] != '\0')
+		{
+			if(!str_utf8_find_nocase(pPlayer->GetPlayerName(), pFilter) && !str_utf8_find_nocase(pPlayer->m_Account.m_aName, pFilter))
+				continue;
+		}
+
+		int Hours = pPlayer->m_Account.m_Playtime / 3600;
+		int Minutes = (pPlayer->m_Account.m_Playtime % 3600) / 60;
+
+		const char *pClanName = pSelf->Clans() ? pSelf->Clans()->GetClanName(pPlayer->m_Account.m_ClanId) : " ";
+		str_format(aBuf, sizeof(aBuf), "cid=%d, accid=%d, name='%s', clientname='%s', vip=%d, clan='%s', clanid=%d, auth=%d, playtime=%02d:%02d, ranking=%d, kills=%d, deaths=%d",
+			i,
+			pPlayer->m_Account.m_Id,
+			pPlayer->m_Account.m_aName,
+			pSelf->Server()->ClientName(i),
+			pPlayer->m_Account.m_Vip,
+			pClanName,
+			pPlayer->m_Account.m_ClanId,
+			pPlayer->m_Account.m_AuthLevel,
+			Hours,
+			Minutes,
+			pPlayer->m_Account.m_Ranking,
+			pPlayer->m_Account.m_Kills,
+			pPlayer->m_Account.m_Deaths);
+
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+	}
+}
+
 void CGameContext::ConDisplayTopLevel(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
@@ -283,6 +328,250 @@ void CGameContext::ConDisplayTopLevel(IConsole::IResult *pResult, void *pUserDat
 	if(!pPlayer)
 		return;
 	pSelf->Accounts()->ShowTopLevel(ClientId);
+}
+
+// admin console commands to modify account attributes
+void CGameContext::ConGivePages(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int Target = pResult->GetInteger(0);
+	int Amount = pResult->GetInteger(1);
+	if(!CheckClientId(Target))
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Invalid target client id");
+		return;
+	}
+	CPlayer *pTarget = pSelf->m_apPlayers[Target];
+	if(!pTarget)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player not online");
+		return;
+	}
+	if(!pTarget->IsLoggedIn())
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player is not logged in");
+		return;
+	}
+	pTarget->SetPlayerPages(pTarget->GetPlayerPages() + Amount);
+	pSelf->Accounts()->Save(Target, &pTarget->m_Account);
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "Gave %d pages to %s (now %d)", Amount, pTarget->GetPlayerName(), pTarget->GetPlayerPages());
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+	pSelf->SendChatTarget(Target, aBuf);
+}
+
+void CGameContext::ConGiveLevel(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int Target = pResult->GetInteger(0);
+	int Amount = pResult->GetInteger(1);
+	if(!CheckClientId(Target))
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Invalid target client id");
+		return;
+	}
+	CPlayer *pTarget = pSelf->m_apPlayers[Target];
+	if(!pTarget)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player not online");
+		return;
+	}
+	if(!pTarget->IsLoggedIn())
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player is not logged in");
+		return;
+	}
+	pTarget->SetPlayerLevel(pTarget->GetPlayerLevel() + Amount);
+	pSelf->Accounts()->Save(Target, &pTarget->m_Account);
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "Gave %d levels to %s (now %d)", Amount, pTarget->GetPlayerName(), pTarget->GetPlayerLevel());
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+	pSelf->SendChatTarget(Target, aBuf);
+}
+
+void CGameContext::ConGiveExperience(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int Target = pResult->GetInteger(0);
+	int Amount = pResult->GetInteger(1);
+	if(!CheckClientId(Target))
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Invalid target client id");
+		return;
+	}
+	CPlayer *pTarget = pSelf->m_apPlayers[Target];
+	if(!pTarget)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player not online");
+		return;
+	}
+	if(!pTarget->IsLoggedIn())
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player is not logged in");
+		return;
+	}
+	pTarget->SetPlayerExperience(pTarget->GetPlayerExperience() + Amount);
+	pSelf->Accounts()->Save(Target, &pTarget->m_Account);
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "Gave %d experience to %s (now %d)", Amount, pTarget->GetPlayerName(), pTarget->GetPlayerExperience());
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+	pSelf->SendChatTarget(Target, aBuf);
+}
+
+void CGameContext::ConGiveWeaponkits(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int Target = pResult->GetInteger(0);
+	int Amount = pResult->GetInteger(1);
+	if(!CheckClientId(Target))
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Invalid target client id");
+		return;
+	}
+	CPlayer *pTarget = pSelf->m_apPlayers[Target];
+	if(!pTarget)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player not online");
+		return;
+	}
+	if(!pTarget->IsLoggedIn())
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player is not logged in");
+		return;
+	}
+	pTarget->SetPlayerWeaponkits(pTarget->GetPlayerWeaponkits() + Amount);
+	pSelf->Accounts()->Save(Target, &pTarget->m_Account);
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "Gave %d weaponkits to %s (now %d)", Amount, pTarget->GetPlayerName(), pTarget->GetPlayerWeaponkits());
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+	pSelf->SendChatTarget(Target, aBuf);
+}
+
+void CGameContext::ConGiveBlockpoints(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int Target = pResult->GetInteger(0);
+	int Amount = pResult->GetInteger(1);
+	if(!CheckClientId(Target))
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Invalid target client id");
+		return;
+	}
+	CPlayer *pTarget = pSelf->m_apPlayers[Target];
+	if(!pTarget)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player not online");
+		return;
+	}
+	if(!pTarget->IsLoggedIn())
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player is not logged in");
+		return;
+	}
+	pTarget->SetPlayerBlockpoints(pTarget->GetPlayerBlockpoints() + Amount);
+	pSelf->Accounts()->Save(Target, &pTarget->m_Account);
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "Gave %d blockpoints to %s (now %d)", Amount, pTarget->GetPlayerName(), pTarget->GetPlayerBlockpoints());
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+	pSelf->SendChatTarget(Target, aBuf);
+}
+
+void CGameContext::ConGivePassive(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int Target = pResult->GetInteger(0);
+	int Seconds = pResult->GetInteger(1);
+	if(!CheckClientId(Target))
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Invalid target client id");
+		return;
+	}
+	CPlayer *pTarget = pSelf->m_apPlayers[Target];
+	if(!pTarget)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player not online");
+		return;
+	}
+	if(!pTarget->IsLoggedIn())
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player is not logged in");
+		return;
+	}
+	pTarget->SetPlayerPassive(Seconds);
+	if(pTarget->GetCharacter())
+		pTarget->GetCharacter()->Core()->m_Passive = true;
+	pSelf->Accounts()->Save(Target, &pTarget->m_Account);
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "Gave %d seconds of passive to %s", Seconds, pTarget->GetPlayerName());
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+	pSelf->SendChatTarget(Target, aBuf);
+}
+
+void CGameContext::ConAdminSetPassword(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	if(pResult->NumArguments() < 2)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Usage: set_password <account_name> <new_password>");
+		return;
+	}
+
+	const char *pAccountName = pResult->GetString(0);
+	const char *pNewPassword = pResult->GetString(1);
+
+	if(str_length(pAccountName) == 0 || str_length(pNewPassword) == 0)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Account name and new password must be non-empty");
+		return;
+	}
+
+	SHA256_DIGEST HashedNewPassword = CGameContext::HashPassword(pNewPassword);
+	char aHashedNewPassword[SHA256_DIGEST_LENGTH * 2 + 1];
+	for(int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
+		sprintf(&aHashedNewPassword[i * 2], "%02x", HashedNewPassword.data[i]);
+
+	char aEscapedName[128];
+	{
+		int di = 0;
+		for(int si = 0; pAccountName[si] && di < (int)sizeof(aEscapedName) - 2; ++si)
+		{
+			if(pAccountName[si] == '\'')
+			{
+				if(di < (int)sizeof(aEscapedName) - 3)
+				{
+					aEscapedName[di++] = '\'';
+					aEscapedName[di++] = '\'';
+				}
+			}
+			else
+			{
+				aEscapedName[di++] = pAccountName[si];
+			}
+		}
+		aEscapedName[di] = '\0';
+	}
+
+	pSelf->Accounts()->ChangePasswordAdmin(pResult->m_ClientId, pAccountName, pNewPassword);
+
+	char aBuf[256];
+	str_format(aBuf, sizeof(aBuf), "Set password for account '%s'", pAccountName);
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+
+	// notify player if they are online
+	for(int i = 0; i < MAX_CLIENTS; ++i)
+	{
+		CPlayer *p = pSelf->m_apPlayers[i];
+		if(!p)
+			continue;
+		if(!p->IsLoggedIn())
+			continue;
+		if(str_comp(p->GetPlayerName(), pAccountName) == 0 || str_comp(p->m_Account.m_aName, pAccountName) == 0)
+		{
+			pSelf->SendChatTarget(i, "An administrator has changed your account password.");
+			break;
+		}
+	}
 }
 
 void CGameContext::ConDisplayTopBlockpoints(IConsole::IResult *pResult, void *pUserData)

@@ -4005,9 +4005,20 @@ void CGameContext::RegisterDDRaceCommands()
 	Console()->Register("freezehammer", "v[id]", CFGFLAG_SERVER | CMDFLAG_TEST, ConFreezeHammer, this, "Gives a player Freeze Hammer");
 	Console()->Register("unfreezehammer", "v[id]", CFGFLAG_SERVER | CMDFLAG_TEST, ConUnFreezeHammer, this, "Removes Freeze Hammer from a player");
 
+	Console()->Register("status_accounts", "?r[name]", CFGFLAG_SERVER, ConStatusAccounts, this, "List logged-in accounts containing name or all accounts");
+
 	Console()->Register("component_list", "", CFGFLAG_SERVER, ConComponentList, this, "List of all components and active sub-components");
 	Console()->Register("component_plug", "r[name]", CFGFLAG_SERVER, ConComponentPlug, this, "Plug-in component");
 	Console()->Register("component_unplug", "r[name]", CFGFLAG_SERVER, ConComponentUnPlug, this, "Un-plug component");
+
+	// admin account modification commands
+	Console()->Register("give_pages", "v[id] i[amount]", CFGFLAG_SERVER, ConGivePages, this, "Give pages to player id");
+	Console()->Register("give_level", "v[id] i[amount]", CFGFLAG_SERVER, ConGiveLevel, this, "Give levels to player id");
+	Console()->Register("give_experience", "v[id] i[amount]", CFGFLAG_SERVER, ConGiveExperience, this, "Give experience to player id");
+	Console()->Register("give_weaponkits", "v[id] i[amount]", CFGFLAG_SERVER, ConGiveWeaponkits, this, "Give weaponkits to player id");
+	Console()->Register("give_blockpoints", "v[id] i[amount]", CFGFLAG_SERVER, ConGiveBlockpoints, this, "Give blockpoints to player id");
+	Console()->Register("give_passive", "v[id] i[seconds]", CFGFLAG_SERVER, ConGivePassive, this, "Give passive seconds to player id");
+	Console()->Register("set_password", "s[name] s[newpass]", CFGFLAG_SERVER, ConAdminSetPassword, this, "Set an account password by account name");
 }
 
 void CGameContext::RegisterChatCommands()

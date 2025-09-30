@@ -470,9 +470,18 @@ void CCharacter::FireWeapon()
 	if(m_Core.m_Jetpack && m_Core.m_ActiveWeapon == WEAPON_GUN)
 		FullAuto = true;
 	// allow firing directly after coming out of freeze or being unfrozen
-	// by something
+	// by something, except optionally prevent instant hammering right after unfreeze
 	if(m_FrozenLastTick)
-		FullAuto = true;
+	{
+		if(g_Config.m_SvNoHammerOnUnfreeze && m_Core.m_ActiveWeapon == WEAPON_HAMMER)
+		{
+			// don't grant FullAuto to prevent immediate hammer spam on the first tick after unfreeze
+		}
+		else
+		{
+			FullAuto = true;
+		}
+	}
 
 	// don't fire hammer when player is deep and sv_deepfly is disabled
 	if(!g_Config.m_SvDeepfly && m_Core.m_ActiveWeapon == WEAPON_HAMMER && m_Core.m_DeepFrozen)
@@ -482,6 +491,14 @@ void CCharacter::FireWeapon()
 	bool WillFire = false;
 	if(CountInput(m_LatestPrevInput.m_Fire, m_LatestInput.m_Fire).m_Presses)
 		WillFire = true;
+
+	// If the server is configured to block instant hammering after unfreeze,
+	// suppress the initial hammer press if it occurred on the same tick we just unfroze.
+	if(g_Config.m_SvNoHammerOnUnfreeze && m_FrozenLastTick && m_Core.m_ActiveWeapon == WEAPON_HAMMER)
+	{
+		// if the press was detected as a 'press' this tick, ignore it
+		WillFire = false;
+	}
 
 	if(FullAuto && (m_LatestInput.m_Fire & 1) && m_Core.m_aWeapons[m_Core.m_ActiveWeapon].m_Ammo)
 		WillFire = true;
@@ -1591,7 +1608,6 @@ void CCharacter::HandleTiles(int Index)
 
 	if((m_TileIndex == TILE_BW_VIP) || (m_TileFIndex == TILE_BW_VIP))
 	{
-		dbg_msg("bw vip tile", "entered");
 		if(!m_pPlayer->IsLoggedIn())
 		{
 			GameServer()->SendChatTarget(GetPlayer()->GetCid(), "You need to be logged in to access this zone!");

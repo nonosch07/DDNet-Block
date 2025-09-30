@@ -56,6 +56,8 @@ MACRO_CONFIG_INT(SvWeaponkitsAllowed, sv_weaponkits_allowed, 1, 0, 1, CFGFLAG_SE
 MACRO_CONFIG_INT(SvWeaponkitsVoteCoolDown, sv_weaponkits_vote_cooldown, 15, 1, 60, CFGFLAG_SERVER, "Cooldown time (in minutes) a player must wait before reusing the weaponkits vote.")
 MACRO_CONFIG_INT(SvLmbVoteCoolDown, sv_lmb_vote_cooldown, 30, 1, 99999, CFGFLAG_SERVER, "Cooldown time (in minutes) a player must wait before reusing the LMB vote.")
 
+MACRO_CONFIG_INT(SvNoHammerOnUnfreeze, sv_no_hammer_on_unfreeze, 1, 0, 1, CFGFLAG_SERVER, "Prevent instant hammer fire immediately after unfreeze (1=on, 0=off)")
+
 // TDM (Team Deathmatch)
 MACRO_CONFIG_INT(SvTDMRegDuration, sv_tdm_reg_duration, 10, 0, 1000, CFGFLAG_SERVER, "Specifies the duration during which TDM registration is possible in seconds")
 MACRO_CONFIG_INT(SvTDMFreezeTime, sv_tdm_freeze_time, 3, 5, 30, CFGFLAG_SERVER, "Specifies the time required for a player to be frozen in order to die")

@@ -740,7 +740,7 @@ const char *CClanManager::GetClanName(int ClanId)
 	auto it = g_ClanIdMap.find(ClanId);
 	if(it != g_ClanIdMap.end())
 		return it->second.m_ClanName;
-	return "Unknown Clan";
+	return " ";
 }
 
 void CClanManager::UpdatePlayerClan(int ClientId, int ClanId, int AuthLevel)

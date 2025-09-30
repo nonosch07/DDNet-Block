@@ -425,6 +425,66 @@ void CAccounts::ExecuteSql(const char *pQuery)
 	m_pPool->ExecuteWrite(ExecuteSqlThread, std::move(Tmp), "execute sql query");
 }
 
+void CAccounts::ChangePasswordAdmin(int AdminClientId, const char *pUsername, const char *pNewPassword)
+{
+	if(RateLimitPlayer(AdminClientId))
+		return;
+	auto pResult = NewSqlAdminCommandResult(AdminClientId);
+	if(!pResult)
+		return;
+	auto Tmp = std::make_unique<CSqlAdminCommandRequest>(pResult);
+	Tmp->m_AdminClientId = AdminClientId;
+	Tmp->m_TargetAccountId = 0;
+	Tmp->m_State = 0;
+	Tmp->m_Type = CAdminCommandResult::DIRECT;
+	str_copy(Tmp->m_aUsername, pUsername, sizeof(Tmp->m_aUsername));
+	str_copy(Tmp->m_aPassword, pNewPassword, sizeof(Tmp->m_aPassword));
+	m_pPool->Execute(ChangePasswordAdminThread, std::move(Tmp), "admin change password");
+}
+
+bool CAccounts::ChangePasswordAdminThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
+{
+	const CSqlAdminCommandRequest *pData = dynamic_cast<const CSqlAdminCommandRequest *>(pGameData);
+	CAdminCommandResult *pResult = dynamic_cast<CAdminCommandResult *>(pGameData->m_pResult.get());
+	if(!pResult || !pData)
+		return true;
+	pResult->SetVariant(CAdminCommandResult::DIRECT, pData);
+
+	SHA256_DIGEST HashedNewPassword = CGameContext::HashPassword(pData->m_aPassword);
+	char aHashedNewPassword[SHA256_DIGEST_LENGTH * 2 + 1];
+	for(int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
+		sprintf(&aHashedNewPassword[i * 2], "%02x", HashedNewPassword.data[i]);
+
+	char aBuf[512];
+	str_copy(aBuf, "UPDATE accounts SET password = ? WHERE name = ?;", sizeof(aBuf));
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Failed to prepare change password statement.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	pSqlServer->BindString(1, aHashedNewPassword);
+	pSqlServer->BindString(2, pData->m_aUsername);
+	int NumUpdated = 0;
+	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Failed to execute change password statement.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+
+	if(NumUpdated == 1)
+	{
+		str_copy(pResult->m_aaMessages[0], "Password changed successfully.", sizeof(pResult->m_aaMessages[0]));
+		pResult->m_Success = true;
+	}
+	else
+	{
+		str_copy(pResult->m_aaMessages[0], "No account found with that name.", sizeof(pResult->m_aaMessages[0]));
+		pResult->m_Success = false;
+	}
+
+	return false;
+}
+
 bool CAccounts::ExecuteSqlThread(IDbConnection *pSqlServer, const ISqlData *pGameData, Write w, char *pError, int ErrorSize)
 {
 	if(w != Write::NORMAL && w != Write::NORMAL_FAILED)

@@ -153,6 +153,14 @@ class CGameContext : public IGameServer
 	static void ConDrySave(IConsole::IResult *pResult, void *pUserData);
 	static void ConDumpAntibot(IConsole::IResult *pResult, void *pUserData);
 	static void ConAntibot(IConsole::IResult *pResult, void *pUserData);
+	static void ConStatusAccounts(IConsole::IResult *pResult, void *pUserData);
+	static void ConGivePages(IConsole::IResult *pResult, void *pUserData);
+	static void ConGiveLevel(IConsole::IResult *pResult, void *pUserData);
+	static void ConGiveExperience(IConsole::IResult *pResult, void *pUserData);
+	static void ConGiveWeaponkits(IConsole::IResult *pResult, void *pUserData);
+	static void ConGiveBlockpoints(IConsole::IResult *pResult, void *pUserData);
+	static void ConGivePassive(IConsole::IResult *pResult, void *pUserData);
+	static void ConAdminSetPassword(IConsole::IResult *pResult, void *pUserData);
 	static void ConchainSpecialMotdupdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
 	static void ConchainSettingUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
 	static void ConDumpLog(IConsole::IResult *pResult, void *pUserData);

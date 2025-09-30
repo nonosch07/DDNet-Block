@@ -55,7 +55,7 @@ void CPassiveZone::Tick()
 
 void CPassiveZone::Snap(int ClientID)
 {
-	// nothing for now :(
+	// nothing for now :)
 	return;
 }
 
@@ -67,7 +67,6 @@ void CPassiveZone::OnCharacterDeath(CCharacter *pCharacter)
 	m_ProtectionUsed[ClientID] = false; // reset per life
 	m_aWasInZone[ClientID] = false;
 	pCharacter->Core()->m_Passive = false;
-	dbg_msg("passivezone", "OnCharacterDeath called for %d", ClientID);
 }
 
 void CPassiveZone::HandleProtection(int ClientID, CPlayer *pPlayer, CCharacter *pChar, bool InZone, bool WasInZone)

@@ -294,6 +294,7 @@ class CAccounts
 	static bool RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool ChangePasswordThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
+	static bool ChangePasswordAdminThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 
 	static bool ShowTopLevelThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool ShowTopBlockpointsThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
@@ -339,6 +340,8 @@ public:
 	void ClearLogins();
 	void Register(int ClientId, const char *pUsername, const char *pPassword);
 	void ChangePassword(int ClientId, const char *pUsername, const char *pOldPassword, const char *pNewPassword);
+	// Admin: change password by account name
+	void ChangePasswordAdmin(int AdminClientId, const char *pUsername, const char *pNewPassword);
 	void ExecuteSql(const char *pQuery);
 
 	void ShowTopLevel(int ClientId);
