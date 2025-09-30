@@ -254,15 +254,14 @@ public:
 	void OnPlayerSave(bool Logout);
 
 	//helper functions:
-	int GetAccId() { return m_Account.m_Id; }
-	bool IsLoggedIn() { return GetAccId() != 0; }
-	void SetAccId(int Id);
+	int GetAccId() const { return m_Account.m_Id; }
+	bool IsLoggedIn() const { return GetAccId() != 0; }
 
 	// Setters
 	void SetPlayerId(int Id) { m_Account.m_Id = Id; }
-	void SetPlayerName(const char *Name) { strncpy(m_Account.m_aName, Name, sizeof(m_Account.m_aName) - 1); }
-	void SetPlayerPassword(const char *Password) { strncpy(m_Account.m_aPassword, Password, sizeof(m_Account.m_aPassword) - 1); }
-	void SetPlayerAddress(const char *Address) { strncpy(m_Account.m_aAddress, Address, sizeof(m_Account.m_aAddress) - 1); }
+	void SetPlayerName(const char *Name) { str_copy(m_Account.m_aName, Name, sizeof(m_Account.m_aName)); }
+	void SetPlayerPassword(const char *Password) { str_copy(m_Account.m_aPassword, Password, sizeof(m_Account.m_aPassword)); }
+	void SetPlayerAddress(const char *Address) { str_copy(m_Account.m_aAddress, Address, sizeof(m_Account.m_aAddress)); }
 	void SetPlayerVip(int Vip) { m_Account.m_Vip = Vip; }
 	void SetPlayerPages(int Pages) { m_Account.m_Pages = Pages; }
 	void SetPlayerLevel(int Level) { m_Account.m_Level = Level; }
@@ -277,7 +276,7 @@ public:
 	void SetPlayerGundesign(int Index, char Value) { m_Account.m_aGundesign[Index] = Value; }
 	void SetPlayerSkinmani(int Index, char Value) { m_Account.m_aSkinmani[Index] = Value; }
 	void SetPlayerPassive(int PassiveDuration) { m_Account.m_Passive = PassiveDuration; }
-	void SetPlayerRegisterDate(const char *RegisterDate) { strncpy(m_Account.m_RegisterDate, RegisterDate, sizeof(m_Account.m_RegisterDate) - 1); }
+	void SetPlayerRegisterDate(const char *RegisterDate) { str_copy(m_Account.m_RegisterDate, RegisterDate, sizeof(m_Account.m_RegisterDate)); }
 	void SetPlayerRankedGames(int RankedGames) { m_Account.m_RankedGames = RankedGames; }
 	void SetPlayerRankedKills(int RankedKills) { m_Account.m_RankedKills = RankedKills; }
 	void SetPlayerRankedDeaths(int RankedDeaths) { m_Account.m_RankedDeaths = RankedDeaths; }
@@ -287,8 +286,8 @@ public:
 	void SetPlayerTourneyWin(int TourneyWin) { m_Account.m_TourneyWin = TourneyWin; }
 	void SetPlayerPlaytime(long long Playtime) { m_Account.m_Playtime = Playtime; }
 	void SetPlayerKillstreak(int Killstreak) { m_Account.m_Killstreak = Killstreak; }
-	void SetPlayerLastName(const char *LastName) { strncpy(m_Account.m_aLastName, LastName, sizeof(m_Account.m_aLastName) - 1); }
-	void SetPlayerLastSkin(const char *LastSkin) { strncpy(m_Account.m_aLastSkin, LastSkin, sizeof(m_Account.m_aLastSkin) - 1); }
+	void SetPlayerLastName(const char *LastName) { str_copy(m_Account.m_aLastName, LastName, sizeof(m_Account.m_aLastName)); }
+	void SetPlayerLastSkin(const char *LastSkin) { str_copy(m_Account.m_aLastSkin, LastSkin, sizeof(m_Account.m_aLastSkin)); }
 	void SetPlayerLastBodyColor(int LastBodyColor) { m_Account.m_LastBodyColor = LastBodyColor; }
 	void SetPlayerLastFeetColor(int LastFeetColor) { m_Account.m_LastFeetColor = LastFeetColor; }
 
