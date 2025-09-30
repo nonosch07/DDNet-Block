@@ -4,6 +4,7 @@
 #include "game/server/entities/pickup.h"
 #include "game/server/entity.h"
 #include "game/server/player.h"
+#include "npcmanager.h"
 #include <game/server/gamecontext.h>
 
 #include <cmath> // for fabs
@@ -14,17 +15,31 @@ CShopPreview::CShopPreview() :
 	m_pPlayer(nullptr),
 	m_LastUpdateTime(0)
 {
+	m_pNpcManager = new CNpcManager();
 }
 
 CShopPreview::CShopPreview(CGameContext *pGameContext) :
 	CShopPreview() // delegate to the default constructor - dont understand ddnet code but its needed smh
 {
 	m_pGameContext = pGameContext;
+	m_pNpcManager->Init(pGameContext);
+}
+
+CShopPreview::~CShopPreview()
+{
+	if(m_pNpcManager)
+	{
+		m_pNpcManager->RemoveAll();
+		delete m_pNpcManager;
+		m_pNpcManager = nullptr;
+	}
 }
 
 void CShopPreview::Init(CGameContext *pGameServer)
 {
 	m_pGameContext = pGameServer;
+	if(m_pNpcManager)
+		m_pNpcManager->Init(pGameServer);
 }
 
 void CShopPreview::Tick()
@@ -96,13 +111,11 @@ void CShopPreview::DisplayKnockouts()
 
 void CShopPreview::DisplaySkinManipulations()
 {
-	return;
-	static std::vector<int> s_FakePlayerIDs(GameServer()->Cosmetics()->NUM_SKINMANIS, -1);
-	static std::vector<bool> s_ToggledCosmetics(GameServer()->Cosmetics()->NUM_SKINMANIS, false);
-	static std::vector<bool> s_Teleported(GameServer()->Cosmetics()->NUM_SKINMANIS, false);
-	static std::vector<int> s_ConnectionTick(GameServer()->Cosmetics()->NUM_SKINMANIS, -1);
+	int Num = GameServer()->Cosmetics()->NUM_SKINMANIS;
+	if(m_pNpcManager)
+		m_pNpcManager->Resize(Num);
 
-	for(int i = 0; i < GameServer()->Cosmetics()->NUM_SKINMANIS; i++)
+	for(int i = 0; i < Num; i++)
 	{
 		int Price = 0, Level = 0;
 		vec2 PreviewPos;
@@ -110,41 +123,8 @@ void CShopPreview::DisplaySkinManipulations()
 		if(!m_pGameContext->Cosmetics()->ShopInfoSkinmani(i, Price, Level, PreviewPos))
 			continue;
 
-		if(s_FakePlayerIDs[i] == -1)
-		{
-			int DummyID = GameServer()->GetNextClientID();
-			s_FakePlayerIDs[i] = DummyID;
-			CPlayer *pFakePlayer = new(DummyID) CPlayer(GameServer(), GameServer()->m_NextUniqueClientId, DummyID, TEAM_RED);
-			GameServer()->m_NextUniqueClientId++;
-			GameServer()->m_apPlayers[DummyID] = pFakePlayer;
-
-			GameServer()->OnClientConnected(DummyID, 0);
-			GameServer()->Server()->BotJoin(DummyID, "");
-			pFakePlayer->m_IsNpc = true;
-			pFakePlayer->SetAfk(true);
-
-			s_ConnectionTick[i] = GameServer()->Server()->Tick();
-		}
-
-		CPlayer *pPlayer = GameServer()->GetPlayer(s_FakePlayerIDs[i]);
-		if(!pPlayer)
-			continue;
-
-		if(!s_ToggledCosmetics[i])
-		{
-			GameServer()->Cosmetics()->ToggleSkinmani(s_FakePlayerIDs[i], CCosmeticsHandler::ms_SkinmaniNames[i]);
-			s_ToggledCosmetics[i] = true;
-		}
-
-		CCharacter *pChr = pPlayer->GetCharacter();
-		if(pChr && !s_Teleported[i])
-		{
-			if(GameServer()->Server()->Tick() - s_ConnectionTick[i] >= GameServer()->Server()->TickSpeed() * 3)
-			{
-				GameServer()->Teleport(pChr, PreviewPos);
-				s_Teleported[i] = true;
-			}
-		}
+		if(m_pNpcManager)
+			m_pNpcManager->EnsureNpcAndApplySkinmani(i, PreviewPos, CCosmeticsHandler::ms_SkinmaniNames[i]);
 	}
 }
 

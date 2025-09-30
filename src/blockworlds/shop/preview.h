@@ -12,6 +12,7 @@ private:
 	CGameContext *m_pGameContext;
 	CCosmeticsHandler *m_pCosmeticsHandler;
 	CPlayer *m_pPlayer;
+	class CNpcManager *m_pNpcManager;
 
 	int m_LastUpdateTime;
 	void DisplayGundesign();
@@ -26,6 +27,8 @@ private:
 
 public:
 	CShopPreview();
+
+	~CShopPreview();
 
 	CShopPreview(CGameContext *pGameContext);
 	void Init(CGameContext *pGameServer);
