@@ -221,6 +221,8 @@ public:
 	int m_TileIndex;
 	int m_TileFIndex;
 
+	bool m_IsOnPassiveTile = false;
+
 	int64_t m_LastStartWarning;
 	int64_t m_LastRescue;
 	bool m_LastRefillJumps;

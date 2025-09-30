@@ -173,9 +173,17 @@ void CLastManBlockingEvent::FinishEvent()
 	{
 		if(m_Winner != -1)
 		{
-			// lame
 			GameServer()->SendChatTarget(-1, "'%s' has won the %s", Server()->ClientName(m_Winner), GetEventName());
 			GameServer()->SendBroadcast(-1, "'%s' has won the %s", Server()->ClientName(m_Winner), GetEventName());
+
+			int BlockpointsReward = 250;
+			CPlayer *pWinner = GameServer()->GetPlayer(m_Winner);
+			if(pWinner)
+			{
+				pWinner->SetPlayerLevel(pWinner->GetPlayerLevel() + 5);
+				pWinner->SetPlayerBlockpoints(pWinner->GetPlayerBlockpoints() + BlockpointsReward);
+				GameServer()->SendChatTarget(m_Winner, "You've received 5 levels and %d blockpoints for winning!", BlockpointsReward);
+			}
 
 			GameServer()->GetPlayer(m_Winner)->AddExpMultiplier(Config()->m_SvLMBWinnerExpMultiplier, Config()->m_SvLMBWinnerExpMultiplierDuration);
 			GameServer()->SendChatTarget(m_Winner, "%d%% experience bonus enabled for %d minutes!", Config()->m_SvLMBWinnerExpMultiplier, Config()->m_SvLMBWinnerExpMultiplierDuration);

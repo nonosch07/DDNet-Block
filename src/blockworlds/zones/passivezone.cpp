@@ -4,6 +4,7 @@
 
 #include "passivezone.h"
 #include "zonemanager.h"
+#include <cmath>
 
 CPassiveZone::CPassiveZone(CGameContext *pGameServer) :
 	IZone(pGameServer, ZONE_PASSIVE)
@@ -16,8 +17,6 @@ CPassiveZone::CPassiveZone(CGameContext *pGameServer) :
 
 void CPassiveZone::Tick()
 {
-	const int TickSpeed = GameServer()->Server()->TickSpeed();
-
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
@@ -43,8 +42,6 @@ void CPassiveZone::Tick()
 			m_aProtectionTicks[i]--;
 			if(m_aProtectionTicks[i] == 0)
 			{
-				// grace is up, removing protection
-				GameServer()->SendChatTarget(i, "You are no longer protected!");
 				pChar->Core()->m_Passive = false;
 			}
 		}
@@ -58,7 +55,7 @@ void CPassiveZone::Tick()
 
 void CPassiveZone::Snap(int ClientID)
 {
-	// nothing to snap
+	// nothing for now :(
 	return;
 }
 
@@ -80,7 +77,7 @@ void CPassiveZone::HandleProtection(int ClientID, CPlayer *pPlayer, CCharacter *
 	const int GraceTicks = 3 * TickSpeed;
 	const int MaxFreezeInsideTicks = 3 * TickSpeed;
 
-	bool Eligible = ((pPlayer->IsLoggedIn() && pPlayer->GetPlayerPassive() > 0) || pPlayer->m_LocalPassiveDuration > 0);
+	bool Eligible = (pPlayer->m_LocalPassiveDuration > 0) || (pPlayer->IsLoggedIn() && pPlayer->GetPlayerPassive() > 0 && pPlayer->IsUsingPassiveProtection());
 
 	// if you're not eligible, clear protection
 	if(!Eligible)
@@ -100,13 +97,11 @@ void CPassiveZone::HandleProtection(int ClientID, CPlayer *pPlayer, CCharacter *
 				if(m_aProtectionTicks[ClientID] == 0)
 				{
 					m_aProtectionTicks[ClientID] = GraceTicks;
-					GameServer()->SendChatTarget(ClientID, "You left the passive zone while frozen — protection will remain briefly.");
 				}
 				return;
 			}
 			else
 			{
-				GameServer()->SendChatTarget(ClientID, "You are no longer protected!");
 				m_aProtectionTicks[ClientID] = 0;
 				pChar->Core()->m_Passive = false;
 				return;
@@ -122,7 +117,6 @@ void CPassiveZone::HandleProtection(int ClientID, CPlayer *pPlayer, CCharacter *
 		{
 			if(pChar->Core()->m_Passive)
 			{
-				GameServer()->SendChatTarget(ClientID, "You lost passive protection due to prolonged freeze inside the zone.");
 				m_aProtectionTicks[ClientID] = 0;
 				pChar->Core()->m_Passive = false;
 			}
@@ -132,7 +126,6 @@ void CPassiveZone::HandleProtection(int ClientID, CPlayer *pPlayer, CCharacter *
 		// only give protection once per life
 		if(!m_ProtectionUsed[ClientID])
 		{
-			GameServer()->SendChatTarget(ClientID, "You are now protected.");
 			m_ProtectionUsed[ClientID] = true;
 			pChar->Core()->m_Passive = true;
 		}

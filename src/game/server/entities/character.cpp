@@ -1604,17 +1604,21 @@ void CCharacter::HandleTiles(int Index)
 		}
 	}
 
-	if(((m_TileIndex == TILE_BW_PASSIVE) || (m_TileFIndex == TILE_BW_PASSIVE)))
+	bool onPassiveTile = ((m_TileIndex == TILE_BW_PASSIVE) || (m_TileFIndex == TILE_BW_PASSIVE));
+	if(onPassiveTile && !m_IsOnPassiveTile)
 	{
 		GameServer()->SendChatTarget(GetPlayer()->GetCid(), "Wayblock Protection unlocked for 2 hours!");
-		dbg_msg("bw passive tile", "entered");
 
 		if(!m_pPlayer->IsLoggedIn())
 			m_pPlayer->m_LocalPassiveDuration = 7200;
 		else
-		{
 			m_pPlayer->SetPlayerPassive(7200);
-		}
+
+		m_IsOnPassiveTile = true;
+	}
+	else if(!onPassiveTile && m_IsOnPassiveTile)
+	{
+		m_IsOnPassiveTile = false;
 	}
 
 	// freeze

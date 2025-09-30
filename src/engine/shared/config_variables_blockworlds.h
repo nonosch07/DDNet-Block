@@ -50,6 +50,12 @@ MACRO_CONFIG_INT(SvLMBFreezeTimeout, sv_lmb_freeze_timeout, 150, 1, 50000, CFGFL
 MACRO_CONFIG_INT(SvLMBBroadcastRate, sv_lmb_broadcast_rate, 50, 1, 500, CFGFLAG_SERVER, "Rate at which information broadcasts will be sent (ticks, 50 ticks = 1 second)") // not related to lmb?
 MACRO_CONFIG_INT(SvLMBMinimumCandidates, sv_lmb_minimum_candidates, 8, 2, MAX_CLIENTS, CFGFLAG_SERVER, "Minimum amount of candidates to start the active phase")
 
+// Weaponkits setting: persist whether weaponkits are allowed on this server
+MACRO_CONFIG_INT(SvWeaponkitsAllowed, sv_weaponkits_allowed, 1, 0, 1, CFGFLAG_SERVER, "Allow (1) or disable (0) weaponkits on the server.")
+
+MACRO_CONFIG_INT(SvWeaponkitsVoteCoolDown, sv_weaponkits_vote_cooldown, 15, 1, 60, CFGFLAG_SERVER, "Cooldown time (in minutes) a player must wait before reusing the weaponkits vote.")
+MACRO_CONFIG_INT(SvLmbVoteCoolDown, sv_lmb_vote_cooldown, 30, 1, 99999, CFGFLAG_SERVER, "Cooldown time (in minutes) a player must wait before reusing the LMB vote.")
+
 // TDM (Team Deathmatch)
 MACRO_CONFIG_INT(SvTDMRegDuration, sv_tdm_reg_duration, 10, 0, 1000, CFGFLAG_SERVER, "Specifies the duration during which TDM registration is possible in seconds")
 MACRO_CONFIG_INT(SvTDMFreezeTime, sv_tdm_freeze_time, 3, 5, 30, CFGFLAG_SERVER, "Specifies the time required for a player to be frozen in order to die")

@@ -47,6 +47,7 @@
 #include <blockworlds/zones/zonemanager.h>
 
 #include <blockworlds/votes/cosmetics.h>
+#include <blockworlds/votes/votemanager.h>
 
 // Not thread-safe!
 class CClientChatLogger : public ILogger
@@ -131,6 +132,12 @@ void CGameContext::Construct(int Resetting)
 
 		m_NonEmptySince = 0;
 		m_pVoteOptionHeap = new CHeap();
+
+		// default: weaponkits allowed (persisted via config)
+		m_WeaponkitsAllowed = g_Config.m_SvWeaponkitsAllowed;
+
+		// default: LMB enabled (persisted via config)
+		// LMB enable/disable toggle removed; votes will only start events via "events_start lmb"
 	}
 
 	m_aDeleteTempfile[0] = 0;
@@ -615,10 +622,150 @@ void CGameContext::CallVote(int ClientId, const char *pDesc, const char *pCmd, c
 		pSixupDesc = pDesc;
 
 	m_VoteCreator = ClientId;
+
+	if(pPlayer)
+	{
+		if(pCmd && str_find(pCmd, "set_weaponkits_allowed") != nullptr)
+		{
+			int64_t Cooldown = Server()->TickSpeed() * 60 * g_Config.m_SvWeaponkitsVoteCoolDown; // 15 minutes
+			if(pPlayer->m_LastWeaponkitsVoteCall && Now < pPlayer->m_LastWeaponkitsVoteCall + Cooldown)
+			{
+				int64_t Remaining = (pPlayer->m_LastWeaponkitsVoteCall + Cooldown - Now + Server()->TickSpeed() - 1) / Server()->TickSpeed();
+				char aBuf[128];
+				int Minutes = (int)(Remaining / 60);
+				int Seconds = (int)(Remaining % 60);
+				if(Minutes > 0)
+					str_format(aBuf, sizeof(aBuf), "You must wait %d minute(s) %d second(s) before calling the weaponkits vote again.", Minutes, Seconds);
+				else
+					str_format(aBuf, sizeof(aBuf), "You must wait %d second(s) before calling the weaponkits vote again.", Seconds);
+				SendChatTarget(ClientId, aBuf);
+				return;
+			}
+			pPlayer->m_LastWeaponkitsVoteCall = Now;
+		}
+
+		if(pCmd && str_find(pCmd, "events_start lmb") != nullptr)
+		{
+			int64_t Cooldown = Server()->TickSpeed() * 60 * g_Config.m_SvLmbVoteCoolDown;
+			if(pPlayer->m_LastLMBVoteCall && Now < pPlayer->m_LastLMBVoteCall + Cooldown)
+			{
+				int64_t Remaining = (pPlayer->m_LastLMBVoteCall + Cooldown - Now + Server()->TickSpeed() - 1) / Server()->TickSpeed();
+				char aBuf[128];
+				int Minutes = (int)(Remaining / 60);
+				int Seconds = (int)(Remaining % 60);
+				if(Minutes > 0)
+					str_format(aBuf, sizeof(aBuf), "You must wait %d minute(s) %d second(s) before calling the LMB start vote again.", Minutes, Seconds);
+				else
+					str_format(aBuf, sizeof(aBuf), "You must wait %d second(s) before calling the LMB start vote again.", Seconds);
+				SendChatTarget(ClientId, aBuf);
+				return;
+			}
+			pPlayer->m_LastLMBVoteCall = Now;
+		}
+	}
 	StartVote(pDesc, pCmd, pReason, pSixupDesc);
 	pPlayer->m_Vote = 1;
 	pPlayer->m_VotePos = m_VotePos = 1;
 	pPlayer->m_LastVoteCall = Now;
+}
+
+void CGameContext::ConSetWeaponkits(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	if(pResult->NumArguments() == 0)
+	{
+		pSelf->SendChat(-1, TEAM_ALL, pSelf->m_WeaponkitsAllowed ? "Weaponkits allowed: true" : "Weaponkits allowed: false");
+		return;
+	}
+	const char *pArg = pResult->GetString(0);
+	if(str_comp(pArg, "1") == 0 || str_comp_nocase(pArg, "on") == 0 || str_comp_nocase(pArg, "true") == 0)
+		pSelf->m_WeaponkitsAllowed = true;
+	else if(str_comp(pArg, "0") == 0 || str_comp_nocase(pArg, "off") == 0 || str_comp_nocase(pArg, "false") == 0)
+		pSelf->m_WeaponkitsAllowed = false;
+	else
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Usage: set_weaponkits_allowed [0|1]");
+		return;
+	}
+
+	g_Config.m_SvWeaponkitsAllowed = pSelf->m_WeaponkitsAllowed ? 1 : 0;
+	if(pSelf->ConfigManager())
+		pSelf->ConfigManager()->Save();
+
+	pSelf->SendChat(-1, TEAM_ALL, pSelf->m_WeaponkitsAllowed ? "Weaponkits are now allowed on this server." : "Weaponkits are now disabled on this server.");
+
+	pSelf->UpdateWeaponkitsVoteOption();
+}
+
+void CGameContext::RemoveVoteByDescription(const char *pDescription)
+{
+	CVoteOptionServer *pOption = m_pVoteOptionFirst;
+	while(pOption)
+	{
+		if(str_comp(pOption->m_aDescription, pDescription) == 0)
+		{
+			--m_NumVoteOptions;
+
+			CHeap *pVoteOptionHeap = new CHeap();
+			CVoteOptionServer *pVoteOptionFirst = 0;
+			CVoteOptionServer *pVoteOptionLast = 0;
+			int NumVoteOptions = m_NumVoteOptions;
+			for(CVoteOptionServer *pSrc = m_pVoteOptionFirst; pSrc; pSrc = pSrc->m_pNext)
+			{
+				if(pSrc == pOption)
+					continue;
+
+				int Len = str_length(pSrc->m_aCommand);
+				CVoteOptionServer *pDst = (CVoteOptionServer *)pVoteOptionHeap->Allocate(sizeof(CVoteOptionServer) + Len, alignof(CVoteOptionServer));
+				pDst->m_pNext = 0;
+				pDst->m_pPrev = pVoteOptionLast;
+				if(pDst->m_pPrev)
+					pDst->m_pPrev->m_pNext = pDst;
+				pVoteOptionLast = pDst;
+				if(!pVoteOptionFirst)
+					pVoteOptionFirst = pDst;
+
+				str_copy(pDst->m_aDescription, pSrc->m_aDescription, sizeof(pDst->m_aDescription));
+				str_copy(pDst->m_aCommand, pSrc->m_aCommand, Len + 1);
+			}
+
+			delete m_pVoteOptionHeap;
+			m_pVoteOptionHeap = pVoteOptionHeap;
+			m_pVoteOptionFirst = pVoteOptionFirst;
+			m_pVoteOptionLast = pVoteOptionLast;
+			m_NumVoteOptions = NumVoteOptions;
+			return;
+		}
+		pOption = pOption->m_pNext;
+	}
+}
+
+void CGameContext::UpdateWeaponkitsVoteOption()
+{
+	RemoveVoteByDescription("Allow weaponkits");
+	RemoveVoteByDescription("Disable weaponkits");
+
+	if(m_WeaponkitsAllowed)
+		AddVote("Disable weaponkits", "set_weaponkits_allowed 0");
+	else
+		AddVote("Allow weaponkits", "set_weaponkits_allowed 1");
+}
+
+void CGameContext::UpdateLMBVoteOption()
+{
+	RemoveVoteByDescription("Start LMB event");
+
+	CNetMsg_Sv_VoteClearOptions VoteClearOptionsMsg;
+	Server()->SendPackMsg(&VoteClearOptionsMsg, MSGFLAG_VITAL, -1);
+
+	for(auto &pPlayer : m_apPlayers)
+	{
+		if(pPlayer)
+			pPlayer->m_SendVoteIndex = 0;
+	}
+
+	// Create a vote that triggers starting the LMB event via the events subsystem
+	// AddVote("Start LMB event", "events_start lmb");
 }
 
 void CGameContext::SendChatTarget(int To, const char *pText, int VersionFlags) const
@@ -3777,6 +3924,10 @@ void CGameContext::OnConsoleInit()
 
 	Console()->Chain("sv_motd", ConchainSpecialMotdupdate, this);
 
+	Console()->Register("set_weaponkits_allowed", "s[value]", CFGFLAG_SERVER, ConSetWeaponkits, this, "Set whether weaponkits are allowed (0/1)");
+	UpdateWeaponkitsVoteOption();
+	UpdateLMBVoteOption();
+
 	Console()->Chain("sv_vote_kick", ConchainSettingUpdate, this);
 	Console()->Chain("sv_vote_kick_min", ConchainSettingUpdate, this);
 	Console()->Chain("sv_vote_spectate", ConchainSettingUpdate, this);
@@ -5334,13 +5485,13 @@ void CGameContext::CreateStripline(char *pDst, int DstSize, const char *pTitle)
 		str_append(pDst, "#", DstSize);
 }
 
-static CosmeticsVoteManager g_CosmeticsVoteManager;
+extern CVoteManager g_VoteManager;
 
 void CGameContext::SendCosmeticsVoteOptions(int ClientID)
 {
 	CPlayer *pPlayer = GetPlayer(ClientID);
-	g_CosmeticsVoteManager.EnsureCategoriesInitialized();
-	g_CosmeticsVoteManager.SendOptions(pPlayer, ClientID, Server(), this);
+	// Use the central vote manager which contains extras + cosmetics modules
+	g_VoteManager.SendOptions(pPlayer, ClientID, Server(), this);
 }
 
 bool CGameContext::HandleCosmeticsVote(const CNetMsg_Cl_CallVote *pMsg, int ClientId)
@@ -5348,7 +5499,7 @@ bool CGameContext::HandleCosmeticsVote(const CNetMsg_Cl_CallVote *pMsg, int Clie
 	CPlayer *pPlayer = GetPlayer(ClientId);
 	if(!pPlayer)
 		return false;
-	return g_CosmeticsVoteManager.HandleVote(pPlayer, pMsg->m_pValue, ClientId, this);
+	return g_VoteManager.HandleVote(pPlayer, pMsg->m_pValue, ClientId, this);
 }
 
 // Event ticker

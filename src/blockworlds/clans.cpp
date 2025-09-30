@@ -161,6 +161,25 @@ void CClanManager::LoadAllClans()
 }
 
 // --- SQL Thread Functions for Clan Operations ---
+static bool CheckClanPermission(IDbConnection *pSqlServer, int AccountId, int ClanId, int RequiredAuthLevel, char *pError, int ErrorSize)
+{
+	char aBuf[256];
+	str_copy(aBuf, "SELECT clanID, auth_level FROM accounts WHERE id = ?;", sizeof(aBuf));
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+		return false;
+	pSqlServer->BindInt(1, AccountId);
+	bool End = false;
+	if(pSqlServer->Step(&End, pError, ErrorSize))
+		return false;
+	int DbClanId = pSqlServer->GetInt(0);
+	int DbAuthLevel = pSqlServer->GetInt(1);
+	if(DbClanId != ClanId || DbAuthLevel < RequiredAuthLevel)
+	{
+		snprintf(pError, ErrorSize, "Permission denied: insufficient clan rights.");
+		return false;
+	}
+	return true;
+}
 bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
 {
 	const CSqlClanRequest *pData = static_cast<const CSqlClanRequest *>(pGameData);
@@ -271,6 +290,12 @@ bool CClanManager::DeleteClanThread(IDbConnection *pSqlServer, const ISqlData *p
 
 	pResult->SetVariant(CClanResult::DIRECT);
 
+	if(!CheckClanPermission(pSqlServer, pData->m_AccountId, pData->m_ClanId, 3, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], pError, sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+
 	str_copy(aBuf, "DELETE FROM clans WHERE id = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -278,7 +303,6 @@ bool CClanManager::DeleteClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		str_copy(pResult->m_aaMessages[0], "Error 101: Clan deletion failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
-
 	pSqlServer->BindInt(1, pData->m_ClanId);
 	int NumDeleted;
 	if(pSqlServer->ExecuteUpdate(&NumDeleted, pError, ErrorSize))
@@ -412,8 +436,13 @@ bool CClanManager::RemoveFromClanThread(IDbConnection *pSqlServer, const ISqlDat
 	const CSqlClanRequest *pData = static_cast<const CSqlClanRequest *>(pGameData);
 	CClanResult *pResult = static_cast<CClanResult *>(pGameData->m_pResult.get());
 	char aBuf[1024];
-
 	pResult->SetVariant(CClanResult::DIRECT);
+
+	if(!CheckClanPermission(pSqlServer, pData->m_AccountId, pData->m_ClanId, 2, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], pError, sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
 
 	str_copy(aBuf, "UPDATE accounts SET clanID = 0, auth_level = 0 WHERE name = ? AND clanID = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
@@ -521,6 +550,12 @@ bool CClanManager::SetAuthLevelThread(IDbConnection *pSqlServer, const ISqlData 
 
 	pResult->SetVariant(CClanResult::CLAN);
 
+	if(!CheckClanPermission(pSqlServer, pData->m_AccountId, pData->m_ClanId, 3, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], pError, sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+
 	str_copy(aBuf, "UPDATE accounts SET auth_level = ? WHERE name = ? AND clanID = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -572,6 +607,12 @@ bool CClanManager::RenameClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	char aBuf[1024];
 
 	pResult->SetVariant(CClanResult::DIRECT);
+
+	if(!CheckClanPermission(pSqlServer, pData->m_AccountId, pData->m_ClanId, 3, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], pError, sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
 
 	str_copy(aBuf, "UPDATE clans SET name = ? WHERE id = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))

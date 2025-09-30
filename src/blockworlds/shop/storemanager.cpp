@@ -17,6 +17,28 @@ CShop::CShop(CGameContext *pGameContext, CPlayer *pOwner, int pCategory, int pCo
 		return;
 	}
 
+	bool validIndex = false;
+	switch(pCategory)
+	{
+	case CATEGORY_GUNDESIGN:
+		validIndex = (pCosmetics >= 0 && pCosmetics < CCosmeticsHandler::NUM_GUNDESIGNS);
+		break;
+	case CATEGORY_KNOCKOUT:
+		validIndex = (pCosmetics >= 0 && pCosmetics < CCosmeticsHandler::NUM_KNOCKOUTS);
+		break;
+	case CATEGORY_SKINMANI:
+		validIndex = (pCosmetics >= 0 && pCosmetics < CCosmeticsHandler::NUM_SKINMANIS);
+		break;
+	default:
+		break;
+	}
+	if(!validIndex)
+	{
+		GameServer()->SendChatTarget(pOwner->GetCid(), "Invalid cosmetic selection.");
+		Destroy(true);
+		return;
+	}
+
 	bool HasCosmetic = false;
 	switch(pCategory)
 	{
@@ -34,7 +56,6 @@ CShop::CShop(CGameContext *pGameContext, CPlayer *pOwner, int pCategory, int pCo
 		Destroy(true);
 		return;
 	}
-
 	if(HasCosmetic)
 	{
 		GameServer()->SendChatTarget(pOwner->GetCid(), "You already own this cosmetic.");
@@ -42,25 +63,20 @@ CShop::CShop(CGameContext *pGameContext, CPlayer *pOwner, int pCategory, int pCo
 		return;
 	}
 
-	if(!SetProductInfo(pCategory, pCosmetics))
+	if(!SetProductInfo(pCategory, pCosmetics) || m_pPrice <= 0)
 	{
+		GameServer()->SendChatTarget(pOwner->GetCid(), "Could not retrieve product info or invalid price.");
 		Destroy(true);
 		return;
 	}
 
-	if(m_pPrice == 0)
+	if(CCharacter *pChar = pOwner->GetCharacter())
 	{
-		Destroy(true);
-		return;
-	}
-
-	if(pOwner->GetCharacter())
-	{
-		if(pOwner->GetCharacter()->m_PendingPurchase)
+		if(pChar->m_PendingPurchase)
 		{
-			pOwner->GetCharacter()->m_PendingPurchase->Destroy(false);
+			pChar->m_PendingPurchase->Destroy(false);
 		}
-		pOwner->GetCharacter()->m_PendingPurchase = this;
+		pChar->m_PendingPurchase = this;
 
 		char aBuf[256];
 		str_format(aBuf, sizeof(aBuf), "Do you want to buy '%s' for %d blockpoints? (/yes, /no)", m_pCosmeticName, m_pPrice);
@@ -75,22 +91,23 @@ CShop::CShop(CGameContext *pGameContext, CPlayer *pOwner, int pCategory, int pCo
 bool CShop::SetProductInfo(int Category, int Cosmetics)
 {
 	bool Success = false;
-
 	vec2 PreviewPos;
-
 	switch(Category)
 	{
 	case CATEGORY_SKINMANI:
 		Success = m_pCosmeticsHandler->ShopInfoSkinmani(Cosmetics, m_pPrice, m_pLevel, PreviewPos);
-		m_pCosmeticName = CCosmeticsHandler::ms_SkinmaniNames[Cosmetics];
+		if(Success && Cosmetics >= 0 && Cosmetics < CCosmeticsHandler::NUM_SKINMANIS)
+			m_pCosmeticName = CCosmeticsHandler::ms_SkinmaniNames[Cosmetics];
 		break;
 	case CATEGORY_KNOCKOUT:
 		Success = m_pCosmeticsHandler->ShopInfoKnockout(Cosmetics, m_pPrice, m_pLevel, PreviewPos);
-		m_pCosmeticName = CCosmeticsHandler::ms_KnockoutNames[Cosmetics];
+		if(Success && Cosmetics >= 0 && Cosmetics < CCosmeticsHandler::NUM_KNOCKOUTS)
+			m_pCosmeticName = CCosmeticsHandler::ms_KnockoutNames[Cosmetics];
 		break;
 	case CATEGORY_GUNDESIGN:
 		Success = m_pCosmeticsHandler->ShopInfoGundesign(Cosmetics, m_pPrice, m_pLevel, PreviewPos);
-		m_pCosmeticName = CCosmeticsHandler::ms_GundesignNames[Cosmetics];
+		if(Success && Cosmetics >= 0 && Cosmetics < CCosmeticsHandler::NUM_GUNDESIGNS)
+			m_pCosmeticName = CCosmeticsHandler::ms_GundesignNames[Cosmetics];
 		break;
 	default:
 		return false;
