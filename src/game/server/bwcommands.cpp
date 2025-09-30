@@ -319,6 +319,13 @@ void CGameContext::ConWeaponKit(IConsole::IResult *pResult, void *pUserData)
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 	CCharacter *pChr = pPlayer->GetCharacter();
 
+	// Server-wide weaponkits toggle
+	if(!pSelf->m_WeaponkitsAllowed)
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "Weaponkits are currently disabled on this server.");
+		return;
+	}
+
 	if(!g_Config.m_SvAccountsystem)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
 
@@ -721,6 +728,12 @@ void CGameContext::ConClanInvite(IConsole::IResult *pResult, void *pUserData)
 		return;
 	}
 
+	if(pTargetPlayer->GetPlayerLevel() < 10)
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "This player must be at least level 10 to join a clan.");
+		return;
+	}
+
 	if(pTargetPlayer->GetCharacter()->m_PendingClanRequests)
 	{
 		pSelf->SendChatTarget(pResult->m_ClientId, "This player already has a pending clan invitation.");
@@ -775,7 +788,8 @@ void CGameContext::ConClanCreate(IConsole::IResult *pResult, void *pUserData)
 
 	if(!pPlayer->m_Account.m_Id)
 		return pSelf->SendChatTarget(ClientId, "You must be logged in to create a clan!");
-
+	if(pPlayer->m_Account.m_Level < 50)
+		return pSelf->SendChatTarget(ClientId, "You must be at least level 50 to create a clan!");
 	if(pPlayer->m_Account.m_ClanId > 0)
 		return pSelf->SendChatTarget(ClientId, "You are already in a clan!");
 

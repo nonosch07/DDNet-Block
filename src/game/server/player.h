@@ -100,6 +100,7 @@ public:
 	int m_VotePos;
 	//
 	int m_LastVoteCall;
+	int64_t m_LastLMBVoteCall;
 	int m_LastVoteTry;
 	int m_LastChat;
 	int m_LastSetTeam;
@@ -334,6 +335,9 @@ public:
 	int64_t m_LastExpAccountAlert;
 	int64_t m_ClanSaveCooldown;
 
+	/* last time this player called the weaponkits server vote */
+	int64_t m_LastWeaponkitsVoteCall;
+
 private:
 	std::map<int /* modifier (percent) */, int /* end tick */> m_ExpModifiers;
 	float m_CurrentExpMultiplier;
@@ -397,6 +401,14 @@ public:
 	}
 
 	int m_LocalPassiveDuration = 0;
+	bool m_UsePassiveProtection = true;
+
+	void TogglePassive()
+	{
+		m_UsePassiveProtection = !m_UsePassiveProtection;
+	}
+
+	bool IsUsingPassiveProtection() const { return m_UsePassiveProtection; }
 };
 
 #endif

@@ -111,11 +111,6 @@ void CClanRequests::Accept()
 
 	m_pClanSeeker->SetAuthLevel(1);
 
-	// char aBuf[256];
-	// const char *pClanName = m_pGameContext->Clans()->GetClanName(m_pClanId);
-	// str_format(aBuf, sizeof(aBuf), "You have successfully joined the clan '%s'.", pClanName);
-	// GameServer()->SendChatTarget(m_pClanSeeker->GetCid(), aBuf);
-	// GameServer()->SendChatTarget(m_pClanOwner->GetCid(), "The invited player has accepted your clan invitation.");
 	Destroy(true);
 }
 

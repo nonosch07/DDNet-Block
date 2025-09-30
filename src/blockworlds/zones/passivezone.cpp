@@ -17,8 +17,6 @@ CPassiveZone::CPassiveZone(CGameContext *pGameServer) :
 
 void CPassiveZone::Tick()
 {
-	const int TickSpeed = GameServer()->Server()->TickSpeed();
-
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
@@ -57,10 +55,9 @@ void CPassiveZone::Tick()
 
 void CPassiveZone::Snap(int ClientID)
 {
-   // nothing for now :(
-   return;
+	// nothing for now :(
+	return;
 }
-
 
 void CPassiveZone::OnCharacterDeath(CCharacter *pCharacter)
 {
@@ -80,7 +77,7 @@ void CPassiveZone::HandleProtection(int ClientID, CPlayer *pPlayer, CCharacter *
 	const int GraceTicks = 3 * TickSpeed;
 	const int MaxFreezeInsideTicks = 3 * TickSpeed;
 
-	bool Eligible = ((pPlayer->IsLoggedIn() && pPlayer->GetPlayerPassive() > 0) || pPlayer->m_LocalPassiveDuration > 0);
+	bool Eligible = (pPlayer->m_LocalPassiveDuration > 0) || (pPlayer->IsLoggedIn() && pPlayer->GetPlayerPassive() > 0 && pPlayer->IsUsingPassiveProtection());
 
 	// if you're not eligible, clear protection
 	if(!Eligible)
