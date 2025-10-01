@@ -27,6 +27,9 @@ public:
 	void Init(CGameContext *pGameServer);
 	IZone *GetZone(int Type);
 
+	// return centers of quads from named quad layers (e.g. "tdm_red", "tdm_blue")
+	std::vector<vec2> GetNamedQuadCenters(const char *pName) const;
+
 	void Tick();
 	void Snap(int ClientID);
 };

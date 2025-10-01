@@ -59,7 +59,9 @@ MACRO_CONFIG_INT(SvLmbVoteCoolDown, sv_lmb_vote_cooldown, 30, 1, 99999, CFGFLAG_
 MACRO_CONFIG_INT(SvNoHammerOnUnfreeze, sv_no_hammer_on_unfreeze, 1, 0, 1, CFGFLAG_SERVER, "Prevent instant hammer fire immediately after unfreeze (1=on, 0=off)")
 
 // TDM (Team Deathmatch)
-MACRO_CONFIG_INT(SvTDMRegDuration, sv_tdm_reg_duration, 10, 0, 1000, CFGFLAG_SERVER, "Specifies the duration during which TDM registration is possible in seconds")
+MACRO_CONFIG_INT(SvTDMRegistrationTime, sv_tdm_registration_time, 30, 0, 1000, CFGFLAG_SERVER, "Duration of TDM registration phase (seconds)")
+MACRO_CONFIG_INT(SvTDMActiveTime, sv_tdm_active_time, 600, 0, 3600, CFGFLAG_SERVER, "Duration of TDM active phase (seconds)")
+MACRO_CONFIG_INT(SvTDMMinimumCandidates, sv_tdm_minimum_candidates, 8, 2, MAX_CLIENTS, CFGFLAG_SERVER, "Minimum amount of candidates to start TDM")
+MACRO_CONFIG_INT(SvTDMMaximumCandidates, sv_tdm_maximum_candidates, 16, 2, MAX_CLIENTS, CFGFLAG_SERVER, "Maximum amount of participants for TDM")
+MACRO_CONFIG_INT(SvTDMBroadcastRate, sv_tdm_broadcast_rate, 50, 1, 500, CFGFLAG_SERVER, "Rate at which TDM information broadcasts will be sent (ticks)")
 MACRO_CONFIG_INT(SvTDMFreezeTime, sv_tdm_freeze_time, 3, 5, 30, CFGFLAG_SERVER, "Specifies the time required for a player to be frozen in order to die")
-MACRO_CONFIG_INT(SvTDMTournamentTime, sv_tdm_tournament_time, 1200, 600, 1200, CFGFLAG_SERVER, "Specifies the maximum duration of a tournament (in seconds)")
-MACRO_CONFIG_INT(SvTDMMinPlayer, sv_tdm_min_player, 15, 12, 18, CFGFLAG_SERVER, "Specifies the minimum number of players required to start")

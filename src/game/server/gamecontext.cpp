@@ -3,6 +3,7 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "gamecontext.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "blockworlds/cosmetics/cosmetics.h"
@@ -2878,6 +2879,30 @@ void CGameContext::OnChangeInfoNetMessage(const CNetMsg_Cl_ChangeInfo *pMsg, int
 	pPlayer->m_LastChangeInfo = Server()->Tick();
 	pPlayer->UpdatePlaytime();
 
+	if(!Server()->ClientAuthed(ClientId))
+	{
+		bool inLegacyEvent = isInEvent(ClientId) != 0;
+		bool inComponentEvent = false;
+		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+		{
+			auto subs = eventsAccessor->GetSubComponents();
+			for(auto &sub : subs)
+			{
+				CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
+				if(pEv && pEv->GetState() == CEventComponent::EEventState::Active &&
+					std::find(pEv->Participants().begin(), pEv->Participants().end(), ClientId) != pEv->Participants().end())
+				{
+					inComponentEvent = true;
+					break;
+				}
+			}
+		}
+		if(inLegacyEvent || inComponentEvent)
+		{
+			return;
+		}
+	}
+
 	if(g_Config.m_SvSpamprotection)
 	{
 		CNetMsg_Sv_ChangeInfoCooldown ChangeInfoCooldownMsg;
@@ -3091,6 +3116,31 @@ void CGameContext::OnStartInfoNetMessage(const CNetMsg_Cl_StartInfo *pMsg, int C
 
 	if(pPlayer->m_IsReady)
 		return;
+
+	// Prevent non-authed players from setting initial identity while participating in an event
+	if(!Server()->ClientAuthed(ClientId))
+	{
+		bool inLegacyEvent = isInEvent(ClientId) != 0;
+		bool inComponentEvent = false;
+		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+		{
+			auto subs = eventsAccessor->GetSubComponents();
+			for(auto &sub : subs)
+			{
+				CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
+				if(pEv && pEv->GetState() == CEventComponent::EEventState::Active &&
+					std::find(pEv->Participants().begin(), pEv->Participants().end(), ClientId) != pEv->Participants().end())
+				{
+					inComponentEvent = true;
+					break;
+				}
+			}
+		}
+		if(inLegacyEvent || inComponentEvent)
+		{
+			return;
+		}
+	}
 
 	pPlayer->m_LastChangeInfo = Server()->Tick();
 

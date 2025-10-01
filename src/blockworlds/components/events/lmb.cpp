@@ -255,6 +255,13 @@ bool CLastManBlockingEvent::Register(int ClientId)
 		GameServer()->SendChatTarget(ClientId, "Registration phase is over!");
 		return false;
 	}
+	// only logged-in players can join
+	CPlayer *pPlayer = GameServer()->GetPlayer(ClientId);
+	if(!pPlayer || !pPlayer->IsLoggedIn())
+	{
+		GameServer()->SendChatTarget(ClientId, "You must be logged in to join this event.");
+		return false;
+	}
 	if(IsCandidate(ClientId))
 	{
 		GameServer()->SendChatTarget(ClientId, "You already registered to participate.");
