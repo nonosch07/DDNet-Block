@@ -527,7 +527,9 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Failed to prepare SELECT statement: %s", pError);
+		char aTmp[1024];
+		snprintf(aTmp, sizeof(aTmp), "Failed to prepare SELECT statement: %s", pError);
+		str_copy(pError, aTmp, ErrorSize);
 		return true;
 	}
 
@@ -538,7 +540,9 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 	bool End;
 	if(pSqlServer->Step(&End, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Failed to execute SELECT statement: %s", pError);
+		char aTmp[1024];
+		snprintf(aTmp, sizeof(aTmp), "Failed to execute SELECT statement: %s", pError);
+		str_copy(pError, aTmp, ErrorSize);
 		return true;
 	}
 
@@ -560,7 +564,9 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		{
-			snprintf(pError, ErrorSize, "Failed to prepare INSERT statement: %s", pError);
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Failed to prepare INSERT statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
 			return true;
 		}
 
@@ -570,7 +576,9 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 		int NumInserted;
 		if(pSqlServer->ExecuteUpdate(&NumInserted, pError, ErrorSize))
 		{
-			snprintf(pError, ErrorSize, "Failed to execute INSERT statement: %s", pError);
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Failed to execute INSERT statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
 			return true;
 		}
 
@@ -581,7 +589,9 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 		}
 		else
 		{
-			snprintf(pError, ErrorSize, "Account registration failed. No rows inserted.");
+			char aTmp[256];
+			snprintf(aTmp, sizeof(aTmp), "Account registration failed. No rows inserted.");
+			str_copy(pError, aTmp, ErrorSize);
 			return true;
 		}
 	}

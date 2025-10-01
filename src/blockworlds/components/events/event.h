@@ -5,6 +5,7 @@
 
 #include <blockworlds/components/core/component.h>
 
+#include <functional>
 #include <map>
 
 class CEventComponent : public CComponent
@@ -68,6 +69,8 @@ public:
 	[[nodiscard]] const char *GetStateName() const;
 	[[nodiscard]] static const char *GetStateName(EEventState State);
 	void SetStateChangeCallback(FnOnStateChange pfnCallback) { m_pfnOnStateChange = std::move(pfnCallback); }
+
+	[[nodiscard]] const char *GetName() const override { return GetEventName(); }
 
 protected:
 	void SavePosition(int ClientId);

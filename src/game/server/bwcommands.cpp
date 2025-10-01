@@ -12,10 +12,10 @@
 
 #include <blockworlds/accounts.h>
 #include <blockworlds/clans.h>
-#include <blockworlds/events/base/eventhandler.h>
-#include <blockworlds/requests/clan_requests/requests.h>
+#include <blockworlds/components/requests.h>
 
 #include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/components/events.h>
 
 extern std::mutex g_ClansDataMutex;
 extern std::unordered_map<int, CClansData> g_ClanIdMap;
@@ -865,64 +865,69 @@ void CGameContext::ConClanExp(IConsole::IResult *pResult, void *pUserData)
 
 void CGameContext::ConBuy(IConsole::IResult *pResult, void *pUserData)
 {
-	// test command - replace that with tiles
+	// // test command - replace that with tiles
 
-	CGameContext *pSelf = (CGameContext *)pUserData;
-	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
-	CCharacter *pChr = pPlayer->GetCharacter();
+	// CGameContext *pSelf = (CGameContext *)pUserData;
+	// CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+	// CCharacter *pChr = pPlayer->GetCharacter();
 
-	if(!pPlayer)
-	{
-		pSelf->SendChatTarget(pResult->m_ClientId, "Player not found.");
-		return;
-	}
+	// if(!pPlayer)
+	// {
+	// 	pSelf->SendChatTarget(pResult->m_ClientId, "Player not found.");
+	// 	return;
+	// }
 
-	int Category;
-	bool Found = false;
-	int CosmeticId = -1;
+	// int Category;
+	// bool Found = false;
+	// int CosmeticId = -1;
 
-	std::string Type = pResult->GetString(0);
-	std::string Name = pResult->GetString(1);
+	// std::string Type = pResult->GetString(0);
+	// std::string Name = pResult->GetString(1);
 
-	if(Type == "gd")
-	{
-		CosmeticId = pSelf->Cosmetics()->FindGundesign(Name.c_str());
-		Category = CShop::CATEGORY_GUNDESIGN;
-		Found = (CosmeticId != -1);
-	}
-	else if(Type == "ko")
-	{
-		CosmeticId = pSelf->Cosmetics()->FindKnockoutEffect(Name.c_str());
-		Category = CShop::CATEGORY_KNOCKOUT;
-		Found = (CosmeticId != -1);
-	}
-	else if(Type == "sm")
-	{
-		CosmeticId = pSelf->Cosmetics()->FindSkinmani(Name.c_str());
-		Category = CShop::CATEGORY_SKINMANI;
-		Found = (CosmeticId != -1);
-	}
-	else
-	{
-		pSelf->SendChatTarget(pResult->m_ClientId, "Unknown cosmetics type. Use 'ko' (knockout), 'gd' (gundesign), or 'sm' (skinmani).");
-		return;
-	}
+	// if(Type == "gd")
+	// {
+	// 	CosmeticId = pSelf->Cosmetics()->FindGundesign(Name.c_str());
+	// 	Category = CShop::CATEGORY_GUNDESIGN;
+	// 	Found = (CosmeticId != -1);
+	// }
+	// else if(Type == "ko")
+	// {
+	// 	CosmeticId = pSelf->Cosmetics()->FindKnockoutEffect(Name.c_str());
+	// 	Category = CShop::CATEGORY_KNOCKOUT;
+	// 	Found = (CosmeticId != -1);
+	// }
+	// else if(Type == "sm")
+	// {
+	// 	CosmeticId = pSelf->Cosmetics()->FindSkinmani(Name.c_str());
+	// 	Category = CShop::CATEGORY_SKINMANI;
+	// 	Found = (CosmeticId != -1);
+	// }
+	// else
+	// {
+	// 	pSelf->SendChatTarget(pResult->m_ClientId, "Unknown cosmetics type. Use 'ko' (knockout), 'gd' (gundesign), or 'sm' (skinmani).");
+	// 	return;
+	// }
 
-	if(!Found)
-	{
-		pSelf->SendChatTarget(pResult->m_ClientId, "Unknown cosmetics name.");
-		return;
-	}
+	// if(!Found)
+	// {
+	// 	pSelf->SendChatTarget(pResult->m_ClientId, "Unknown cosmetics name.");
+	// 	return;
+	// }
 
-	if(pChr->m_PendingPurchase == nullptr)
-	{
-		new CShop(pSelf, pPlayer, Category, CosmeticId, 15);
-		// pSelf->SendChatTarget(pResult->m_ClientId, "Purchase initiated. Confirm with /yes or cancel with /no.");
-	}
-	else
-	{
-		pSelf->SendChatTarget(pResult->m_ClientId, "pendingpurchase isn't null");
-	}
+	// if(pChr->m_PendingPurchase == nullptr)
+	// {
+	// 	new CShop(pSelf, pPlayer, Category, CosmeticId, 15);
+	// 	// register shop request so it's stored centrally
+	// 	if(auto requests = g_ComponentRegistry.Get<CRequests>())
+	// 	{
+	// 		requests->CreateShopRequest(pPlayer->GetCid(), Category, CosmeticId, 0, 15);
+	// 	}
+	// 	// pSelf->SendChatTarget(pResult->m_ClientId, "Purchase initiated. Confirm with /yes or cancel with /no.");
+	// }
+	// else
+	// {
+	// 	pSelf->SendChatTarget(pResult->m_ClientId, "pendingpurchase isn't null");
+	// }
 }
 
 void CGameContext::ConShopPurchase(IConsole::IResult *pResult, void *pUserData)
@@ -1377,18 +1382,16 @@ void CGameContext::Con1on1(IConsole::IResult *pResult, void *pUserData)
 	if(result.empty())
 		return pSelf->SendChatTarget(pResult->m_ClientId, "Error: This map does not have any spawn tiles for 1v1. (194 / Blue Spawn inside of Game Layer)");
 
-	CInvite *pInvite = pSelf->getInvite(pPlayer->GetCid(), pTarget->GetCid(), CEvent::EVENT_1on1);
-	if(pInvite && pInvite->m_pInviteFrom == pTarget && pPlayer == pInvite->m_pInviteTo)
-		return pInvite->Accept();
-	else if(pInvite)
-		return pSelf->SendChatTarget(pResult->m_ClientId, "Request cannot be send right now. Try again in a few seconds.");
-
-	new CInvite(pSelf, pTarget, pPlayer, CEvent::EVENT_1on1, 30, Wager);
-	pPlayer->sent1on1InviteTo = pTarget->GetCid();
-	str_format(aBuf, sizeof(aBuf), "%s challenged you for an 1on1! (/accept, /decline) (%d BP)", pSelf->Server()->ClientName(pResult->m_ClientId), Wager);
-	pSelf->SendChatTarget(pTarget->GetCid(), aBuf);
-	str_format(aBuf, sizeof(aBuf), "Match request has been sent to '%s' (%d BP).", pSelf->Server()->ClientName(pTarget->GetCid()), Wager);
-	pSelf->SendChatTarget(pPlayer->GetCid(), aBuf);
+	// create invite via requests component
+	if(auto requests = g_ComponentRegistry.Get<CRequests>())
+	{
+		int id = requests->Create1on1Invite(pPlayer->GetCid(), pTarget->GetCid(), Wager, 30);
+		pPlayer->sent1on1InviteTo = pTarget->GetCid();
+		str_format(aBuf, sizeof(aBuf), "Match request has been sent to '%s' (id=%d, %d BP).", pSelf->Server()->ClientName(pTarget->GetCid()), id, Wager);
+		pSelf->SendChatTarget(pPlayer->GetCid(), aBuf);
+		return;
+	}
+	pSelf->SendChatTarget(pResult->m_ClientId, "Request subsystem is not available.");
 }
 
 void CGameContext::Con1on1Accept(IConsole::IResult *pResult, void *pUserData)
@@ -1401,32 +1404,45 @@ void CGameContext::Con1on1Accept(IConsole::IResult *pResult, void *pUserData)
 	if(!g_Config.m_Sv1on1system)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "1on1 matches are currently disabled.");
 
-	// do you really want to copy vector of pointers
-	std::vector<CInvite *> pInvites = pSelf->getInvites(pResult->m_ClientId, 1);
-
-	if(pInvites.empty())
-		return pSelf->SendChatTarget(pResult->m_ClientId, "Nobody has invited you!");
-
-	CPlayer *pTarget = pSelf->GetPlayerByName(pResult->GetString(0));
-
-	if(!pTarget && pInvites.size() > 1)
-		return pSelf->SendChatTarget(pResult->m_ClientId, "Player not found.");
-
-	if(pSelf->isInEvent(pResult->m_ClientId))
-		return pSelf->SendChatTarget(pResult->m_ClientId, "You are already in an event.");
-
-	for(int i = pInvites.size() - 1; i >= 0; i--)
+	if(auto requests = g_ComponentRegistry.Get<CRequests>())
 	{
-		if(pInvites[i]->m_pInviteTo != pSelf->m_apPlayers[pResult->m_ClientId])
-			continue;
+		if(pResult->NumArguments() > 0 && pResult->GetString(0)[0])
+		{
+			const char *arg = pResult->GetString(0);
+			int id = atoi(arg);
+			if(id > 0 && requests->AcceptRequest(id))
+			{
+				return;
+			}
 
-		return pInvites[i]->Accept();
+			CPlayer *pFrom = pSelf->GetPlayerByName(arg);
+			if(pFrom)
+			{
+				auto ids = requests->GetRequestIdsFromTo(pFrom->GetCid(), pResult->m_ClientId, (int)CRequests::SRequest::OneOnOne);
+				if(ids.size() == 1)
+				{
+					requests->AcceptRequest(ids[0]);
+					return;
+				}
+				else if(!ids.empty())
+				{
+					pSelf->SendChatTarget(pResult->m_ClientId, "Multiple requests found from that player. Use /accept <id> to pick one.");
+					return;
+				}
+			}
+		}
+
+		auto pending = requests->GetRequestIdsTo(pResult->m_ClientId, (int)CRequests::SRequest::OneOnOne);
+		if(pending.size() == 1)
+		{
+			requests->AcceptRequest(pending[0]);
+			return;
+		}
+
+		pSelf->SendChatTarget(pResult->m_ClientId, "No invitation to accept was found (or use /accept <id|playerName>). Try checking your messages.");
+		return;
 	}
-
-	for(CEvent *pEvent : pSelf->m_vEvents)
-		if(pEvent->pGetGametype() == CEvent::EVENT_INVITE)
-			return ((CInvite *)pEvent)->Accept();
-	pSelf->SendChatTarget(pResult->m_ClientId, "No invitation to accept was found.");
+	pSelf->SendChatTarget(pResult->m_ClientId, "Request subsystem is not available.");
 }
 
 void CGameContext::Con1on1Decline(IConsole::IResult *pResult, void *pUserData)
@@ -1442,19 +1458,43 @@ void CGameContext::Con1on1Decline(IConsole::IResult *pResult, void *pUserData)
 	if(!pResult->NumArguments())
 		return;
 
-	CPlayer *pTarget = pSelf->GetPlayerByName(pResult->GetString(0));
+	if(auto requests = g_ComponentRegistry.Get<CRequests>())
+	{
+		if(pResult->NumArguments() > 0 && pResult->GetString(0)[0])
+		{
+			const char *arg = pResult->GetString(0);
+			int id = atoi(arg);
+			if(id > 0 && requests->DeclineRequest(id))
+				return;
 
-	if(!pTarget)
-		return pSelf->SendChatTarget(pResult->m_ClientId, "This player doesn't exist.");
+			CPlayer *pFrom = pSelf->GetPlayerByName(arg);
+			if(pFrom)
+			{
+				auto ids = requests->GetRequestIdsFromTo(pFrom->GetCid(), pResult->m_ClientId, (int)CRequests::SRequest::OneOnOne);
+				if(ids.size() == 1)
+				{
+					requests->DeclineRequest(ids[0]);
+					return;
+				}
+				else if(!ids.empty())
+				{
+					pSelf->SendChatTarget(pResult->m_ClientId, "Multiple requests found from that player. Use /decline <id> to pick one.");
+					return;
+				}
+			}
+		}
 
-	std::vector<CInvite *> pInvites = pSelf->getInvites(pResult->m_ClientId, pTarget->GetCid());
-	for(int i = pInvites.size() - 1; i >= 0; i--)
-	{ // loop from behind so the last pInvite gets prioritized
-		if(pInvites[i]->m_pInviteTo != pSelf->m_apPlayers[pResult->m_ClientId]) // is the player the player that received an request or the one that sent it?
-			continue;
-		pInvites[i]->Decline();
-		break;
+		auto pending = requests->GetRequestIdsTo(pResult->m_ClientId, (int)CRequests::SRequest::OneOnOne);
+		if(pending.size() == 1)
+		{
+			requests->DeclineRequest(pending[0]);
+			return;
+		}
+
+		pSelf->SendChatTarget(pResult->m_ClientId, "No invitation to decline was found (or use /decline <id|playerName>). Try checking your messages.");
+		return;
 	}
+	pSelf->SendChatTarget(pResult->m_ClientId, "Request subsystem is not available.");
 }
 
 void CGameContext::ConJoinEvent(IConsole::IResult *pResult, void *pUserData)
@@ -1469,13 +1509,22 @@ void CGameContext::ConJoinEvent(IConsole::IResult *pResult, void *pUserData)
 	if(!pPlayer->IsLoggedIn())
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You must be logged in with an account to participate in a tournament.");
 
-	for(CEvent *pEvent : pSelf->m_vEvents)
+	if(auto events = g_ComponentRegistry.Get<CEvents>())
 	{
-		if(pEvent->pGetGametype() != CEvent::EVENT_INVITE)
-			continue;
-		else if(pSelf->isInEvent(pResult->m_ClientId))
-			return pSelf->SendChatTarget(pResult->m_ClientId, "You are either currently participating in an event or have already registered for an upcoming one. To exit, use the command /leave.");
-		return ((BW_CEventHandler *)pEvent)->Accept(pPlayer);
+		auto subs = events->GetSubComponents();
+		for(auto &sub : subs)
+		{
+			CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
+			if(pEv && pEv->GetState() == CEventComponent::EEventState::Registration)
+			{
+				if(pSelf->isInEvent(pResult->m_ClientId))
+					return pSelf->SendChatTarget(pResult->m_ClientId, "You are either currently participating in an event or have already registered for an upcoming one. To exit, use the command /leave.");
+				pEv->Register(pResult->m_ClientId);
+				return;
+			}
+		}
+		pSelf->SendChatTarget(pResult->m_ClientId, "No active event at this time");
+		return;
 	}
 }
 
@@ -1489,7 +1538,17 @@ void CGameContext::ConCreateTDM(IConsole::IResult *pResult, void *pUserData)
 	if(pSelf->isInEvent(pResult->m_ClientId))
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You must finish your current event first (Or use '/leave' to leave).");
 
-	new BW_CEventHandler(pSelf, nullptr, CEvent::EVENT_TDM, &pSelf->m_apPlayers);
+	if(auto events = g_ComponentRegistry.Get<CEvents>())
+	{
+		auto ev = events->CreateEventByName("tdm");
+		if(ev)
+		{
+			ev->SetStateChangeCallback([](auto, auto) {});
+			events->SetActiveEvent(ev);
+			return;
+		}
+	}
+	pSelf->SendChatTarget(pResult->m_ClientId, "Failed to create TDM event: events subsystem unavailable.");
 }
 
 void CGameContext::ConLeaveEvent(IConsole::IResult *pResult, void *pUserData)
@@ -1504,13 +1563,21 @@ void CGameContext::ConLeaveEvent(IConsole::IResult *pResult, void *pUserData)
 	if(!pPlayer)
 		return;
 
-	bool Found = false;
-	for(CEvent *pEvent : pSelf->m_vEvents)
-		if(pEvent->Leave(pPlayer))
-			Found = true;
+	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
+	{
+		auto subs = events->GetSubComponents();
+		bool Found = false;
+		for(auto &sub : subs)
+		{
+			CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
+			if(pEv && pEv->Leave(pPlayer->GetCid()))
+				Found = true;
+		}
+		if(Found)
+			return;
+	}
 
-	if(!Found)
-		pSelf->SendChatTarget(pResult->m_ClientId, "You are not in any event!");
+	pSelf->SendChatTarget(pResult->m_ClientId, "You are not in any event!");
 }
 
 // Components

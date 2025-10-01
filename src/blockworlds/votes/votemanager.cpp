@@ -7,7 +7,7 @@
 #include <string>
 
 // local copy of normalization used by cosmetics votes (keeps module independent)
-static std::string NormalizeForCompareLocal(const std::string &s)
+[[maybe_unused]] static std::string NormalizeForCompareLocal(const std::string &s)
 {
 	std::string tmp;
 	tmp.reserve(s.size());

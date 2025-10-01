@@ -211,6 +211,11 @@ void CTeamDeathmatchEvent::StartEvent()
 	Teams.SetTeamLock(m_DDRaceTeam, true);
 	Teams.SetTeamInvitesOpen(m_DDRaceTeam, false);
 
+	for(const auto &ClientId : m_Participants)
+	{
+		SavePosition(ClientId);
+	}
+
 	m_ClientTeam.clear();
 	m_SpawnPositionsTeam[0].clear();
 	m_SpawnPositionsTeam[1].clear();
@@ -402,7 +407,7 @@ void CTeamDeathmatchEvent::FinishEvent()
 	}
 
 	// return participants to their saved positions
-	// restore tee infos for participants
+	// restore tee infos for participants first
 	for(const auto &ClientId : m_Participants)
 	{
 		CPlayer *p = GameServer()->GetPlayer(ClientId);
@@ -414,9 +419,27 @@ void CTeamDeathmatchEvent::FinishEvent()
 		}
 	}
 
-	auto RemainingParticipants = m_Participants;
-	for(const auto &ClientId : RemainingParticipants)
-		Leave(ClientId);
+	std::vector<int> SavedClientIds;
+	SavedClientIds.reserve(m_pSavedPlayers.size());
+	for(const auto &kv : m_pSavedPlayers)
+		SavedClientIds.push_back(kv.first);
+
+	for(const auto ClientId : SavedClientIds)
+	{
+		CCharacter *pChar = GameServer()->GetPlayerChar(ClientId);
+		if(!pChar)
+			continue;
+		auto it = m_pSavedPlayers.find(ClientId);
+		if(it != m_pSavedPlayers.end())
+		{
+			it->second->Load(pChar, TEAM_FLOCK, false);
+			pChar->ResetVelocity();
+			delete it->second;
+			m_pSavedPlayers.erase(it);
+		}
+	}
+
+	m_Participants.clear();
 	if(m_DDRaceTeam != -1)
 	{
 		// unlock the team and reset round state

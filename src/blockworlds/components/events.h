@@ -37,6 +37,9 @@ public:
 	explicit CEvents(CGameContext *pGameServer);
 	~CEvents() override;
 
+	std::shared_ptr<CEventComponent> CreateEventByName(const char *pName);
+	void SetActiveEvent(std::shared_ptr<CEventComponent> pEvent);
+
 private:
 	std::shared_ptr<CEventComponent> m_pActiveEvent;
 	std::shared_ptr<CEventComponent> m_pEventToDelete;

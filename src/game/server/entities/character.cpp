@@ -22,6 +22,8 @@
 #include <game/server/teams.h>
 
 #include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/components/events.h>
+#include <blockworlds/components/events/event.h>
 #include <blockworlds/shop/storemanager.h>
 
 MACRO_ALLOC_POOL_ID_IMPL(CCharacter, MAX_CLIENTS)
@@ -136,12 +138,23 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos, bool doEvent)
 		}
 	}
 
-	for(CEvent *Event : GameServer()->m_vEvents)
+	// Prefer component-based events
+	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
 	{
-		//TODO:: store event types in a bool set, i hate looking at that || shit
-		if((Event->pGetGametype() == CEvent::EVENT_1on1 || Event->pGetGametype() == CEvent::EVENT_TDM) && !doEvent)
-			continue;
-		Event->OnCharacterSpawn(this);
+		auto subs = events->GetSubComponents();
+		if(!subs.empty())
+		{
+			for(auto &sub : subs)
+			{
+				CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
+				if(!pEv)
+					continue;
+				if((pEv->GetState() == CEventComponent::EEventState::Active || pEv->GetState() == CEventComponent::EEventState::Registration) && !doEvent)
+					continue;
+				pEv->OnCharacterSpawn(pPlayer->GetCid(), Pos);
+			}
+		}
+		// legacy fallback removed — components are the only supported event mechanism
 	}
 
 	m_CurrentKillingSpree = 0;
@@ -1060,13 +1073,26 @@ void CCharacter::Die(int Killer, int Weapon, bool SendKillMsg)
 		bool InEvent = false;
 		CPlayer *pKiller = GameServer()->m_apPlayers[Killer];
 		CPlayer *pVictim = m_pPlayer;
-		for(CEvent *pEvent : GameServer()->m_vEvents)
+		if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
 		{
-			if((pKiller && pEvent->playersInclude(pKiller->GetCid())) || (pVictim && pEvent->playersInclude(pVictim->GetCid())))
+			auto subs = events->GetSubComponents();
+			if(!subs.empty())
 			{
-				InEvent = true;
-				break;
+				for(auto &sub : subs)
+				{
+					CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
+					if(!pEv)
+						continue;
+					const auto &parts = pEv->Participants();
+					if((pKiller && std::find(parts.begin(), parts.end(), pKiller->GetCid()) != parts.end()) ||
+						(pVictim && std::find(parts.begin(), parts.end(), pVictim->GetCid()) != parts.end()))
+					{
+						InEvent = true;
+						break;
+					}
+				}
 			}
+			// legacy event list removed: rely on components only
 		}
 		if(!InEvent)
 		{

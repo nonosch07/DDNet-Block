@@ -8,6 +8,7 @@
 #include <blockworlds/utils/memory.h>
 
 #include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/components/events/1on1.h>
 #include <blockworlds/components/events/event.h>
 #include <blockworlds/components/events/lmb.h>
 #include <blockworlds/components/events/tdm.h>
@@ -17,6 +18,7 @@ CEvents::CEvents(CGameContext *pGameServer) :
 {
 	m_EventsFactory.emplace("lmb", [](class CGameContext *pGS) { return std::make_shared<CLastManBlockingEvent>(pGS); });
 	m_EventsFactory.emplace("tdm", [](class CGameContext *pGS) { return std::make_shared<CTeamDeathmatchEvent>(pGS); });
+	m_EventsFactory.emplace("1on1", [](class CGameContext *pGS) { return std::make_shared<COneOnOneEvent>(pGS); });
 }
 
 CEvents::~CEvents()
@@ -61,6 +63,24 @@ void CEvents::OnConsoleInit()
 #define CommandRegister(name, args, flags, callback, user, help) Console()->Register(name, args, flags, callback, user, help);
 	LIST_OF_ALL_COMMANDS(CommandRegister)
 #undef CommandRegister
+}
+
+std::shared_ptr<CEventComponent> CEvents::CreateEventByName(const char *pName)
+{
+	if(!pName)
+		return nullptr;
+	char aClearName[64];
+	str_copy(aClearName, pName);
+	str_clean_whitespaces(aClearName);
+	auto it = m_EventsFactory.find(aClearName);
+	if(it == m_EventsFactory.end())
+		return nullptr;
+	return it->second(GameServer());
+}
+
+void CEvents::SetActiveEvent(std::shared_ptr<CEventComponent> pEvent)
+{
+	m_pActiveEvent = std::move(pEvent);
 }
 void CEvents::OnConsoleTerminate()
 {

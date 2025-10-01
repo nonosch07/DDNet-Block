@@ -175,7 +175,9 @@ static bool CheckClanPermission(IDbConnection *pSqlServer, int AccountId, int Cl
 	int DbAuthLevel = pSqlServer->GetInt(1);
 	if(DbClanId != ClanId || DbAuthLevel < RequiredAuthLevel)
 	{
-		snprintf(pError, ErrorSize, "Permission denied: insufficient clan rights.");
+		char aTmp[256];
+		snprintf(aTmp, sizeof(aTmp), "Permission denied: insufficient clan rights.");
+		str_copy(pError, aTmp, ErrorSize);
 		return false;
 	}
 	return true;
@@ -191,7 +193,11 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	str_copy(aBuf, "INSERT INTO clans (name) VALUES (?);", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Error 101: Failed to prepare INSERT statement: %s", pError);
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 101: Failed to prepare INSERT statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 101: Clan creation failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
@@ -199,13 +205,21 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	int NumInserted;
 	if(pSqlServer->ExecuteUpdate(&NumInserted, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Error 102: Failed to execute INSERT statement: %s", pError);
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 102: Failed to execute INSERT statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 102: Clan creation failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
 	if(NumInserted != 1)
 	{
-		snprintf(pError, ErrorSize, "Error 103: Clan creation failed. No rows inserted.");
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 103: Clan creation failed. No rows inserted.");
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 103: Unable to create clan. Please try again.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
@@ -213,7 +227,11 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	str_copy(aBuf, "SELECT id FROM clans WHERE name = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Error 104: Failed to prepare SELECT statement: %s", pError);
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 104: Failed to prepare SELECT statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 104: Clan creation issue. Please try again.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
@@ -222,7 +240,11 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	bool End;
 	if(pSqlServer->Step(&End, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Error 105: Failed to execute SELECT statement: %s", pError);
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 105: Failed to execute SELECT statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 105: Clan creation issue. Please try again.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
@@ -230,7 +252,11 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		ClanId = pSqlServer->GetInt(1);
 	if(ClanId == -1)
 	{
-		snprintf(pError, ErrorSize, "Error 106: Failed to retrieve Clan ID.");
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 106: Failed to retrieve Clan ID.");
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 106: Clan creation issue. Please try again.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
@@ -238,7 +264,11 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	str_copy(aBuf, "UPDATE accounts SET clanID = ?, auth_level = 3 WHERE id = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Error 107: Failed to prepare UPDATE statement: %s", pError);
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 107: Failed to prepare UPDATE statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 107: Clan assignment failed. Please try again.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
@@ -247,13 +277,21 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	int NumUpdated;
 	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Error 108: Failed to execute UPDATE statement: %s", pError);
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 108: Failed to execute UPDATE statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 108: Clan assignment failed. Please try again.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
 	if(NumUpdated != 1)
 	{
-		snprintf(pError, ErrorSize, "Error 109: Account update failed. No rows updated.");
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 109: Account update failed. No rows updated.");
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 109: Failed to assign you as clan leader.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
@@ -299,7 +337,9 @@ bool CClanManager::DeleteClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	str_copy(aBuf, "DELETE FROM clans WHERE id = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Error 101: Failed to prepare DELETE statement: %s", pError);
+		char aTmp[1024];
+		snprintf(aTmp, sizeof(aTmp), "Error 101: Failed to prepare DELETE statement: %s", pError);
+		str_copy(pError, aTmp, ErrorSize);
 		str_copy(pResult->m_aaMessages[0], "Error 101: Clan deletion failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
@@ -307,13 +347,21 @@ bool CClanManager::DeleteClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	int NumDeleted;
 	if(pSqlServer->ExecuteUpdate(&NumDeleted, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Error 102: Failed to execute DELETE statement: %s", pError);
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 102: Failed to execute DELETE statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 102: Clan deletion failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
 	if(NumDeleted != 1)
 	{
-		snprintf(pError, ErrorSize, "Error 103: Clan deletion failed. No rows deleted.");
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 103: Clan deletion failed. No rows deleted.");
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 103: Unable to delete clan. Please try again.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
@@ -321,7 +369,9 @@ bool CClanManager::DeleteClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	str_copy(aBuf, "UPDATE accounts SET clanID = 0, auth_level = 0 WHERE clanID = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Error 104: Failed to prepare UPDATE statement: %s", pError);
+		char aTmp[1024];
+		snprintf(aTmp, sizeof(aTmp), "Error 104: Failed to prepare UPDATE statement: %s", pError);
+		str_copy(pError, aTmp, ErrorSize);
 		str_copy(pResult->m_aaMessages[0], "Error 104: Failed to update player data. Please try again.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
@@ -329,13 +379,17 @@ bool CClanManager::DeleteClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	int NumUpdated;
 	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Error 105: Failed to execute UPDATE statement: %s", pError);
+		char aTmp[1024];
+		snprintf(aTmp, sizeof(aTmp), "Error 105: Failed to execute UPDATE statement: %s", pError);
+		str_copy(pError, aTmp, ErrorSize);
 		str_copy(pResult->m_aaMessages[0], "Error 105: Failed to update player data. Please try again.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
 	if(NumUpdated < 1)
 	{
-		snprintf(pError, ErrorSize, "Error 106: No players were updated. Clan members may not exist.");
+		char aTmp[1024];
+		snprintf(aTmp, sizeof(aTmp), "Error 106: No players were updated. Clan members may not exist.");
+		str_copy(pError, aTmp, ErrorSize);
 		str_copy(pResult->m_aaMessages[0], "Error 106: Failed to update player data.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
@@ -381,7 +435,11 @@ bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		str_copy(aBuf, "UPDATE accounts SET clanID = ?, auth_level = 1 WHERE id = ?;", sizeof(aBuf));
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		{
-			snprintf(pError, ErrorSize, "Error 201: Failed to prepare UPDATE statement: %s", pError);
+			{
+				char aTmp[1024];
+				snprintf(aTmp, sizeof(aTmp), "Error 201: Failed to prepare UPDATE statement: %s", pError);
+				str_copy(pError, aTmp, ErrorSize);
+			}
 			str_copy(pResult->m_aaMessages[0], "Error 201: Assign clan failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
 			return true;
 		}
@@ -393,7 +451,11 @@ bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		str_copy(aBuf, "UPDATE accounts SET clanID = ?, auth_level = 1 WHERE name = ?;", sizeof(aBuf));
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		{
-			snprintf(pError, ErrorSize, "Error 201: Failed to prepare UPDATE statement: %s", pError);
+			{
+				char aTmp[1024];
+				snprintf(aTmp, sizeof(aTmp), "Error 201: Failed to prepare UPDATE statement: %s", pError);
+				str_copy(pError, aTmp, ErrorSize);
+			}
 			str_copy(pResult->m_aaMessages[0], "Error 201: Assign clan failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
 			return true;
 		}
@@ -404,13 +466,21 @@ bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	int NumUpdated;
 	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Error 202: Failed to execute UPDATE statement: %s", pError);
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 202: Failed to execute UPDATE statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 202: Assign clan failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
 	if(NumUpdated != 1)
 	{
-		snprintf(pError, ErrorSize, "Error 203: Assign clan failed. No rows updated.");
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 203: Assign clan failed. No rows updated.");
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 203: Unable to assign clan.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
@@ -447,7 +517,11 @@ bool CClanManager::RemoveFromClanThread(IDbConnection *pSqlServer, const ISqlDat
 	str_copy(aBuf, "UPDATE accounts SET clanID = 0, auth_level = 0 WHERE name = ? AND clanID = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Error 301: Failed to prepare UPDATE statement: %s", pError);
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 301: Failed to prepare UPDATE statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 301: Remove from clan failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
@@ -456,13 +530,21 @@ bool CClanManager::RemoveFromClanThread(IDbConnection *pSqlServer, const ISqlDat
 	int NumUpdated;
 	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Error 302: Failed to execute UPDATE statement: %s", pError);
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 302: Failed to execute UPDATE statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 302: Remove from clan failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
 	if(NumUpdated != 1)
 	{
-		snprintf(pError, ErrorSize, "Error 303: Remove from clan failed. No rows updated.");
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 303: Remove from clan failed. No rows updated.");
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 303: Unable to remove from clan.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
@@ -514,7 +596,11 @@ bool CClanManager::ClanLeaveThread(IDbConnection *pSqlServer, const ISqlData *pG
 	str_copy(aBuf, "UPDATE accounts SET clanID = 0, auth_level = 0 WHERE id = ? AND clanID = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Error 401: Failed to prepare UPDATE statement: %s", pError);
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 401: Failed to prepare UPDATE statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 401: Clan leave failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
@@ -523,13 +609,21 @@ bool CClanManager::ClanLeaveThread(IDbConnection *pSqlServer, const ISqlData *pG
 	int NumUpdated;
 	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Error 402: Failed to execute UPDATE statement: %s", pError);
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 402: Failed to execute UPDATE statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 402: Clan leave failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
 	if(NumUpdated != 1)
 	{
-		snprintf(pError, ErrorSize, "Error 403: Clan leave failed. No rows updated.");
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 403: Clan leave failed. No rows updated.");
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 403: Unable to leave clan.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
@@ -559,7 +653,11 @@ bool CClanManager::SetAuthLevelThread(IDbConnection *pSqlServer, const ISqlData 
 	str_copy(aBuf, "UPDATE accounts SET auth_level = ? WHERE name = ? AND clanID = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Error 501: Failed to prepare UPDATE statement: %s", pError);
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 501: Failed to prepare UPDATE statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 501: Set auth level failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
@@ -569,13 +667,21 @@ bool CClanManager::SetAuthLevelThread(IDbConnection *pSqlServer, const ISqlData 
 	int NumUpdated;
 	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Error 502: Failed to execute UPDATE statement: %s", pError);
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 502: Failed to execute UPDATE statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 502: Set auth level failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
 	if(NumUpdated != 1)
 	{
-		snprintf(pError, ErrorSize, "Error 503: Set auth level failed. No rows updated.");
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 503: Set auth level failed. No rows updated.");
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 503: Unable to set auth level.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
@@ -617,7 +723,11 @@ bool CClanManager::RenameClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	str_copy(aBuf, "UPDATE clans SET name = ? WHERE id = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Error 601: Failed to prepare UPDATE statement: %s", pError);
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 601: Failed to prepare UPDATE statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 601: Rename clan failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
@@ -626,13 +736,21 @@ bool CClanManager::RenameClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	int NumUpdated;
 	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Error 602: Failed to execute UPDATE statement: %s", pError);
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 602: Failed to execute UPDATE statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 602: Rename clan failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
 	if(NumUpdated != 1)
 	{
-		snprintf(pError, ErrorSize, "Error 603: Rename clan failed. No rows updated.");
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error 603: Rename clan failed. No rows updated.");
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		str_copy(pResult->m_aaMessages[0], "Error 603: Unable to rename clan.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
@@ -662,7 +780,9 @@ bool CClanManager::LoadClansThread(IDbConnection *pSqlServer, const ISqlData *pG
 	str_copy(aBuf, "SELECT id, name, level, experience FROM clans;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Failed to prepare LOAD clans statement: %s", pError);
+		char aTmp[1024];
+		snprintf(aTmp, sizeof(aTmp), "Failed to prepare LOAD clans statement: %s", pError);
+		str_copy(pError, aTmp, ErrorSize);
 		return true;
 	}
 
@@ -672,7 +792,9 @@ bool CClanManager::LoadClansThread(IDbConnection *pSqlServer, const ISqlData *pG
 	{
 		if(pSqlServer->Step(&End, pError, ErrorSize))
 		{
-			snprintf(pError, ErrorSize, "Failed to execute LOAD clans statement: %s", pError);
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Failed to execute LOAD clans statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
 			return true;
 		}
 		if(!End)
@@ -809,21 +931,33 @@ bool CClanManager::SaveClanThread(IDbConnection *pSqlServer, const ISqlData *pGa
 
 	if(pData->m_ClanId < 1)
 	{
-		snprintf(pError, ErrorSize, "Error: Couldn't retrieve clan ID!");
+		{
+			char aTmp[256];
+			snprintf(aTmp, sizeof(aTmp), "Error: Couldn't retrieve clan ID!");
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		return true;
 	}
 	str_copy(aBuf, "UPDATE clans SET level = ?, experience = ? WHERE id = ?;", sizeof(aBuf));
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Error: Failed to prepare SAVE clan statement: %s", pError);
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error: Failed to prepare SAVE clan statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		return true;
 	}
 
 	const CClansData *pClan = GetClanDataById(pData->m_ClanId, pData->m_pClanManager->GetClansData());
 	if(!pClan)
 	{
-		snprintf(pError, ErrorSize, "Error: Clan id %d not found in memory", pData->m_ClanId);
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error: Clan id %d not found in memory", pData->m_ClanId);
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		return true;
 	}
 
@@ -834,13 +968,21 @@ bool CClanManager::SaveClanThread(IDbConnection *pSqlServer, const ISqlData *pGa
 	int NumUpdated = 0;
 	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
 	{
-		snprintf(pError, ErrorSize, "Error: Failed to execute SAVE clan statement: %s", pError);
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error: Failed to execute SAVE clan statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		return true;
 	}
 	// allow 0 rows updated (if values didn’t change) without treating it as an error
 	if(NumUpdated < 0)
 	{
-		snprintf(pError, ErrorSize, "Error: SAVE clan failed with negative rows updated for clan id %d.", pClan->m_Id);
+		{
+			char aTmp[1024];
+			snprintf(aTmp, sizeof(aTmp), "Error: SAVE clan failed with negative rows updated for clan id %d.", pClan->m_Id);
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		return true;
 	}
 	else if(NumUpdated == 0)

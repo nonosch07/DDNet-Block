@@ -18,7 +18,6 @@
 
 #include <blockworlds/accounts.h>
 #include <blockworlds/clans.h>
-#include <blockworlds/events/1on1/1on1_invite.h>
 
 class CCharacter;
 class CGameContext;
@@ -352,7 +351,6 @@ public:
 	// used for 1on1, default to true
 	bool m_allowDeath;
 	int sent1on1InviteTo;
-	std::vector<CInvite *> m_EventInvites;
 	bool m_HideInfo = false;
 	bool m_ShowLevel = true;
 	bool m_EventWinner = false;

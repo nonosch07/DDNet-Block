@@ -25,8 +25,7 @@
 #include <blockworlds/shop/preview.h>
 #include <blockworlds/zones/zonemanager.h>
 
-#include "./blockworlds/events/1on1/1on1_invite.h"
-#include "./blockworlds/events/base/event_base.h"
+// legacy event system removed; use component-based events (CEvents) instead
 /*
 	Tick
 		Game Context (CGameContext::tick)
@@ -647,11 +646,9 @@ public:
 	//Blockworlds
 
 public:
-	//events
+	// events: component-based events handled via CEvents component
 	static int GetTilePositions(int TileID, CGameContext *pSelf, std::vector<vec2> &result);
 	static int getSwitchTilePositions(int Type, int Delay, int Number, CGameContext *pSelf, std::vector<vec2> &result);
-	std::vector<CEvent *> m_vEvents;
-	std::vector<CInvite *> m_vEventInvites;
 	//commands
 	void RegisterBlockworldsChatCommands();
 	CPlayer *GetPlayerByName(const char *pName);
@@ -675,8 +672,7 @@ public:
 	void ClearVotes(int ClientID);
 
 	//public Event getters and checks
-	CInvite *getInvite(int pPlayer1ID, int pPlayer2ID = -1, int pEventID = -1);
-	std::vector<CInvite *> getInvites(int pPlayer1ID, int pPlayer2ID = -1, int pEventID = -1);
+	// Legacy invite API removed. Use the Requests component: g_ComponentRegistry.Get<CRequests>()
 	int isInEvent(int pPlayerID);
 
 private:

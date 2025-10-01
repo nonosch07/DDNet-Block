@@ -7,6 +7,10 @@
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
+#include <algorithm>
+#include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/components/events.h>
+#include <blockworlds/components/events/event.h>
 #include <unordered_map>
 
 CBlockTracker::CBlockTracker(CGameContext *pGameServer) :
@@ -29,10 +33,17 @@ bool CBlockTracker::Blocked(int ClientID, int BlockerID)
 		return false;
 	if(m_pGameContext->Server()->IsClientsSameAddr(ClientID, BlockerID) && !g_Config.m_SvAllowExpFromSameIp)
 		return false;
-	for(CEvent *pEvent : m_pGameContext->m_vEvents) // not needed?
+	if(auto events = g_ComponentRegistry.Get<CEvents>())
 	{
-		if(pEvent->playersInclude(ClientID) || pEvent->playersInclude(BlockerID))
-			return false;
+		for(auto &sub : events->GetSubComponents())
+		{
+			CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
+			if(!pEv)
+				continue;
+			const auto &parts = pEv->Participants();
+			if(std::find(parts.begin(), parts.end(), ClientID) != parts.end() || std::find(parts.begin(), parts.end(), BlockerID) != parts.end())
+				return false;
+		}
 	}
 
 	CCharacter *pChr = m_pGameContext->GetPlayerChar(ClientID);
@@ -184,10 +195,36 @@ void CBlockTracker::OnPlayerImpacted(int ClientID, int InitiatorID)
 	if(ClientID == InitiatorID)
 		return;
 
-	for(CEvent *pEvent : m_pGameContext->m_vEvents)
+	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
 	{
-		if(pEvent->playersInclude(ClientID) || pEvent->playersInclude(InitiatorID))
-			return;
+		auto subs = events->GetSubComponents();
+		if(!subs.empty())
+		{
+			for(auto &sub : subs)
+			{
+				CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
+				if(!pEv)
+					continue;
+				const auto &parts = pEv->Participants();
+				if(std::find(parts.begin(), parts.end(), ClientID) != parts.end() || std::find(parts.begin(), parts.end(), InitiatorID) != parts.end())
+					return;
+			}
+		}
+	}
+	else
+	{
+		if(auto events2 = g_ComponentRegistry.Get<CEvents>())
+		{
+			for(auto &sub : events2->GetSubComponents())
+			{
+				CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
+				if(!pEv)
+					continue;
+				const auto &parts = pEv->Participants();
+				if(std::find(parts.begin(), parts.end(), ClientID) != parts.end() || std::find(parts.begin(), parts.end(), InitiatorID) != parts.end())
+					return;
+			}
+		}
 	}
 
 	STrackedPlayer &Player = m_aTrackedPlayers[ClientID];

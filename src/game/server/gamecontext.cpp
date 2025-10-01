@@ -33,6 +33,7 @@
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
 #include <blockworlds/components/promises.h>
+#include <blockworlds/components/requests.h>
 
 #include <game/generated/protocol7.h>
 #include <game/generated/protocolglue.h>
@@ -151,6 +152,7 @@ void CGameContext::Construct(int Resetting)
 	{
 		g_ComponentRegistry.Register<CPromises>(CPromises::GetNameStatic());
 		g_ComponentRegistry.Register<CEvents>(CEvents::GetNameStatic());
+		g_ComponentRegistry.Register<CRequests>(CRequests::GetNameStatic());
 	}
 }
 
@@ -5376,45 +5378,28 @@ void CGameContext::ReadCensorList()
 
 int CGameContext::isInEvent(int pPlayerID)
 {
-	for(CEvent *pEvent : m_vEvents)
+	// Only component-based events are supported now
+	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
 	{
-		if(pEvent->playersInclude(pPlayerID))
+		auto subs = events->GetSubComponents();
+		for(auto &sub : subs)
 		{
-			return pEvent->pGetGametype();
+			CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
+			if(!pEv)
+				continue;
+			const auto &parts = pEv->Participants();
+			if(std::find(parts.begin(), parts.end(), pPlayerID) != parts.end())
+			{
+				const char *name = pEv->GetEventName();
+				if(str_comp(name, "1on1") == 0)
+					return 1; // EVENT_1on1
+				if(str_comp(name, "tdm") == 0)
+					return 2; // EVENT_TDM
+				return 0;
+			}
 		}
 	}
 	return 0;
-}
-
-CInvite *CGameContext::getInvite(int Player1ID, int Player2ID, int EventID)
-{
-	for(CInvite *pInvite : m_vEventInvites)
-	{
-		if(EventID != -1 && pInvite->m_Event != EventID)
-			continue;
-		if(Player1ID != -1 && (pInvite->m_pInviteFrom->GetCid() != Player1ID && pInvite->m_pInviteTo->GetCid() != Player1ID))
-			continue;
-		if(Player2ID != -1 && (pInvite->m_pInviteFrom->GetCid() != Player2ID && pInvite->m_pInviteTo->GetCid() != Player2ID))
-			continue;
-		return pInvite;
-	}
-	return nullptr;
-}
-
-std::vector<CInvite *> CGameContext::getInvites(int Player1ID, int Player2ID, int pEventID)
-{
-	std::vector<CInvite *> rInvites = std::vector<CInvite *>();
-	for(CInvite *pInvite : m_vEventInvites)
-	{
-		if(pEventID != -1 && pInvite->m_Event != pEventID)
-			continue;
-		if(Player1ID != -1 && (pInvite->m_pInviteFrom->GetCid() != Player1ID && pInvite->m_pInviteTo->GetCid() != Player1ID))
-			continue;
-		if(Player2ID != -1 && (pInvite->m_pInviteFrom->GetCid() != Player2ID && pInvite->m_pInviteTo->GetCid() != Player2ID))
-			continue;
-		rInvites.push_back(pInvite);
-	}
-	return rInvites;
 }
 SHA256_DIGEST CGameContext::HashPassword(const char *pPassword)
 {
@@ -5566,15 +5551,15 @@ bool CGameContext::HandleCosmeticsVote(const CNetMsg_Cl_CallVote *pMsg, int Clie
 // Event ticker
 void CGameContext::BW_OnTick()
 {
-	for(CEvent *Event : m_vEvents)
+	// Only run component-based events now
+	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
 	{
-		if(Event != nullptr)
+		auto subs = events->GetSubComponents();
+		for(auto &sub : subs)
 		{
-			Event->OnTick();
+			CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
+			if(pEv)
+				pEv->OnTick();
 		}
-	}
-	for(CInvite *pInvite : m_vEventInvites)
-	{
-		pInvite->OnTick();
 	}
 }
