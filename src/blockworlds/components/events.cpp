@@ -10,11 +10,13 @@
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events/event.h>
 #include <blockworlds/components/events/lmb.h>
+#include <blockworlds/components/events/tdm.h>
 
 CEvents::CEvents(CGameContext *pGameServer) :
 	CComponent(pGameServer), m_pActiveEvent(nullptr), m_pEventToDelete(nullptr)
 {
 	m_EventsFactory.emplace("lmb", [](class CGameContext *pGS) { return std::make_shared<CLastManBlockingEvent>(pGS); });
+	m_EventsFactory.emplace("tdm", [](class CGameContext *pGS) { return std::make_shared<CTeamDeathmatchEvent>(pGS); });
 }
 
 CEvents::~CEvents()

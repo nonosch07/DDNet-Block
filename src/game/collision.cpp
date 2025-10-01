@@ -845,7 +845,7 @@ bool CCollision::TileExists(int Index) const
 	if(Index < 0)
 		return false;
 
-	if ((m_pTiles[Index].m_Index >= TILE_BW_VIP && m_pTiles[Index].m_Index <= TILE_BW_1ON1_START_POS) || ( m_pFront && (m_pFront[Index].m_Index >= TILE_BW_VIP && m_pFront[Index].m_Index <= TILE_BW_1ON1_START_POS)))
+	if((m_pTiles[Index].m_Index >= TILE_BW_VIP && m_pTiles[Index].m_Index <= TILE_BW_1ON1_START_POS) || (m_pFront && (m_pFront[Index].m_Index >= TILE_BW_VIP && m_pFront[Index].m_Index <= TILE_BW_1ON1_START_POS)))
 		return true;
 	if((m_pTiles[Index].m_Index >= TILE_BW_PASSIVE && m_pTiles[Index].m_Index <= TILE_BW_1ON1_START_POS) || (m_pFront && (m_pFront[Index].m_Index >= TILE_BW_PASSIVE && m_pFront[Index].m_Index <= TILE_BW_1ON1_START_POS)))
 		return true;
