@@ -297,7 +297,7 @@ void CGameContext::ConStatusAccounts(IConsole::IResult *pResult, void *pUserData
 		int Minutes = (pPlayer->m_Account.m_Playtime % 3600) / 60;
 
 		const char *pClanName = pSelf->Clans() ? pSelf->Clans()->GetClanName(pPlayer->m_Account.m_ClanId) : " ";
-		str_format(aBuf, sizeof(aBuf), "cid=%d, accid=%d, name='%s', clientname='%s', vip=%d, clan='%s', clanid=%d, auth=%d, playtime=%02d:%02d, ranking=%d, kills=%d, deaths=%d",
+		str_format(aBuf, sizeof(aBuf), "cid=%d, accid=%d, acc_name='%s', ig_name='%s', vip=%d, clan='%s', clanid=%d, auth=%d, playtime=%02d:%02d, ranking=%d, kills=%d, deaths=%d",
 			i,
 			pPlayer->m_Account.m_Id,
 			pPlayer->m_Account.m_aName,
