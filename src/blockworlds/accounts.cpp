@@ -240,8 +240,7 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 
 	SHA256_DIGEST HashedPassword = CGameContext::HashPassword(pRequestData->m_aPassword);
 	char aHashedPassword[SHA256_DIGEST_LENGTH * 2 + 1];
-	for(int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
-		sprintf(&aHashedPassword[i * 2], "%02x", HashedPassword.data[i]);
+	sha256_str(HashedPassword, aHashedPassword, sizeof(aHashedPassword));
 
 	{ // wrong creds
 		char aBuf[2048];
@@ -452,8 +451,7 @@ bool CAccounts::ChangePasswordAdminThread(IDbConnection *pSqlServer, const ISqlD
 
 	SHA256_DIGEST HashedNewPassword = CGameContext::HashPassword(pData->m_aPassword);
 	char aHashedNewPassword[SHA256_DIGEST_LENGTH * 2 + 1];
-	for(int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
-		sprintf(&aHashedNewPassword[i * 2], "%02x", HashedNewPassword.data[i]);
+	sha256_str(HashedNewPassword, aHashedNewPassword, sizeof(aHashedNewPassword));
 
 	char aBuf[512];
 	str_copy(aBuf, "UPDATE accounts SET password = ? WHERE name = ?;", sizeof(aBuf));
@@ -527,22 +525,26 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
-		char aTmp[1024];
-		snprintf(aTmp, sizeof(aTmp), "Failed to prepare SELECT statement: %s", pError);
-		str_copy(pError, aTmp, ErrorSize);
+		if(pError && *pError)
+		{
+			char aTmp[1024];
+			str_format(aTmp, sizeof(aTmp), "Failed to prepare SELECT statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		return true;
 	}
 
 	pSqlServer->BindString(1, pData->m_aUsername);
 
-	printf("Executing SELECT statement to check if username exists: %s\n", pData->m_aUsername);
-
 	bool End;
 	if(pSqlServer->Step(&End, pError, ErrorSize))
 	{
-		char aTmp[1024];
-		snprintf(aTmp, sizeof(aTmp), "Failed to execute SELECT statement: %s", pError);
-		str_copy(pError, aTmp, ErrorSize);
+		if(pError && *pError)
+		{
+			char aTmp[1024];
+			str_format(aTmp, sizeof(aTmp), "Failed to execute SELECT statement: %s", pError);
+			str_copy(pError, aTmp, ErrorSize);
+		}
 		return true;
 	}
 
@@ -557,16 +559,18 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 	{
 		SHA256_DIGEST HashedPassword = CGameContext::HashPassword(pData->m_aPassword);
 		char aHashedPassword[SHA256_DIGEST_LENGTH * 2 + 1];
-		for(int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
-			sprintf(&aHashedPassword[i * 2], "%02x", HashedPassword.data[i]);
+		sha256_str(HashedPassword, aHashedPassword, sizeof(aHashedPassword));
 
-		snprintf(aBuf, sizeof(aBuf), "INSERT INTO accounts (name, password) VALUES (?, ?);");
+		str_copy(aBuf, "INSERT INTO accounts (name, password) VALUES (?, ?);", sizeof(aBuf));
 
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		{
-			char aTmp[1024];
-			snprintf(aTmp, sizeof(aTmp), "Failed to prepare INSERT statement: %s", pError);
-			str_copy(pError, aTmp, ErrorSize);
+			if(pError && *pError)
+			{
+				char aTmp[1024];
+				str_format(aTmp, sizeof(aTmp), "Failed to prepare INSERT statement: %s", pError);
+				str_copy(pError, aTmp, ErrorSize);
+			}
 			return true;
 		}
 
@@ -576,9 +580,12 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 		int NumInserted;
 		if(pSqlServer->ExecuteUpdate(&NumInserted, pError, ErrorSize))
 		{
-			char aTmp[1024];
-			snprintf(aTmp, sizeof(aTmp), "Failed to execute INSERT statement: %s", pError);
-			str_copy(pError, aTmp, ErrorSize);
+			if(pError && *pError)
+			{
+				char aTmp[1024];
+				str_format(aTmp, sizeof(aTmp), "Failed to execute INSERT statement: %s", pError);
+				str_copy(pError, aTmp, ErrorSize);
+			}
 			return true;
 		}
 
@@ -589,9 +596,10 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 		}
 		else
 		{
-			char aTmp[256];
-			snprintf(aTmp, sizeof(aTmp), "Account registration failed. No rows inserted.");
-			str_copy(pError, aTmp, ErrorSize);
+			if(pError && ErrorSize > 0)
+			{
+				str_copy(pError, "Account registration failed. No rows inserted.", ErrorSize);
+			}
 			return true;
 		}
 	}
@@ -700,8 +708,7 @@ bool CAccounts::ChangePasswordThread(IDbConnection *pSqlServer, const ISqlData *
 
 	SHA256_DIGEST HashedOldPassword = CGameContext::HashPassword(pData->m_aPassword);
 	char aHashedOldPassword[SHA256_DIGEST_LENGTH * 2 + 1];
-	for(int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
-		sprintf(&aHashedOldPassword[i * 2], "%02x", HashedOldPassword.data[i]);
+	sha256_str(HashedOldPassword, aHashedOldPassword, sizeof(aHashedOldPassword));
 
 	if(str_comp(aHashedOldPassword, aStoredPasswordHash) != 0)
 	{
@@ -711,8 +718,7 @@ bool CAccounts::ChangePasswordThread(IDbConnection *pSqlServer, const ISqlData *
 
 	SHA256_DIGEST HashedNewPassword = CGameContext::HashPassword(pData->m_aNewPassword);
 	char aHashedNewPassword[SHA256_DIGEST_LENGTH * 2 + 1];
-	for(int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
-		sprintf(&aHashedNewPassword[i * 2], "%02x", HashedNewPassword.data[i]);
+	sha256_str(HashedNewPassword, aHashedNewPassword, sizeof(aHashedNewPassword));
 
 	str_copy(aBuf, "UPDATE accounts SET password = ? WHERE name = ?;", sizeof(aBuf));
 

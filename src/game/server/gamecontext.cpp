@@ -44,7 +44,6 @@
 #include "player.h"
 #include "score.h"
 
-#include <blockworlds/gameinterface/handler.h>
 #include <blockworlds/shop/preview.h>
 #include <blockworlds/zones/zonemanager.h>
 
@@ -1573,7 +1572,6 @@ void CGameContext::OnClientDirectInput(int ClientId, void *pInput)
 	if(!m_World.m_Paused)
 	{
 		m_apPlayers[ClientId]->OnDirectInput((CNetObj_PlayerInput *)pInput);
-		GameInterface()->OnClientDirectInput(ClientId, pInput);
 	}
 
 	int Flags = ((CNetObj_PlayerInput *)pInput)->m_PlayerFlags;
@@ -1897,8 +1895,6 @@ void CGameContext::OnClientEnter(int ClientId)
 		Mute(&Addr, g_Config.m_SvChatInitialDelay, Server()->ClientName(ClientId), "Initial chat delay", true);
 	}
 
-	GameInterface()->OnClientEnter(ClientId);
-
 	for(const auto &Component : g_ComponentRegistry.Active())
 		Component->OnPlayerEnter(ClientId);
 
@@ -1966,8 +1962,6 @@ void CGameContext::OnClientDrop(int ClientId, const char *pReason)
 
 	for(const auto &Component : g_ComponentRegistry.Active())
 		Component->OnPlayerDropping(ClientId);
-
-	GameInterface()->OnClientDrop(ClientId);
 
 	AbortVoteKickOnDisconnect(ClientId);
 	m_pController->OnPlayerDisconnect(m_apPlayers[ClientId], pReason);
@@ -2727,9 +2721,6 @@ void CGameContext::OnCallVoteNetMessage(const CNetMsg_Cl_CallVote *pMsg, int Cli
 
 void CGameContext::OnVoteNetMessage(const CNetMsg_Cl_Vote *pMsg, int ClientId)
 {
-	if(GameInterface()->OnVoteNetMessage(ClientId, (void *)pMsg))
-		return;
-
 	if(!m_VoteCloseTime)
 		return;
 
@@ -4376,7 +4367,6 @@ void CGameContext::OnInit(const void *pPersistentData)
 	m_ZoneManager.Init(this);
 	if(g_Config.m_SvShopServer)
 		m_ShopPreview.Init(this);
-	m_GameInterfaceHandler.Init(this);
 
 	m_pAccounts->ClearLogins();
 	m_pClans->LoadAllClans();

@@ -54,13 +54,16 @@ void CTeamDeathmatchEvent::OnTick()
 
 		if(Server()->Tick() % Config()->m_SvTDMBroadcastRate == 0)
 		{
-			GameServer()->SendBroadcast(-1, "%s is about to start!\nRegister with /join\nTime left: %d seconds\n\nCandidates: %zd",
-				GetEventName(), (int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()), Candidates().size());
+			static constexpr const char *s_padding = "                                                                                     "
+								 "                                                                                     "
+								 "                                                                                     ";
+
+			GameServer()->SendBroadcast(-1, "%s is about to start!\nRegister with /join\nTime left: %d seconds\n\nCandidates: %zd\n%s",
+				GetEventName(), (int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()), Candidates().size(), s_padding);
 		}
 	}
 	else if(GetState() == CEventComponent::EEventState::Active)
 	{
-		// Show participants and score periodically with a left-side HUD per team (like LMB)
 		if(Server()->Tick() % Config()->m_SvTDMBroadcastRate == 0)
 		{
 			int timeLeftSeconds = (int)((m_ActiveEndTick - Server()->Tick()) / Server()->TickSpeed());
@@ -69,7 +72,6 @@ void CTeamDeathmatchEvent::OnTick()
 			int minutes = timeLeftSeconds / 60;
 			int seconds = timeLeftSeconds % 60;
 
-			// Trailing spaces to push the broadcast to the left side similar to LMB formatting
 			static constexpr const char *s_padding = "                                                                                     "
 								 "                                                                                     "
 								 "                                                                                     ";
@@ -88,13 +90,11 @@ void CTeamDeathmatchEvent::OnTick()
 				int side = it->second;
 				if(side == 0)
 				{
-					// Team Blue: show blue info on the left for blue players
 					GameServer()->SendBroadcast(ClientId, "Team Blue\nBlue %d / %d\nRed %d / %d\nTime left: %d:%02d\n%s",
 						m_ScoreTeam1, m_TargetScore, m_ScoreTeam2, m_TargetScore, minutes, seconds, s_padding);
 				}
 				else
 				{
-					// Team Red: show red info on the left for red players
 					GameServer()->SendBroadcast(ClientId, "Team Red\nRed %d / %d\nBlue %d / %d\nTime left: %d:%02d\n%s",
 						m_ScoreTeam2, m_TargetScore, m_ScoreTeam1, m_TargetScore, minutes, seconds, s_padding);
 				}
@@ -276,7 +276,6 @@ void CTeamDeathmatchEvent::StartEvent()
 	m_ActiveStartTick = Server()->Tick();
 	m_ActiveEndTick = Server()->Tick() + Config()->m_SvTDMActiveTime * Server()->TickSpeed();
 
-	// compute target score: each tee counts as 10 points, so target is players_per_team * 10
 	int playersTeam1 = 0, playersTeam2 = 0;
 	for(const auto &p : m_ClientTeam)
 	{
@@ -290,7 +289,6 @@ void CTeamDeathmatchEvent::StartEvent()
 
 	SetState(CEventComponent::EEventState::Active);
 
-	// Teleport all participants to their team spawn positions immediately
 	for(const auto &ClientId : m_Participants)
 	{
 		auto it = m_ClientTeam.find(ClientId);
@@ -309,8 +307,6 @@ void CTeamDeathmatchEvent::StartEvent()
 		pChar->Freeze(Config()->m_SvTDMFreezeTime);
 	}
 }
-
-// duplicate stub removed
 
 void CTeamDeathmatchEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 {

@@ -87,6 +87,9 @@ void CNpcManager::RemoveAll()
 	if(!m_pGameServer)
 		return;
 
+	std::vector<CPlayer *> toDelete;
+	toDelete.reserve(m_vNpcs.size());
+
 	for(auto &N : m_vNpcs)
 	{
 		if(N.m_ClientID == -1)
@@ -97,13 +100,10 @@ void CNpcManager::RemoveAll()
 		if(ClientID >= 0 && ClientID < (int)MAX_CLIENTS)
 		{
 			CPlayer *p = m_pGameServer->m_apPlayers[ClientID];
-			if(p)
+			if(p && p->m_IsNpc)
 			{
-				if(p->m_IsNpc)
-				{
-					delete p;
-					m_pGameServer->m_apPlayers[ClientID] = nullptr;
-				}
+				m_pGameServer->m_apPlayers[ClientID] = nullptr;
+				toDelete.push_back(p);
 			}
 		}
 
@@ -111,5 +111,10 @@ void CNpcManager::RemoveAll()
 		N.m_Toggled = false;
 		N.m_Teleported = false;
 		N.m_ConnectionTick = -1;
+	}
+
+	for(CPlayer *p : toDelete)
+	{
+		delete p;
 	}
 }

@@ -528,8 +528,7 @@ void CGameContext::ConAdminSetPassword(IConsole::IResult *pResult, void *pUserDa
 
 	SHA256_DIGEST HashedNewPassword = CGameContext::HashPassword(pNewPassword);
 	char aHashedNewPassword[SHA256_DIGEST_LENGTH * 2 + 1];
-	for(int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
-		sprintf(&aHashedNewPassword[i * 2], "%02x", HashedNewPassword.data[i]);
+	sha256_str(HashedNewPassword, aHashedNewPassword, sizeof(aHashedNewPassword));
 
 	char aEscapedName[128];
 	{
@@ -1570,8 +1569,20 @@ void CGameContext::ConLeaveEvent(IConsole::IResult *pResult, void *pUserData)
 		for(auto &sub : subs)
 		{
 			CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
-			if(pEv && pEv->Leave(pPlayer->GetCid()))
+			if(!pEv)
+				continue;
+			// try to leave active participation first
+			if(pEv->Leave(pPlayer->GetCid()))
+			{
 				Found = true;
+				continue;
+			}
+			// if not participating, try to deregister from registration phase
+			if(pEv->DeRegister(pPlayer->GetCid()))
+			{
+				Found = true;
+				continue;
+			}
 		}
 		if(Found)
 			return;

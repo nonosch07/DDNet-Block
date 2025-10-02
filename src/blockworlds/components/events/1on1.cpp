@@ -129,10 +129,12 @@ void COneOnOneEvent::OnTick()
 	// update broadcasts every second
 	if((Server()->Tick() % Server()->TickSpeed()) == 0)
 	{
-		char aBuf[256];
-		str_format(aBuf, sizeof(aBuf), "%s: %d - %s: %d", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2);
-		GameServer()->SendBroadcast(aBuf, m_Player1ID, false);
-		GameServer()->SendBroadcast(aBuf, m_Player2ID, false);
+		static constexpr const char *s_padding = "                                                                                     "
+							 "                                                                                     "
+							 "                                                                                     ";
+
+		GameServer()->SendBroadcast(m_Player1ID, "%s: %d - %s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);
+		GameServer()->SendBroadcast(m_Player2ID, "%s: %d - %s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);
 	}
 }
 
@@ -140,23 +142,7 @@ void COneOnOneEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 {
 	if(ClientId < 0)
 		return;
-
-	if(ClientId == m_Player1ID)
-	{
-		m_Score2++;
-	}
-	else if(ClientId == m_Player2ID)
-	{
-		m_Score1++;
-	}
-	else
-		return;
-
-	if(m_Score1 >= 10 || m_Score2 >= 10)
-	{
-		FinishEvent();
-		return;
-	}
+	// don't award points on spawn; scoring is handled on death
 
 	auto p1 = GameServer()->GetPlayer(m_Player1ID);
 	auto p2 = GameServer()->GetPlayer(m_Player2ID);
@@ -176,6 +162,40 @@ void COneOnOneEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 		GameServer()->GetPlayerChar(m_Player1ID)->Freeze(3);
 		GameServer()->GetPlayerChar(m_Player2ID)->Freeze(3);
 	}
+}
+
+// award points on death: killer gets one point
+void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
+{
+	if(GetState() != CEventComponent::EEventState::Active)
+		return;
+
+	if(KillerId < 0)
+		return;
+
+	if(KillerId == m_Player1ID && ClientId == m_Player2ID)
+	{
+		m_Score1 += 1;
+	}
+	else if(KillerId == m_Player2ID && ClientId == m_Player1ID)
+	{
+		m_Score2 += 1;
+	}
+	else
+		return;
+
+	// broadcast updated score with padding
+	static constexpr const char *s_padding = "                                                                                     "
+						 "                                                                                     "
+						 "                                                                                     ";
+
+	char aBuf[256];
+	str_format(aBuf, sizeof(aBuf), "%s: %d - %s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);
+	GameServer()->SendBroadcast(aBuf, m_Player1ID, false);
+	GameServer()->SendBroadcast(aBuf, m_Player2ID, false);
+
+	if(CheckEndCondition())
+		FinishEvent();
 }
 
 bool COneOnOneEvent::CheckEndCondition()
@@ -227,4 +247,13 @@ bool COneOnOneEvent::Leave(int ClientId)
 		return true;
 	}
 	return false;
+}
+
+void COneOnOneEvent::OnPlayerDropping(int ClientId)
+{
+	if(GetState() == CEventComponent::EEventState::Active)
+	{
+		if(ClientId == m_Player1ID || ClientId == m_Player2ID)
+			Leave(ClientId);
+	}
 }

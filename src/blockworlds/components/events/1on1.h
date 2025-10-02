@@ -25,6 +25,8 @@ public:
 
 	void OnTick() override;
 	void OnCharacterSpawn(int ClientId, vec2 SpawnPos) override;
+	void OnCharacterDeath(int KillerId, int ClientId, int Weapon) override;
+	void OnPlayerDropping(int ClientId) override;
 
 private:
 	int m_Player1ID;
