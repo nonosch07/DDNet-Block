@@ -39,6 +39,8 @@ public:
 
 	std::shared_ptr<CEventComponent> CreateEventByName(const char *pName);
 	void SetActiveEvent(std::shared_ptr<CEventComponent> pEvent);
+	// Returns currently active event or nullptr if none
+	std::shared_ptr<CEventComponent> GetActiveEvent() const;
 
 private:
 	std::shared_ptr<CEventComponent> m_pActiveEvent;

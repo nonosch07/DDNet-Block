@@ -28,6 +28,8 @@ public:
 	void OnCharacterDeath(int KillerId, int ClientId, int Weapon) override;
 	void OnPlayerDropping(int ClientId) override;
 
+	[[nodiscard]] std::optional<int> GetScoreOf(int ClientId) const;
+
 private:
 	int m_Player1ID;
 	int m_Player2ID;

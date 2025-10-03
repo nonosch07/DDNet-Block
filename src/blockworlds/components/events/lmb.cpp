@@ -302,6 +302,12 @@ bool CLastManBlockingEvent::Join(int ClientId)
 	pChar->Freeze(Config()->m_SvLMBInitialFreezeTime);
 	GameServer()->Teleport(pChar, m_SpawnPositions[m_SpawnOffset % m_SpawnPositions.size()]);
 
+	if(auto pPlayer = GameServer()->GetPlayer(ClientId))
+	{
+		if(pPlayer->GetCurrentSpecial() != -1)
+			pPlayer->ToggleSpecial(pPlayer->GetCurrentSpecial());
+	}
+
 	GameServer()->SendBroadcast(" ", ClientId);
 	return true;
 }
@@ -313,6 +319,7 @@ bool CLastManBlockingEvent::Leave(int ClientId)
 	m_Participants.erase(ClientIdIt);
 	LoadPosition(ClientId);
 
+	// restore specials state is intentionally left unchanged; players may re-enable after event
 	return true;
 }
 

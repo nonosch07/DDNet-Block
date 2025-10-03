@@ -4050,6 +4050,11 @@ void CGameContext::RegisterDDRaceCommands()
 
 	Console()->Register("status_accounts", "?r[name]", CFGFLAG_SERVER, ConStatusAccounts, this, "List logged-in accounts containing name or all accounts");
 
+	// Admin helpers for account/IP management
+	Console()->Register("ip_bans", "", CFGFLAG_SERVER, ConIpBans, this, "List active IP bans (admin)");
+	Console()->Register("ip_ban_clear", "s[ip]", CFGFLAG_SERVER, ConIpBanClear, this, "Clear IP ban (admin)");
+	Console()->Register("list_outstanding_invites", "i[clientid]", CFGFLAG_SERVER, ConListOutstandingInvites, this, "List outstanding invites for a client (admin)");
+
 	Console()->Register("component_list", "", CFGFLAG_SERVER, ConComponentList, this, "List of all components and active sub-components");
 	Console()->Register("component_plug", "r[name]", CFGFLAG_SERVER, ConComponentPlug, this, "Plug-in component");
 	Console()->Register("component_unplug", "r[name]", CFGFLAG_SERVER, ConComponentUnPlug, this, "Un-plug component");
@@ -5421,13 +5426,8 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("topks", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopKillStreak, this, "Show the leaderboard for top kill streaks.");
 	Console()->Register("topclans", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopClans, this, "Display the top clans leaderboard.");
 
-	Console()->Register("cosmetics", "s[category] s[name]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConCosmetics, this, "Show available cosmetics for the specified category and name.");
-	Console()->Register("buy", "s[category] s[name]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConBuy, this, "Purchase an item from the shop by category and name.");
-
 	Console()->Register("yes", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConShopPurchase, this, "Confirm the pending shop purchase.");
 	Console()->Register("no", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConShopDecline, this, "Cancel the pending shop purchase.");
-
-	Console()->Register("test", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConTest, this, "Display credits for the DDNet mod.");
 
 	Console()->Register("clan_create", "s[clanname]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanCreate, this, "Create a new clan with the given name.");
 	Console()->Register("clan_delete", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanDelete, this, "Delete your clan (leaders only).");
@@ -5443,8 +5443,8 @@ void CGameContext::RegisterBlockworldsChatCommands()
 
 	// events
 	Console()->Register("1on1", "s[player name] ?i[wager]", CFGFLAG_CHAT, Con1on1, this, "Fight against another player");
-	Console()->Register("accept", "r[player name]", CFGFLAG_CHAT, Con1on1Accept, this, "Accept the 1vs1 request from player r");
-	Console()->Register("decline", "r[player name]", CFGFLAG_CHAT, Con1on1Decline, this, "Decline the 1vs1 request from player r");
+	Console()->Register("accept", "?r[player name]", CFGFLAG_CHAT, Con1on1Accept, this, "Accept the 1vs1 request from player r");
+	Console()->Register("decline", "?r[player name]", CFGFLAG_CHAT, Con1on1Decline, this, "Decline the 1vs1 request from player r");
 	Console()->Register("sub", "", CFGFLAG_CHAT, ConJoinEvent, this, "Join the current ongoing event");
 	Console()->Register("leave", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConLeaveEvent, this, "Leave current event");
 }
@@ -5525,8 +5525,18 @@ extern CVoteManager g_VoteManager;
 
 void CGameContext::SendCosmeticsVoteOptions(int ClientID)
 {
+	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
+	{
+		if(auto active = events->GetActiveEvent(); active)
+		{
+			const auto &parts = active->Participants();
+			if(std::find(parts.begin(), parts.end(), ClientID) != parts.end())
+				return;
+		}
+	}
+
 	CPlayer *pPlayer = GetPlayer(ClientID);
-	// Use the central vote manager which contains extras + cosmetics modules
+
 	g_VoteManager.SendOptions(pPlayer, ClientID, Server(), this);
 }
 
@@ -5535,6 +5545,17 @@ bool CGameContext::HandleCosmeticsVote(const CNetMsg_Cl_CallVote *pMsg, int Clie
 	CPlayer *pPlayer = GetPlayer(ClientId);
 	if(!pPlayer)
 		return false;
+
+	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
+	{
+		if(auto active = events->GetActiveEvent(); active)
+		{
+			const auto &parts = active->Participants();
+			if(std::find(parts.begin(), parts.end(), ClientId) != parts.end())
+				return false;
+		}
+	}
+
 	return g_VoteManager.HandleVote(pPlayer, pMsg->m_pValue, ClientId, this);
 }
 

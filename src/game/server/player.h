@@ -18,6 +18,7 @@
 
 #include <blockworlds/accounts.h>
 #include <blockworlds/clans.h>
+#include <blockworlds/cosmetics/cosmetics.h>
 
 class CCharacter;
 class CGameContext;
@@ -309,6 +310,10 @@ public:
 	const char *GetPlayerKnockouts() { return m_Account.m_aKnockouts; }
 	const char *GetPlayerGundesign() { return m_Account.m_aGundesign; }
 	const char *GetPlayerSkinmani() { return m_Account.m_aSkinmani; }
+
+	const char *GetEffectiveKnockouts();
+	const char *GetEffectiveGundesign();
+	const char *GetEffectiveSkinmani();
 	int GetPlayerPassive() { return m_Account.m_Passive; }
 	const char *GetPlayerRegisterDate() { return m_Account.m_RegisterDate; }
 	int GetPlayerRankedGames() { return m_Account.m_RankedGames; }
@@ -351,6 +356,10 @@ public:
 	// used for 1on1, default to true
 	bool m_allowDeath;
 	int sent1on1InviteTo;
+	// last tick when the player sent a 1on1 invite (anti-spam)
+	int64_t m_Last1on1InviteTick;
+	// last tick when the player executed /register (anti-zombie-account spam)
+	int64_t m_LastRegisterTick;
 	bool m_HideInfo = false;
 	bool m_ShowLevel = true;
 	bool m_EventWinner = false;
@@ -398,6 +407,14 @@ public:
 	}
 
 	int m_LocalPassiveDuration = 0;
+
+	// specials
+	int m_CurrentSpecial = -1;
+	class CEntity *m_pSpecialEntity = nullptr;
+	const char *GetPlayerSpecials();
+	int GetCurrentSpecial() const { return m_CurrentSpecial; }
+	bool ToggleSpecial(int SpecialIndex);
+	char m_aSpecialsOwned[CCosmeticsHandler::NUM_SPECIALS + 1];
 	bool m_UsePassiveProtection = true;
 
 	void TogglePassive()

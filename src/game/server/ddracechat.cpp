@@ -12,21 +12,6 @@
 #include "player.h"
 #include "score.h"
 
-void CGameContext::ConTest(IConsole::IResult *pResult, void *pUserData)
-{
-	// CGameContext *pSelf = (CGameContext *)pUserData;
-
-	// int DummyID = pSelf->GetNextClientID();
-
-	// // pSelf->m_apPlayers[DummyID] = new(DummyID) CPlayer(pSelf, pSelf->m_NextUniqueClientId, DummyID, TEAM_RED);
-	// // pSelf->m_NextUniqueClientId += 1;
-	// // pSelf->OnClientConnected(DummyID, 0);
-	// // pSelf->Server()->BotJoin(DummyID, "");
-	// // pSelf->m_apPlayers[DummyID]->m_IsNpc = true;
-
-	// pSelf->ShopPreview()->OnInit(pSelf);
-}
-
 void CGameContext::ConCredits(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;

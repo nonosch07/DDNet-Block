@@ -49,9 +49,27 @@ void COneOnOneEvent::StartEvent()
 	m_Score1 = 0;
 	m_Score2 = 0;
 
+	// initialize participants' visible score to 0
+	CPlayer *pStart1 = GameServer()->GetPlayer(m_Player1ID);
+	CPlayer *pStart2 = GameServer()->GetPlayer(m_Player2ID);
+	if(pStart1)
+	{
+		pStart1->m_Score = 0;
+	}
+	if(pStart2)
+	{
+		pStart2->m_Score = 0;
+	}
+
+	dbg_msg("1on1", "StartEvent: P1=%d P2=%d wager=%d team=%d", m_Player1ID, m_Player2ID, m_Wager, m_Team);
+
 	// save positions & teeinfos
 	SavePosition(m_Player1ID);
 	SavePosition(m_Player2ID);
+
+	m_Participants.clear();
+	m_Participants.push_back(m_Player1ID);
+	m_Participants.push_back(m_Player2ID);
 
 	// teleport/spawn
 	CPlayer *p1 = GameServer()->GetPlayer(m_Player1ID);
@@ -110,6 +128,19 @@ void COneOnOneEvent::StartEvent()
 		chr2->Freeze(freezeSec);
 	}
 
+	if(p1)
+	{
+		p1->SetSkinMani(-1);
+		if(p1->GetCurrentSpecial() != -1)
+			p1->ToggleSpecial(p1->GetCurrentSpecial());
+	}
+	if(p2)
+	{
+		p2->SetSkinMani(-1);
+		if(p2->GetCurrentSpecial() != -1)
+			p2->ToggleSpecial(p2->GetCurrentSpecial());
+	}
+
 	m_StartTimer = 0;
 	SetState(EEventState::Active);
 }
@@ -133,8 +164,8 @@ void COneOnOneEvent::OnTick()
 							 "                                                                                     "
 							 "                                                                                     ";
 
-		GameServer()->SendBroadcast(m_Player1ID, "%s: %d - %s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);
-		GameServer()->SendBroadcast(m_Player2ID, "%s: %d - %s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);
+	GameServer()->SendBroadcast(m_Player1ID, "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);
+	GameServer()->SendBroadcast(m_Player2ID, "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);
 	}
 }
 
@@ -164,25 +195,39 @@ void COneOnOneEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 	}
 }
 
-// award points on death: killer gets one point
+// award points on death: opponent gets one point (suicides count)
 void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 {
+	const char *pKillerName = KillerId >= 0 ? Server()->ClientName(KillerId) : "<none>";
+	const char *pVictimName = ClientId >= 0 ? Server()->ClientName(ClientId) : "<none>";
+
 	if(GetState() != CEventComponent::EEventState::Active)
 		return;
 
-	if(KillerId < 0)
-		return;
-
-	if(KillerId == m_Player1ID && ClientId == m_Player2ID)
-	{
-		m_Score1 += 1;
-	}
-	else if(KillerId == m_Player2ID && ClientId == m_Player1ID)
+	if(ClientId == m_Player1ID)
 	{
 		m_Score2 += 1;
+		dbg_msg("1on1", "CharacterDeath: %s died -> %s awarded 1 point. Scores now %d-%d", pVictimName, Server()->ClientName(m_Player2ID), m_Score1, m_Score2);
+
+		if(auto p = GameServer()->GetPlayer(m_Player2ID))
+		{
+			p->m_Score = m_Score2;
+		}
+	}
+	else if(ClientId == m_Player2ID)
+	{
+		m_Score1 += 1;
+		dbg_msg("1on1", "CharacterDeath: %s died -> %s awarded 1 point. Scores now %d-%d", pVictimName, Server()->ClientName(m_Player1ID), m_Score1, m_Score2);
+
+		if(auto p = GameServer()->GetPlayer(m_Player1ID))
+		{
+			p->m_Score = m_Score1;
+		}
 	}
 	else
+	{
 		return;
+	}
 
 	// broadcast updated score with padding
 	static constexpr const char *s_padding = "                                                                                     "
@@ -190,7 +235,7 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 						 "                                                                                     ";
 
 	char aBuf[256];
-	str_format(aBuf, sizeof(aBuf), "%s: %d - %s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);
+	str_format(aBuf, sizeof(aBuf), "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);
 	GameServer()->SendBroadcast(aBuf, m_Player1ID, false);
 	GameServer()->SendBroadcast(aBuf, m_Player2ID, false);
 
@@ -236,6 +281,8 @@ void COneOnOneEvent::FinishEvent()
 	LoadPosition(m_Player1ID);
 	LoadPosition(m_Player2ID);
 
+
+
 	SetState(EEventState::Finished);
 }
 
@@ -256,4 +303,13 @@ void COneOnOneEvent::OnPlayerDropping(int ClientId)
 		if(ClientId == m_Player1ID || ClientId == m_Player2ID)
 			Leave(ClientId);
 	}
+}
+
+std::optional<int> COneOnOneEvent::GetScoreOf(int ClientId) const
+{
+	if(ClientId == m_Player1ID)
+		return m_Score1;
+	if(ClientId == m_Player2ID)
+		return m_Score2;
+	return std::nullopt;
 }

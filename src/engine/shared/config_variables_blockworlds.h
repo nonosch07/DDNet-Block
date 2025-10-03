@@ -15,6 +15,16 @@ MACRO_CONFIG_STR(SvServerId, sv_server_id, 32, "unique_id", CFGFLAG_SERVER, "Uni
 MACRO_CONFIG_INT(SvAccountsystem, sv_account_system, 1, 0, 1, CFGFLAG_SERVER, "Toggle for enabling (1) or disabling (0) the account system.")
 MACRO_CONFIG_INT(Sv1on1system, sv_1on1_system, 1, 0, 1, CFGFLAG_SERVER, "Toggle for enabling (1) or disabling (0) the one-on-one (1v1) system.")
 
+// 1on1 invite configuration
+MACRO_CONFIG_INT(Sv1on1InviteCooldown, sv_1on1_invite_cooldown, 5, 0, 3600, CFGFLAG_SERVER, "Cooldown time (in seconds) a player must wait between 1on1 invites.")
+MACRO_CONFIG_INT(Sv1on1MaxOutstandingInvitesPerSender, sv_1on1_max_outstanding_invites_per_sender, 3, 1, 100, CFGFLAG_SERVER, "Maximum number of outstanding 1on1 invites a single player can have.")
+
+// Register/IP throttling configuration
+MACRO_CONFIG_INT(SvRegisterCooldownPerIp, sv_register_cooldown_per_ip, 10, 0, 3600, CFGFLAG_SERVER, "Cooldown time (seconds) per IP between register attempts.")
+MACRO_CONFIG_INT(SvRegisterIpAttemptWindow, sv_register_ip_attempt_window, 60, 1, 3600, CFGFLAG_SERVER, "Time window (seconds) in which register attempts per IP are counted.")
+MACRO_CONFIG_INT(SvRegisterIpMaxAttempts, sv_register_ip_max_attempts, 5, 1, 100, CFGFLAG_SERVER, "Number of register attempts allowed per IP in the attempt window before temporary ban.")
+MACRO_CONFIG_INT(SvRegisterIpBanSeconds, sv_register_ip_ban_seconds, 300, 0, 86400, CFGFLAG_SERVER, "Duration (seconds) to ban an IP after exceeding register attempts.")
+
 // Experience and block-related settings:
 MACRO_CONFIG_INT(SvBlockExperienceMultiplierStacking, sv_block_expirience_multiplier_stacking, 1, 1, NUM_EXP_CALC_METHODS, CFGFLAG_SERVER, "0-highest, 1-additive, 2-logarithmic, 3-multiplicative")
 MACRO_CONFIG_INT(SvBlockExperience, sv_block_experience, 3, 0, 0, CFGFLAG_SERVER, "Experience points awarded for each registered block.")
@@ -65,3 +75,7 @@ MACRO_CONFIG_INT(SvTDMMinimumCandidates, sv_tdm_minimum_candidates, 8, 2, MAX_CL
 MACRO_CONFIG_INT(SvTDMMaximumCandidates, sv_tdm_maximum_candidates, 16, 2, MAX_CLIENTS, CFGFLAG_SERVER, "Maximum amount of participants for TDM")
 MACRO_CONFIG_INT(SvTDMBroadcastRate, sv_tdm_broadcast_rate, 50, 1, 500, CFGFLAG_SERVER, "Rate at which TDM information broadcasts will be sent (ticks)")
 MACRO_CONFIG_INT(SvTDMFreezeTime, sv_tdm_freeze_time, 3, 5, 30, CFGFLAG_SERVER, "Specifies the time required for a player to be frozen in order to die")
+
+// VIP flag experience bonus
+MACRO_CONFIG_INT(SvVipFlagExpMultiplier, sv_vip_flag_exp_multiplier, 200, 100, 10000, CFGFLAG_SERVER, "Exp multiplier granted by the VIP flag (percents)")
+MACRO_CONFIG_INT(SvVipFlagExpDuration, sv_vip_flag_exp_duration, 5, 1, 1440, CFGFLAG_SERVER, "Duration for VIP flag experience bonus (minutes)")

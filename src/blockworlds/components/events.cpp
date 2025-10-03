@@ -82,6 +82,11 @@ void CEvents::SetActiveEvent(std::shared_ptr<CEventComponent> pEvent)
 {
 	m_pActiveEvent = std::move(pEvent);
 }
+
+std::shared_ptr<CEventComponent> CEvents::GetActiveEvent() const
+{
+	return m_pActiveEvent;
+}
 void CEvents::OnConsoleTerminate()
 {
 #define CommandDeregister(name, ...) Console()->Deregister(name);
@@ -216,4 +221,15 @@ void CEvents::ConLeave(IConsole::IResult *pResult, void *pUserData)
 void CEvents::OnEventStateChange(CEventComponent::EEventState OldState, CEventComponent::EEventState NewState)
 {
 	LogDebug("Event state changed: from %s to %s", CEventComponent::GetStateName(OldState), CEventComponent::GetStateName(NewState));
+
+	if(NewState == CEventComponent::EEventState::Finished && m_pActiveEvent)
+	{
+		const auto &parts = m_pActiveEvent->Participants();
+		for(int ClientId : parts)
+		{
+			if(ClientId < 0)
+				continue;
+			GameServer()->SendBroadcast(" ", ClientId, false);
+		}
+	}
 }

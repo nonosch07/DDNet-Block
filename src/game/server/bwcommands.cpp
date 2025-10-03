@@ -17,6 +17,11 @@
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
 
+#include <blockworlds/zones/zone.h>
+#include <algorithm>
+#include <string>
+#include <unordered_map>
+
 extern std::mutex g_ClansDataMutex;
 extern std::unordered_map<int, CClansData> g_ClanIdMap;
 
@@ -46,6 +51,13 @@ void CGameContext::ConRegister(IConsole::IResult *pResult, void *pUserData)
 	if(pSelf->m_apPlayers[pResult->m_ClientId]->m_Account.m_Id)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You can't create an account while being logged in!");
 
+	if(pSelf->isInEvent(pResult->m_ClientId))
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You can't register while participating in an event. Use /leave first.");
+	IZone *pSpawnZone = pSelf->ZoneManager()->GetZone(ZONE_SPAWN);
+	CPlayer *pReqPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+	if(pSpawnZone && pReqPlayer && pReqPlayer->GetCharacter() && !pSpawnZone->IsInZone(pReqPlayer->GetCharacter()->m_Pos))
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You can only register an account while in the spawn zone.");
+
 	const char *pUsername = pResult->GetString(0);
 	const char *pPassword = pResult->GetString(1);
 
@@ -54,6 +66,44 @@ void CGameContext::ConRegister(IConsole::IResult *pResult, void *pUserData)
 
 	if(NameLength <= 2)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "Your name must be at least 3 characters long!");
+
+	if(pReqPlayer)
+	{
+		const int RegisterCooldownSeconds = g_Config.m_SvRegisterCooldownPerIp > 0 ? g_Config.m_SvRegisterCooldownPerIp : 10;
+		int64_t now = pSelf->Server()->Tick();
+		if(pReqPlayer->m_LastRegisterTick != 0 && now - pReqPlayer->m_LastRegisterTick < RegisterCooldownSeconds * pSelf->Server()->TickSpeed())
+		{
+			int remaining = (int)((RegisterCooldownSeconds * pSelf->Server()->TickSpeed() - (now - pReqPlayer->m_LastRegisterTick)) / pSelf->Server()->TickSpeed());
+			char aBuf[128];
+			str_format(aBuf, sizeof(aBuf), "Please wait %d second%s before trying to register again.", remaining, remaining != 1 ? "s" : "");
+			return pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+		}
+	}
+
+	struct IpDataDef
+	{
+		int Attempts = 0;
+		int64_t FirstAttemptTick = 0;
+		int64_t BannedUntilTick = 0;
+	};
+	static std::unordered_map<std::string, IpDataDef> s_IpAttempts;
+
+	char aAddrStrCheck[NETADDR_MAXSTRSIZE];
+	pSelf->Server()->GetClientAddr(pResult->m_ClientId, aAddrStrCheck, sizeof(aAddrStrCheck));
+	std::string ipKeyCheck(aAddrStrCheck);
+	int64_t now_check = pSelf->Server()->Tick();
+	int TickSpeed_check = pSelf->Server()->TickSpeed();
+	auto it_check = s_IpAttempts.find(ipKeyCheck);
+	if(it_check != s_IpAttempts.end())
+	{
+		if(it_check->second.BannedUntilTick > now_check)
+		{
+			int remaining = (int)((it_check->second.BannedUntilTick - now_check) / TickSpeed_check);
+			char aBuf[128];
+			str_format(aBuf, sizeof(aBuf), "Registrations from your IP are temporarily blocked. Try again in %d second%s.", remaining, remaining != 1 ? "s" : "");
+			return pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+		}
+	}
 
 	if(PasswordLength < 5)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "Your password must be at least 5 characters long!");
@@ -67,7 +117,20 @@ void CGameContext::ConRegister(IConsole::IResult *pResult, void *pUserData)
 	if(!CheckValidChars(pUsername) || !CheckValidChars(pPassword))
 		return pSelf->SendChatTarget(pResult->m_ClientId, "Only the characters A-Z and 0-9 are allowed!");
 
+	char aAddrStr[NETADDR_MAXSTRSIZE];
+	pSelf->Server()->GetClientAddr(pResult->m_ClientId, aAddrStr, sizeof(aAddrStr));
+	bool justBanned = pSelf->Accounts()->RegisterIpAttempt(aAddrStr);
+	if(justBanned)
+	{
+		int BanSeconds = g_Config.m_SvRegisterIpBanSeconds;
+		char aBuf[128];
+		str_format(aBuf, sizeof(aBuf), "Too many registration attempts from your IP. IP blocked for %d second%s.", BanSeconds, BanSeconds != 1 ? "s" : "");
+		return pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+	}
+
 	pSelf->Accounts()->Register(pResult->m_ClientId, pUsername, pPassword);
+	if(pReqPlayer)
+		pReqPlayer->m_LastRegisterTick = pSelf->Server()->Tick();
 }
 
 void CGameContext::ConLogin(IConsole::IResult *pResult, void *pUserData)
@@ -84,6 +147,12 @@ void CGameContext::ConLogin(IConsole::IResult *pResult, void *pUserData)
 
 	if(pSelf->m_apPlayers[pResult->m_ClientId]->m_Account.m_Id > 0)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You are already logged in!");
+	if(pSelf->isInEvent(pResult->m_ClientId))
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You must finish the ongoing event (or use '/leave' to leave).");
+	IZone *pSpawnZone = pSelf->ZoneManager()->GetZone(ZONE_SPAWN);
+	CPlayer *pReqPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+	if(pSpawnZone && pReqPlayer && pReqPlayer->GetCharacter() && !pSpawnZone->IsInZone(pReqPlayer->GetCharacter()->m_Pos))
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You can only login while in the spawn zone.");
 
 	const char *pUsername = pResult->GetString(0);
 	const char *pPassword = pResult->GetString(1);
@@ -105,6 +174,13 @@ void CGameContext::ConAccountLogout(IConsole::IResult *pResult, void *pUserData)
 
 	if(!pSelf->m_apPlayers[pResult->m_ClientId]->m_Account.m_Id)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You are not logged in!");
+
+	if(pSelf->isInEvent(pResult->m_ClientId))
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You can't logout while participating in an event. Use /leave first.");
+	IZone *pSpawnZone = pSelf->ZoneManager()->GetZone(ZONE_SPAWN);
+	CPlayer *pReqPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+	if(pSpawnZone && pReqPlayer && pReqPlayer->GetCharacter() && !pSpawnZone->IsInZone(pReqPlayer->GetCharacter()->m_Pos))
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You can only logout while in the spawn zone.");
 
 	pPlayer->OnPlayerLogout();
 	pSelf->SendChatTarget(pResult->m_ClientId, "you have been logged out!");
@@ -328,6 +404,85 @@ void CGameContext::ConDisplayTopLevel(IConsole::IResult *pResult, void *pUserDat
 	if(!pPlayer)
 		return;
 	pSelf->Accounts()->ShowTopLevel(ClientId);
+}
+
+void CGameContext::ConIpBans(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+	if(!pPlayer || !pPlayer->IsLoggedIn())
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Permission denied");
+
+	auto bans = pSelf->Accounts()->ListIpBans();
+	if(bans.empty())
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "No active IP bans.");
+		return;
+	}
+
+	pSelf->SendChatTarget(pResult->m_ClientId, "Active IP bans:");
+	char aBuf[256];
+	for(const auto &b : bans)
+	{
+		str_format(aBuf, sizeof(aBuf), "%s: %d second%s remaining", b.first.c_str(), b.second, b.second != 1 ? "s" : "");
+		pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+	}
+}
+
+void CGameContext::ConIpBanClear(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+	if(!pPlayer || !pPlayer->IsLoggedIn())
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Permission denied");
+
+	const char *pIp = pResult->GetString(0);
+	pSelf->Accounts()->ClearIpBan(pIp);
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "Cleared IP ban for %s", pIp);
+	pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+}
+
+void CGameContext::ConListOutstandingInvites(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+	if(!pPlayer || !pPlayer->IsLoggedIn())
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Permission denied");
+
+	int Target = pResult->GetInteger(0);
+	if(!CheckClientId(Target))
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Invalid client id");
+
+	if(!pSelf->m_apPlayers[Target])
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Target player not online");
+
+	auto requests = g_ComponentRegistry.Get<CRequests>();
+	if(!requests)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Request component not available");
+
+	auto idsFrom = requests->GetRequestIdsFromTo(Target, Target, -1); // get both to and from via helper below
+
+	auto all = requests->GetRequestsFor(Target, -1);
+	if(all.empty())
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "No outstanding requests for player");
+		return;
+	}
+
+	char aBuf[256];
+	pSelf->SendChatTarget(pResult->m_ClientId, "Outstanding requests (id, type, from -> to):");
+	for(int id : all)
+	{
+		str_format(aBuf, sizeof(aBuf), "id=%d", id);
+		pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+	}
 }
 
 // admin console commands to modify account attributes
@@ -604,10 +759,16 @@ void CGameContext::ConDisplayTopKillStreak(IConsole::IResult *pResult, void *pUs
 void CGameContext::ConWeaponKit(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
-	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
-	CCharacter *pChr = pPlayer->GetCharacter();
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
 
-	// Server-wide weaponkits toggle
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+	if(!pPlayer)
+		return;
+	CCharacter *pChr = pPlayer->GetCharacter();
+	if(!pChr)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You must be alive to use a weapon kit.");
+
 	if(!pSelf->m_WeaponkitsAllowed)
 	{
 		pSelf->SendChatTarget(pResult->m_ClientId, "Weaponkits are currently disabled on this server.");
@@ -637,6 +798,14 @@ void CGameContext::ConWeaponKit(IConsole::IResult *pResult, void *pUserData)
 	if(HasAllWeapons)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You already have all weapons.");
 
+	// restrict usage to spawn zone if spawn zone exists
+	IZone *pSpawnZone = pSelf->ZoneManager()->GetZone(ZONE_SPAWN);
+	if(pSpawnZone)
+	{
+		if(!pSpawnZone->IsInZone(pChr->m_Pos))
+			return pSelf->SendChatTarget(pResult->m_ClientId, "You can only use weapon kits while in the spawn zone.");
+	}
+
 	pPlayer->SetPlayerWeaponkits(pPlayer->GetPlayerWeaponkits() - 1);
 	pSelf->ModifyWeapons(pResult, pUserData, -1, false);
 
@@ -653,6 +822,8 @@ void CGameContext::ConDeathnote(IConsole::IResult *pResult, void *pUserData)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
 
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+	if(!pPlayer)
+		return;
 	IServer *pServer = pSelf->Server();
 
 	if(!pPlayer->IsLoggedIn())
@@ -668,6 +839,14 @@ void CGameContext::ConDeathnote(IConsole::IResult *pResult, void *pUserData)
 
 	if(pPlayer->GetPlayerPages() < 1)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You don't have any deathnotes, make a trip to the store and purchase some!");
+
+	// prevent using deathnote if the target is inside passive or no-collision zones
+	IZone *pPassiveZone = pSelf->ZoneManager()->GetZone(ZONE_PASSIVE);
+	IZone *pNoCollZone = pSelf->ZoneManager()->GetZone(ZONE_NOCOLL);
+
+	// prevent using deathnote if target is participating in an event
+	if(pTarget && pSelf->isInEvent(pTarget->GetCid()) != 0)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a player participating in an event.");
 
 	int CurrentTick = pServer->Tick();
 	int CooldownTick = pPlayer->m_LastDeathnote + (pServer->TickSpeed() * g_Config.m_SvDeathNoteCoolDown);
@@ -700,6 +879,17 @@ void CGameContext::ConDeathnote(IConsole::IResult *pResult, void *pUserData)
 		return pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
 	}
 
+		// block if the target is currently inside a passive or no-collision zone
+		CCharacter *pTChar = pTarget->GetCharacter();
+		if(pTChar)
+		{
+			if(pPassiveZone && pPassiveZone->IsInZone(pTChar->m_Pos))
+				return pSelf->SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a player inside a passive zone.");
+			if(pNoCollZone && pNoCollZone->IsInZone(pTChar->m_Pos))
+				return pSelf->SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a player inside a no-collision zone.");
+		}
+
+		// consume a page and apply kill
 	pPlayer->SetPlayerPages(pPlayer->GetPlayerPages() - 1);
 	pTarget->KillCharacter();
 
@@ -709,34 +899,6 @@ void CGameContext::ConDeathnote(IConsole::IResult *pResult, void *pUserData)
 	pSelf->SendChatTarget(pResult->m_ClientId, aBuff_From);
 	pSelf->SendChatTarget(pTarget->GetCid(), aBuff_To);
 	pPlayer->m_LastDeathnote = pServer->Tick();
-}
-
-void CGameContext::ConCosmetics(IConsole::IResult *pResult, void *pUserData)
-{
-	CGameContext *pSelf = (CGameContext *)pUserData;
-
-	bool Found = false;
-
-	if(!str_comp_nocase(pResult->GetString(0), "gd"))
-	{
-		Found = pSelf->Cosmetics()->ToggleGundesign(pResult->m_ClientId, pResult->GetString(1));
-	}
-	else if(!str_comp_nocase(pResult->GetString(0), "ko"))
-	{
-		Found = pSelf->Cosmetics()->ToggleKnockout(pResult->m_ClientId, pResult->GetString(1));
-	}
-	else if(!str_comp_nocase(pResult->GetString(0), "sm"))
-	{
-		Found = pSelf->Cosmetics()->ToggleSkinmani(pResult->m_ClientId, pResult->GetString(1));
-	}
-	else
-	{
-		pSelf->SendChatTarget(pResult->m_ClientId, "Unknown cosmetics type [ko (knockout), gd (gundesign), sm (skinmani)]");
-		return;
-	}
-
-	if(!Found)
-		pSelf->SendChatTarget(pResult->m_ClientId, "Unknown cosmetics name");
 }
 
 void CGameContext::ConExp(IConsole::IResult *pResult, void *pUserData)
@@ -1384,10 +1546,14 @@ void CGameContext::Con1on1(IConsole::IResult *pResult, void *pUserData)
 	// create invite via requests component
 	if(auto requests = g_ComponentRegistry.Get<CRequests>())
 	{
+	{
 		int id = requests->Create1on1Invite(pPlayer->GetCid(), pTarget->GetCid(), Wager, 30);
+		if(id == -1)
+			return; // Create1on1Invite already informed the sender about the duplicate
 		pPlayer->sent1on1InviteTo = pTarget->GetCid();
-		str_format(aBuf, sizeof(aBuf), "Match request has been sent to '%s' (id=%d, %d BP).", pSelf->Server()->ClientName(pTarget->GetCid()), id, Wager);
+		str_format(aBuf, sizeof(aBuf), "Match request has been sent to '%s' (%d BP).", pSelf->Server()->ClientName(pTarget->GetCid()), Wager);
 		pSelf->SendChatTarget(pPlayer->GetCid(), aBuf);
+	}
 		return;
 	}
 	pSelf->SendChatTarget(pResult->m_ClientId, "Request subsystem is not available.");
@@ -1408,37 +1574,58 @@ void CGameContext::Con1on1Accept(IConsole::IResult *pResult, void *pUserData)
 		if(pResult->NumArguments() > 0 && pResult->GetString(0)[0])
 		{
 			const char *arg = pResult->GetString(0);
-			int id = atoi(arg);
-			if(id > 0 && requests->AcceptRequest(id))
+			CPlayer *pFrom = pSelf->GetPlayerByName(arg);
+			if(!pFrom)
 			{
+				pSelf->SendChatTarget(pResult->m_ClientId, "Player not found");
 				return;
 			}
 
-			CPlayer *pFrom = pSelf->GetPlayerByName(arg);
-			if(pFrom)
+			auto ids = requests->GetRequestIdsFromTo(pFrom->GetCid(), pResult->m_ClientId, (int)CRequests::SRequest::OneOnOne);
+			if(ids.empty())
 			{
-				auto ids = requests->GetRequestIdsFromTo(pFrom->GetCid(), pResult->m_ClientId, (int)CRequests::SRequest::OneOnOne);
-				if(ids.size() == 1)
+				pSelf->SendChatTarget(pResult->m_ClientId, "No invitation from that player was found.");
+				return;
+			}
+
+			// choose the most recent valid one (highest id -> newest)
+			int chosen = -1;
+			for(int id : ids)
+			{
+				CRequests::SRequest info;
+				if(requests->GetRequestInfo(id, info))
 				{
-					requests->AcceptRequest(ids[0]);
-					return;
-				}
-				else if(!ids.empty())
-				{
-					pSelf->SendChatTarget(pResult->m_ClientId, "Multiple requests found from that player. Use /accept <id> to pick one.");
-					return;
+					if(info.m_ExpireTick > pSelf->Server()->Tick())
+						chosen = std::max(chosen, id);
 				}
 			}
+			if(chosen == -1)
+			{
+				pSelf->SendChatTarget(pResult->m_ClientId, "No active (non-expired) invitation from that player was found.");
+				return;
+			}
+
+			if(!requests->AcceptRequest(chosen))
+				pSelf->SendChatTarget(pResult->m_ClientId, "Failed to accept the invitation (it may have expired).");
+			return;
 		}
 
 		auto pending = requests->GetRequestIdsTo(pResult->m_ClientId, (int)CRequests::SRequest::OneOnOne);
 		if(pending.size() == 1)
 		{
-			requests->AcceptRequest(pending[0]);
+			int id = pending[0];
+			CRequests::SRequest info;
+			if(!requests->GetRequestInfo(id, info) || info.m_ExpireTick <= pSelf->Server()->Tick())
+			{
+				pSelf->SendChatTarget(pResult->m_ClientId, "No active invitation to accept was found (it may have expired).");
+				return;
+			}
+			if(!requests->AcceptRequest(id))
+				pSelf->SendChatTarget(pResult->m_ClientId, "Failed to accept the invitation (it may have expired).");
 			return;
 		}
 
-		pSelf->SendChatTarget(pResult->m_ClientId, "No invitation to accept was found (or use /accept <id|playerName>). Try checking your messages.");
+		pSelf->SendChatTarget(pResult->m_ClientId, "No invitation to accept was found (or use /accept <playerName>). Try checking your messages.");
 		return;
 	}
 	pSelf->SendChatTarget(pResult->m_ClientId, "Request subsystem is not available.");
@@ -1454,43 +1641,62 @@ void CGameContext::Con1on1Decline(IConsole::IResult *pResult, void *pUserData)
 	if(!g_Config.m_Sv1on1system)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "1on1 matches are currently disabled.");
 
-	if(!pResult->NumArguments())
-		return;
-
 	if(auto requests = g_ComponentRegistry.Get<CRequests>())
 	{
 		if(pResult->NumArguments() > 0 && pResult->GetString(0)[0])
 		{
 			const char *arg = pResult->GetString(0);
-			int id = atoi(arg);
-			if(id > 0 && requests->DeclineRequest(id))
-				return;
-
 			CPlayer *pFrom = pSelf->GetPlayerByName(arg);
-			if(pFrom)
+			if(!pFrom)
 			{
-				auto ids = requests->GetRequestIdsFromTo(pFrom->GetCid(), pResult->m_ClientId, (int)CRequests::SRequest::OneOnOne);
-				if(ids.size() == 1)
+				pSelf->SendChatTarget(pResult->m_ClientId, "Player not found");
+				return;
+			}
+
+			auto ids = requests->GetRequestIdsFromTo(pFrom->GetCid(), pResult->m_ClientId, (int)CRequests::SRequest::OneOnOne);
+			if(ids.empty())
+			{
+				pSelf->SendChatTarget(pResult->m_ClientId, "No invitation from that player was found.");
+				return;
+			}
+
+			int chosen = -1;
+			for(int id : ids)
+			{
+				CRequests::SRequest info;
+				if(requests->GetRequestInfo(id, info))
 				{
-					requests->DeclineRequest(ids[0]);
-					return;
-				}
-				else if(!ids.empty())
-				{
-					pSelf->SendChatTarget(pResult->m_ClientId, "Multiple requests found from that player. Use /decline <id> to pick one.");
-					return;
+					if(info.m_ExpireTick > pSelf->Server()->Tick())
+						chosen = std::max(chosen, id);
 				}
 			}
+			if(chosen == -1)
+			{
+				pSelf->SendChatTarget(pResult->m_ClientId, "No active (non-expired) invitation from that player was found.");
+				return;
+			}
+
+			if(!requests->DeclineRequest(chosen))
+				pSelf->SendChatTarget(pResult->m_ClientId, "Failed to decline the invitation (it may have expired).");
+			return;
 		}
 
 		auto pending = requests->GetRequestIdsTo(pResult->m_ClientId, (int)CRequests::SRequest::OneOnOne);
 		if(pending.size() == 1)
 		{
-			requests->DeclineRequest(pending[0]);
+			int id = pending[0];
+			CRequests::SRequest info;
+			if(!requests->GetRequestInfo(id, info) || info.m_ExpireTick <= pSelf->Server()->Tick())
+			{
+				pSelf->SendChatTarget(pResult->m_ClientId, "No active invitation to decline was found (it may have expired).");
+				return;
+			}
+			if(!requests->DeclineRequest(id))
+				pSelf->SendChatTarget(pResult->m_ClientId, "Failed to decline the invitation (it may have expired).");
 			return;
 		}
 
-		pSelf->SendChatTarget(pResult->m_ClientId, "No invitation to decline was found (or use /decline <id|playerName>). Try checking your messages.");
+		pSelf->SendChatTarget(pResult->m_ClientId, "No invitation to decline was found (or use /decline <playerName>). Try checking your messages.");
 		return;
 	}
 	pSelf->SendChatTarget(pResult->m_ClientId, "Request subsystem is not available.");

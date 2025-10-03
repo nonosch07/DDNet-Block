@@ -5,6 +5,7 @@
 #include <game/server/player.h>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 void SetVoteDescriptionAtIndex(int *pIndex, const char *pStr, CNetMsg_Sv_VoteOptionListAdd *pOptionMsg);
 
@@ -34,6 +35,15 @@ private:
 	std::vector<CosmeticCategory> m_Categories;
 	std::vector<std::string> m_Options;
 	bool m_CategoriesInitialized = false;
+	// parallel mapping from m_Options entries to (categoryIndex, itemIndex)
+	// header/strip entries are stored as (-1,-1)
+	std::vector<std::pair<int,int>> m_OptionMappings;
+	// exact displayed option -> (categoryIndex, itemIndex)
+	std::unordered_map<std::string, std::pair<int,int>> m_ExactOptionMap;
+	// normalized displayed option -> (categoryIndex, itemIndex)
+	std::unordered_map<std::string, std::pair<int,int>> m_NormalizedOptionMap;
+	// normalized form of each entry in m_Options (parallel vector)
+	std::vector<std::string> m_OptionNormalized;
 };
 
 #endif // BLOCKWORLDS_VOTES_COSMETICS_H

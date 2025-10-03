@@ -181,54 +181,6 @@ void CZoneManager::Init(CGameContext *pGameServer)
 				}
 			}
 		}
-
-		if(GameServer()->Cosmetics())
-		{
-			// Skinmani
-			for(int i = 0; i < GameServer()->Cosmetics()->NUM_SKINMANIS; ++i)
-			{
-				if(i < (int)covered_skin.size() && covered_skin[i])
-					continue; // already covered by a quad shop
-				int Price = 0, Level = 0;
-				vec2 PreviewPos;
-				if(GameServer()->Cosmetics()->ShopInfoSkinmani(i, Price, Level, PreviewPos))
-				{
-					CShopPointZone *p = new CShopPointZone(GameServer(), PreviewPos, 32.0f, CShop::CATEGORY_SKINMANI, i);
-					m_vExtraZones.push_back(p);
-					dbg_msg("zones", "created skinmani shop point zone for item %d at %.1f,%.1f", i, PreviewPos.x, PreviewPos.y);
-				}
-			}
-
-			// Gundesigns
-			for(int i = 0; i < GameServer()->Cosmetics()->NUM_GUNDESIGNS; ++i)
-			{
-				if(i < (int)covered_gun.size() && covered_gun[i])
-					continue;
-				int Price = 0, Level = 0;
-				vec2 PreviewPos;
-				if(GameServer()->Cosmetics()->ShopInfoGundesign(i, Price, Level, PreviewPos))
-				{
-					CShopPointZone *p = new CShopPointZone(GameServer(), PreviewPos, 32.0f, CShop::CATEGORY_GUNDESIGN, i);
-					m_vExtraZones.push_back(p);
-					dbg_msg("zones", "created gundesign shop point zone for item %d at %.1f,%.1f", i, PreviewPos.x, PreviewPos.y);
-				}
-			}
-
-			// Knockouts
-			for(int i = 0; i < GameServer()->Cosmetics()->NUM_KNOCKOUTS; ++i)
-			{
-				if(i < (int)covered_ko.size() && covered_ko[i])
-					continue;
-				int Price = 0, Level = 0;
-				vec2 PreviewPos;
-				if(GameServer()->Cosmetics()->ShopInfoKnockout(i, Price, Level, PreviewPos))
-				{
-					CShopPointZone *p = new CShopPointZone(GameServer(), PreviewPos, 32.0f, CShop::CATEGORY_KNOCKOUT, i);
-					m_vExtraZones.push_back(p);
-					dbg_msg("zones", "created knockout shop point zone for item %d at %.1f,%.1f", i, PreviewPos.x, PreviewPos.y);
-				}
-			}
-		}
 	}
 }
 

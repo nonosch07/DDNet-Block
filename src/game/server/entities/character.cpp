@@ -52,6 +52,22 @@ CCharacter::CCharacter(CGameWorld *pWorld, CNetObj_PlayerInput LastInput) :
 	}
 }
 
+void CCharacter::StartHookRainbow(int DurationTicks, float RateDivider, int HookerId)
+{
+	m_HookRainbowDivider = RateDivider > 0.0f ? RateDivider : 1.0f;
+	m_HookedBy = HookerId;
+}
+
+bool CCharacter::IsHookRainbowActive()
+{
+	if(m_HookedBy < 0 || m_HookedBy >= MAX_CLIENTS)
+		return false;
+	CCharacter *pHookerChr = GameServer()->GetPlayerChar(m_HookedBy);
+	if(!pHookerChr)
+		return false;
+	return pHookerChr->Core()->HookedPlayer() == m_pPlayer->GetCid();
+}
+
 void CCharacter::Reset()
 {
 	StopRecording();
@@ -785,10 +801,28 @@ void CCharacter::OnDirectInput(CNetObj_PlayerInput *pNewInput)
 
 void CCharacter::ReleaseHook()
 {
+	int HookedPlayer = m_Core.HookedPlayer();
+
 	m_Core.SetHookedPlayer(-1);
 	m_Core.m_HookState = HOOK_RETRACTED;
 	m_Core.m_TriggeredEvents |= COREEVENT_HOOK_RETRACT;
+
+
+	m_HookRainbowDivider = 1.0f;
+	m_HookedBy = -1;
+
+	// also clear the hooked player's recorded hooker if it points to us
+	if(HookedPlayer >= 0 && HookedPlayer < MAX_CLIENTS)
+	{
+		CCharacter *pHooked = GameServer()->GetPlayerChar(HookedPlayer);
+		if(pHooked && pHooked->m_HookedBy == m_pPlayer->GetCid())
+		{
+			pHooked->m_HookRainbowDivider = 1.0f;
+			pHooked->m_HookedBy = -1;
+		}
+	}
 }
+
 
 void CCharacter::ResetHook()
 {
@@ -866,6 +900,21 @@ void CCharacter::Tick()
 		{
 			Antibot()->OnHookAttach(m_pPlayer->GetCid(), true);
 			GameServer()->m_pController->m_BlockTracker.OnPlayerImpacted(m_Core.HookedPlayer(), m_pPlayer->GetCid());
+
+			int Hooker = m_pPlayer->GetCid();
+			if(HookedPlayer >= 0 && Hooker >= 0 && Hooker < MAX_CLIENTS)
+			{
+				CPlayer *pHooker = GameServer()->GetPlayer(Hooker);
+				CCharacter *pHookedChar = GameServer()->GetPlayerChar(HookedPlayer);
+				if(pHooker && pHookedChar)
+				{
+					int HookerSkin = pHooker->GetSkinMani();
+					if(HookerSkin == CCosmeticsHandler::SKINMANI_VIP_HOOK_RAINBOW)
+					{
+						pHookedChar->StartHookRainbow(Server()->TickSpeed() * 5, 0.5f, Hooker);
+					}
+				}
+			}
 		}
 	}
 
@@ -882,6 +931,9 @@ void CCharacter::Tick()
 	{
 		m_PendingClanRequests->OnTick();
 	}
+
+	// Hook-rainbow active status is derived dynamically via IsHookRainbowActive().
+	// We no longer decrement tick counters here.
 }
 
 void CCharacter::TickDeferred()

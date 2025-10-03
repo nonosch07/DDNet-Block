@@ -524,6 +524,12 @@ bool CTeamDeathmatchEvent::Join(int ClientId)
 	SavePosition(ClientId);
 	m_Participants.push_back(ClientId);
 
+	if(auto pPlayer = GameServer()->GetPlayer(ClientId))
+	{
+		if(pPlayer->GetCurrentSpecial() != -1)
+			pPlayer->ToggleSpecial(pPlayer->GetCurrentSpecial());
+	}
+
 	return true;
 }
 

@@ -65,6 +65,109 @@ CAccounts::CAccounts(CGameContext *pGameServer, CDbConnectionPool *pPool) :
 {
 }
 
+struct IpTrackerEntry
+{
+	int Attempts = 0;
+	int64_t FirstAttemptTick = 0;
+	int64_t BannedUntilTick = 0;
+	int64_t LastSeenTick = 0;
+};
+
+static std::unordered_map<std::string, IpTrackerEntry> s_IpTracker;
+static std::deque<std::string> s_IpOrder;
+static std::mutex s_IpTrackerMutex;
+
+bool CAccounts::IsIpBanned(const char *pIp, int &RemainingSeconds) const
+{
+	std::lock_guard<std::mutex> l(s_IpTrackerMutex);
+	auto it = s_IpTracker.find(pIp);
+	if(it == s_IpTracker.end())
+	{
+		RemainingSeconds = 0;
+		return false;
+	}
+	int64_t now = Server()->Tick();
+	if(it->second.BannedUntilTick > now)
+	{
+		RemainingSeconds = (int)((it->second.BannedUntilTick - now) / Server()->TickSpeed());
+		return true;
+	}
+	RemainingSeconds = 0;
+	return false;
+}
+
+bool CAccounts::RegisterIpAttempt(const char *pIp)
+{
+	std::lock_guard<std::mutex> l(s_IpTrackerMutex);
+	const int TickSpeed = Server()->TickSpeed();
+	int64_t now = Server()->Tick();
+
+	// LRU-cap
+	const size_t MAX_ENTRIES = 16384;
+	if(s_IpTracker.size() > MAX_ENTRIES)
+	{
+		// prune least recently seen entries
+		while(s_IpTracker.size() > MAX_ENTRIES && !s_IpOrder.empty())
+		{
+			const std::string &old = s_IpOrder.front();
+			s_IpOrder.pop_front();
+			s_IpTracker.erase(old);
+		}
+	}
+
+	auto &entry = s_IpTracker[pIp];
+	entry.LastSeenTick = now;
+
+	int WindowSeconds = g_Config.m_SvRegisterIpAttemptWindow;
+	if(entry.FirstAttemptTick == 0 || now - entry.FirstAttemptTick > WindowSeconds * TickSpeed)
+	{
+		entry.Attempts = 0;
+		entry.FirstAttemptTick = now;
+	}
+
+	entry.Attempts++;
+	int MaxAttempts = g_Config.m_SvRegisterIpMaxAttempts;
+	if(entry.Attempts > MaxAttempts)
+	{
+		int BanSeconds = g_Config.m_SvRegisterIpBanSeconds;
+		entry.BannedUntilTick = now + BanSeconds * TickSpeed;
+		// push ip into order as last seen
+		s_IpOrder.push_back(std::string(pIp));
+		return true;
+	}
+
+	s_IpOrder.push_back(std::string(pIp));
+	return false;
+}
+
+void CAccounts::ClearIpBan(const char *pIp)
+{
+	std::lock_guard<std::mutex> l(s_IpTrackerMutex);
+	auto it = s_IpTracker.find(pIp);
+	if(it != s_IpTracker.end())
+	{
+		it->second.BannedUntilTick = 0;
+		it->second.Attempts = 0;
+		it->second.FirstAttemptTick = 0;
+	}
+}
+
+std::vector<std::pair<std::string, int>> CAccounts::ListIpBans() const
+{
+	std::lock_guard<std::mutex> l(s_IpTrackerMutex);
+	std::vector<std::pair<std::string, int>> out;
+	int64_t now = Server()->Tick();
+	for(const auto &kv : s_IpTracker)
+	{
+		if(kv.second.BannedUntilTick > now)
+		{
+			int remaining = (int)((kv.second.BannedUntilTick - now) / Server()->TickSpeed());
+			out.emplace_back(kv.first, remaining);
+		}
+	}
+	return out;
+}
+
 std::shared_ptr<CAdminCommandResult> CAccounts::NewSqlAdminCommandResult(int ClientId)
 {
 	CPlayer *pCurPlayer = GameServer()->m_apPlayers[ClientId];

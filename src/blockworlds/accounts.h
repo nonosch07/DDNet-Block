@@ -347,6 +347,12 @@ public:
 	void ShowTopLevel(int ClientId);
 	void ShowTopBlockpoints(int ClientId);
 	void ShowTopKillStreak(int ClientId);
+
+
+	bool IsIpBanned(const char *pIp, int &RemainingSeconds) const;
+	bool RegisterIpAttempt(const char *pIp);
+	void ClearIpBan(const char *pIp);
+	std::vector<std::pair<std::string, int>> ListIpBans() const;
 };
 
 #endif

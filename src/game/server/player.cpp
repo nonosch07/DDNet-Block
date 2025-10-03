@@ -12,6 +12,7 @@
 #include <engine/antibot.h>
 #include <engine/server.h>
 #include <engine/shared/config.h>
+#include <memory>
 
 #include <game/gamecore.h>
 #include <game/teamscore.h>
@@ -21,6 +22,16 @@
 #include <blockworlds/common.h>
 
 #include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/cosmetics/cosmetics.h>
+#include <blockworlds/components/events.h>
+// include specific event header to query 1on1 scores
+#include <blockworlds/components/events/1on1.h>
+
+// specials
+#include <blockworlds/cosmetics/specials/ball.h>
+#include <blockworlds/cosmetics/specials/crown.h>
+#include <blockworlds/cosmetics/specials/epiccircle.h>
+#include <blockworlds/cosmetics/specials/flag.h>
 
 MACRO_ALLOC_POOL_ID_IMPL(CPlayer, MAX_CLIENTS)
 
@@ -164,6 +175,11 @@ void CPlayer::Reset()
 	GameServer()->m_pController->m_BlockTracker.StopTrackPlayer(m_ClientId);
 	m_ExpModifiers.clear();
 	CalculateExpMultiplier();
+
+	// initialize owned specials default (VIP check will apply when player logs in)
+	for(int i = 0; i < CCosmeticsHandler::NUM_SPECIALS; ++i)
+		m_aSpecialsOwned[i] = '0';
+	m_aSpecialsOwned[CCosmeticsHandler::NUM_SPECIALS] = '\0';
 }
 
 static int PlayerFlags_SixToSeven(int Flags)
@@ -212,7 +228,9 @@ void CPlayer::Tick()
 	if(m_ChatScore > 0)
 		m_ChatScore--;
 
-	Server()->SetClientScore(m_ClientId, m_Score);
+	// Do not set client score here unconditionally: event components (e.g., 1on1, TDM)
+	// manage player visible score and call Server()->SetClientScore when necessary.
+	// Calling SetClientScore every tick here could overwrite event-updated values.
 
 	if(m_Moderating && m_Afk)
 	{
@@ -407,6 +425,27 @@ void CPlayer::Snap(int SnappingClient)
 	pClientInfo->m_ColorBody = m_TeeInfos.m_ColorBody;
 	pClientInfo->m_ColorFeet = m_TeeInfos.m_ColorFeet;
 
+
+	CCharacter *pCharForRainbow = GameServer()->GetPlayerChar(m_ClientId);
+	if(pCharForRainbow && pCharForRainbow->IsHookRainbowActive())
+	{
+		int64_t TickDef = Server()->Tick() - m_DieTick;
+		float freq = 255.0f;
+		
+		float divider = pCharForRainbow->GetHookRainbowDivider();
+		if(divider > 0.0f)
+			freq *= divider;
+
+		float h = (sinf(TickDef / freq) + 1.0f) / 2.0f;
+		float s = 0.5f;
+		float l = 0.5f;
+		int color = ((int)(h * 255) << 16) + ((int)(s * 255) << 8) + (int)((l - 0.5f) * 255 * 2);
+
+		pClientInfo->m_ColorBody = color;
+		pClientInfo->m_ColorFeet = color;
+		pClientInfo->m_UseCustomColor = 1;
+	}
+
 	if(GetSkinMani() != -1)
 		GameServer()->Cosmetics()->SnapSkinmani(m_ClientId, m_DieTick, pClientInfo);
 
@@ -423,12 +462,28 @@ void CPlayer::Snap(int SnappingClient)
 	// -9999: means no time and isn't displayed in the scoreboard.
 	if(m_Score.has_value())
 	{
-		// shift the time by a second if the player actually took 9999
-		// seconds to finish the map.
-		if(m_Score.value() == 9999)
-			Score = -10000;
-		else
-			Score = -m_Score.value();
+		bool treatedAsEventScore = false;
+		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+		{
+			if(auto active = eventsAccessor->GetActiveEvent())
+			{
+				if(auto evScore = active->GetScoreOf(GetCid()); evScore.has_value())
+				{
+					Score = evScore.value();
+					treatedAsEventScore = true;
+				}
+			}
+		}
+
+		if(!treatedAsEventScore)
+		{
+			// shift the time by a second if the player actually took 9999
+			// seconds to finish the map.
+			if(m_Score.value() == 9999)
+				Score = -10000;
+			else
+				Score = -m_Score.value();
+		}
 	}
 	else
 	{
@@ -439,15 +494,46 @@ void CPlayer::Snap(int SnappingClient)
 	if(SnappingClient != m_ClientId && g_Config.m_SvHideScore)
 		Score = -9999;
 
-	if(IsLoggedIn())
+	bool bScoreSetFromEvent = false;
+	if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
 	{
-		m_Score = Score = GetPlayerLevel();
-		Server()->SetClientScore(m_ClientId, Score);
+		if(auto active = eventsAccessor->GetActiveEvent())
+		{
+			const auto &parts = active->Participants();
+			bool isParticipant = std::find(parts.begin(), parts.end(), GetCid()) != parts.end();
+
+
+			if(auto evScore = active->GetScoreOf(GetCid()); evScore.has_value())
+			{
+
+				Score = evScore.value();
+				m_Score = evScore;
+				Server()->SetClientScore(m_ClientId, Score);
+				bScoreSetFromEvent = true;
+			}
+			else if(isParticipant)
+			{
+
+				Score = 0;
+				m_Score = 0;
+				Server()->SetClientScore(m_ClientId, Score);
+				bScoreSetFromEvent = true;
+			}
+		}
 	}
-	else
+
+	if(!bScoreSetFromEvent)
 	{
-		m_Score = Score = 0;
-		Server()->SetClientScore(m_ClientId, Score);
+		if(IsLoggedIn())
+		{
+			m_Score = Score = GetPlayerLevel();
+			Server()->SetClientScore(m_ClientId, Score);
+		}
+		else
+		{
+			m_Score = Score = 0;
+			Server()->SetClientScore(m_ClientId, Score);
+		}
 	}
 
 	if(!Server()->IsSixup(SnappingClient))
@@ -647,6 +733,22 @@ void CPlayer::OnPredictedEarlyInput(CNetObj_PlayerInput *pNewInput)
 	if((pNewInput->m_PlayerFlags & PLAYERFLAG_IN_MENU && !(m_PlayerFlags & PLAYERFLAG_IN_MENU)))
 	{
 		// resend vote options everytime somebody enters the menu, so the votes dont get out of sync when connecting a dummy
+		// However, if the player is participating in an active event, do not send vote options
+		// to avoid distracting them
+		if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
+		{
+			auto active = events->GetActiveEvent();
+			if(active)
+			{
+				const auto &parts = active->Participants();
+				if(std::find(parts.begin(), parts.end(), GetCid()) != parts.end())
+				{
+					GameServer()->ClearVotes(GetCid());
+					return;
+				}
+			}
+		}
+
 		GameServer()->ClearVotes(GetCid());
 		GameServer()->ProgressVoteOptions(GetCid());
 		GameServer()->SendCosmeticsVoteOptions(GetCid());
@@ -1265,6 +1367,16 @@ void CPlayer::OnPlayerLogin()
 	GameServer()->ClearVotes(GetCid());
 	GameServer()->ProgressVoteOptions(GetCid());
 	GameServer()->SendCosmeticsVoteOptions(GetCid());
+
+	if(GetPlayerVip())
+	{
+		for(int i = 0; i < CCosmeticsHandler::NUM_SPECIALS; ++i)
+		{
+			if(i == CCosmeticsHandler::SPECIAL_FLAG)
+				continue;
+			m_aSpecialsOwned[i] = '1';
+		}
+	}
 }
 
 void CPlayer::OnPlayerSave(bool Logout)
@@ -1335,7 +1447,130 @@ void CPlayer::OnPlayerLogout()
 	SetGunDesign(-1);
 	SetKnockout(-1);
 
+	for(int i = 0; i < CCosmeticsHandler::NUM_SPECIALS; ++i)
+		m_aSpecialsOwned[i] = '0';
+	m_aSpecialsOwned[CCosmeticsHandler::NUM_SPECIALS] = '\0';
+
 	m_Account = CAccountData();
+}
+
+const char *CPlayer::GetPlayerSpecials()
+{
+	return m_aSpecialsOwned;
+}
+
+const char *CPlayer::GetEffectiveKnockouts()
+{
+	// build a temporary buffer reflecting owned knockouts + VIP access
+	static thread_local char aBuf[256];
+	const char *p = m_Account.m_aKnockouts;
+	int len = sizeof(m_Account.m_aKnockouts);
+	for(int i = 0; i < len; ++i)
+		aBuf[i] = p[i];
+	aBuf[len - 1] = '\0';
+	// if VIP, set VIP splash
+	if(GetPlayerVip())
+	{
+		if((int)strlen(aBuf) > CCosmeticsHandler::KNOCKOUT_VIP_SPLASH)
+			aBuf[CCosmeticsHandler::KNOCKOUT_VIP_SPLASH] = '1';
+	}
+	return aBuf;
+}
+
+const char *CPlayer::GetEffectiveGundesign()
+{
+	static thread_local char aBuf[256];
+	const char *p = m_Account.m_aGundesign;
+	int len = sizeof(m_Account.m_aGundesign);
+	for(int i = 0; i < len; ++i)
+		aBuf[i] = p[i];
+	aBuf[len - 1] = '\0';
+	if(GetPlayerVip())
+	{
+		if((int)strlen(aBuf) > CCosmeticsHandler::GUNDESIGN_VIP_STARGUN)
+			aBuf[CCosmeticsHandler::GUNDESIGN_VIP_STARGUN] = '1';
+	}
+	return aBuf;
+}
+
+const char *CPlayer::GetEffectiveSkinmani()
+{
+	static thread_local char aBuf[256];
+	const char *p = m_Account.m_aSkinmani;
+	int len = sizeof(m_Account.m_aSkinmani);
+	for(int i = 0; i < len; ++i)
+		aBuf[i] = p[i];
+	aBuf[len - 1] = '\0';
+	if(GetPlayerVip())
+	{
+		if((int)strlen(aBuf) > CCosmeticsHandler::SKINMANI_VIP_RAINBOW)
+			aBuf[CCosmeticsHandler::SKINMANI_VIP_RAINBOW] = '1';
+		if((int)strlen(aBuf) > CCosmeticsHandler::SKINMANI_VIP_RAINBOW_EPI)
+			aBuf[CCosmeticsHandler::SKINMANI_VIP_RAINBOW_EPI] = '1';
+		if((int)strlen(aBuf) > CCosmeticsHandler::SKINMANI_VIP_HOOK_RAINBOW)
+			aBuf[CCosmeticsHandler::SKINMANI_VIP_HOOK_RAINBOW] = '1';
+	}
+	return aBuf;
+}
+
+bool CPlayer::ToggleSpecial(int SpecialIndex)
+{
+	if(SpecialIndex < 0 || SpecialIndex >= CCosmeticsHandler::NUM_SPECIALS)
+		return false;
+
+	if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+	{
+		if(eventsAccessor->GetActiveEvent())
+			return false;
+	}
+
+	if(m_CurrentSpecial == SpecialIndex)
+	{
+		if(m_pSpecialEntity)
+		{
+			GameServer()->m_World.RemoveEntity(m_pSpecialEntity);
+			m_pSpecialEntity = nullptr;
+		}
+		m_CurrentSpecial = -1;
+		return true;
+	}
+
+	if(m_CurrentSpecial != -1 && m_pSpecialEntity)
+	{
+		GameServer()->m_World.RemoveEntity(m_pSpecialEntity);
+		m_pSpecialEntity = nullptr;
+		m_CurrentSpecial = -1;
+	}
+
+	if(SpecialIndex == CCosmeticsHandler::SPECIAL_BALL)
+	{
+		extern class CBall *CreateBall(CGameWorld *, vec2, int);
+		// fallback: use direct constructor if available
+		m_pSpecialEntity = new CBall(&GameServer()->m_World, GetCharacter() ? GetCharacter()->m_Pos : m_ViewPos, GetCid());
+	}
+	else if(SpecialIndex == CCosmeticsHandler::SPECIAL_CROWN)
+	{
+		m_pSpecialEntity = new CCrown(&GameServer()->m_World, GetCid());
+	}
+	else if(SpecialIndex == CCosmeticsHandler::SPECIAL_EPICCIRCLE)
+	{
+		m_pSpecialEntity = new CEpicCircle(&GameServer()->m_World, GetCharacter() ? GetCharacter()->m_Pos : m_ViewPos, GetCid());
+	}
+	else if(SpecialIndex == CCosmeticsHandler::SPECIAL_FLAG)
+	{
+		// spawn flag entity attached to player and grant multiplier if VIP
+		m_pSpecialEntity = new CFlag(&GameServer()->m_World, GetCid(), 0);
+		if(IsLoggedIn() && GetPlayerVip())
+		{
+			AddExpMultiplier((float)g_Config.m_SvVipFlagExpMultiplier / 100.0f, g_Config.m_SvVipFlagExpDuration);
+			GameServer()->SendChatTarget(GetCid(), "%d%% experience bonus enabled for %d minutes!", g_Config.m_SvVipFlagExpMultiplier, g_Config.m_SvVipFlagExpDuration);
+		}
+	}
+	else
+		return false;
+
+	m_CurrentSpecial = SpecialIndex;
+	return true;
 }
 
 void CPlayer::AddPlayerExp(int Amount, bool ApplyMultiplier)

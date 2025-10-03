@@ -187,6 +187,10 @@ public:
 	void SetTeams(CGameTeams *pTeams);
 	bool TrySetRescue(int RescueMode);
 
+	void StartHookRainbow(int DurationTicks, float RateDivider, int HookerId = -1);
+	bool IsHookRainbowActive();
+	float GetHookRainbowDivider() const { return m_HookRainbowDivider; }
+
 	void FillAntibot(CAntibotCharacterData *pData);
 	void Pause(bool Pause);
 	bool Freeze(int Seconds);
@@ -212,6 +216,9 @@ public:
 	int m_StartTime;
 	vec2 m_PrevPos;
 	int m_TeleCheckpoint;
+
+	float m_HookRainbowDivider = 1.0f;
+	int m_HookedBy = -1;
 
 	int m_TimeCpBroadcastEndTick;
 	int m_LastTimeCp;

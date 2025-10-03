@@ -682,6 +682,9 @@ private:
 	static void ConRegister(IConsole::IResult *pResult, void *pUserData);
 	static void ConLogin(IConsole::IResult *pResult, void *pUserData);
 	static void ConAccountLogout(IConsole::IResult *pResult, void *pUserData);
+	static void ConIpBans(IConsole::IResult *pResult, void *pUserData);
+	static void ConIpBanClear(IConsole::IResult *pResult, void *pUserData);
+	static void ConListOutstandingInvites(IConsole::IResult *pResult, void *pUserData);
 	static void ConChangePassword(IConsole::IResult *pResult, void *pUserData);
 	static void ConExp(IConsole::IResult *pResult, void *pUserData);
 	static void ConClanExp(IConsole::IResult *pResult, void *pUserData);
@@ -701,9 +704,6 @@ private:
 	static void ConDisplayTopKillStreak(IConsole::IResult *pResult, void *pUserData);
 	static void ConDisplayTopClans(IConsole::IResult *pResult, void *pUserData);
 
-	static void ConCosmetics(IConsole::IResult *pResult, void *pUserData);
-
-	static void ConTest(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConClanCreate(IConsole::IResult *pResult, void *pUserData);
 	static void ConClanDelete(IConsole::IResult *pResult, void *pUserData);

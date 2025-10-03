@@ -7,6 +7,7 @@
 
 #include <functional>
 #include <map>
+#include <optional>
 
 class CEventComponent : public CComponent
 {
@@ -69,6 +70,8 @@ public:
 	[[nodiscard]] const char *GetStateName() const;
 	[[nodiscard]] static const char *GetStateName(EEventState State);
 	void SetStateChangeCallback(FnOnStateChange pfnCallback) { m_pfnOnStateChange = std::move(pfnCallback); }
+
+	[[nodiscard]] virtual std::optional<int> GetScoreOf(int /*ClientId*/) const { return std::nullopt; }
 
 	[[nodiscard]] const char *GetName() const override { return GetEventName(); }
 

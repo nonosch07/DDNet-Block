@@ -8,6 +8,9 @@
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
+#include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/components/events.h>
+
 #include <blockworlds/cosmetics/animations.h>
 
 #include "cosmetics.h"
@@ -61,6 +64,74 @@ const char *CCosmeticsHandler::ms_SkinmaniNames[NUM_SKINMANIS] = {
 	"Epi Rainbow (VIP)",
 	"Hook Rainbow (VIP)",
 };
+
+// specials
+static const char *g_SpecialNames[CCosmeticsHandler::NUM_SPECIALS] = {
+	"Ball",
+	"Crown",
+	"Epic Circle",
+	"Flag",
+};
+
+bool CCosmeticsHandler::ToggleSpecial(int ClientID, const char *pName)
+{
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
+		return false;
+
+	std::string sName = pName ? pName : "";
+	for(int i = 0; i < CCosmeticsHandler::NUM_SPECIALS; ++i)
+	{
+		if(str_comp_nocase(g_SpecialNames[i], sName.c_str()) == 0)
+		{
+			CPlayer *pPlayer = GameServer()->GetPlayer(ClientID);
+			if(!pPlayer)
+				return false;
+
+			if(i == CCosmeticsHandler::SPECIAL_FLAG)
+			{
+				if(GameServer()->m_apPlayers[ClientID] && GameServer()->m_apPlayers[ClientID]->IsLoggedIn() && GameServer()->m_apPlayers[ClientID]->GetPlayerVip())
+				{
+						if(pPlayer->ToggleSpecial(CCosmeticsHandler::SPECIAL_FLAG))
+							return true;
+						return false;
+				}
+				return false;
+			}
+
+			if(pPlayer->ToggleSpecial(i))
+				return true;
+			return false;
+		}
+	}
+
+	return false;
+}
+
+bool CCosmeticsHandler::HasSpecial(int ClientID, int Index)
+{
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
+		return false;
+	if(Index < 0 || Index >= NUM_SPECIALS)
+		return false;
+
+	if(Server()->ClientAuthed(ClientID))
+		return true;
+	if(!GameServer()->m_apPlayers[ClientID]->IsLoggedIn())
+		return false;
+
+	// VIP-only: some specials are VIP-gated
+	if(Index == SPECIAL_BALL || Index == SPECIAL_CROWN || Index == SPECIAL_EPICCIRCLE)
+	{
+		return GameServer()->m_apPlayers[ClientID]->GetPlayerVip() || GameServer()->Server()->ClientAuthed(ClientID);
+	}
+
+	return false;
+}
+
+const char *CCosmeticsHandler::GetPlayerSpecials()
+{
+	return ""; // placeholder not used
+}
 
 inline int HslToCc(vec3 HSL)
 {
@@ -416,11 +487,39 @@ bool CCosmeticsHandler::ToggleSkinmani(int ClientID, const char *pName)
 		pPlayer->ToggleSkinMani(Effect);
 		return true;
 	}
-
 	if(HasSkinmani(ClientID, Effect) == false)
 		return false;
 
-	pPlayer->ToggleSkinMani(Effect);
+	if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+	{
+		if(eventsAccessor->GetActiveEvent())
+		{
+			int Prev = pPlayer->GetSkinMani();
+			// if the player is trying to enable a skinmani (different from current)
+			// and there's an active event, reject it
+			if(Prev != Effect && Effect != -1)
+				return false;
+		}
+	}
+
+	int Prev = pPlayer->GetSkinMani();
+	int New = pPlayer->ToggleSkinMani(Effect);
+
+	// If the player just disabled the Hook Rainbow skin mani, clear any
+	// characters that recorded this player as their hooker for rainbow so the
+	// effect is removed immediately.
+	if(Prev == SKINMANI_VIP_HOOK_RAINBOW && New != SKINMANI_VIP_HOOK_RAINBOW)
+	{
+		for(int i = 0; i < MAX_CLIENTS; ++i)
+		{
+			CCharacter *pChr = m_pGameServer->GetPlayerChar(i);
+			if(pChr && pChr->m_HookedBy == ClientID)
+			{
+				pChr->m_HookedBy = -1;
+				pChr->m_HookRainbowDivider = 1.0f;
+			}
+		}
+	}
 
 	return true;
 }
@@ -525,7 +624,12 @@ void CCosmeticsHandler::SnapSkinmaniRaw(int64_t Tick, CNetObj_ClientInfo *pClien
 	}
 	else if(Effect == SKINMANI_VIP_RAINBOW)
 	{
-		HSLBody.h = (sinf(TickDef / 255.0f) + 1.0f) / 2.0f;
+ 		float freq = 255.0f;
+ 		// if hooked with rainbow, speed up according to character state
+ 		if(ClientID >= 0 && ClientID < MAX_CLIENTS && GameServer()->GetPlayerChar(ClientID) && GameServer()->GetPlayerChar(ClientID)->IsHookRainbowActive())
+ 			freq *= GameServer()->GetPlayerChar(ClientID)->GetHookRainbowDivider();
+
+ 		HSLBody.h = (sinf(TickDef / freq) + 1.0f) / 2.0f;
 		HSLBody.s = 0.5f;
 		HSLBody.l = 0.5f;
 		pClientInfo->m_ColorBody = HslToCc(HSLBody);
@@ -534,7 +638,11 @@ void CCosmeticsHandler::SnapSkinmaniRaw(int64_t Tick, CNetObj_ClientInfo *pClien
 	}
 	else if(Effect == SKINMANI_VIP_RAINBOW_EPI)
 	{
-		HSLBody.h = (sinf(TickDef / 2.0f) + 1.0f) / 2.0f;
+ 		float freq = 2.0f;
+ 		if(ClientID >= 0 && ClientID < MAX_CLIENTS && GameServer()->GetPlayerChar(ClientID) && GameServer()->GetPlayerChar(ClientID)->IsHookRainbowActive())
+ 			freq *= GameServer()->GetPlayerChar(ClientID)->GetHookRainbowDivider();
+
+ 		HSLBody.h = (sinf(TickDef / freq) + 1.0f) / 2.0f;
 		HSLBody.s = 1.0f;
 		HSLBody.l = 0.5f;
 		pClientInfo->m_ColorBody = HslToCc(HSLBody);
@@ -543,31 +651,8 @@ void CCosmeticsHandler::SnapSkinmaniRaw(int64_t Tick, CNetObj_ClientInfo *pClien
 	}
 	else if(Effect == SKINMANI_VIP_HOOK_RAINBOW)
 	{
-		if(ClientID >= 0 && ClientID < MAX_CLIENTS)
-		{
-			/*
-			if(GameServer()->m_apPlayers[ClientID] && !GameServer()->m_apPlayers[ClientID]->m_extra_features.RainbowHook)
-				    {
-					    GameServer()->m_apPlayers[ClientID]->m_extra_features.RainbowHook = true;
-					    GameServer()->m_apPlayers[ClientID]->m_RainbowHookActivated = true;
-				    }
-			*/
-		}
+
 	}
-
-	/*
-	    if(Effect != SKINMANI_VIP_HOOK_RAINBOW)
-	    {
-		    if(GameServer()->m_apPlayers[ClientID] && GameServer()->m_apPlayers[ClientID]->m_RainbowHookActivated)
-		    {
-			    GameServer()->m_apPlayers[ClientID]->m_RainbowHookActivated = false;
-			    GameServer()->m_apPlayers[ClientID]->m_extra_features.RainbowHook = false;
-
-			    if(GameServer()->m_apPlayers[ClientID]->GetCharacter())
-				    GameServer()->m_apPlayers[ClientID]->GetCharacter()->HandleRainbowHook(true);
-		    }
-	    }
-	*/
 }
 
 // TODO: don't hardcode the PreviewPos

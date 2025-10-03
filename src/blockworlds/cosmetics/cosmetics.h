@@ -65,6 +65,16 @@ public:
 	static const char *ms_GundesignNames[NUM_GUNDESIGNS];
 	static const char *ms_SkinmaniNames[NUM_SKINMANIS];
 
+	// special items
+	enum
+	{
+		SPECIAL_BALL = 0,
+		SPECIAL_CROWN,
+		SPECIAL_EPICCIRCLE,
+		SPECIAL_FLAG,
+		NUM_SPECIALS,
+	};
+
 	void Init(CGameContext *pGameServer);
 
 	int FindKnockoutEffect(const char *pName);
@@ -91,6 +101,11 @@ public:
 	bool ShopInfoSkinmani(int Index, int &Price, int &Level, vec2 &PreviewPos);
 	bool ShopInfoKnockout(int Index, int &Price, int &Level, vec2 &PreviewPos);
 	bool ShopInfoGundesign(int Index, int &Price, int &Level, vec2 &PreviewPos);
+
+	// specials
+	bool ToggleSpecial(int ClientID, const char *pName);
+	bool HasSpecial(int ClientID, int Index);
+	const char *GetPlayerSpecials();
 };
 
 #endif // BLOCKWORLDS_COSMETICS_COSMETICS_H

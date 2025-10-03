@@ -7,6 +7,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include <sstream>
+
 namespace {
 static std::string ToLowerAscii(const std::string &s)
 {
@@ -54,6 +56,70 @@ static std::string NormalizeForCompare(const std::string &s)
 		out.pop_back();
 	return ToLowerAscii(out);
 }
+
+void SetVoteDescriptionAtIndex(int *pIndex, const char *pStr, CNetMsg_Sv_VoteOptionListAdd *pOptionMsg)
+{
+	CosmeticsVoteManager::SetVoteDescriptionAtIndex(pIndex, pStr, pOptionMsg);
+}
+
+static inline std::string TrimAscii(std::string s)
+{
+	while(!s.empty() && std::isspace(static_cast<unsigned char>(s.front())))
+		s.erase(s.begin());
+	while(!s.empty() && std::isspace(static_cast<unsigned char>(s.back())))
+		s.pop_back();
+	return s;
+}
+
+static inline size_t FindFirstAsciiAlnum(const std::string &s)
+{
+	for(size_t i = 0; i < s.size(); ++i)
+	{
+		unsigned char c = static_cast<unsigned char>(s[i]);
+		if(c < 0x80 && std::isalnum(c))
+			return i;
+	}
+	// fallback: first printable ascii (not control)
+	for(size_t i = 0; i < s.size(); ++i)
+	{
+		unsigned char c = static_cast<unsigned char>(s[i]);
+		if(c >= 32 && c < 127)
+			return i;
+	}
+	return std::string::npos;
+}
+
+static inline std::string StripLeadingIcons(const std::string &s)
+{
+	auto pos = FindFirstAsciiAlnum(s);
+	if(pos == std::string::npos)
+		return TrimAscii(s);
+	return TrimAscii(s.substr(pos));
+}
+
+// remove trailing/leading parentheses content plus surrounding whitespace
+static inline std::string RemoveParentheticalTags(const std::string &s)
+{
+	std::string out;
+	out.reserve(s.size());
+	bool in_paren = false;
+	for(char ch : s)
+	{
+		if(ch == '(')
+		{
+			in_paren = true;
+			continue;
+		}
+		if(ch == ')')
+		{
+			in_paren = false;
+			continue;
+		}
+		if(!in_paren)
+			out.push_back(ch);
+	}
+	return TrimAscii(out);
+}
 } // namespace
 
 void CosmeticsVoteManager::SetVoteDescriptionAtIndex(int *pIndex, const char *pStr, CNetMsg_Sv_VoteOptionListAdd *pOptionMsg)
@@ -85,9 +151,12 @@ void CosmeticsVoteManager::EnsureCategoriesInitialized()
 	if(!m_CategoriesInitialized)
 	{
 		ClearOptions();
-		AddCategory({"Skin Manipulations", CCosmeticsHandler::NUM_SKINMANIS, CCosmeticsHandler::ms_SkinmaniNames, &CPlayer::GetPlayerSkinmani, &CPlayer::GetSkinMani});
-		AddCategory({"Gun Designs", CCosmeticsHandler::NUM_GUNDESIGNS, CCosmeticsHandler::ms_GundesignNames, &CPlayer::GetPlayerGundesign, &CPlayer::GetGunDesign});
-		AddCategory({"Knockout Effects", CCosmeticsHandler::NUM_KNOCKOUTS, CCosmeticsHandler::ms_KnockoutNames, &CPlayer::GetPlayerKnockouts, &CPlayer::GetKnockout});
+	AddCategory({"Skin Manipulations", CCosmeticsHandler::NUM_SKINMANIS, CCosmeticsHandler::ms_SkinmaniNames, &CPlayer::GetEffectiveSkinmani, &CPlayer::GetSkinMani});
+	AddCategory({"Gun Designs", CCosmeticsHandler::NUM_GUNDESIGNS, CCosmeticsHandler::ms_GundesignNames, &CPlayer::GetEffectiveGundesign, &CPlayer::GetGunDesign});
+	AddCategory({"Knockout Effects", CCosmeticsHandler::NUM_KNOCKOUTS, CCosmeticsHandler::ms_KnockoutNames, &CPlayer::GetEffectiveKnockouts, &CPlayer::GetKnockout});
+
+	static const char *s_VipSpecialNames[] = {"Ball", "Crown", "Epic Circle"};
+	AddCategory({"VIP Features", 3, s_VipSpecialNames, &CPlayer::GetPlayerSpecials, &CPlayer::GetCurrentSpecial});
 		m_CategoriesInitialized = true;
 	}
 }
@@ -123,36 +192,110 @@ void CosmeticsVoteManager::SendOptions(CPlayer *pPlayer, int ClientID, IServer *
 {
 	EnsureCategoriesInitialized();
 	m_Options.clear();
+	m_OptionMappings.clear();
+	m_NormalizedOptionMap.clear();
+	m_ExactOptionMap.clear();
+	m_OptionNormalized.clear();
 	char aHeader[128];
 
 	if(pGameContext && pGameContext->m_pVoteOptionFirst)
 		m_Options.push_back(std::string(" "));
 
 	std::unordered_set<std::string> seenNormalized;
-	for(const auto &cat : m_Categories)
+	for(size_t cidx = 0; cidx < m_Categories.size(); ++cidx)
 	{
 		std::vector<std::string> lines;
+		const auto &cat = m_Categories[cidx];
 		int active = pPlayer ? (pPlayer->*(cat.GetActive))() : -1;
 		const char *owned = pPlayer ? (pPlayer->*(cat.GetOwned))() : nullptr;
 		for(int i = 0; i < cat.NumItems; i++)
 		{
+			bool isOwned = false;
 			if(owned && owned[i] == '1')
+				isOwned = true;
+
+			if(!isOwned && pGameContext && pPlayer)
+			{
+				std::string header = cat.Header ? std::string(cat.Header) : std::string("");
+				if(header == "Skin Manipulations")
+				{
+					if(pGameContext->Cosmetics()->HasSkinmani(pPlayer->GetCid(), i))
+						isOwned = true;
+				}
+				else if(header == "Gun Designs")
+				{
+					if(pGameContext->Cosmetics()->HasGundesign(pPlayer->GetCid(), i))
+						isOwned = true;
+				}
+				else if(header == "Knockout Effects")
+				{
+					if(pGameContext->Cosmetics()->HasKnockoutEffect(pPlayer->GetCid(), i))
+						isOwned = true;
+				}
+			}
+
+			if(isOwned)
 			{
 				std::string norm = NormalizeForCompare(cat.Names[i]);
 				if(norm.empty() || seenNormalized.find(norm) != seenNormalized.end())
 					continue;
 				seenNormalized.insert(norm);
-				std::string line = (active == i ? "\u2612 " : "\u2610 ");
-				line += cat.Names[i];
-				lines.push_back(line);
+					std::string line = (active == i ? "\u2612 " : "\u2610 ");
+					line += cat.Names[i];
+					lines.push_back(line);
 			}
 		}
 		if(!lines.empty())
 		{
 			CreateStripline(aHeader, sizeof(aHeader), cat.Header);
-			m_Options.push_back(std::string(aHeader));
+				m_Options.push_back(std::string(aHeader));
+				m_OptionMappings.emplace_back(-1, -1);
+				m_OptionNormalized.emplace_back(std::string());
 			for(const auto &s : lines)
+			{
 				m_Options.push_back(s);
+				
+				std::string display = s;
+				std::string stripped = StripLeadingIcons(display);
+				std::string nameOnly = RemoveParentheticalTags(stripped);
+
+				int foundIdx = -1;
+
+				std::string normDisplay = NormalizeForCompare(display);
+				std::string normStripped = NormalizeForCompare(stripped);
+				std::string normNameOnly = NormalizeForCompare(nameOnly);
+				for(int ii = 0; ii < cat.NumItems; ++ii)
+				{
+					if(!cat.Names[ii])
+						continue;
+					std::string normCat = NormalizeForCompare(cat.Names[ii]);
+					if(!normCat.empty() && (normDisplay == normCat || normStripped == normCat || normNameOnly == normCat))
+					{
+						foundIdx = ii;
+						break;
+					}
+				}
+				m_OptionMappings.emplace_back((int)cidx, foundIdx);
+
+				m_ExactOptionMap.emplace(s, std::make_pair((int)cidx, foundIdx));
+				if(!stripped.empty())
+					m_ExactOptionMap.emplace(stripped, std::make_pair((int)cidx, foundIdx));
+				if(!nameOnly.empty() && nameOnly != stripped)
+					m_ExactOptionMap.emplace(nameOnly, std::make_pair((int)cidx, foundIdx));
+
+				std::string normalizedDisplay = NormalizeForCompare(s);
+				std::string normalizedStripped = NormalizeForCompare(stripped);
+				std::string normalizedNameOnly = NormalizeForCompare(nameOnly);
+
+				if(!normalizedDisplay.empty())
+					m_NormalizedOptionMap.emplace(normalizedDisplay, std::make_pair((int)cidx, foundIdx));
+				if(!normalizedStripped.empty() && normalizedStripped != normalizedDisplay)
+					m_NormalizedOptionMap.emplace(normalizedStripped, std::make_pair((int)cidx, foundIdx));
+				if(!normalizedNameOnly.empty() && normalizedNameOnly != normalizedStripped)
+					m_NormalizedOptionMap.emplace(normalizedNameOnly, std::make_pair((int)cidx, foundIdx));
+
+				m_OptionNormalized.emplace_back(normalizedDisplay.empty() ? normalizedStripped : normalizedDisplay);
+			}
 		}
 	}
 
@@ -218,34 +361,86 @@ bool CosmeticsVoteManager::HandleVote(CPlayer *pPlayer, const std::string &voteI
 		}
 	}
 
-	for(const auto &cat : m_Categories)
-	{
-		for(int i = 0; i < cat.NumItems; ++i)
+	auto try_apply_mapping = [&](const std::pair<int,int> &mapping) -> bool {
+		if(mapping.first >= 0 && mapping.second >= 0)
 		{
-			std::string Name = cat.Names[i];
-			std::string normalizedName = NormalizeForCompare(Name);
-			if(normalizedName.empty())
-				continue;
-			if(normalizedVote.find(normalizedName) != std::string::npos)
+			const auto &resolvedCat = m_Categories[mapping.first];
+			const std::string Name = resolvedCat.Names[mapping.second];
+			bool toggled = false;
+			std::string headerStr = std::string(resolvedCat.Header ? resolvedCat.Header : "");
+			if(headerStr == "Skin Manipulations")
+				toggled = pGameContext->Cosmetics()->ToggleSkinmani(ClientId, Name.c_str());
+			else if(headerStr == "Gun Designs")
+				toggled = pGameContext->Cosmetics()->ToggleGundesign(ClientId, Name.c_str());
+			else if(headerStr == "Knockout Effects")
+				toggled = pGameContext->Cosmetics()->ToggleKnockout(ClientId, Name.c_str());
+			else if(headerStr == "VIP Features")
+				toggled = pGameContext->Cosmetics()->ToggleSpecial(ClientId, Name.c_str());
+			else
+				toggled = pGameContext->Cosmetics()->ToggleGundesign(ClientId, Name.c_str()) || pGameContext->Cosmetics()->ToggleKnockout(ClientId, Name.c_str()) || pGameContext->Cosmetics()->ToggleSkinmani(ClientId, Name.c_str());
+
+			if(toggled)
 			{
-				bool toggled = false;
-				std::string headerStr = std::string(cat.Header ? cat.Header : "");
-				if(headerStr == "Skin Manipulations")
-					toggled = pGameContext->Cosmetics()->ToggleSkinmani(ClientId, Name.c_str());
-				else if(headerStr == "Gun Designs")
-					toggled = pGameContext->Cosmetics()->ToggleGundesign(ClientId, Name.c_str());
-				else if(headerStr == "Knockout Effects")
-					toggled = pGameContext->Cosmetics()->ToggleKnockout(ClientId, Name.c_str());
-				else
-					toggled = pGameContext->Cosmetics()->ToggleGundesign(ClientId, Name.c_str()) || pGameContext->Cosmetics()->ToggleKnockout(ClientId, Name.c_str()) || pGameContext->Cosmetics()->ToggleSkinmani(ClientId, Name.c_str());
-				if(toggled)
-				{
-					pGameContext->ClearVotes(ClientId);
-					return true;
-				}
-				pGameContext->SendChatTarget(ClientId, "Unknown cosmetics option selected.");
-				return false;
+				pGameContext->ClearVotes(ClientId);
+				return true;
 			}
+			pGameContext->SendChatTarget(ClientId, "Unknown cosmetics option selected.");
+		}
+		return false;
+	};
+
+	std::string normalizedInput = NormalizeForCompare(voteInput);
+
+	std::vector<std::string> variants;
+	variants.push_back(voteInput);
+	variants.push_back(StripLeadingIcons(voteInput));
+	variants.push_back(RemoveParentheticalTags(StripLeadingIcons(voteInput)));
+
+	for(const auto &v : variants)
+	{
+		if(v.empty())
+			continue;
+		auto it = m_ExactOptionMap.find(v);
+		if(it != m_ExactOptionMap.end())
+		{
+			if(try_apply_mapping(it->second))
+				return true;
+		}
+	}
+
+	if(!normalizedInput.empty())
+	{
+		int bestOpt = -1;
+		size_t bestLen = 0;
+		for(size_t oi = 0; oi < m_OptionNormalized.size(); ++oi)
+		{
+			const std::string &norm = m_OptionNormalized[oi];
+			if(norm.empty())
+				continue;
+			if(norm == normalizedInput || norm.find(normalizedInput) != std::string::npos || normalizedInput.find(norm) != std::string::npos)
+			{
+				if(norm.size() > bestLen)
+				{
+					bestLen = norm.size();
+					bestOpt = (int)oi;
+				}
+			}
+		}
+		if(bestOpt != -1 && bestOpt < (int)m_OptionMappings.size())
+		{
+			auto mapping = m_OptionMappings[bestOpt];
+			if(try_apply_mapping(mapping))
+				return true;
+		}
+	}
+
+	if(!normalizedInput.empty())
+	{
+		auto it = m_NormalizedOptionMap.find(normalizedInput);
+		if(it != m_NormalizedOptionMap.end())
+		{
+			if(try_apply_mapping(it->second))
+				return true;
 		}
 	}
 

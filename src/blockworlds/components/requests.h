@@ -46,6 +46,8 @@ public:
 	std::vector<int> GetRequestIdsTo(int ToClient, int TypeFilter = -1) const;
 	std::vector<int> GetRequestIdsFromTo(int FromClient, int ToClient, int TypeFilter = -1) const;
 
+	bool GetRequestInfo(int RequestId, SRequest &pOut) const;
+
 	void OnTick() override;
 
 private:
