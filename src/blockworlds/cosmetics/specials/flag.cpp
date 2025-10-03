@@ -6,8 +6,8 @@
 #include <game/server/entity.h>
 #include <game/server/gamecontext.h>
 #include <game/server/gameworld.h>
-#include <game/server/teams.h>
 #include <game/server/player.h>
+#include <game/server/teams.h>
 
 CFlag::CFlag(CGameWorld *pGameWorld, int Owner, int Team) :
 	CEntity(pGameWorld, CGameWorld::ENTTYPE_FLAG)

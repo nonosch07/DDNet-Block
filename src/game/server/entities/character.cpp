@@ -807,7 +807,6 @@ void CCharacter::ReleaseHook()
 	m_Core.m_HookState = HOOK_RETRACTED;
 	m_Core.m_TriggeredEvents |= COREEVENT_HOOK_RETRACT;
 
-
 	m_HookRainbowDivider = 1.0f;
 	m_HookedBy = -1;
 
@@ -822,7 +821,6 @@ void CCharacter::ReleaseHook()
 		}
 	}
 }
-
 
 void CCharacter::ResetHook()
 {

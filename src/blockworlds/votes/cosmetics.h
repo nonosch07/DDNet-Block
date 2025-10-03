@@ -4,8 +4,8 @@
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 #include <string>
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
 void SetVoteDescriptionAtIndex(int *pIndex, const char *pStr, CNetMsg_Sv_VoteOptionListAdd *pOptionMsg);
 
@@ -37,11 +37,11 @@ private:
 	bool m_CategoriesInitialized = false;
 	// parallel mapping from m_Options entries to (categoryIndex, itemIndex)
 	// header/strip entries are stored as (-1,-1)
-	std::vector<std::pair<int,int>> m_OptionMappings;
+	std::vector<std::pair<int, int>> m_OptionMappings;
 	// exact displayed option -> (categoryIndex, itemIndex)
-	std::unordered_map<std::string, std::pair<int,int>> m_ExactOptionMap;
+	std::unordered_map<std::string, std::pair<int, int>> m_ExactOptionMap;
 	// normalized displayed option -> (categoryIndex, itemIndex)
-	std::unordered_map<std::string, std::pair<int,int>> m_NormalizedOptionMap;
+	std::unordered_map<std::string, std::pair<int, int>> m_NormalizedOptionMap;
 	// normalized form of each entry in m_Options (parallel vector)
 	std::vector<std::string> m_OptionNormalized;
 };

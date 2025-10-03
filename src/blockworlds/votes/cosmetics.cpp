@@ -151,12 +151,12 @@ void CosmeticsVoteManager::EnsureCategoriesInitialized()
 	if(!m_CategoriesInitialized)
 	{
 		ClearOptions();
-	AddCategory({"Skin Manipulations", CCosmeticsHandler::NUM_SKINMANIS, CCosmeticsHandler::ms_SkinmaniNames, &CPlayer::GetEffectiveSkinmani, &CPlayer::GetSkinMani});
-	AddCategory({"Gun Designs", CCosmeticsHandler::NUM_GUNDESIGNS, CCosmeticsHandler::ms_GundesignNames, &CPlayer::GetEffectiveGundesign, &CPlayer::GetGunDesign});
-	AddCategory({"Knockout Effects", CCosmeticsHandler::NUM_KNOCKOUTS, CCosmeticsHandler::ms_KnockoutNames, &CPlayer::GetEffectiveKnockouts, &CPlayer::GetKnockout});
+		AddCategory({"Skin Manipulations", CCosmeticsHandler::NUM_SKINMANIS, CCosmeticsHandler::ms_SkinmaniNames, &CPlayer::GetEffectiveSkinmani, &CPlayer::GetSkinMani});
+		AddCategory({"Gun Designs", CCosmeticsHandler::NUM_GUNDESIGNS, CCosmeticsHandler::ms_GundesignNames, &CPlayer::GetEffectiveGundesign, &CPlayer::GetGunDesign});
+		AddCategory({"Knockout Effects", CCosmeticsHandler::NUM_KNOCKOUTS, CCosmeticsHandler::ms_KnockoutNames, &CPlayer::GetEffectiveKnockouts, &CPlayer::GetKnockout});
 
-	static const char *s_VipSpecialNames[] = {"Ball", "Crown", "Epic Circle"};
-	AddCategory({"VIP Features", 3, s_VipSpecialNames, &CPlayer::GetPlayerSpecials, &CPlayer::GetCurrentSpecial});
+		static const char *s_VipSpecialNames[] = {"Ball", "Crown", "Epic Circle"};
+		AddCategory({"VIP Features", 3, s_VipSpecialNames, &CPlayer::GetPlayerSpecials, &CPlayer::GetCurrentSpecial});
 		m_CategoriesInitialized = true;
 	}
 }
@@ -240,21 +240,21 @@ void CosmeticsVoteManager::SendOptions(CPlayer *pPlayer, int ClientID, IServer *
 				if(norm.empty() || seenNormalized.find(norm) != seenNormalized.end())
 					continue;
 				seenNormalized.insert(norm);
-					std::string line = (active == i ? "\u2612 " : "\u2610 ");
-					line += cat.Names[i];
-					lines.push_back(line);
+				std::string line = (active == i ? "\u2612 " : "\u2610 ");
+				line += cat.Names[i];
+				lines.push_back(line);
 			}
 		}
 		if(!lines.empty())
 		{
 			CreateStripline(aHeader, sizeof(aHeader), cat.Header);
-				m_Options.push_back(std::string(aHeader));
-				m_OptionMappings.emplace_back(-1, -1);
-				m_OptionNormalized.emplace_back(std::string());
+			m_Options.push_back(std::string(aHeader));
+			m_OptionMappings.emplace_back(-1, -1);
+			m_OptionNormalized.emplace_back(std::string());
 			for(const auto &s : lines)
 			{
 				m_Options.push_back(s);
-				
+
 				std::string display = s;
 				std::string stripped = StripLeadingIcons(display);
 				std::string nameOnly = RemoveParentheticalTags(stripped);
@@ -361,7 +361,7 @@ bool CosmeticsVoteManager::HandleVote(CPlayer *pPlayer, const std::string &voteI
 		}
 	}
 
-	auto try_apply_mapping = [&](const std::pair<int,int> &mapping) -> bool {
+	auto try_apply_mapping = [&](const std::pair<int, int> &mapping) -> bool {
 		if(mapping.first >= 0 && mapping.second >= 0)
 		{
 			const auto &resolvedCat = m_Categories[mapping.first];

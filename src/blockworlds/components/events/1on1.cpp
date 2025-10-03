@@ -164,8 +164,8 @@ void COneOnOneEvent::OnTick()
 							 "                                                                                     "
 							 "                                                                                     ";
 
-	GameServer()->SendBroadcast(m_Player1ID, "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);
-	GameServer()->SendBroadcast(m_Player2ID, "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);
+		GameServer()->SendBroadcast(m_Player1ID, "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);
+		GameServer()->SendBroadcast(m_Player2ID, "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);
 	}
 }
 
@@ -280,8 +280,6 @@ void COneOnOneEvent::FinishEvent()
 	// restore positions
 	LoadPosition(m_Player1ID);
 	LoadPosition(m_Player2ID);
-
-
 
 	SetState(EEventState::Finished);
 }

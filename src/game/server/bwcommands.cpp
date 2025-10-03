@@ -17,8 +17,8 @@
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
 
-#include <blockworlds/zones/zone.h>
 #include <algorithm>
+#include <blockworlds/zones/zone.h>
 #include <string>
 #include <unordered_map>
 
@@ -879,17 +879,17 @@ void CGameContext::ConDeathnote(IConsole::IResult *pResult, void *pUserData)
 		return pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
 	}
 
-		// block if the target is currently inside a passive or no-collision zone
-		CCharacter *pTChar = pTarget->GetCharacter();
-		if(pTChar)
-		{
-			if(pPassiveZone && pPassiveZone->IsInZone(pTChar->m_Pos))
-				return pSelf->SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a player inside a passive zone.");
-			if(pNoCollZone && pNoCollZone->IsInZone(pTChar->m_Pos))
-				return pSelf->SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a player inside a no-collision zone.");
-		}
+	// block if the target is currently inside a passive or no-collision zone
+	CCharacter *pTChar = pTarget->GetCharacter();
+	if(pTChar)
+	{
+		if(pPassiveZone && pPassiveZone->IsInZone(pTChar->m_Pos))
+			return pSelf->SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a player inside a passive zone.");
+		if(pNoCollZone && pNoCollZone->IsInZone(pTChar->m_Pos))
+			return pSelf->SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a player inside a no-collision zone.");
+	}
 
-		// consume a page and apply kill
+	// consume a page and apply kill
 	pPlayer->SetPlayerPages(pPlayer->GetPlayerPages() - 1);
 	pTarget->KillCharacter();
 
@@ -1546,14 +1546,14 @@ void CGameContext::Con1on1(IConsole::IResult *pResult, void *pUserData)
 	// create invite via requests component
 	if(auto requests = g_ComponentRegistry.Get<CRequests>())
 	{
-	{
-		int id = requests->Create1on1Invite(pPlayer->GetCid(), pTarget->GetCid(), Wager, 30);
-		if(id == -1)
-			return; // Create1on1Invite already informed the sender about the duplicate
-		pPlayer->sent1on1InviteTo = pTarget->GetCid();
-		str_format(aBuf, sizeof(aBuf), "Match request has been sent to '%s' (%d BP).", pSelf->Server()->ClientName(pTarget->GetCid()), Wager);
-		pSelf->SendChatTarget(pPlayer->GetCid(), aBuf);
-	}
+		{
+			int id = requests->Create1on1Invite(pPlayer->GetCid(), pTarget->GetCid(), Wager, 30);
+			if(id == -1)
+				return; // Create1on1Invite already informed the sender about the duplicate
+			pPlayer->sent1on1InviteTo = pTarget->GetCid();
+			str_format(aBuf, sizeof(aBuf), "Match request has been sent to '%s' (%d BP).", pSelf->Server()->ClientName(pTarget->GetCid()), Wager);
+			pSelf->SendChatTarget(pPlayer->GetCid(), aBuf);
+		}
 		return;
 	}
 	pSelf->SendChatTarget(pResult->m_ClientId, "Request subsystem is not available.");

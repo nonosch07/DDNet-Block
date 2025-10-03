@@ -2,9 +2,9 @@
 #include <algorithm>
 #include <base/system.h>
 #include <blockworlds/components/core/component_registry.h>
-#include <engine/shared/config.h>
 #include <blockworlds/components/events.h>
 #include <blockworlds/components/events/1on1.h>
+#include <engine/shared/config.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
@@ -18,11 +18,11 @@ int CRequests::NextId()
 
 static const char *SafeClientName(CGameContext *pGameServer, int ClientId)
 {
-    if(!CheckClientId(ClientId))
-        return "<invalid>";
-    if(pGameServer->m_apPlayers[ClientId])
-        return pGameServer->Server()->ClientName(ClientId);
-    return "<disconnected>";
+	if(!CheckClientId(ClientId))
+		return "<invalid>";
+	if(pGameServer->m_apPlayers[ClientId])
+		return pGameServer->Server()->ClientName(ClientId);
+	return "<disconnected>";
 }
 
 int CRequests::Create1on1Invite(int FromClient, int ToClient, int Wager, int ExpireSeconds)

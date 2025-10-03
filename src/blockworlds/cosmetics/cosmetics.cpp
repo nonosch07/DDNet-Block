@@ -91,9 +91,9 @@ bool CCosmeticsHandler::ToggleSpecial(int ClientID, const char *pName)
 			{
 				if(GameServer()->m_apPlayers[ClientID] && GameServer()->m_apPlayers[ClientID]->IsLoggedIn() && GameServer()->m_apPlayers[ClientID]->GetPlayerVip())
 				{
-						if(pPlayer->ToggleSpecial(CCosmeticsHandler::SPECIAL_FLAG))
-							return true;
-						return false;
+					if(pPlayer->ToggleSpecial(CCosmeticsHandler::SPECIAL_FLAG))
+						return true;
+					return false;
 				}
 				return false;
 			}
@@ -624,12 +624,12 @@ void CCosmeticsHandler::SnapSkinmaniRaw(int64_t Tick, CNetObj_ClientInfo *pClien
 	}
 	else if(Effect == SKINMANI_VIP_RAINBOW)
 	{
- 		float freq = 255.0f;
- 		// if hooked with rainbow, speed up according to character state
- 		if(ClientID >= 0 && ClientID < MAX_CLIENTS && GameServer()->GetPlayerChar(ClientID) && GameServer()->GetPlayerChar(ClientID)->IsHookRainbowActive())
- 			freq *= GameServer()->GetPlayerChar(ClientID)->GetHookRainbowDivider();
+		float freq = 255.0f;
+		// if hooked with rainbow, speed up according to character state
+		if(ClientID >= 0 && ClientID < MAX_CLIENTS && GameServer()->GetPlayerChar(ClientID) && GameServer()->GetPlayerChar(ClientID)->IsHookRainbowActive())
+			freq *= GameServer()->GetPlayerChar(ClientID)->GetHookRainbowDivider();
 
- 		HSLBody.h = (sinf(TickDef / freq) + 1.0f) / 2.0f;
+		HSLBody.h = (sinf(TickDef / freq) + 1.0f) / 2.0f;
 		HSLBody.s = 0.5f;
 		HSLBody.l = 0.5f;
 		pClientInfo->m_ColorBody = HslToCc(HSLBody);
@@ -638,11 +638,11 @@ void CCosmeticsHandler::SnapSkinmaniRaw(int64_t Tick, CNetObj_ClientInfo *pClien
 	}
 	else if(Effect == SKINMANI_VIP_RAINBOW_EPI)
 	{
- 		float freq = 2.0f;
- 		if(ClientID >= 0 && ClientID < MAX_CLIENTS && GameServer()->GetPlayerChar(ClientID) && GameServer()->GetPlayerChar(ClientID)->IsHookRainbowActive())
- 			freq *= GameServer()->GetPlayerChar(ClientID)->GetHookRainbowDivider();
+		float freq = 2.0f;
+		if(ClientID >= 0 && ClientID < MAX_CLIENTS && GameServer()->GetPlayerChar(ClientID) && GameServer()->GetPlayerChar(ClientID)->IsHookRainbowActive())
+			freq *= GameServer()->GetPlayerChar(ClientID)->GetHookRainbowDivider();
 
- 		HSLBody.h = (sinf(TickDef / freq) + 1.0f) / 2.0f;
+		HSLBody.h = (sinf(TickDef / freq) + 1.0f) / 2.0f;
 		HSLBody.s = 1.0f;
 		HSLBody.l = 0.5f;
 		pClientInfo->m_ColorBody = HslToCc(HSLBody);
@@ -651,7 +651,6 @@ void CCosmeticsHandler::SnapSkinmaniRaw(int64_t Tick, CNetObj_ClientInfo *pClien
 	}
 	else if(Effect == SKINMANI_VIP_HOOK_RAINBOW)
 	{
-
 	}
 }
 

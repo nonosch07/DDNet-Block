@@ -22,8 +22,8 @@
 #include <blockworlds/common.h>
 
 #include <blockworlds/components/core/component_registry.h>
-#include <blockworlds/cosmetics/cosmetics.h>
 #include <blockworlds/components/events.h>
+#include <blockworlds/cosmetics/cosmetics.h>
 // include specific event header to query 1on1 scores
 #include <blockworlds/components/events/1on1.h>
 
@@ -425,13 +425,12 @@ void CPlayer::Snap(int SnappingClient)
 	pClientInfo->m_ColorBody = m_TeeInfos.m_ColorBody;
 	pClientInfo->m_ColorFeet = m_TeeInfos.m_ColorFeet;
 
-
 	CCharacter *pCharForRainbow = GameServer()->GetPlayerChar(m_ClientId);
 	if(pCharForRainbow && pCharForRainbow->IsHookRainbowActive())
 	{
 		int64_t TickDef = Server()->Tick() - m_DieTick;
 		float freq = 255.0f;
-		
+
 		float divider = pCharForRainbow->GetHookRainbowDivider();
 		if(divider > 0.0f)
 			freq *= divider;
@@ -502,10 +501,8 @@ void CPlayer::Snap(int SnappingClient)
 			const auto &parts = active->Participants();
 			bool isParticipant = std::find(parts.begin(), parts.end(), GetCid()) != parts.end();
 
-
 			if(auto evScore = active->GetScoreOf(GetCid()); evScore.has_value())
 			{
-
 				Score = evScore.value();
 				m_Score = evScore;
 				Server()->SetClientScore(m_ClientId, Score);
@@ -513,7 +510,6 @@ void CPlayer::Snap(int SnappingClient)
 			}
 			else if(isParticipant)
 			{
-
 				Score = 0;
 				m_Score = 0;
 				Server()->SetClientScore(m_ClientId, Score);

@@ -704,7 +704,6 @@ private:
 	static void ConDisplayTopKillStreak(IConsole::IResult *pResult, void *pUserData);
 	static void ConDisplayTopClans(IConsole::IResult *pResult, void *pUserData);
 
-
 	static void ConClanCreate(IConsole::IResult *pResult, void *pUserData);
 	static void ConClanDelete(IConsole::IResult *pResult, void *pUserData);
 	static void ConClanLeave(IConsole::IResult *pResult, void *pUserData);
