@@ -8,7 +8,7 @@ class COneOnOneEvent : public CEventComponent
 public:
 	explicit COneOnOneEvent(CGameContext *pGameServer);
 
-	constexpr const char *GetEventName() const override { return "1on1"; }
+	const char *GetEventName() const override { return "1on1"; }
 	void OpenRegistration() override {}
 	void CloseRegistration() override {}
 	void StartEvent() override;

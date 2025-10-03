@@ -39,7 +39,7 @@ protected:
 	char m_EmergencyMessage[256];
 
 public:
-	[[nodiscard]] virtual constexpr const char *GetEventName() const = 0; // this is printable name for players, GetName() is internal name for logging
+	[[nodiscard]] virtual const char *GetEventName() const = 0; // this is printable name for players, GetName() is internal name for logging
 
 	virtual void OpenRegistration() = 0;
 	virtual void CloseRegistration() = 0;
