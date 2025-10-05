@@ -136,7 +136,11 @@ int CRequests::CreateClanInvite(int FromClient, int ToClient, int ClanId, int Ex
 	char aBuf[256];
 	const char *pClanName = "<clan>";
 	if(GameServer()->Clans())
-		pClanName = GameServer()->Clans()->GetClanName(ClanId);
+	{
+		CClansData tmp;
+		if(GameServer()->Clans()->GetClanSnapshotById(ClanId, tmp))
+			pClanName = tmp.m_ClanName;
+	}
 	str_format(aBuf, sizeof(aBuf), "%s invited you to join clan '%s'. Use /clan_accept or /clan_decline.", pFromName, pClanName);
 	if(CheckClientId(ToClient) && GameServer()->m_apPlayers[ToClient])
 		GameServer()->SendChatTarget(ToClient, aBuf);

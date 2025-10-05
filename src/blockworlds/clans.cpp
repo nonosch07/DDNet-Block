@@ -10,12 +10,32 @@
 #include "engine/shared/config.h"
 #include "engine/shared/protocol.h"
 
-#define MAX_CLAN_NAME_LENGTH 12
+#define MAX_CLAN_NAME_LENGTH 32
 
 void ToLowercase(char *str)
 {
 	for(; *str; ++str)
 		*str = std::tolower(*str);
+}
+
+// --- Utility: trim leading and trailing spaces (ASCII) in-place ---
+static void TrimSpaces(char *pStr)
+{
+	if(!pStr)
+		return;
+	int Len = str_length(pStr);
+	int Start = 0;
+	while(Start < Len && pStr[Start] == ' ')
+		Start++;
+	int End = Len - 1;
+	while(End >= Start && pStr[End] == ' ')
+		End--;
+	int NewLen = End - Start + 1;
+	if(NewLen < 0)
+		NewLen = 0; // all spaces
+	if(Start > 0 && NewLen > 0)
+		mem_move(pStr, pStr + Start, NewLen);
+	pStr[NewLen] = '\0';
 }
 
 // --- CClanResult Implementation ---
@@ -43,10 +63,12 @@ std::unordered_map<std::string, int> g_ClanNameToId;
 std::shared_ptr<CClanResult> CClanManager::NewSqlClanResult(int ClientId)
 {
 	CPlayer *pCurPlayer = GameServer()->m_apPlayers[ClientId];
-	if(!pCurPlayer)
+	if(!pCurPlayer || ClientId < 0 || ClientId >= MAX_CLIENTS)
 		return nullptr;
-	pCurPlayer->m_ClanQueryResult.push(std::make_shared<CClanResult>());
-	return pCurPlayer->m_ClanQueryResult.back();
+	
+	auto pResult = std::make_shared<CClanResult>();
+	pCurPlayer->m_ClanQueryResult.push(pResult);
+	return pResult;
 }
 
 // --- Helper function to execute SQL threads for clan operations ---
@@ -109,6 +131,8 @@ void CClanManager::ClanLeave(int ClientId)
 	CPlayer *pPlayer = GameServer()->m_apPlayers[ClientId];
 	if(!pPlayer)
 		return;
+	if(RateLimitPlayer(ClientId))
+		return;
 	ExecClanThread(ClanLeaveThread, "clan leave", ClientId, "", pPlayer->GetPlayerName(), pPlayer->GetAccId(), pPlayer->m_Account.m_ClanId);
 }
 
@@ -136,6 +160,8 @@ void CClanManager::SetAuthLevel(int ClientId, const char *AccountName, int NewAu
 
 void CClanManager::RenameClan(int ClientId, int ClanId, const char *pNewClanName)
 {
+	if(RateLimitPlayer(ClientId))
+		return;
 	auto pResult = NewSqlClanResult(ClientId);
 	if(pResult == nullptr)
 		return;
@@ -148,6 +174,17 @@ void CClanManager::RenameClan(int ClientId, int ClanId, const char *pNewClanName
 
 void CClanManager::AssignClan(int ClientId, const char *AccountName, int ClanId, int AccountId)
 {
+	// Permission: recruiter must be in the clan with auth >= 2
+	CPlayer *pPlayer = GameServer()->m_apPlayers[ClientId];
+	if(!pPlayer)
+		return;
+	if(RateLimitPlayer(ClientId))
+		return;
+	if(pPlayer->m_Account.m_ClanId != ClanId || pPlayer->m_Account.m_AuthLevel < 2)
+	{
+		GameServer()->SendChatTarget(ClientId, "You don't have permission to recruit for this clan.");
+		return;
+	}
 	ExecClanThread(AssignClanThread, "assign clan", ClientId, "", AccountName, AccountId, ClanId);
 }
 
@@ -206,6 +243,48 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 
 	pResult->SetVariant(CClanResult::DIRECT);
 
+	// Copy & normalize clan name (trim spaces) without mutating original structure buffer.
+	char aNormalizedName[MAX_CLAN_NAME_LENGTH + 1];
+	str_copy(aNormalizedName, pData->m_aClanName, sizeof(aNormalizedName));
+	TrimSpaces(aNormalizedName);
+	if(str_length(aNormalizedName) < 3 || str_length(aNormalizedName) > MAX_CLAN_NAME_LENGTH)
+	{
+		str_copy(pResult->m_aaMessages[0], "Clan name must be between 3 and 32 characters (after trimming).", sizeof(pResult->m_aaMessages[0]));
+		return false;
+	}
+	for(int i = 0; aNormalizedName[i]; i++)
+	{
+		char c = aNormalizedName[i];
+		if(!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == ' '))
+		{
+			str_copy(pResult->m_aaMessages[0], "Clan name can only contain letters, numbers, underscore, dash and spaces.", sizeof(pResult->m_aaMessages[0]));
+			return false;
+		}
+	}
+
+	// Case-insensitive uniqueness check
+	str_copy(aBuf, "SELECT id FROM clans WHERE LOWER(name) = LOWER(?) LIMIT 1;", sizeof(aBuf));
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Error 100: Failed to validate clan name uniqueness.", sizeof(pResult->m_aaMessages[0]));
+		return true; // treat as handled error
+	}
+	pSqlServer->BindString(1, aNormalizedName);
+	int ExistingId = -1;
+	bool EndCheck = false;
+	if(pSqlServer->Step(&EndCheck, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Error 100: Failed to validate clan name uniqueness (step).", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	if(!EndCheck)
+		ExistingId = pSqlServer->GetInt(1);
+	if(ExistingId != -1)
+	{
+		str_copy(pResult->m_aaMessages[0], "Clan name already exists.", sizeof(pResult->m_aaMessages[0]));
+		return false; // not a server error
+	}
+
 	str_copy(aBuf, "INSERT INTO clans (name) VALUES (?);", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -218,7 +297,7 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		str_copy(pResult->m_aaMessages[0], "Error 101: Clan creation failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
-	pSqlServer->BindString(1, pData->m_aClanName);
+	pSqlServer->BindString(1, aNormalizedName);
 	int NumInserted;
 	if(pSqlServer->ExecuteUpdate(&NumInserted, pError, ErrorSize))
 	{
@@ -251,7 +330,7 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		str_copy(pResult->m_aaMessages[0], "Error 104: Clan creation issue. Please try again.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
-	pSqlServer->BindString(1, pData->m_aClanName);
+	pSqlServer->BindString(1, aNormalizedName);
 	int ClanId = -1;
 	bool End;
 	if(pSqlServer->Step(&End, pError, ErrorSize))
@@ -313,10 +392,10 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	{
 		CClansData NewClan;
 		NewClan.m_Id = ClanId;
-		str_copy(NewClan.m_ClanName, pData->m_aClanName, sizeof(NewClan.m_ClanName));
+		str_copy(NewClan.m_ClanName, aNormalizedName, sizeof(NewClan.m_ClanName));
 		// keep the stored name as given, but map keys are lowercase
 		char aNameLower[MAX_CLAN_NAME_LENGTH + 1];
-		str_copy(aNameLower, pData->m_aClanName, sizeof(aNameLower));
+		str_copy(aNameLower, aNormalizedName, sizeof(aNameLower));
 		ToLowercase(aNameLower);
 		NewClan.m_Level = 1;
 		NewClan.m_Experience = 0;
@@ -330,10 +409,13 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		}
 	}
 
-	// update the player's in-memory clan data
+	// request main thread to update the player's in-memory clan data
 	if(pData->m_pClanManager && pData->m_ClientId >= 0)
 	{
-		pData->m_pClanManager->UpdatePlayerClan(pData->m_ClientId, ClanId, 3);
+		pResult->m_Action = CClanResult::ACTION_UPDATE_PLAYER_BY_CLIENT;
+		pResult->m_ActionClientId = pData->m_ClientId;
+		pResult->m_ActionNewClanId = ClanId;
+		pResult->m_ActionNewAuthLevel = 3;
 	}
 	str_copy(pResult->m_aaMessages[0], "Clan created successfully!", sizeof(pResult->m_aaMessages[0]));
 	pResult->m_Success = true;
@@ -431,7 +513,9 @@ bool CClanManager::DeleteClanThread(IDbConnection *pSqlServer, const ISqlData *p
 				pGameServer->SendChatTarget(i, "Your clan has been deleted.");
 			}
 		}
-		pData->m_pClanManager->ResetPlayersClan(pData->m_ClanId);
+	// request main thread to reset players' clan
+	pResult->m_Action = CClanResult::ACTION_RESET_CLAN_PLAYERS;
+	pResult->m_ActionResetClanId = pData->m_ClanId;
 
 		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
 		auto &vec = pData->m_pClanManager->m_vClansData;
@@ -463,6 +547,32 @@ bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	char aBuf[1024];
 
 	pResult->SetVariant(CClanResult::DIRECT);
+
+	// Defensive: validate recruiter still has rights (auth >=2) to add members to the clan.
+	// We trust pData->m_ClientId only as a hint; use AccountId from recruiter (pData->m_AccountId) to verify.
+	if(pData->m_ClanId > 0 && pData->m_AccountId > 0)
+	{
+		str_copy(aBuf, "SELECT clanID, auth_level FROM accounts WHERE id = ?;", sizeof(aBuf));
+		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+		{
+			str_copy(pResult->m_aaMessages[0], "Error 200: Recruiter validation failed.", sizeof(pResult->m_aaMessages[0]));
+			return true;
+		}
+		pSqlServer->BindInt(1, pData->m_AccountId);
+		bool End = false;
+		if(pSqlServer->Step(&End, pError, ErrorSize) || End)
+		{
+			str_copy(pResult->m_aaMessages[0], "Error 200: Recruiter not found.", sizeof(pResult->m_aaMessages[0]));
+			return true;
+		}
+		int DbClan = pSqlServer->GetInt(1);
+		int DbAuth = pSqlServer->GetInt(2);
+		if(DbClan != pData->m_ClanId || DbAuth < 2)
+		{
+			str_copy(pResult->m_aaMessages[0], "Recruit failed: insufficient permissions.", sizeof(pResult->m_aaMessages[0]));
+			return false; // not a server error; just deny
+		}
+	}
 
 	if(pData->m_AccountId != 0)
 	{
@@ -521,17 +631,11 @@ bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *p
 
 	if(pData->m_pClanManager && pData->m_ClientId >= 0)
 	{
-		// find the player by name and update that player's in-memory clan data if online
-		CGameContext *pGameServer = pData->m_pClanManager->GameServer();
-		for(int i = 0; i < MAX_CLIENTS; i++)
-		{
-			CPlayer *pTarget = pGameServer->m_apPlayers[i];
-			if(pTarget && pTarget->IsLoggedIn() && str_comp(pTarget->m_Account.m_aName, pData->m_aUsername) == 0)
-			{
-				pData->m_pClanManager->UpdatePlayerClan(i, pData->m_ClanId, 1);
-				break;
-			}
-		}
+		// request main thread to update a player by name
+		pResult->m_Action = CClanResult::ACTION_UPDATE_PLAYER_BY_NAME;
+		pResult->m_ActionNewClanId = pData->m_ClanId;
+		pResult->m_ActionNewAuthLevel = 1;
+		str_copy(pResult->m_ActionPlayerName, pData->m_aUsername, sizeof(pResult->m_ActionPlayerName));
 	}
 
 	{
@@ -595,17 +699,11 @@ bool CClanManager::RemoveFromClanThread(IDbConnection *pSqlServer, const ISqlDat
 
 	if(pData->m_pClanManager && pData->m_ClientId >= 0)
 	{
-		// update the in-memory target player if they're online (by username)
-		CGameContext *pGameServer = pData->m_pClanManager->GameServer();
-		for(int i = 0; i < MAX_CLIENTS; i++)
-		{
-			CPlayer *pTarget = pGameServer->m_apPlayers[i];
-			if(pTarget && pTarget->IsLoggedIn() && str_comp(pTarget->m_Account.m_aName, pData->m_aUsername) == 0)
-			{
-				pData->m_pClanManager->UpdatePlayerClan(i, 0, 0);
-				break;
-			}
-		}
+		// request main thread to update a player by name (remove from clan)
+		pResult->m_Action = CClanResult::ACTION_UPDATE_PLAYER_BY_NAME;
+		pResult->m_ActionNewClanId = 0;
+		pResult->m_ActionNewAuthLevel = 0;
+		str_copy(pResult->m_ActionPlayerName, pData->m_aUsername, sizeof(pResult->m_ActionPlayerName));
 	}
 
 	CGameContext *pGameServer = pData->m_pClanManager->GameServer();
@@ -683,7 +781,10 @@ bool CClanManager::ClanLeaveThread(IDbConnection *pSqlServer, const ISqlData *pG
 
 	if(pData->m_pClanManager && pData->m_ClientId >= 0)
 	{
-		pData->m_pClanManager->UpdatePlayerClan(pData->m_ClientId, 0, 0);
+		pResult->m_Action = CClanResult::ACTION_UPDATE_PLAYER_BY_CLIENT;
+		pResult->m_ActionClientId = pData->m_ClientId;
+		pResult->m_ActionNewClanId = 0;
+		pResult->m_ActionNewAuthLevel = 0;
 	}
 	str_copy(pResult->m_aaMessages[0], "You have left the clan successfully!", sizeof(pResult->m_aaMessages[0]));
 	pResult->m_Success = true;
@@ -741,17 +842,11 @@ bool CClanManager::SetAuthLevelThread(IDbConnection *pSqlServer, const ISqlData 
 
 	if(pData->m_pClanManager && pData->m_ClientId >= 0)
 	{
-		// find the player by username and update their in-memory auth level if online
-		CGameContext *pGameServer = pData->m_pClanManager->GameServer();
-		for(int i = 0; i < MAX_CLIENTS; i++)
-		{
-			CPlayer *pTarget = pGameServer->m_apPlayers[i];
-			if(pTarget && pTarget->IsLoggedIn() && str_comp(pTarget->m_Account.m_aName, pData->m_aUsername) == 0)
-			{
-				pData->m_pClanManager->UpdatePlayerClan(i, pData->m_ClanId, pData->m_NewAuthLevel);
-				break;
-			}
-		}
+		// request main thread to update a player by name (auth level change)
+		pResult->m_Action = CClanResult::ACTION_UPDATE_PLAYER_BY_NAME;
+		pResult->m_ActionNewClanId = pData->m_ClanId;
+		pResult->m_ActionNewAuthLevel = pData->m_NewAuthLevel;
+		str_copy(pResult->m_ActionPlayerName, pData->m_aUsername, sizeof(pResult->m_ActionPlayerName));
 	}
 
 	char aRank[32];
@@ -818,23 +913,23 @@ bool CClanManager::RenameClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		return true;
 	}
 
-	// update the in-memory clan vector
+	// update the in-memory clan vector (protected by mutex)
 	if(pData->m_pClanManager)
 	{
-		auto &vec = pData->m_pClanManager->m_vClansData;
 		std::string oldNameLower;
-		for(auto &Clan : vec)
-		{
-			if(Clan.m_Id == pData->m_ClanId)
-			{
-				oldNameLower = Clan.m_ClanName;
-				str_copy(Clan.m_ClanName, pData->m_aNewClanName, sizeof(Clan.m_ClanName));
-				break;
-			}
-		}
-		// update global maps
 		{
 			std::lock_guard<std::mutex> lock(g_ClansDataMutex);
+			auto &vec = pData->m_pClanManager->m_vClansData;
+			for(auto &Clan : vec)
+			{
+				if(Clan.m_Id == pData->m_ClanId)
+				{
+					oldNameLower = Clan.m_ClanName;
+					str_copy(Clan.m_ClanName, pData->m_aNewClanName, sizeof(Clan.m_ClanName));
+					break;
+				}
+			}
+			// update global maps
 			auto it = g_ClanIdMap.find(pData->m_ClanId);
 			if(it != g_ClanIdMap.end())
 			{
@@ -946,13 +1041,25 @@ int CClanManager::GetClanIdByName(const char *pClanName)
 	return -1;
 }
 
-const char *CClanManager::GetClanName(int ClanId)
+std::string CClanManager::GetClanNameCopy(int ClanId) const
 {
 	std::lock_guard<std::mutex> lock(g_ClansDataMutex);
 	auto it = g_ClanIdMap.find(ClanId);
 	if(it != g_ClanIdMap.end())
-		return it->second.m_ClanName;
-	return " ";
+		return std::string(it->second.m_ClanName);
+	return std::string(" ");
+}
+
+bool CClanManager::GetClanSnapshotById(int ClanId, CClansData &Out) const
+{
+	std::lock_guard<std::mutex> lock(g_ClansDataMutex);
+	auto it = g_ClanIdMap.find(ClanId);
+	if(it != g_ClanIdMap.end())
+	{
+		Out = it->second; // copy
+		return true;
+	}
+	return false;
 }
 
 void CClanManager::UpdatePlayerClan(int ClientId, int ClanId, int AuthLevel)
@@ -965,8 +1072,7 @@ void CClanManager::UpdatePlayerClan(int ClientId, int ClanId, int AuthLevel)
 	pPlayer->m_Account.m_AuthLevel = AuthLevel;
 	{
 		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
-		auto it = g_ClanIdMap.find(ClanId);
-		pPlayer->m_Account.m_pClanData = (it != g_ClanIdMap.end()) ? &it->second : nullptr;
+		(void)g_ClanIdMap;
 	}
 }
 
@@ -1045,8 +1151,8 @@ bool CClanManager::SaveClanThread(IDbConnection *pSqlServer, const ISqlData *pGa
 		return true;
 	}
 
-	const CClansData *pClan = GetClanDataById(pData->m_ClanId, pData->m_pClanManager->GetClansData());
-	if(!pClan)
+	CClansData ClanCopy;
+	if(!pData->m_pClanManager->GetClanSnapshotById(pData->m_ClanId, ClanCopy))
 	{
 		if(pError && ErrorSize > 0)
 		{
@@ -1057,9 +1163,9 @@ bool CClanManager::SaveClanThread(IDbConnection *pSqlServer, const ISqlData *pGa
 		return true;
 	}
 
-	pSqlServer->BindInt(1, pClan->m_Level);
-	pSqlServer->BindInt(2, pClan->m_Experience);
-	pSqlServer->BindInt(3, pClan->m_Id);
+	pSqlServer->BindInt(1, ClanCopy.m_Level);
+	pSqlServer->BindInt(2, ClanCopy.m_Experience);
+	pSqlServer->BindInt(3, ClanCopy.m_Id);
 
 	int NumUpdated = 0;
 	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
@@ -1078,27 +1184,31 @@ bool CClanManager::SaveClanThread(IDbConnection *pSqlServer, const ISqlData *pGa
 		if(pError && ErrorSize > 0)
 		{
 			char aTmp[1024];
-			str_format(aTmp, sizeof(aTmp), "Error: SAVE clan failed with negative rows updated for clan id %d.", pClan->m_Id);
+			str_format(aTmp, sizeof(aTmp), "Error: SAVE clan failed with negative rows updated for clan id %d.", ClanCopy.m_Id);
 			str_copy(pError, aTmp, ErrorSize);
 		}
 		return true;
 	}
 	else if(NumUpdated == 0)
 	{
-		dbg_msg("clan", "Clan %d save: no changes made (0 rows updated).", pClan->m_Id);
+		dbg_msg("clan", "Clan %d save: no changes made (0 rows updated).", ClanCopy.m_Id);
 	}
 	else
 	{
-		dbg_msg("clan", "Clan %d saved successfully (rows updated: %d).", pClan->m_Id, NumUpdated);
+		dbg_msg("clan", "Clan %d saved successfully (rows updated: %d).", ClanCopy.m_Id, NumUpdated);
 	}
 
 	int CurrentTick = pData->m_pClanManager->GameServer()->Server()->Tick();
-	for(auto &Clan : pData->m_pClanManager->m_vClansData)
+	// update the in-memory clan's last saved tick under mutex to avoid races with main thread
 	{
-		if(Clan.m_Id == pClan->m_Id)
+		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
+		for(auto &Clan : pData->m_pClanManager->m_vClansData)
 		{
-			Clan.m_LastSavedTick = CurrentTick;
-			break;
+			if(Clan.m_Id == ClanCopy.m_Id)
+			{
+				Clan.m_LastSavedTick = CurrentTick;
+				break;
+			}
 		}
 	}
 

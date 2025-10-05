@@ -72,7 +72,7 @@ struct CAccountData
 	int m_ClientId;
 
 	int m_Id;
-	char m_aName[64];
+	char m_aName[12];		// Match SQL schema varchar(11) + null terminator
 	char m_aPassword[256];
 	char m_aAddress[48];
 	int m_Vip;
@@ -98,12 +98,11 @@ struct CAccountData
 	int m_TourneyWin;
 	long long m_Playtime;
 	int m_Killstreak;
-	char m_aLastName[16];
-	char m_aLastSkin[32];
+	char m_aLastName[17];
+	char m_aLastSkin[33];
 	int m_LastBodyColor;
 	int m_LastFeetColor;
 
-	const CClansData *m_pClanData;
 };
 
 struct CAdminCommandResult : ISqlResult
@@ -131,7 +130,7 @@ struct CAdminCommandResult : ISqlResult
 	char m_aBroadcast[1024];
 	int m_AdminClientId;
 	int m_TargetAccountId;
-	char m_aUsername[64];
+	char m_aUsername[12];
 	char m_aPassword[64];
 	int m_State;
 	Variant m_Type;
@@ -210,10 +209,10 @@ struct CSqlAccountRequest : ISqlData
 	CGameContext *m_pGameContext;
 
 	CAccountData m_AccountData;
-	char m_aUsername[64];
+	char m_aUsername[12];
 	char m_aPassword[64];
 	char m_aNewPassword[64];
-	char m_aClanName[11];
+	char m_aClanName[33];
 	int m_AccountId;
 	int m_ClientId;
 };
@@ -228,7 +227,7 @@ struct CSqlAdminCommandRequest : ISqlData
 	char m_aQuery[128 + (MAX_CLIENTS * (MAX_SQL_ID_LENGTH + 1))];
 	int m_AdminClientId;
 	int m_TargetAccountId;
-	char m_aUsername[64];
+	char m_aUsername[12];
 	char m_aPassword[64];
 	int m_State;
 	CAdminCommandResult::Variant m_Type;

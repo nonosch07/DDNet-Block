@@ -372,7 +372,13 @@ void CGameContext::ConStatusAccounts(IConsole::IResult *pResult, void *pUserData
 		int Hours = pPlayer->m_Account.m_Playtime / 3600;
 		int Minutes = (pPlayer->m_Account.m_Playtime % 3600) / 60;
 
-		const char *pClanName = pSelf->Clans() ? pSelf->Clans()->GetClanName(pPlayer->m_Account.m_ClanId) : " ";
+		const char *pClanName = " ";
+		if(pSelf->Clans())
+		{
+			CClansData tmp;
+			if(pSelf->Clans()->GetClanSnapshotById(pPlayer->m_Account.m_ClanId, tmp))
+				pClanName = tmp.m_ClanName;
+		}
 		str_format(aBuf, sizeof(aBuf), "cid=%d, accid=%d, acc_name='%s', ig_name='%s', vip=%d, clan='%s', clanid=%d, auth=%d, playtime=%02d:%02d, ranking=%d, kills=%d, deaths=%d",
 			i,
 			pPlayer->m_Account.m_Id,
@@ -1011,22 +1017,16 @@ void CGameContext::ConClanExp(IConsole::IResult *pResult, void *pUserData)
 	if(!pPlayer->GetClanId())
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You are not in a clan");
 
-	// use safe map lookup for clan data
-	const CClansData *pClanData = nullptr;
-	{
-		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
-		auto it = g_ClanIdMap.find(pPlayer->GetClanId());
-		if(it != g_ClanIdMap.end())
-			pClanData = &it->second;
-	}
-	if(!pClanData)
+	// obtain a snapshot copy of the clan data (thread-safe)
+	CClansData clanTmp;
+	if(!GameServer()->Clans()->GetClanSnapshotById(pPlayer->GetClanId(), clanTmp))
 	{
 		pSelf->SendChatTarget(pResult->m_ClientId, "Error: Something weird happened, try to login again.");
 		return;
 	}
 
 	static const int s_MaxNum = 17;
-	float Ratio = (float)pClanData->m_Experience / NeededClanExp(pClanData->m_Level);
+	float Ratio = (float)clanTmp.m_Experience / NeededClanExp(clanTmp.m_Level);
 	int Num = round_to_int(Ratio * s_MaxNum);
 
 	static char s_ExpTopLeft[] = {-30, -107, -108, 0};
@@ -1058,11 +1058,11 @@ void CGameContext::ConClanExp(IConsole::IResult *pResult, void *pUserData)
 	pSelf->SendChatTarget(pResult->m_ClientId, "Clan Experience Bar:");
 	pSelf->SendChatTarget(pResult->m_ClientId, aBarTop);
 	pSelf->SendChatTarget(pResult->m_ClientId, aBarBot);
-	str_format(aBuf, sizeof(aBuf), "Clan level: %i", pClanData->m_Level);
+	str_format(aBuf, sizeof(aBuf), "Clan level: %i", clanTmp.m_Level);
 	pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
-	str_format(aBuf, sizeof(aBuf), "Clan Exp: %i", pClanData->m_Experience);
+	str_format(aBuf, sizeof(aBuf), "Clan Exp: %i", clanTmp.m_Experience);
 	pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
-	str_format(aBuf, sizeof(aBuf), "Needed Exp: %i", NeededClanExp(pClanData->m_Level));
+	str_format(aBuf, sizeof(aBuf), "Needed Exp: %i", NeededClanExp(clanTmp.m_Level));
 	pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
 }
 
@@ -1336,14 +1336,8 @@ void CGameContext::ConClanCreate(IConsole::IResult *pResult, void *pUserData)
 	if(ClanNameLength > 11)
 		return pSelf->SendChatTarget(ClientId, "Clan name is too long (max 11 characters)!");
 
-	if(!CheckValidChars(pClanName))
-		return pSelf->SendChatTarget(ClientId, "Only A-Z and 0-9 are allowed in clan names!");
-
-	for(const auto &Clan : pSelf->Clans()->GetClansData())
-	{
-		if(str_comp(Clan.m_ClanName, pClanName) == 0)
-			return pSelf->SendChatTarget(ClientId, "This clan name is already taken!");
-	}
+	if(pSelf->Clans()->GetClanIdByName(pClanName) != -1)
+		return pSelf->SendChatTarget(ClientId, "This clan name is already taken!");
 
 	pSelf->Clans()->CreateClan(ClientId, pClanName, pPlayer->GetAccId());
 }
@@ -1551,11 +1545,8 @@ void CGameContext::ConClanRename(IConsole::IResult *pResult, void *pUserData)
 	if(!CheckValidChars(pNewClanName))
 		return pSelf->SendChatTarget(ClientId, "Only A-Z and 0-9 are allowed in clan names!");
 
-	for(const auto &Clan : pSelf->Clans()->GetClansData())
-	{
-		if(str_comp(Clan.m_ClanName, pNewClanName) == 0)
-			return pSelf->SendChatTarget(ClientId, "This clan name is already taken!");
-	}
+	if(pSelf->Clans()->GetClanIdByName(pNewClanName) != -1)
+		return pSelf->SendChatTarget(ClientId, "This clan name is already taken!");
 
 	pSelf->Clans()->RenameClan(ClientId, pPlayer->m_Account.m_ClanId, pNewClanName);
 }

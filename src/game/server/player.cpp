@@ -477,15 +477,9 @@ void CPlayer::Snap(int SnappingClient)
 	if(IsLoggedIn() && GetClanId() > 0)
 	{
 		const char *pClanName = "";
-		const auto &vClans = GameServer()->Clans()->GetClansData();
-		for(const auto &Clan : vClans)
-		{
-			if(Clan.m_Id == GetClanId())
-			{
-				pClanName = Clan.m_ClanName;
-				break;
-			}
-		}
+		CClansData tmpClan;
+		if(GameServer()->Clans()->GetClanSnapshotById(GetClanId(), tmpClan))
+			pClanName = tmpClan.m_ClanName;
 		StrToInts(&pClientInfo->m_Clan0, 3, pClanName);
 	}
 	else
@@ -1326,6 +1320,50 @@ void CPlayer::BWProcessClansResult(CClanResult &Result)
 {
 	if(Result.m_Success || Result.m_aaMessages[0][0] != '\0')
 	{
+		// First, apply any deferred actions requested by the SQL worker thread
+		switch(Result.m_Action)
+		{
+		case CClanResult::ACTION_UPDATE_PLAYER_BY_CLIENT:
+			if(Result.m_ActionClientId >= 0 && Result.m_ActionClientId < MAX_CLIENTS)
+			{
+				CPlayer *pTarget = GameServer()->m_apPlayers[Result.m_ActionClientId];
+				if(pTarget)
+					pTarget->m_Account.m_ClanId = Result.m_ActionNewClanId, pTarget->m_Account.m_AuthLevel = Result.m_ActionNewAuthLevel;
+			}
+			break;
+		case CClanResult::ACTION_UPDATE_PLAYER_BY_NAME:
+			if(Result.m_ActionPlayerName[0] != '\0')
+			{
+				for(int i = 0; i < MAX_CLIENTS; ++i)
+				{
+					CPlayer *pTarget = GameServer()->m_apPlayers[i];
+					if(pTarget && pTarget->IsLoggedIn() && str_comp(pTarget->m_Account.m_aName, Result.m_ActionPlayerName) == 0)
+					{
+						pTarget->m_Account.m_ClanId = Result.m_ActionNewClanId;
+						pTarget->m_Account.m_AuthLevel = Result.m_ActionNewAuthLevel;
+						break;
+					}
+				}
+			}
+			break;
+		case CClanResult::ACTION_RESET_CLAN_PLAYERS:
+			if(Result.m_ActionResetClanId > 0)
+			{
+				for(int i = 0; i < MAX_CLIENTS; ++i)
+				{
+					CPlayer *pTarget = GameServer()->m_apPlayers[i];
+					if(pTarget && pTarget->IsLoggedIn() && pTarget->m_Account.m_ClanId == Result.m_ActionResetClanId)
+					{
+						pTarget->m_Account.m_ClanId = 0;
+						pTarget->m_Account.m_AuthLevel = 0;
+					}
+				}
+			}
+			break;
+		default:
+			break;
+		}
+
 		switch(Result.m_MessageKind)
 		{
 		case CClanResult::DIRECT:

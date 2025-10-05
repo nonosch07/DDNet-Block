@@ -5,6 +5,7 @@
 #include <memory>
 #include <unordered_set>
 #include <vector>
+#include <string>
 
 class IDbConnection;
 class IServer;
@@ -13,7 +14,7 @@ class CGameContext;
 struct CClansData
 {
 	int m_Id;
-	char m_ClanName[12];
+	char m_ClanName[33];	// Match SQL schema varchar(32) + null terminator
 	int m_Level;
 	int m_Experience;
 
@@ -70,6 +71,21 @@ struct CClanResult : ISqlResult
 	}
 
 	CClanResult();
+
+	// Actions for main-thread application (set by SQL worker threads)
+	enum ActionType
+	{
+		ACTION_NONE = 0,
+		ACTION_UPDATE_PLAYER_BY_CLIENT, // update a specific client id's in-memory clan/auth
+		ACTION_UPDATE_PLAYER_BY_NAME,   // update a player found by name
+		ACTION_RESET_CLAN_PLAYERS       // reset all players of a clan (set clan id to 0)
+	} m_Action = ACTION_NONE;
+
+	int m_ActionClientId = -1; // for ACTION_UPDATE_PLAYER_BY_CLIENT
+	int m_ActionNewClanId = 0; // target clan id for update actions
+	int m_ActionNewAuthLevel = 0; // auth level for update actions
+	char m_ActionPlayerName[64]; // for ACTION_UPDATE_PLAYER_BY_NAME
+	int m_ActionResetClanId = 0; // for ACTION_RESET_CLAN_PLAYERS
 };
 
 struct CSqlClanRequest : ISqlData
@@ -81,13 +97,13 @@ struct CSqlClanRequest : ISqlData
 		m_aUsername[0] = '\0';
 		m_aNewClanName[0] = '\0';
 	}
-	char m_aClanName[12];
-	char m_aUsername[64];
+	char m_aClanName[33];	// Match SQL schema varchar(32) + null terminator
+	char m_aUsername[12];	// Match SQL schema varchar(11) + null terminator
 	int m_AccountId;
 	int m_ClientId;
 	int m_ClanId;
 	int m_NewAuthLevel;
-	char m_aNewClanName[11];
+	char m_aNewClanName[33];	// Match SQL schema varchar(32) + null terminator
 	CClanManager *m_pClanManager;
 };
 
@@ -126,15 +142,6 @@ class CClanManager
 
 	static bool LoadClansThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 
-	static const CClansData *GetClanDataById(int ClanId, const std::vector<CClansData> &ClansData)
-	{
-		for(const auto &Clan : ClansData)
-		{
-			if(Clan.m_Id == ClanId)
-				return &Clan;
-		}
-		return nullptr;
-	}
 	std::shared_ptr<CClanResult> NewSqlClanResult(int ClientId);
 
 public:
@@ -156,12 +163,13 @@ public:
 	void OnClansLoaded(const std::vector<CClansData> &vClans);
 
 	int GetClanIdByName(const char *pClanName);
-	const char *GetClanName(int ClanId);
 	// I didn't find any other way to do that so.. fuck it
 	void UpdatePlayerClan(int ClientId, int NewClanId, int AuthLevel);
 	void ResetPlayersClan(int ClanId);
 
-	const std::vector<CClansData> &GetClansData() const { return m_vClansData; }
+	std::string GetClanNameCopy(int ClanId) const;
+
+	bool GetClanSnapshotById(int ClanId, CClansData &Out) const;
 
 	void AddClanExp(int ClanId, int Amount);
 

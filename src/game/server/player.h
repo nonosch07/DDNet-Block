@@ -313,9 +313,21 @@ public:
 	int GetPlayerVip() { return m_Account.m_Vip; }
 	int GetPlayerPages() { return m_Account.m_Pages; }
 	int GetPlayerLevel() { return m_Account.m_Level; }
-	int GetClanLevel() { return m_Account.m_pClanData->m_Level; }
+	int GetClanLevel()
+	{
+		CClansData tmp;
+		if(m_Account.m_ClanId > 0 && GameServer()->Clans()->GetClanSnapshotById(m_Account.m_ClanId, tmp))
+			return tmp.m_Level;
+		return 0;
+	}
 	int GetPlayerExperience() { return m_Account.m_Experience; }
-	int GetClanExperience() { return m_Account.m_pClanData->m_Experience; }
+	int GetClanExperience()
+	{
+		CClansData tmp;
+		if(m_Account.m_ClanId > 0 && GameServer()->Clans()->GetClanSnapshotById(m_Account.m_ClanId, tmp))
+			return tmp.m_Experience;
+		return 0;
+	}
 	int GetPlayerWeaponkits() { return m_Account.m_Weaponkits; }
 	int GetPlayerRanking() { return m_Account.m_Ranking; }
 	int GetClanId() { return m_Account.m_ClanId; }
