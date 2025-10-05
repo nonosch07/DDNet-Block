@@ -40,18 +40,31 @@ void CEventComponent::SavePosition(int ClientId)
 }
 void CEventComponent::LoadPosition(int ClientId)
 {
-	auto *pChar = GameServer()->GetPlayerChar(ClientId);
-	if(!pChar)
-		return;
-
 	auto it = m_pSavedPlayers.find(ClientId);
+	CPlayer *pPlayer = GameServer()->GetPlayer(ClientId);
+
 	if(it != m_pSavedPlayers.end())
 	{
-		it->second->Load(pChar, TEAM_FLOCK, false);
-		pChar->ResetVelocity();
-		m_pSavedPlayers.erase(it);
+		CCharacter *pChar = GameServer()->GetPlayerChar(ClientId);
+		if(!pChar && pPlayer)
+		{
+			pPlayer->KillCharacter(WEAPON_WORLD, false);
+			pChar = pPlayer->ForceSpawn(vec2(0, 0), false);
+		}
+
+		if(pChar)
+		{
+			it->second->Load(pChar, TEAM_FLOCK, false);
+			pChar->ResetVelocity();
+			// free saved tee and erase entry
+			delete it->second;
+			m_pSavedPlayers.erase(it);
+		}
+		return;
 	}
-	else if(pChar->IsAlive())
+
+	CCharacter *pChar = GameServer()->GetPlayerChar(ClientId);
+	if(pChar && pChar->IsAlive())
 	{
 		pChar->Die(-1, WEAPON_WORLD);
 	}

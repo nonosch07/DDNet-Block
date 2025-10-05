@@ -31,6 +31,21 @@ bool CBlockTracker::Blocked(int ClientID, int BlockerID)
 {
 	if(!m_pGameContext->PlayerExists(ClientID) || !m_pGameContext->PlayerExists(BlockerID))
 		return false;
+	// prevent abuse
+	CPlayer *pVictimPlayer = m_pGameContext->m_apPlayers[ClientID];
+	if(g_Config.m_SvIgnoreAfkKills && pVictimPlayer)
+	{
+		if(pVictimPlayer->IsAfk() || pVictimPlayer->IsPaused())
+			return false;
+	}
+	CPlayer *pBlockerPlayer = m_pGameContext->m_apPlayers[BlockerID];
+	if(g_Config.m_SvIgnoreClanmateKills && pVictimPlayer && pBlockerPlayer)
+	{
+		int VictimClan = pVictimPlayer->GetClanId();
+		int BlockerClan = pBlockerPlayer->GetClanId();
+		if(VictimClan != 0 && VictimClan == BlockerClan)
+			return false;
+	}
 	if(m_pGameContext->Server()->IsClientsSameAddr(ClientID, BlockerID) && !g_Config.m_SvAllowExpFromSameIp)
 		return false;
 	if(auto events = g_ComponentRegistry.Get<CEvents>())

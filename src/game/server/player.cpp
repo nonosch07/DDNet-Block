@@ -32,6 +32,7 @@
 #include <blockworlds/cosmetics/specials/crown.h>
 #include <blockworlds/cosmetics/specials/epiccircle.h>
 #include <blockworlds/cosmetics/specials/flag.h>
+#include <blockworlds/cosmetics/specials/halo.h>
 
 MACRO_ALLOC_POOL_ID_IMPL(CPlayer, MAX_CLIENTS)
 
@@ -175,6 +176,9 @@ void CPlayer::Reset()
 	GameServer()->m_pController->m_BlockTracker.StopTrackPlayer(m_ClientId);
 	m_ExpModifiers.clear();
 	CalculateExpMultiplier();
+	m_SpecialExpireTick = 0;
+	m_pFlagEntity = nullptr;
+	m_FlagExpireTick = 0;
 
 	// initialize owned specials default (VIP check will apply when player logs in)
 	for(int i = 0; i < CCosmeticsHandler::NUM_SPECIALS; ++i)
@@ -351,9 +355,79 @@ void CPlayer::Tick()
 				++it;
 			}
 		}
+
+		// expire temporary special if its time has come
+		if(m_SpecialExpireTick && Server()->Tick() >= m_SpecialExpireTick)
+		{
+			if(m_pSpecialEntity)
+			{
+				GameServer()->m_World.RemoveEntity(m_pSpecialEntity);
+				m_pSpecialEntity = nullptr;
+			}
+			m_CurrentSpecial = -1;
+			m_SpecialExpireTick = 0;
+		}
+
+		// expire flag reward if needed
+		if(m_pFlagEntity && m_FlagExpireTick && Server()->Tick() >= m_FlagExpireTick)
+		{
+			GameServer()->m_World.RemoveEntity(m_pFlagEntity);
+			m_pFlagEntity = nullptr;
+			m_FlagExpireTick = 0;
+		}
 		if(RecalculationNeeded)
 			CalculateExpMultiplier();
 	}
+}
+
+void CPlayer::GiveFlag(int DurationMinutes)
+{
+	// remove existing flag if present
+	if(m_pFlagEntity)
+	{
+		GameServer()->m_World.RemoveEntity(m_pFlagEntity);
+		m_pFlagEntity = nullptr;
+		m_FlagExpireTick = 0;
+	}
+
+	// spawn new flag entity attached to player
+	m_pFlagEntity = new CFlag(&GameServer()->m_World, GetCid(), 0);
+	if(DurationMinutes > 0)
+		m_FlagExpireTick = Server()->Tick() + DurationMinutes * Server()->TickSpeed();
+}
+
+void CPlayer::GiveTemporarySpecial(int SpecialIndex, int DurationMinutes)
+{
+	if(SpecialIndex < 0 || SpecialIndex >= CCosmeticsHandler::NUM_SPECIALS)
+		return;
+
+	if(m_CurrentSpecial != -1 && m_pSpecialEntity)
+	{
+		GameServer()->m_World.RemoveEntity(m_pSpecialEntity);
+		m_pSpecialEntity = nullptr;
+		m_CurrentSpecial = -1;
+		m_SpecialExpireTick = 0;
+	}
+
+	if(SpecialIndex == CCosmeticsHandler::SPECIAL_BALL)
+	{
+		extern class CBall *CreateBall(CGameWorld *, vec2, int);
+		m_pSpecialEntity = new CBall(&GameServer()->m_World, GetCharacter() ? GetCharacter()->m_Pos : m_ViewPos, GetCid());
+	}
+	else if(SpecialIndex == CCosmeticsHandler::SPECIAL_CROWN)
+	{
+		m_pSpecialEntity = new CCrown(&GameServer()->m_World, GetCid());
+	}
+	else if(SpecialIndex == CCosmeticsHandler::SPECIAL_EPICCIRCLE)
+	{
+		m_pSpecialEntity = new CEpicCircle(&GameServer()->m_World, GetCharacter() ? GetCharacter()->m_Pos : m_ViewPos, GetCid());
+	}
+	else
+		return;
+
+	m_CurrentSpecial = SpecialIndex;
+	if(DurationMinutes > 0)
+		m_SpecialExpireTick = Server()->Tick() + DurationMinutes * Server()->TickSpeed();
 }
 
 void CPlayer::PostTick()
@@ -1250,7 +1324,7 @@ void CPlayer::BWProcessAccountsResult(CAccountResult &Result)
 
 void CPlayer::BWProcessClansResult(CClanResult &Result)
 {
-	if(Result.m_Success)
+	if(Result.m_Success || Result.m_aaMessages[0][0] != '\0')
 	{
 		switch(Result.m_MessageKind)
 		{
@@ -1368,8 +1442,6 @@ void CPlayer::OnPlayerLogin()
 	{
 		for(int i = 0; i < CCosmeticsHandler::NUM_SPECIALS; ++i)
 		{
-			if(i == CCosmeticsHandler::SPECIAL_FLAG)
-				continue;
 			m_aSpecialsOwned[i] = '1';
 		}
 	}
@@ -1439,15 +1511,44 @@ void CPlayer::OnPlayerLogout()
 		GameServer()->Clans()->SaveClan(GetCid(), GetClanId());
 	}
 
+	// clear cosmetics and save account
+	ClearCosmetics();
 	SetSkinMani(-1);
 	SetGunDesign(-1);
 	SetKnockout(-1);
 
+	// clear account data
+	m_Account = CAccountData();
+}
+
+void CPlayer::ClearCosmetics()
+{
+	// remove any active special entity
+	if(m_pSpecialEntity)
+	{
+		GameServer()->m_World.RemoveEntity(m_pSpecialEntity);
+		m_pSpecialEntity = nullptr;
+	}
+	m_CurrentSpecial = -1;
+	m_SpecialExpireTick = 0;
+
+	// remove any active flag entity
+	if(m_pFlagEntity)
+	{
+		GameServer()->m_World.RemoveEntity(m_pFlagEntity);
+		m_pFlagEntity = nullptr;
+	}
+	m_FlagExpireTick = 0;
+
+	// reset owned specials
 	for(int i = 0; i < CCosmeticsHandler::NUM_SPECIALS; ++i)
 		m_aSpecialsOwned[i] = '0';
 	m_aSpecialsOwned[CCosmeticsHandler::NUM_SPECIALS] = '\0';
 
-	m_Account = CAccountData();
+	// reset active cosmetics
+	m_CurrentSkinMani = -1;
+	m_CurrentGunDesign = -1;
+	m_CurrentKnockout = -1;
 }
 
 const char *CPlayer::GetPlayerSpecials()
@@ -1552,15 +1653,10 @@ bool CPlayer::ToggleSpecial(int SpecialIndex)
 	{
 		m_pSpecialEntity = new CEpicCircle(&GameServer()->m_World, GetCharacter() ? GetCharacter()->m_Pos : m_ViewPos, GetCid());
 	}
-	else if(SpecialIndex == CCosmeticsHandler::SPECIAL_FLAG)
+
+	else if(SpecialIndex == CCosmeticsHandler::SPECIAL_HALO)
 	{
-		// spawn flag entity attached to player and grant multiplier if VIP
-		m_pSpecialEntity = new CFlag(&GameServer()->m_World, GetCid(), 0);
-		if(IsLoggedIn() && GetPlayerVip())
-		{
-			AddExpMultiplier((float)g_Config.m_SvVipFlagExpMultiplier / 100.0f, g_Config.m_SvVipFlagExpDuration);
-			GameServer()->SendChatTarget(GetCid(), "%d%% experience bonus enabled for %d minutes!", g_Config.m_SvVipFlagExpMultiplier, g_Config.m_SvVipFlagExpDuration);
-		}
+		m_pSpecialEntity = new CHalo(&GameServer()->m_World, GetCid());
 	}
 	else
 		return false;

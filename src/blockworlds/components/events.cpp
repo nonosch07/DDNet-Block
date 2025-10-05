@@ -209,13 +209,28 @@ void CEvents::ConLeave(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pThis = (CEvents *)pUserData;
 
-	if(pThis->m_pActiveEvent)
+	if(!pThis->m_pActiveEvent)
 	{
-		pThis->m_pActiveEvent->DeRegister(pResult->m_ClientId);
+		pThis->GameServer()->SendChatTarget(pResult->m_ClientId, "No active event at this time");
 		return;
 	}
 
-	pThis->GameServer()->SendChatTarget(pResult->m_ClientId, "No active event at this time");
+	if(pThis->m_pActiveEvent->GetState() == CEventComponent::EEventState::Registration)
+	{
+		if(!pThis->m_pActiveEvent->DeRegister(pResult->m_ClientId))
+			pThis->GameServer()->SendChatTarget(pResult->m_ClientId, "You aren't registered to participate.");
+		return;
+	}
+
+	if(pThis->m_pActiveEvent->Leave(pResult->m_ClientId))
+	{
+		pThis->GameServer()->SendChatTarget(pResult->m_ClientId, "You have left the event and have been disqualified.");
+		pThis->GameServer()->SendBroadcast(" ", pResult->m_ClientId, false);
+	}
+	else
+	{
+		pThis->GameServer()->SendChatTarget(pResult->m_ClientId, "You are not participating in the current event.");
+	}
 }
 
 void CEvents::OnEventStateChange(CEventComponent::EEventState OldState, CEventComponent::EEventState NewState)

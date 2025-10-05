@@ -28,6 +28,8 @@ class CGameTeams
 	int m_aTeamState[NUM_DDRACE_TEAMS];
 	bool m_aTeamLocked[NUM_DDRACE_TEAMS];
 	bool m_aTeamFlock[NUM_DDRACE_TEAMS];
+	// mark teams that are used by events (TDM, 1on1, LMB) to suppress team-wide kills
+	bool m_aTeamEvent[NUM_DDRACE_TEAMS];
 	CClientMask m_aInvited[NUM_DDRACE_TEAMS];
 	bool m_aPractice[NUM_DDRACE_TEAMS];
 	std::shared_ptr<CScoreSaveResult> m_apSaveTeamResult[NUM_DDRACE_TEAMS];
@@ -111,6 +113,8 @@ public:
 	void ResetSwitchers(int Team);
 
 	void SetTeamInvitesOpen(int Team, bool Open);
+	void SetTeamEvent(int Team, bool IsEvent);
+	bool IsTeamEvent(int Team) const { return m_aTeamEvent[Team]; }
 
 	void SendTeamsState(int ClientId);
 	void SetTeamLock(int Team, bool Lock);

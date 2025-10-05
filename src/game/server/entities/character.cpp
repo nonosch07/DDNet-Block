@@ -187,10 +187,6 @@ void CCharacter::Destroy()
 	{
 		m_PendingPurchase->Destroy(false);
 	}
-	if(m_PendingClanRequests)
-	{
-		m_PendingClanRequests->Destroy(false);
-	}
 	GameServer()->m_World.m_Core.m_apCharacters[m_pPlayer->GetCid()] = 0;
 	m_Alive = false;
 	SetSolo(false);
@@ -924,10 +920,6 @@ void CCharacter::Tick()
 	if(m_PendingPurchase != nullptr)
 	{
 		m_PendingPurchase->OnTick();
-	}
-	if(m_PendingClanRequests != nullptr)
-	{
-		m_PendingClanRequests->OnTick();
 	}
 
 	// Hook-rainbow active status is derived dynamically via IsHookRainbowActive().

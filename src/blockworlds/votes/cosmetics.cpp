@@ -155,8 +155,8 @@ void CosmeticsVoteManager::EnsureCategoriesInitialized()
 		AddCategory({"Gun Designs", CCosmeticsHandler::NUM_GUNDESIGNS, CCosmeticsHandler::ms_GundesignNames, &CPlayer::GetEffectiveGundesign, &CPlayer::GetGunDesign});
 		AddCategory({"Knockout Effects", CCosmeticsHandler::NUM_KNOCKOUTS, CCosmeticsHandler::ms_KnockoutNames, &CPlayer::GetEffectiveKnockouts, &CPlayer::GetKnockout});
 
-		static const char *s_VipSpecialNames[] = {"Ball", "Crown", "Epic Circle"};
-		AddCategory({"VIP Features", 3, s_VipSpecialNames, &CPlayer::GetPlayerSpecials, &CPlayer::GetCurrentSpecial});
+		static const char *s_VipSpecialNames[] = {"Ball", "Crown", "Epic Circle", "Halo"};
+		AddCategory({"VIP Features", 5, s_VipSpecialNames, &CPlayer::GetPlayerSpecials, &CPlayer::GetCurrentSpecial});
 		m_CategoriesInitialized = true;
 	}
 }
@@ -230,6 +230,11 @@ void CosmeticsVoteManager::SendOptions(CPlayer *pPlayer, int ClientID, IServer *
 				else if(header == "Knockout Effects")
 				{
 					if(pGameContext->Cosmetics()->HasKnockoutEffect(pPlayer->GetCid(), i))
+						isOwned = true;
+				}
+				else if(header == "VIP Features")
+				{
+					if(pGameContext->Cosmetics()->HasSpecial(pPlayer->GetCid(), i))
 						isOwned = true;
 				}
 			}

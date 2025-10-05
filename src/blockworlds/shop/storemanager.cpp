@@ -136,6 +136,18 @@ bool CShop::SetProductInfo(int Category, int Cosmetics)
 		if(Success && Cosmetics >= 0 && Cosmetics < CCosmeticsHandler::NUM_GUNDESIGNS)
 			m_pCosmeticName = CCosmeticsHandler::ms_GundesignNames[Cosmetics];
 		break;
+	case CATEGORY_UTILITY:
+		Success = m_pCosmeticsHandler->ShopInfoUtility(Cosmetics, m_pPrice, m_pLevel, PreviewPos);
+		if(Success)
+		{
+			if(Cosmetics == 0)
+				m_pCosmeticName = "Weapon Kit";
+			else if(Cosmetics == 1)
+				m_pCosmeticName = "Deathnote Page";
+			else
+				m_pCosmeticName = "Utility Item";
+		}
+		break;
 	default:
 		return false;
 	}
@@ -240,6 +252,19 @@ void CShop::Purchase()
 
 	case CATEGORY_SKINMANI:
 		m_pOwner->SetPlayerSkinmani(m_pProduct, '1');
+		break;
+
+	case CATEGORY_UTILITY:
+		// product ids: 0 = weaponkit, 1 = deathnote page
+		if(m_pProduct == 0)
+		{
+			m_pOwner->SetPlayerWeaponkits(m_pOwner->GetPlayerWeaponkits() + 1);
+		}
+		else if(m_pProduct == 1)
+		{
+			// grant one deathnote page as an account page
+			m_pOwner->SetPlayerPages(m_pOwner->GetPlayerPages() + 1);
+		}
 		break;
 
 	default:

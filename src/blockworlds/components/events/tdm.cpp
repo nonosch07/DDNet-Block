@@ -207,6 +207,8 @@ void CTeamDeathmatchEvent::StartEvent()
 		EmergencyShutdown("No free team was found");
 		return;
 	}
+	// mark this team as an event team so team-wide kills are suppressed
+	Teams.SetTeamEvent(m_DDRaceTeam, true);
 	// lock the event team so players don't leave on death
 	Teams.SetTeamLock(m_DDRaceTeam, true);
 	Teams.SetTeamInvitesOpen(m_DDRaceTeam, false);
@@ -422,23 +424,14 @@ void CTeamDeathmatchEvent::FinishEvent()
 
 	for(const auto ClientId : SavedClientIds)
 	{
-		CCharacter *pChar = GameServer()->GetPlayerChar(ClientId);
-		if(!pChar)
-			continue;
-		auto it = m_pSavedPlayers.find(ClientId);
-		if(it != m_pSavedPlayers.end())
-		{
-			it->second->Load(pChar, TEAM_FLOCK, false);
-			pChar->ResetVelocity();
-			delete it->second;
-			m_pSavedPlayers.erase(it);
-		}
+		LoadPosition(ClientId);
 	}
 
 	m_Participants.clear();
 	if(m_DDRaceTeam != -1)
 	{
 		// unlock the team and reset round state
+		GameServer()->m_pController->Teams().SetTeamEvent(m_DDRaceTeam, false);
 		GameServer()->m_pController->Teams().SetTeamLock(m_DDRaceTeam, false);
 		GameServer()->m_pController->Teams().ResetRoundState(m_DDRaceTeam);
 	}

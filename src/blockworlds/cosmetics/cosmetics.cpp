@@ -63,6 +63,7 @@ const char *CCosmeticsHandler::ms_SkinmaniNames[NUM_SKINMANIS] = {
 	"Rainbow (VIP)",
 	"Epi Rainbow (VIP)",
 	"Hook Rainbow (VIP)",
+	"Electric (VIP)",
 };
 
 // specials
@@ -70,8 +71,7 @@ static const char *g_SpecialNames[CCosmeticsHandler::NUM_SPECIALS] = {
 	"Ball",
 	"Crown",
 	"Epic Circle",
-	"Flag",
-};
+	"Halo"};
 
 bool CCosmeticsHandler::ToggleSpecial(int ClientID, const char *pName)
 {
@@ -87,16 +87,7 @@ bool CCosmeticsHandler::ToggleSpecial(int ClientID, const char *pName)
 			if(!pPlayer)
 				return false;
 
-			if(i == CCosmeticsHandler::SPECIAL_FLAG)
-			{
-				if(GameServer()->m_apPlayers[ClientID] && GameServer()->m_apPlayers[ClientID]->IsLoggedIn() && GameServer()->m_apPlayers[ClientID]->GetPlayerVip())
-				{
-					if(pPlayer->ToggleSpecial(CCosmeticsHandler::SPECIAL_FLAG))
-						return true;
-					return false;
-				}
-				return false;
-			}
+			// NOTE: all remaining specials in this list are toggleable by players
 
 			if(pPlayer->ToggleSpecial(i))
 				return true;
@@ -114,16 +105,13 @@ bool CCosmeticsHandler::HasSpecial(int ClientID, int Index)
 	if(Index < 0 || Index >= NUM_SPECIALS)
 		return false;
 
+	// Admins / authed clients should always be allowed to see/use specials
 	if(Server()->ClientAuthed(ClientID))
 		return true;
 	if(!GameServer()->m_apPlayers[ClientID]->IsLoggedIn())
 		return false;
-
-	// VIP-only: some specials are VIP-gated
-	if(Index == SPECIAL_BALL || Index == SPECIAL_CROWN || Index == SPECIAL_EPICCIRCLE)
-	{
-		return GameServer()->m_apPlayers[ClientID]->GetPlayerVip() || GameServer()->Server()->ClientAuthed(ClientID);
-	}
+	if(GameServer()->m_apPlayers[ClientID]->GetPlayerVip())
+		return true;
 
 	return false;
 }
@@ -624,13 +612,12 @@ void CCosmeticsHandler::SnapSkinmaniRaw(int64_t Tick, CNetObj_ClientInfo *pClien
 	}
 	else if(Effect == SKINMANI_VIP_RAINBOW)
 	{
-		float freq = 255.0f;
-		// if hooked with rainbow, speed up according to character state
+		float base = 300.0f;
 		if(ClientID >= 0 && ClientID < MAX_CLIENTS && GameServer()->GetPlayerChar(ClientID) && GameServer()->GetPlayerChar(ClientID)->IsHookRainbowActive())
-			freq *= GameServer()->GetPlayerChar(ClientID)->GetHookRainbowDivider();
+			base *= GameServer()->GetPlayerChar(ClientID)->GetHookRainbowDivider();
 
-		HSLBody.h = (sinf(TickDef / freq) + 1.0f) / 2.0f;
-		HSLBody.s = 0.5f;
+		HSLBody.h = (sinf(TickDef / base) + 1.0f) / 2.0f;
+		HSLBody.s = 0.6f;
 		HSLBody.l = 0.5f;
 		pClientInfo->m_ColorBody = HslToCc(HSLBody);
 		pClientInfo->m_ColorFeet = HslToCc(HSLBody);
@@ -651,6 +638,25 @@ void CCosmeticsHandler::SnapSkinmaniRaw(int64_t Tick, CNetObj_ClientInfo *pClien
 	}
 	else if(Effect == SKINMANI_VIP_HOOK_RAINBOW)
 	{
+		float base = 150.0f;
+		if(ClientID >= 0 && ClientID < MAX_CLIENTS && GameServer()->GetPlayerChar(ClientID) && GameServer()->GetPlayerChar(ClientID)->IsHookRainbowActive())
+			base *= GameServer()->GetPlayerChar(ClientID)->GetHookRainbowDivider();
+
+		HSLBody.h = (sinf(TickDef / base + (float)ClientID * 0.1f) + 1.0f) / 2.0f;
+		HSLBody.s = 1.0f;
+		HSLBody.l = 0.5f;
+		pClientInfo->m_ColorBody = HslToCc(HSLBody);
+		pClientInfo->m_ColorFeet = HslToCc(HSLBody);
+		pClientInfo->m_UseCustomColor = 1;
+	}
+	else if(Effect == SKINMANI_VIP_ELECTRIC)
+	{
+		float t = (sinf(TickDef / 20.0f) + 1.0f) / 2.0f;
+		HSLBody.h = 0.6f;
+		HSLBody.s = 0.9f;
+		HSLBody.l = 0.4f + 0.3f * t;
+		pClientInfo->m_ColorBody = HslToCc(HSLBody);
+		pClientInfo->m_UseCustomColor = 1;
 	}
 }
 
@@ -874,4 +880,23 @@ bool CCosmeticsHandler::ShopInfoKnockout(int Index, int &Price, int &Level, vec2
 	{
 		return false;
 	}
+}
+
+bool CCosmeticsHandler::ShopInfoUtility(int Index, int &Price, int &Level, vec2 &PreviewPos)
+{
+	if(Index == CCosmeticsHandler::UTILITY_WEAPONKIT)
+	{
+		Price = 15;
+		Level = 10;
+		PreviewPos = vec2(0.0f, 0.0f); // placeholder for now
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::UTILITY_DEATHNOTE_PAGE)
+	{
+		Price = 30;
+		Level = 10;
+		PreviewPos = vec2(50.0f, 0.0f);
+		return true;
+	}
+	return false;
 }

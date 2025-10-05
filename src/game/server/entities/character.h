@@ -3,7 +3,6 @@
 #ifndef GAME_SERVER_ENTITIES_CHARACTER_H
 #define GAME_SERVER_ENTITIES_CHARACTER_H
 
-#include <blockworlds/requests/clan_requests/requests.h>
 #include <blockworlds/shop/storemanager.h>
 #include <game/server/entity.h>
 #include <game/server/save.h>
@@ -295,7 +294,8 @@ public:
 	CShop *m_PendingPurchase = nullptr;
 	int64_t m_LastShopTick = 0;
 
-	CClanRequests *m_PendingClanRequests = nullptr;
+	// legacy clan requests removed; use centralized CRequests component instead
+	// CClanRequests *m_PendingClanRequests = nullptr;
 };
 
 enum

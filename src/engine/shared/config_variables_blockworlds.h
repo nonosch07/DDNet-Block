@@ -36,6 +36,9 @@ MACRO_CONFIG_INT(SvBlockUnfreezeNoImpactInterval, sv_block_unfreeze_no_impact_in
 MACRO_CONFIG_INT(SvBlockKillInterval, sv_block_kill_interval, 5, 0, 0, CFGFLAG_SERVER, "Time (in seconds) since a player's death during which blocking is still in effect.")
 MACRO_CONFIG_INT(SvKillStreakCount, sv_kill_streak_count, 5, 1, 10, CFGFLAG_SERVER, "Number of consecutive kills required to register a kill streak.")
 MACRO_CONFIG_INT(SvAllowExpFromSameIp, sv_allow_exp_from_same_ip, 0, 0, 1, CFGFLAG_SERVER, "Enable (1) or disable (0) awarding experience points for players connecting from the same IP. (Recommended: off for production.)")
+
+MACRO_CONFIG_INT(SvIgnoreAfkKills, sv_ignore_afk_kills, 1, 0, 1, CFGFLAG_SERVER, "When enabled (1), kills of AFK or paused players will not award experience or killstreaks.")
+MACRO_CONFIG_INT(SvIgnoreClanmateKills, sv_ignore_clanmate_kills, 1, 0, 1, CFGFLAG_SERVER, "When enabled (1), kills between players of the same clan will not award experience or killstreaks.")
 MACRO_CONFIG_INT(SvBlockMinAliveTime, sv_block_min_alive_time, 20, 1, 120, CFGFLAG_SERVER, "Minimum time (in seconds) a player must stay alive to earn experience.")
 MACRO_CONFIG_INT(SvBlockInterval, sv_block_interval, 0, 0, 1, CFGFLAG_SERVER, "Interval (in seconds) between two countable fights.")
 

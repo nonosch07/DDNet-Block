@@ -26,7 +26,7 @@ static int GetTilePositions(int TileID, CGameContext *pSelf, std::vector<vec2> &
 }
 
 COneOnOneEvent::COneOnOneEvent(CGameContext *pGameServer) :
-	CEventComponent(pGameServer), m_Player1ID(-1), m_Player2ID(-1), m_Score1(0), m_Score2(0), m_Wager(0), m_Team(-1), m_StartTimer(0), m_CurrentTick(0)
+	CEventComponent(pGameServer), m_Player1ID(-1), m_Player2ID(-1), m_Score1(0), m_Score2(0), m_Wager(0), m_Team(-1), m_StartTimer(0), m_CurrentTick(0), m_SuppressFinishBroadcast(false)
 {
 }
 
@@ -44,6 +44,8 @@ void COneOnOneEvent::StartEvent()
 	m_Team = pController->Teams().GetFirstEmptyTeam();
 	pController->Teams().SetForceCharacterTeam(m_Player1ID, m_Team);
 	pController->Teams().SetForceCharacterTeam(m_Player2ID, m_Team);
+	// mark this team as an event team so team-wide kills are suppressed
+	pController->Teams().SetTeamEvent(m_Team, true);
 	pController->Teams().SetTeamLock(m_Team, true);
 
 	m_Score1 = 0;
@@ -198,7 +200,6 @@ void COneOnOneEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 // award points on death: opponent gets one point (suicides count)
 void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 {
-	const char *pKillerName = KillerId >= 0 ? Server()->ClientName(KillerId) : "<none>";
 	const char *pVictimName = ClientId >= 0 ? Server()->ClientName(ClientId) : "<none>";
 
 	if(GetState() != CEventComponent::EEventState::Active)
@@ -263,10 +264,13 @@ void COneOnOneEvent::FinishEvent()
 		pWinner = GameServer()->GetPlayer(m_Player2ID);
 		pLoser = GameServer()->GetPlayer(m_Player1ID);
 	}
-	if(pWinner && pLoser)
+	if(!m_SuppressFinishBroadcast && pWinner && pLoser)
 	{
+		const char *pName1 = m_Player1ID >= 0 ? Server()->ClientName(m_Player1ID) : "<none>";
+		const char *pName2 = m_Player2ID >= 0 ? Server()->ClientName(m_Player2ID) : "<none>";
+		const char *pWinnerName = pWinner->GetCid() == m_Player1ID ? pName1 : pName2;
 		char aBuf[256];
-		str_format(aBuf, sizeof(aBuf), "[1on1] - '%s' has won! (Result: %d - %d)", Server()->ClientName(pWinner->GetCid()), m_Score1, m_Score2);
+		str_format(aBuf, sizeof(aBuf), "[1on1] - %s vs %s — %s won! (Result: %d - %d)", pName1, pName2, pWinnerName, m_Score1, m_Score2);
 		GameServer()->SendChatTarget(-1, aBuf);
 	}
 
@@ -274,6 +278,7 @@ void COneOnOneEvent::FinishEvent()
 	auto pController = (CGameControllerDDRace *)GameServer()->m_pController;
 	if(m_Team >= 0)
 	{
+		pController->Teams().SetTeamEvent(m_Team, false);
 		pController->Teams().SetTeamLock(m_Team, false);
 	}
 
@@ -288,7 +293,36 @@ bool COneOnOneEvent::Leave(int ClientId)
 {
 	if(ClientId == m_Player1ID || ClientId == m_Player2ID)
 	{
+		int leaver = ClientId;
+		int opponent = (leaver == m_Player1ID) ? m_Player2ID : m_Player1ID;
+
+		const char *pLeaverName = leaver >= 0 ? Server()->ClientName(leaver) : "<unknown>";
+		const char *pOpponentName = opponent >= 0 ? Server()->ClientName(opponent) : "<unknown>";
+
+		// ifs core is tied (e.g., 0-0), consider leaver the loser: give opponent a point so FinishEvent picks them
+		if(m_Score1 == m_Score2)
+		{
+			if(opponent == m_Player1ID)
+				m_Score1 += 1;
+			else
+				m_Score2 += 1;
+		}
+
+		static const char *s_RagequitMsgs[] = {
+			"[1on1] - %s ragequited the match vs %s! What a dramatic exit.",
+			"[1on1] - %s has abandoned the duel against %s — coward move!",
+			"[1on1] - %s disconnected mid-fight vs %s. GG, we saw nothing...",
+			"[1on1] - %s choked under pressure and fled from %s. Shame.",
+			"[1on1] - %s decided running was the best strategy against %s. Classic."};
+		const int NumMsgs = sizeof(s_RagequitMsgs) / sizeof(s_RagequitMsgs[0]);
+		int idx = (int)((Server()->Tick() + leaver) % NumMsgs);
+		char aBuf[256];
+		str_format(aBuf, sizeof(aBuf), s_RagequitMsgs[idx], pLeaverName, pOpponentName);
+		GameServer()->SendChatTarget(-1, aBuf);
+
+		m_SuppressFinishBroadcast = true;
 		FinishEvent();
+		m_SuppressFinishBroadcast = false;
 		return true;
 	}
 	return false;

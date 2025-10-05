@@ -1271,7 +1271,11 @@ void CGameContext::OnTick()
 	m_Animations.Tick();
 	m_ZoneManager.Tick();
 	if(g_Config.m_SvShopServer)
+	{
+		if(m_ShopPreview.GameServer() == nullptr)
+			m_ShopPreview.Init(this);
 		m_ShopPreview.Tick();
+	}
 	bool UpdatePlaytimeThisSkibidiTick = (Server()->Tick() % Server()->TickSpeed() == 0);
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
@@ -4067,6 +4071,7 @@ void CGameContext::RegisterDDRaceCommands()
 	Console()->Register("give_blockpoints", "v[id] i[amount]", CFGFLAG_SERVER, ConGiveBlockpoints, this, "Give blockpoints to player id");
 	Console()->Register("give_passive", "v[id] i[seconds]", CFGFLAG_SERVER, ConGivePassive, this, "Give passive seconds to player id");
 	Console()->Register("set_password", "s[name] s[newpass]", CFGFLAG_SERVER, ConAdminSetPassword, this, "Set an account password by account name");
+	Console()->Register("set_vip", "v[id] i[0|1]", CFGFLAG_SERVER, ConSetVip, this, "Set or remove VIP for player id (1=set, 0=remove)");
 }
 
 void CGameContext::RegisterChatCommands()
@@ -4827,7 +4832,11 @@ void CGameContext::OnSetAuthed(int ClientId, int Level)
 
 	for(const auto &Component : g_ComponentRegistry.Active())
 		if(Level == AUTHED_NO)
+		{
 			Component->OnPlayerUnAuthorized(ClientId);
+			if(m_apPlayers[ClientId])
+				m_apPlayers[ClientId]->ClearCosmetics();
+		}
 		else
 			Component->OnPlayerAuthorized(ClientId, Level);
 }

@@ -33,6 +33,7 @@ void CGameTeams::Reset()
 		m_aTeamInvitesOpen[i] = true;
 		m_aTeamState[i] = TEAMSTATE_EMPTY;
 		m_aTeamLocked[i] = false;
+		m_aTeamEvent[i] = false;
 		m_aTeamFlock[i] = false;
 		m_apSaveTeamResult[i] = nullptr;
 		m_aTeamSentStartWarning[i] = false;
@@ -473,6 +474,15 @@ void CGameTeams::ChangeTeamState(int Team, int State)
 
 void CGameTeams::KillTeam(int Team, int NewStrongId, int ExceptId)
 {
+	// Don't kill teams that are reserved for events (TDM, 1on1, LMB)
+	if(Team >= 0 && Team < NUM_DDRACE_TEAMS && m_aTeamEvent[Team])
+	{
+		if(ExceptId >= 0 && GameServer()->m_apPlayers[ExceptId])
+		{
+			GameServer()->m_apPlayers[ExceptId]->Respawn(true);
+		}
+		return;
+	}
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		if(m_Core.Team(i) == Team && GameServer()->m_apPlayers[i])
@@ -494,6 +504,12 @@ void CGameTeams::KillTeam(int Team, int NewStrongId, int ExceptId)
 	Msg.m_Team = Team;
 	Msg.m_First = NewStrongId;
 	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, -1);
+}
+
+void CGameTeams::SetTeamEvent(int Team, bool IsEvent)
+{
+	if(Team >= 0 && Team < NUM_DDRACE_TEAMS)
+		m_aTeamEvent[Team] = IsEvent;
 }
 
 bool CGameTeams::TeamFinished(int Team)

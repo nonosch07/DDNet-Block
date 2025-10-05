@@ -28,7 +28,7 @@ public:
 	void OnCharacterDeath(int KillerId, int ClientId, int Weapon) override;
 	void OnPlayerDropping(int ClientId) override;
 
-	[[nodiscard]] std::optional<int> GetScoreOf(int ClientId) const;
+	[[nodiscard]] std::optional<int> GetScoreOf(int ClientId) const override;
 
 private:
 	int m_Player1ID;
@@ -39,6 +39,7 @@ private:
 	int m_Team;
 	int64_t m_StartTimer;
 	int64_t m_CurrentTick;
+	bool m_SuppressFinishBroadcast;
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_1ON1_H

@@ -19,12 +19,14 @@ public:
 		{
 			OneOnOne = 0,
 			Shop = 1,
+			Clan = 2,
 		};
 		int m_Id;
 		EType m_Type;
 		int m_From; // issuer
 		int m_To; // target (for 1on1) or owner (for shop)
 		int m_Wager;
+		int m_ClanId; // clan id for clan invites
 		int m_Category; // shop category
 		int m_Item; // shop item id
 		int m_ExpireTick;
@@ -34,6 +36,7 @@ public:
 
 	// create requests
 	int Create1on1Invite(int FromClient, int ToClient, int Wager, int ExpireSeconds = 30);
+	int CreateClanInvite(int FromClient, int ToClient, int ClanId, int ExpireSeconds = 15);
 	int CreateShopRequest(int OwnerClient, int Category, int ItemId, int Price, int ExpireSeconds = 15);
 
 	// accept/decline

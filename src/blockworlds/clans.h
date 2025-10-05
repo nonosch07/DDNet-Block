@@ -164,6 +164,9 @@ public:
 	const std::vector<CClansData> &GetClansData() const { return m_vClansData; }
 
 	void AddClanExp(int ClanId, int Amount);
+
+	// Returns true if the clan exists and can be joined (basic existence check)
+	bool IsClanJoinable(int ClanId) const;
 };
 
 #endif // BLOCKWORLDS_CLANS_H

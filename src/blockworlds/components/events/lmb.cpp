@@ -149,6 +149,8 @@ void CLastManBlockingEvent::StartEvent()
 		EmergencyShutdown("No free team was found");
 		return;
 	}
+	// mark this team as an event team so team-wide kills are suppressed
+	Teams.SetTeamEvent(m_DDRaceTeam, true);
 	Teams.SetTeamLock(m_DDRaceTeam, false);
 	Teams.SetTeamInvitesOpen(m_DDRaceTeam, false);
 
@@ -186,7 +188,14 @@ void CLastManBlockingEvent::FinishEvent()
 			}
 
 			GameServer()->GetPlayer(m_Winner)->AddExpMultiplier(Config()->m_SvLMBWinnerExpMultiplier, Config()->m_SvLMBWinnerExpMultiplierDuration);
-			GameServer()->SendChatTarget(m_Winner, "%d%% experience bonus enabled for %d minutes!", Config()->m_SvLMBWinnerExpMultiplier, Config()->m_SvLMBWinnerExpMultiplierDuration);
+			GameServer()->SendChatTarget(m_Winner, "%d%% experience bonus enabled for 5 minutes!");
+
+			CPlayer *pPlayer = GameServer()->GetPlayer(m_Winner);
+			if(pPlayer)
+			{
+				pPlayer->GiveFlag(Config()->m_SvLMBWinnerExpMultiplierDuration * 60);
+				GameServer()->SendChatTarget(m_Winner, "Flag effect enabled for %d minutes!", Config()->m_SvLMBWinnerExpMultiplierDuration);
+			}
 		}
 		else
 		{
@@ -214,6 +223,9 @@ void CLastManBlockingEvent::FinishEvent()
 
 	if(m_DDRaceTeam != -1)
 		GameServer()->m_pController->Teams().ResetRoundState(m_DDRaceTeam);
+
+	if(m_DDRaceTeam != -1)
+		GameServer()->m_pController->Teams().SetTeamEvent(m_DDRaceTeam, false);
 
 	SetState(CEventComponent::EEventState::Finished);
 }
@@ -376,8 +388,12 @@ void CLastManBlockingEvent::CheckFreezeTime()
 		auto *pChar = GameServer()->GetPlayerChar(ClientId);
 		if(!pChar || !pChar->IsAlive())
 			continue;
-
-		auto FrozenSince = GetFrozenSince(ClientId);
+		int FrozenSince = 0;
+		{
+			auto itfs = m_FrozenSince.find(ClientId);
+			if(itfs != m_FrozenSince.end())
+				FrozenSince = itfs->second;
+		}
 		bool WasFrozenTickBefore = FrozenSince != 0;
 		bool IsFrozenNow = pChar->m_FreezeTime;
 		if(IsFrozenNow && !WasFrozenTickBefore)
@@ -391,7 +407,9 @@ void CLastManBlockingEvent::CheckFreezeTime()
 			SetFrozenSince(ClientId, 0);
 		}
 
-		if(IsFrozenNow && Server()->Tick() - FrozenSince >= Config()->m_SvLMBFreezeTimeout)
+		// require a configurable continuous freeze duration (in ticks) to eliminate the player
+		int RequiredFreezeTicks = Config()->m_SvLMBFreezeTimeout; // configured in ticks (50 ticks = 1 second)
+		if(IsFrozenNow && FrozenSince != 0 && Server()->Tick() - FrozenSince >= RequiredFreezeTicks)
 		{
 			Leave(ClientId);
 		}
@@ -399,7 +417,10 @@ void CLastManBlockingEvent::CheckFreezeTime()
 }
 int CLastManBlockingEvent::GetFrozenSince(int ClientId) const
 {
-	return m_FrozenSince.at(ClientId);
+	auto it = m_FrozenSince.find(ClientId);
+	if(it == m_FrozenSince.end())
+		return 0;
+	return it->second;
 }
 void CLastManBlockingEvent::SetFrozenSince(int ClientId, int Tick)
 {

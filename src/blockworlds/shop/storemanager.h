@@ -25,7 +25,8 @@ public:
 	{
 		CATEGORY_SKINMANI = 0,
 		CATEGORY_GUNDESIGN,
-		CATEGORY_KNOCKOUT
+		CATEGORY_KNOCKOUT,
+		CATEGORY_UTILITY
 	};
 
 	CShop(CGameContext *pGameContext, CPlayer *pOwner, int pCategory, int pCosmetics, int ExpireInS = 15);

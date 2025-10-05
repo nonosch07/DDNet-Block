@@ -239,6 +239,11 @@ public:
 	int m_RescueMode;
 
 	CSaveTee m_LastTeleTee;
+	// temporary special expiration tick (server ticks, 50 ticks = 1 second)
+	int m_SpecialExpireTick;
+	// flag entity for programmatic flag reward and its expiration
+	CEntity *m_pFlagEntity;
+	int m_FlagExpireTick;
 
 	// Blockworlds
 
@@ -251,6 +256,15 @@ public:
 
 	void OnPlayerLogin();
 	void OnPlayerLogout();
+
+	// clear cosmetics/effects (specials, flag, skin/gundesign, knockouts) without logging out account
+	void ClearCosmetics();
+
+	// give a temporary special (spawns and auto-removes after Duration minutes)
+	void GiveTemporarySpecial(int SpecialIndex, int DurationMinutes);
+
+	// grant the flag effect (visual + optional exp) for a duration in minutes
+	void GiveFlag(int DurationMinutes);
 	void OnPlayerSave(bool Logout);
 
 	//helper functions:

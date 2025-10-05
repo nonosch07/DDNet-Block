@@ -58,7 +58,16 @@ public:
 		SKINMANI_VIP_RAINBOW,
 		SKINMANI_VIP_RAINBOW_EPI,
 		SKINMANI_VIP_HOOK_RAINBOW,
+		SKINMANI_VIP_ELECTRIC,
 		NUM_SKINMANIS,
+	};
+
+	// utility shop items (not cosmetics but exposed here for shop info)
+	enum
+	{
+		UTILITY_WEAPONKIT = 0,
+		UTILITY_DEATHNOTE_PAGE,
+		NUM_UTILITY_ITEMS,
 	};
 
 	static const char *ms_KnockoutNames[NUM_KNOCKOUTS];
@@ -71,7 +80,7 @@ public:
 		SPECIAL_BALL = 0,
 		SPECIAL_CROWN,
 		SPECIAL_EPICCIRCLE,
-		SPECIAL_FLAG,
+		SPECIAL_HALO,
 		NUM_SPECIALS,
 	};
 
@@ -101,6 +110,9 @@ public:
 	bool ShopInfoSkinmani(int Index, int &Price, int &Level, vec2 &PreviewPos);
 	bool ShopInfoKnockout(int Index, int &Price, int &Level, vec2 &PreviewPos);
 	bool ShopInfoGundesign(int Index, int &Price, int &Level, vec2 &PreviewPos);
+
+	// utility shop info (weaponkits, deathnote pages)
+	bool ShopInfoUtility(int Index, int &Price, int &Level, vec2 &PreviewPos);
 
 	// specials
 	bool ToggleSpecial(int ClientID, const char *pName);
