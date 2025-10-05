@@ -1718,33 +1718,48 @@ void CPlayer::AddExpMultiplier(int ModifierPercent, int Duration)
 void CPlayer::CalculateExpMultiplier()
 {
 	if(m_ExpModifiers.empty())
-		m_CurrentExpMultiplier = 1;
-
-	float Multiplier = 0;
-	switch(g_Config.m_SvBlockExperienceMultiplierStacking) // TODO: add enum
 	{
-	case HIGHEST: // highest
-		m_CurrentExpMultiplier = (float)(m_ExpModifiers.begin()->first) / 100.f;
+		m_CurrentExpMultiplier = 1.0f;
+		return;
+	}
+
+	float Multiplier = 0.0f;
+	switch(g_Config.m_SvBlockExperienceMultiplierStacking)
+	{
+	case HIGHEST:
+	{
+		int Highest = 0;
+		for(const auto &ExpMultiplier : m_ExpModifiers)
+			Highest = Highest > ExpMultiplier.first ? Highest : ExpMultiplier.first;
+		m_CurrentExpMultiplier = (float)Highest / 100.0f;
 		break;
-	case ADDITIVE: // additive
-		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &ExpMultiplier) {
-			Multiplier += (ExpMultiplier.first - 100) / 100.f;
-		});
+	}
+	case ADDITIVE:
+	{
+		Multiplier = 1.0f;
+		for(const auto &ExpMultiplier : m_ExpModifiers)
+			Multiplier += (ExpMultiplier.first - 100) / 100.0f;
 		m_CurrentExpMultiplier = Multiplier;
 		break;
-	case LOGARITHMIC: // logarithmic
-		Multiplier = 1;
-		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &ExpMultiplier) {
-			Multiplier *= (ExpMultiplier.first - 100) / 100.f;
-		});
+	}
+	case LOGARITHMIC:
+	{
+		Multiplier = 1.0f;
+		for(const auto &ExpMultiplier : m_ExpModifiers)
+			Multiplier *= (ExpMultiplier.first) / 100.0f;
 		m_CurrentExpMultiplier = log2f(Multiplier);
 		break;
-	case MULTIPLICATIVE: // multiplicative
-		Multiplier = 1;
-		std::for_each(m_ExpModifiers.begin(), m_ExpModifiers.end(), [&](const auto &ExpMultiplier) {
-			Multiplier *= (ExpMultiplier.first - 100) / 100.f;
-		});
+	}
+	case MULTIPLICATIVE:
+	{
+		Multiplier = 1.0f;
+		for(const auto &ExpMultiplier : m_ExpModifiers)
+			Multiplier *= (ExpMultiplier.first) / 100.0f;
 		m_CurrentExpMultiplier = Multiplier;
+		break;
+	}
+	default:
+		m_CurrentExpMultiplier = 1.0f;
 		break;
 	}
 }
