@@ -172,6 +172,8 @@ public:
 
 	// Returns true if the clan exists and can be joined (basic existence check)
 	bool IsClanJoinable(int ClanId) const;
+
+	int SaveAllClansOnShutdown();
 };
 
 #endif // BLOCKWORLDS_CLANS_H

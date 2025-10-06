@@ -294,6 +294,8 @@ class CAccounts
 	CGameContext *m_pGameServer;
 	IServer *m_pServer;
 
+	bool m_ShutdownFlushActive = false;
+
 	bool RateLimitPlayer(int ClientId);
 
 	// per player queries user
@@ -341,6 +343,10 @@ class CAccounts
 public:
 	CAccounts(CGameContext *pGameServer, CDbConnectionPool *pPool);
 	~CAccounts() {}
+
+	// Mark start of shutdown flush; all subsequently queued queries become critical.
+	void BeginShutdownFlush() { m_ShutdownFlushActive = true; }
+	bool ShutdownFlushActive() const { return m_ShutdownFlushActive; }
 
 	// Accounts
 	void Save(int ClientId, CAccountData *pAccountData);

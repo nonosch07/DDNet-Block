@@ -29,6 +29,8 @@ struct ISqlData
 	virtual ~ISqlData() = default;
 
 	mutable std::shared_ptr<ISqlResult> m_pResult;
+
+	bool m_Critical = false;
 };
 
 enum Write

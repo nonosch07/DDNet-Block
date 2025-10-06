@@ -257,7 +257,11 @@ void CGameContext::ConGiveBlockpointsRequest(IConsole::IResult *pResult, void *p
 	{
 		int outstanding = 0;
 		auto list = requestsTmp->GetRequestsFor(pFrom->GetCid(), CRequests::SRequest::EType::BlockpointTransfer);
-		for(int id : list) { (void)id; outstanding++; }
+		for(int id : list)
+		{
+			(void)id;
+			outstanding++;
+		}
 		if(outstanding >= g_Config.m_SvBpTransferMaxOutstandingPerSender)
 			return pSelf->SendChatTarget(pResult->m_ClientId, "You have too many pending transfers. Wait for them to resolve.");
 	}

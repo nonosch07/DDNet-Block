@@ -439,7 +439,7 @@ bool CRequests::DeclineRequest(int RequestId)
 	if(it->m_Type == SRequest::EType::OneOnOne)
 	{
 		int from = it->m_From; // inviter
-		int to = it->m_To;   // declining player
+		int to = it->m_To; // declining player
 		if(CheckClientId(to) && GameServer()->m_apPlayers[to])
 			GameServer()->SendChatTarget(to, "You declined the 1on1 challenge.");
 		if(CheckClientId(from) && GameServer()->m_apPlayers[from])

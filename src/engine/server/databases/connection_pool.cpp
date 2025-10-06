@@ -300,12 +300,12 @@ void CWorker::ProcessQueries()
 		{
 			for(size_t i = 0; i < m_vpReadConnections.size(); i++)
 			{
-				if(m_pShared->m_Shutdown)
+				if(m_pShared->m_Shutdown && !(pThreadData->m_pThreadData && pThreadData->m_pThreadData->m_Critical))
 				{
 					dbg_msg("sql", "[%i] %s dismissed read request during shutdown", JobNum, pThreadData->m_pName);
 					break;
 				}
-				if(FailMode)
+				if(FailMode && !(pThreadData->m_pThreadData && pThreadData->m_pThreadData->m_Critical))
 				{
 					dbg_msg("sql", "[%i] %s dismissed read request during FailMode", JobNum, pThreadData->m_pName);
 					break;
@@ -327,13 +327,22 @@ void CWorker::ProcessQueries()
 		break;
 		case CSqlExecData::WRITE_ACCESS:
 		{
-			if(m_pShared->m_Shutdown && m_pWriteBackup != nullptr)
+			bool ForcePrimary = pThreadData->m_pThreadData && pThreadData->m_pThreadData->m_Critical;
+			if(!ForcePrimary)
 			{
-				dbg_msg("sql", "[%i] %s skipped to backup database during shutdown", JobNum, pThreadData->m_pName);
-			}
-			else if(FailMode && m_pWriteBackup != nullptr)
-			{
-				dbg_msg("sql", "[%i] %s skipped to backup database during FailMode", JobNum, pThreadData->m_pName);
+				if(m_pShared->m_Shutdown && m_pWriteBackup != nullptr)
+				{
+					dbg_msg("sql", "[%i] %s skipped to backup database during shutdown", JobNum, pThreadData->m_pName);
+				}
+				else if(FailMode && m_pWriteBackup != nullptr)
+				{
+					dbg_msg("sql", "[%i] %s skipped to backup database during FailMode", JobNum, pThreadData->m_pName);
+				}
+				else if(CDbConnectionPool::ExecSqlFunc(m_pWriteConnection.get(), pThreadData.get(), Write::NORMAL))
+				{
+					dbg_msg("sql", "[%i] %s done on write database", JobNum, pThreadData->m_pName);
+					Success = true;
+				}
 			}
 			else if(CDbConnectionPool::ExecSqlFunc(m_pWriteConnection.get(), pThreadData.get(), Write::NORMAL))
 			{

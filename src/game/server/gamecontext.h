@@ -208,6 +208,8 @@ public:
 
 	void Clear();
 
+	void PreShutdownFlush();
+
 	CEventHandler m_Events;
 	CPlayer *m_apPlayers[MAX_CLIENTS];
 	// keep last input to always apply when none is sent

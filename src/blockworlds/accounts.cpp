@@ -245,6 +245,8 @@ void CAccounts::ExecUserThread(
 		Tmp->m_AccountData = CAccountData();
 	}
 	Tmp->m_AccountId = AccountId;
+	if(m_ShutdownFlushActive)
+		Tmp->m_Critical = true;
 
 	m_pPool->Execute(pFuncPtr, std::move(Tmp), pThreadName);
 }
@@ -764,7 +766,13 @@ bool CAccounts::LogoutThread(IDbConnection *pSqlServer, const ISqlData *pGameDat
 
 void CAccounts::ClearLogins()
 {
-	m_pPool->Execute(ClearLoginsThread, nullptr, "clear all logins");
+	struct CCriticalClear final : ISqlData
+	{
+		CCriticalClear() :
+			ISqlData(nullptr) { m_Critical = true; }
+	};
+	auto p = std::make_unique<CCriticalClear>();
+	m_pPool->Execute(ClearLoginsThread, std::move(p), "clear all logins");
 }
 
 bool CAccounts::ClearLoginsThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)

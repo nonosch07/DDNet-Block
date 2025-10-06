@@ -4628,6 +4628,49 @@ void CGameContext::OnShutdown(void *pPersistentData)
 	for(const auto &Component : g_ComponentRegistry.Active())
 		Component->OnShutdown();
 
+	// Blockworlds persistence -------------------------------------------
+
+	static bool s_FlushDetected = false;
+	if(m_pAccounts && m_pAccounts->ShutdownFlushActive())
+		s_FlushDetected = true;
+	if(!s_FlushDetected)
+	{
+		int QueuedAccountSaves = 0;
+		if(m_pAccounts)
+		{
+			for(int i = 0; i < MAX_CLIENTS; ++i)
+			{
+				CPlayer *pPl = m_apPlayers[i];
+				if(!pPl || !pPl->IsLoggedIn())
+					continue;
+				str_copy(pPl->m_Account.m_aLastName, Server()->ClientName(i), sizeof(pPl->m_Account.m_aLastName));
+				str_copy(pPl->m_Account.m_aLastSkin, pPl->m_TeeInfos.m_aSkinName, sizeof(pPl->m_Account.m_aLastSkin));
+				pPl->m_Account.m_LastBodyColor = pPl->m_TeeInfos.m_ColorBody;
+				pPl->m_Account.m_LastFeetColor = pPl->m_TeeInfos.m_ColorFeet;
+				int64_t SessionTicks = Server()->Tick() - pPl->m_JoinTick;
+				if(SessionTicks > 0)
+				{
+					int64_t SessionSeconds = SessionTicks / Server()->TickSpeed();
+					if(SessionSeconds > 0)
+						pPl->m_Account.m_Playtime += SessionSeconds;
+				}
+				m_pAccounts->Save(i, &pPl->m_Account);
+				QueuedAccountSaves++;
+			}
+			m_pAccounts->ClearLogins();
+		}
+		int QueuedClanSaves = 0;
+		if(m_pClans)
+			QueuedClanSaves = m_pClans->SaveAllClansOnShutdown();
+		if(QueuedAccountSaves || QueuedClanSaves)
+		{
+			char aBuf[128];
+			str_format(aBuf, sizeof(aBuf), "shutdown (fallback): queued %d account saves, %d clan saves", QueuedAccountSaves, QueuedClanSaves);
+			dbg_msg("shutdown", "%s", aBuf);
+		}
+	}
+	// -----------------------------------------------------------------
+
 	if(m_TeeHistorianActive)
 	{
 		m_TeeHistorian.Finish();
@@ -4651,7 +4694,6 @@ void CGameContext::OnShutdown(void *pPersistentData)
 	Layers()->Unload();
 	delete m_pController;
 	m_pController = 0;
-	Clear();
 }
 
 void CGameContext::LoadMapSettings()
@@ -4790,6 +4832,52 @@ void CGameContext::UpdatePlayerMaps()
 		// sort by real client ids, guarantee order on distance changes, O(Nlog(N)) worst case
 		// sort just clients in game always except first (self client id) and last (fake client id) indexes
 		std::sort(&pMap[1], &pMap[minimum(Index, VANILLA_MAX_CLIENTS - 1)]);
+	}
+}
+
+void CGameContext::PreShutdownFlush()
+{
+	static bool s_Ran = false;
+	if(s_Ran)
+		return;
+	s_Ran = true;
+	int AccountsQueued = 0;
+	if(m_pAccounts)
+	{
+		m_pAccounts->BeginShutdownFlush();
+		for(int i = 0; i < MAX_CLIENTS; ++i)
+		{
+			CPlayer *pPl = m_apPlayers[i];
+			if(!pPl || !pPl->IsLoggedIn())
+				continue;
+			// save and logout so that logout queries are also critical and processed before pool shutdown
+			pPl->OnPlayerSave(true);
+			AccountsQueued++;
+		}
+
+		m_pAccounts->ClearLogins();
+	}
+	int ClansQueued = 0;
+	if(m_pClans)
+		ClansQueued = m_pClans->SaveAllClansOnShutdown();
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "pre-shutdown flush: queued %d account saves, %d clan saves", AccountsQueued, ClansQueued);
+	dbg_msg("shutdown", "%s", aBuf);
+	int64_t Start = time_get();
+	while(time_get() - Start < time_freq() * 2)
+	{
+		bool AnyLogged = false;
+		for(int i = 0; i < MAX_CLIENTS; ++i)
+		{
+			if(m_apPlayers[i] && m_apPlayers[i]->IsLoggedIn())
+			{
+				AnyLogged = true;
+				break;
+			}
+		}
+		if(!AnyLogged)
+			break;
+		sched_yield();
 	}
 }
 

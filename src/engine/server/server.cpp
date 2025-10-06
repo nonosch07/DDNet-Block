@@ -40,6 +40,9 @@
 
 #include <game/version.h>
 
+// for PreShutdownFlush dynamic_cast to CGameContext
+#include <game/server/gamecontext.h>
+
 // DDRace
 #include <engine/shared/linereader.h>
 #include <vector>
@@ -3096,7 +3099,11 @@ int CServer::Run()
 		log_info("server", "shutdown from game server (%s)", m_aErrorShutdownReason);
 		pDisconnectReason = m_aErrorShutdownReason;
 	}
-	// disconnect all clients on shutdown
+	// run pre-shutdown flush while clients & game objects are intact.
+	if(auto pCtx = dynamic_cast<CGameContext *>(GameServer()))
+		pCtx->PreShutdownFlush();
+
+	// disconnect all clients after queuing critical saves
 	for(int i = 0; i < MAX_CLIENTS; ++i)
 	{
 		if(m_aClients[i].m_State != CClient::STATE_EMPTY)

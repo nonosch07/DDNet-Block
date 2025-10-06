@@ -32,7 +32,7 @@ public:
 		int m_Category{}; // shop category
 		int m_Item{}; // shop item id
 		int m_ExpireTick{};
-			// NOTE: for BlockpointTransfer we reuse m_Wager to store transfer amount to avoiding expanding struct size.
+		// NOTE: for BlockpointTransfer we reuse m_Wager to store transfer amount to avoiding expanding struct size.
 	};
 
 	// helper conversion

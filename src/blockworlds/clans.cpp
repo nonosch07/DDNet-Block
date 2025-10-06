@@ -8,7 +8,6 @@
 
 #include "clans.h"
 #include "engine/shared/config.h"
-#include "engine/shared/protocol.h"
 
 #define MAX_CLAN_NAME_LENGTH 32
 
@@ -1239,4 +1238,27 @@ bool CClanManager::ShowTopClansThread(IDbConnection *pSqlServer, const ISqlData 
 	}
 
 	return false;
+}
+
+int CClanManager::SaveAllClansOnShutdown()
+{
+	int Count = 0;
+	std::vector<int> vIds;
+	{
+		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
+		vIds.reserve(m_vClansData.size());
+		for(const auto &c : m_vClansData)
+			vIds.push_back(c.m_Id);
+	}
+	for(int id : vIds)
+	{
+		auto pResult = std::make_shared<CClanResult>();
+		auto pRequest = std::make_unique<CSqlClanRequest>(pResult, this);
+		pRequest->m_ClientId = -1;
+		pRequest->m_ClanId = id;
+		pRequest->m_Critical = true;
+		m_pPool->Execute(SaveClanThread, std::move(pRequest), "save clan shutdown");
+		Count++;
+	}
+	return Count;
 }
