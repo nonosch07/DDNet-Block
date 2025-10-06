@@ -65,7 +65,7 @@ std::shared_ptr<CClanResult> CClanManager::NewSqlClanResult(int ClientId)
 	CPlayer *pCurPlayer = GameServer()->m_apPlayers[ClientId];
 	if(!pCurPlayer || ClientId < 0 || ClientId >= MAX_CLIENTS)
 		return nullptr;
-	
+
 	auto pResult = std::make_shared<CClanResult>();
 	pCurPlayer->m_ClanQueryResult.push(pResult);
 	return pResult;
@@ -174,17 +174,11 @@ void CClanManager::RenameClan(int ClientId, int ClanId, const char *pNewClanName
 
 void CClanManager::AssignClan(int ClientId, const char *AccountName, int ClanId, int AccountId)
 {
-	// Permission: recruiter must be in the clan with auth >= 2
 	CPlayer *pPlayer = GameServer()->m_apPlayers[ClientId];
 	if(!pPlayer)
 		return;
 	if(RateLimitPlayer(ClientId))
 		return;
-	if(pPlayer->m_Account.m_ClanId != ClanId || pPlayer->m_Account.m_AuthLevel < 2)
-	{
-		GameServer()->SendChatTarget(ClientId, "You don't have permission to recruit for this clan.");
-		return;
-	}
 	ExecClanThread(AssignClanThread, "assign clan", ClientId, "", AccountName, AccountId, ClanId);
 }
 
@@ -354,7 +348,7 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		return true;
 	}
 
-	str_copy(aBuf, "UPDATE accounts SET clanID = ?, auth_level = 3 WHERE id = ?;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "UPDATE accounts SET clanID = ?, auth_level = %d WHERE id = ?;", (int)ClanAuthLevel::LEADER);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		if(pError && *pError)
@@ -415,7 +409,7 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		pResult->m_Action = CClanResult::ACTION_UPDATE_PLAYER_BY_CLIENT;
 		pResult->m_ActionClientId = pData->m_ClientId;
 		pResult->m_ActionNewClanId = ClanId;
-		pResult->m_ActionNewAuthLevel = 3;
+		pResult->m_ActionNewAuthLevel = static_cast<int>(ClanAuthLevel::LEADER);
 	}
 	str_copy(pResult->m_aaMessages[0], "Clan created successfully!", sizeof(pResult->m_aaMessages[0]));
 	pResult->m_Success = true;
@@ -469,7 +463,7 @@ bool CClanManager::DeleteClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		return true;
 	}
 
-	str_copy(aBuf, "UPDATE accounts SET clanID = 0, auth_level = 0 WHERE clanID = ?;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "UPDATE accounts SET clanID = 0, auth_level = %d WHERE clanID = ?;", (int)ClanAuthLevel::NONE);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		if(pError && *pError)
@@ -513,9 +507,9 @@ bool CClanManager::DeleteClanThread(IDbConnection *pSqlServer, const ISqlData *p
 				pGameServer->SendChatTarget(i, "Your clan has been deleted.");
 			}
 		}
-	// request main thread to reset players' clan
-	pResult->m_Action = CClanResult::ACTION_RESET_CLAN_PLAYERS;
-	pResult->m_ActionResetClanId = pData->m_ClanId;
+		// request main thread to reset players' clan
+		pResult->m_Action = CClanResult::ACTION_RESET_CLAN_PLAYERS;
+		pResult->m_ActionResetClanId = pData->m_ClanId;
 
 		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
 		auto &vec = pData->m_pClanManager->m_vClansData;
@@ -540,6 +534,7 @@ bool CClanManager::DeleteClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	pResult->m_Success = true;
 	return false;
 }
+
 bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
 {
 	const CSqlClanRequest *pData = static_cast<const CSqlClanRequest *>(pGameData);
@@ -548,35 +543,26 @@ bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *p
 
 	pResult->SetVariant(CClanResult::DIRECT);
 
-	// Defensive: validate recruiter still has rights (auth >=2) to add members to the clan.
-	// We trust pData->m_ClientId only as a hint; use AccountId from recruiter (pData->m_AccountId) to verify.
-	if(pData->m_ClanId > 0 && pData->m_AccountId > 0)
+	if(pData->m_ClientId >= 0 && pData->m_ClanId > 0)
 	{
-		str_copy(aBuf, "SELECT clanID, auth_level FROM accounts WHERE id = ?;", sizeof(aBuf));
-		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+		CPlayer *pInviter = pData->m_pClanManager->GameServer()->m_apPlayers[pData->m_ClientId];
+		if(!pInviter)
 		{
-			str_copy(pResult->m_aaMessages[0], "Error 200: Recruiter validation failed.", sizeof(pResult->m_aaMessages[0]));
+			str_copy(pError, "Inviter not found", ErrorSize);
 			return true;
 		}
-		pSqlServer->BindInt(1, pData->m_AccountId);
-		bool End = false;
-		if(pSqlServer->Step(&End, pError, ErrorSize) || End)
+		int inviterAccId = pInviter->GetAccId();
+		// only coleader or leader can invite
+		if(!CheckClanPermission(pSqlServer, inviterAccId, pData->m_ClanId, (int)ClanAuthLevel::COLEADER, pError, ErrorSize))
 		{
-			str_copy(pResult->m_aaMessages[0], "Error 200: Recruiter not found.", sizeof(pResult->m_aaMessages[0]));
+			str_copy(pResult->m_aaMessages[0], pError, sizeof(pResult->m_aaMessages[0]));
 			return true;
-		}
-		int DbClan = pSqlServer->GetInt(1);
-		int DbAuth = pSqlServer->GetInt(2);
-		if(DbClan != pData->m_ClanId || DbAuth < 2)
-		{
-			str_copy(pResult->m_aaMessages[0], "Recruit failed: insufficient permissions.", sizeof(pResult->m_aaMessages[0]));
-			return false; // not a server error; just deny
 		}
 	}
 
 	if(pData->m_AccountId != 0)
 	{
-		str_copy(aBuf, "UPDATE accounts SET clanID = ?, auth_level = 1 WHERE id = ?;", sizeof(aBuf));
+		str_format(aBuf, sizeof(aBuf), "UPDATE accounts SET clanID = ?, auth_level = %d WHERE id = ?;", (int)ClanAuthLevel::MEMBER);
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		{
 			if(pError && *pError)
@@ -593,7 +579,7 @@ bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	}
 	else
 	{
-		str_copy(aBuf, "UPDATE accounts SET clanID = ?, auth_level = 1 WHERE name = ?;", sizeof(aBuf));
+		str_format(aBuf, sizeof(aBuf), "UPDATE accounts SET clanID = ?, auth_level = %d WHERE name = ?;", (int)ClanAuthLevel::MEMBER);
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		{
 			if(pError && *pError)
@@ -634,7 +620,7 @@ bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		// request main thread to update a player by name
 		pResult->m_Action = CClanResult::ACTION_UPDATE_PLAYER_BY_NAME;
 		pResult->m_ActionNewClanId = pData->m_ClanId;
-		pResult->m_ActionNewAuthLevel = 1;
+		pResult->m_ActionNewAuthLevel = static_cast<int>(ClanAuthLevel::MEMBER);
 		str_copy(pResult->m_ActionPlayerName, pData->m_aUsername, sizeof(pResult->m_ActionPlayerName));
 	}
 
@@ -663,7 +649,7 @@ bool CClanManager::RemoveFromClanThread(IDbConnection *pSqlServer, const ISqlDat
 		return true;
 	}
 
-	str_copy(aBuf, "UPDATE accounts SET clanID = 0, auth_level = 0 WHERE name = ? AND clanID = ?;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "UPDATE accounts SET clanID = 0, auth_level = %d WHERE name = ? AND clanID = ?;", (int)ClanAuthLevel::NONE);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		if(pError && *pError)
@@ -702,7 +688,7 @@ bool CClanManager::RemoveFromClanThread(IDbConnection *pSqlServer, const ISqlDat
 		// request main thread to update a player by name (remove from clan)
 		pResult->m_Action = CClanResult::ACTION_UPDATE_PLAYER_BY_NAME;
 		pResult->m_ActionNewClanId = 0;
-		pResult->m_ActionNewAuthLevel = 0;
+		pResult->m_ActionNewAuthLevel = static_cast<int>(ClanAuthLevel::NONE);
 		str_copy(pResult->m_ActionPlayerName, pData->m_aUsername, sizeof(pResult->m_ActionPlayerName));
 	}
 
@@ -745,7 +731,7 @@ bool CClanManager::ClanLeaveThread(IDbConnection *pSqlServer, const ISqlData *pG
 
 	pResult->SetVariant(CClanResult::DIRECT);
 
-	str_copy(aBuf, "UPDATE accounts SET clanID = 0, auth_level = 0 WHERE id = ? AND clanID = ?;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "UPDATE accounts SET clanID = 0, auth_level = %d WHERE id = ? AND clanID = ?;", (int)ClanAuthLevel::NONE);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		if(pError && *pError)
@@ -784,7 +770,7 @@ bool CClanManager::ClanLeaveThread(IDbConnection *pSqlServer, const ISqlData *pG
 		pResult->m_Action = CClanResult::ACTION_UPDATE_PLAYER_BY_CLIENT;
 		pResult->m_ActionClientId = pData->m_ClientId;
 		pResult->m_ActionNewClanId = 0;
-		pResult->m_ActionNewAuthLevel = 0;
+		pResult->m_ActionNewAuthLevel = static_cast<int>(ClanAuthLevel::NONE);
 	}
 	str_copy(pResult->m_aaMessages[0], "You have left the clan successfully!", sizeof(pResult->m_aaMessages[0]));
 	pResult->m_Success = true;
@@ -1060,33 +1046,6 @@ bool CClanManager::GetClanSnapshotById(int ClanId, CClansData &Out) const
 		return true;
 	}
 	return false;
-}
-
-void CClanManager::UpdatePlayerClan(int ClientId, int ClanId, int AuthLevel)
-{
-	CPlayer *pPlayer = GameServer()->m_apPlayers[ClientId];
-	if(!pPlayer)
-		return;
-
-	pPlayer->m_Account.m_ClanId = ClanId;
-	pPlayer->m_Account.m_AuthLevel = AuthLevel;
-	{
-		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
-		(void)g_ClanIdMap;
-	}
-}
-
-void CClanManager::ResetPlayersClan(int ClanId)
-{
-	for(int i = 0; i < MAX_CLIENTS; i++)
-	{
-		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
-		if(pPlayer && pPlayer->m_Account.m_ClanId == ClanId)
-		{
-			pPlayer->m_Account.m_ClanId = 0;
-			pPlayer->m_Account.m_AuthLevel = 0;
-		}
-	}
 }
 
 void CClanManager::AddClanExp(int ClanId, int Amount)

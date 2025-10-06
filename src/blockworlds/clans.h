@@ -3,9 +3,9 @@
 
 #include "engine/server/databases/connection_pool.h"
 #include <memory>
+#include <string>
 #include <unordered_set>
 #include <vector>
-#include <string>
 
 class IDbConnection;
 class IServer;
@@ -14,7 +14,7 @@ class CGameContext;
 struct CClansData
 {
 	int m_Id;
-	char m_ClanName[33];	// Match SQL schema varchar(32) + null terminator
+	char m_ClanName[33]; // Match SQL schema varchar(32) + null terminator
 	int m_Level;
 	int m_Experience;
 
@@ -77,8 +77,8 @@ struct CClanResult : ISqlResult
 	{
 		ACTION_NONE = 0,
 		ACTION_UPDATE_PLAYER_BY_CLIENT, // update a specific client id's in-memory clan/auth
-		ACTION_UPDATE_PLAYER_BY_NAME,   // update a player found by name
-		ACTION_RESET_CLAN_PLAYERS       // reset all players of a clan (set clan id to 0)
+		ACTION_UPDATE_PLAYER_BY_NAME, // update a player found by name
+		ACTION_RESET_CLAN_PLAYERS // reset all players of a clan (set clan id to 0)
 	} m_Action = ACTION_NONE;
 
 	int m_ActionClientId = -1; // for ACTION_UPDATE_PLAYER_BY_CLIENT
@@ -97,13 +97,13 @@ struct CSqlClanRequest : ISqlData
 		m_aUsername[0] = '\0';
 		m_aNewClanName[0] = '\0';
 	}
-	char m_aClanName[33];	// Match SQL schema varchar(32) + null terminator
-	char m_aUsername[12];	// Match SQL schema varchar(11) + null terminator
+	char m_aClanName[33]; // Match SQL schema varchar(32) + null terminator
+	char m_aUsername[12]; // Match SQL schema varchar(11) + null terminator
 	int m_AccountId;
 	int m_ClientId;
 	int m_ClanId;
 	int m_NewAuthLevel;
-	char m_aNewClanName[33];	// Match SQL schema varchar(32) + null terminator
+	char m_aNewClanName[33]; // Match SQL schema varchar(32) + null terminator
 	CClanManager *m_pClanManager;
 };
 
@@ -163,9 +163,6 @@ public:
 	void OnClansLoaded(const std::vector<CClansData> &vClans);
 
 	int GetClanIdByName(const char *pClanName);
-	// I didn't find any other way to do that so.. fuck it
-	void UpdatePlayerClan(int ClientId, int NewClanId, int AuthLevel);
-	void ResetPlayersClan(int ClanId);
 
 	std::string GetClanNameCopy(int ClanId) const;
 

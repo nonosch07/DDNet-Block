@@ -284,7 +284,7 @@ public:
 	// void SetPlayerClan(const char *ClanName) {}
 	void SetPlayerRanking(int Ranking) { m_Account.m_Ranking = Ranking; }
 	void SetClanId(int ClanId) { m_Account.m_ClanId = ClanId; }
-	void SetAuthLevel(int Level) { m_Account.m_AuthLevel = Level; }
+	void SetAuthLevel(ClanAuthLevel Level) { m_Account.m_AuthLevel = Level; }
 	void SetPlayerBlockpoints(int Blockpoints) { m_Account.m_Blockpoints = Blockpoints; }
 	void SetPlayerKnockouts(int Index, char Value) { m_Account.m_aKnockouts[Index] = Value; }
 	void SetPlayerGundesign(int Index, char Value) { m_Account.m_aGundesign[Index] = Value; }
@@ -331,7 +331,7 @@ public:
 	int GetPlayerWeaponkits() { return m_Account.m_Weaponkits; }
 	int GetPlayerRanking() { return m_Account.m_Ranking; }
 	int GetClanId() { return m_Account.m_ClanId; }
-	int GetAuthLevel() { return m_Account.m_AuthLevel; }
+	ClanAuthLevel GetAuthLevel() { return m_Account.m_AuthLevel; }
 	int GetPlayerBlockpoints() { return m_Account.m_Blockpoints; }
 	const char *GetPlayerKnockouts() { return m_Account.m_aKnockouts; }
 	const char *GetPlayerGundesign() { return m_Account.m_aGundesign; }
@@ -357,6 +357,9 @@ public:
 	int GetPlayerLastFeetColor() { return m_Account.m_LastFeetColor; }
 
 	CAccountData m_Account;
+
+	// timestamp (server tick) of last clan invite sent (for basic cooldown)
+	int64_t m_LastClanInviteTick = 0;
 
 	bool m_IsNpc = false;
 

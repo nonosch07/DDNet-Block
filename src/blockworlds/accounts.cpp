@@ -1,8 +1,8 @@
 #include <cstddef>
 #include <engine/server/databases/connection.h>
+#include <engine/shared/protocol.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
-#include <engine/shared/protocol.h>
 
 #include "accounts.h"
 #include "engine/shared/config.h"
@@ -175,7 +175,7 @@ std::shared_ptr<CAdminCommandResult> CAccounts::NewSqlAdminCommandResult(int Cli
 	CPlayer *pCurPlayer = GameServer()->m_apPlayers[ClientId];
 	if(!pCurPlayer || ClientId < 0 || ClientId >= MAX_CLIENTS)
 		return nullptr;
-	
+
 	auto pResult = std::make_shared<CAdminCommandResult>();
 	pCurPlayer->m_AdminCommandQueryResult.push(pResult);
 	return pResult;
@@ -212,7 +212,7 @@ std::shared_ptr<CAccountResult> CAccounts::NewSqlAccountResult(int ClientId)
 	CPlayer *pCurPlayer = GameServer()->m_apPlayers[ClientId];
 	if(!pCurPlayer || ClientId < 0 || ClientId >= MAX_CLIENTS)
 		return nullptr;
-	
+
 	auto pResult = std::make_shared<CAccountResult>();
 	pCurPlayer->m_AccountQueryResult.push(pResult);
 	return pResult;
@@ -302,7 +302,7 @@ bool CAccounts::SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData,
 	BIND_INT(pAcc->m_Weaponkits);
 	BIND_INT(pAcc->m_Ranking);
 	BIND_INT(pAcc->m_ClanId);
-	BIND_INT(pAcc->m_AuthLevel);
+	BIND_INT(static_cast<int>(pAcc->m_AuthLevel));
 	BIND_INT(pAcc->m_Blockpoints);
 	BIND_STRING(pAcc->m_aKnockouts);
 	BIND_STRING(pAcc->m_aGundesign);
@@ -461,7 +461,11 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 	SQL_GET_INT(Index++, pResult->m_Account.m_Weaponkits);
 	SQL_GET_INT(Index++, pResult->m_Account.m_Ranking);
 	SQL_GET_INT(Index++, pResult->m_Account.m_ClanId);
-	SQL_GET_INT(Index++, pResult->m_Account.m_AuthLevel);
+	{
+		int rawAuthLevel = 0;
+		SQL_GET_INT(Index++, rawAuthLevel);
+		pResult->m_Account.m_AuthLevel = static_cast<ClanAuthLevel>(rawAuthLevel);
+	}
 	SQL_GET_INT(Index++, pResult->m_Account.m_Blockpoints);
 	SQL_GET_STRING(Index++, pResult->m_Account.m_aKnockouts);
 	SQL_GET_STRING(Index++, pResult->m_Account.m_aGundesign);
@@ -627,7 +631,7 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 		str_copy(pResult->m_aaMessages[0], "Password must be at least 4 characters.", sizeof(pResult->m_aaMessages[0]));
 		return false;
 	}
-	
+
 	for(int i = 0; pData->m_aUsername[i]; i++)
 	{
 		char c = pData->m_aUsername[i];

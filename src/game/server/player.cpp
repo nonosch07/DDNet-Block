@@ -1328,7 +1328,8 @@ void CPlayer::BWProcessClansResult(CClanResult &Result)
 			{
 				CPlayer *pTarget = GameServer()->m_apPlayers[Result.m_ActionClientId];
 				if(pTarget)
-					pTarget->m_Account.m_ClanId = Result.m_ActionNewClanId, pTarget->m_Account.m_AuthLevel = Result.m_ActionNewAuthLevel;
+					pTarget->m_Account.m_ClanId = Result.m_ActionNewClanId;
+				pTarget->m_Account.m_AuthLevel = static_cast<ClanAuthLevel>(Result.m_ActionNewAuthLevel);
 			}
 			break;
 		case CClanResult::ACTION_UPDATE_PLAYER_BY_NAME:
@@ -1340,7 +1341,7 @@ void CPlayer::BWProcessClansResult(CClanResult &Result)
 					if(pTarget && pTarget->IsLoggedIn() && str_comp(pTarget->m_Account.m_aName, Result.m_ActionPlayerName) == 0)
 					{
 						pTarget->m_Account.m_ClanId = Result.m_ActionNewClanId;
-						pTarget->m_Account.m_AuthLevel = Result.m_ActionNewAuthLevel;
+						pTarget->m_Account.m_AuthLevel = static_cast<ClanAuthLevel>(Result.m_ActionNewAuthLevel);
 						break;
 					}
 				}
@@ -1355,7 +1356,7 @@ void CPlayer::BWProcessClansResult(CClanResult &Result)
 					if(pTarget && pTarget->IsLoggedIn() && pTarget->m_Account.m_ClanId == Result.m_ActionResetClanId)
 					{
 						pTarget->m_Account.m_ClanId = 0;
-						pTarget->m_Account.m_AuthLevel = 0;
+						pTarget->m_Account.m_AuthLevel = ClanAuthLevel::NONE;
 					}
 				}
 			}

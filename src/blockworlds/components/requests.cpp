@@ -29,7 +29,7 @@ int CRequests::Create1on1Invite(int FromClient, int ToClient, int Wager, int Exp
 {
 	for(const auto &existing : m_Requests)
 	{
-		if(existing.m_Type == SRequest::OneOnOne && existing.m_From == FromClient && existing.m_To == ToClient)
+		if(existing.m_Type == SRequest::EType::OneOnOne && existing.m_From == FromClient && existing.m_To == ToClient)
 		{
 			int64_t ticksLeft = existing.m_ExpireTick - Server()->Tick();
 			int secondsLeft = ticksLeft > 0 ? (int)(ticksLeft / Server()->TickSpeed()) : 0;
@@ -60,7 +60,7 @@ int CRequests::Create1on1Invite(int FromClient, int ToClient, int Wager, int Exp
 		int outstanding = 0;
 		for(const auto &r : m_Requests)
 		{
-			if(r.m_Type == SRequest::OneOnOne && r.m_From == FromClient)
+			if(r.m_Type == SRequest::EType::OneOnOne && r.m_From == FromClient)
 				outstanding++;
 		}
 		const int MaxOutstanding = g_Config.m_Sv1on1MaxOutstandingInvitesPerSender;
@@ -76,7 +76,7 @@ int CRequests::Create1on1Invite(int FromClient, int ToClient, int Wager, int Exp
 
 	SRequest r;
 	r.m_Id = NextId();
-	r.m_Type = SRequest::OneOnOne;
+	r.m_Type = SRequest::EType::OneOnOne;
 	r.m_From = FromClient;
 	r.m_To = ToClient;
 	r.m_Wager = Wager;
@@ -99,7 +99,7 @@ int CRequests::CreateShopRequest(int OwnerClient, int Category, int ItemId, int 
 {
 	SRequest r;
 	r.m_Id = NextId();
-	r.m_Type = SRequest::Shop;
+	r.m_Type = SRequest::EType::Shop;
 	r.m_From = OwnerClient;
 	r.m_To = OwnerClient; // owner/operator
 	r.m_Category = Category;
@@ -113,7 +113,7 @@ int CRequests::CreateClanInvite(int FromClient, int ToClient, int ClanId, int Ex
 {
 	for(const auto &existing : m_Requests)
 	{
-		if(existing.m_Type == SRequest::Clan && existing.m_From == FromClient && existing.m_To == ToClient && existing.m_ClanId == ClanId)
+		if(existing.m_Type == SRequest::EType::Clan && existing.m_From == FromClient && existing.m_To == ToClient && existing.m_ClanId == ClanId)
 		{
 			if(CheckClientId(FromClient) && GameServer()->m_apPlayers[FromClient])
 			{
@@ -125,7 +125,7 @@ int CRequests::CreateClanInvite(int FromClient, int ToClient, int ClanId, int Ex
 
 	SRequest r;
 	r.m_Id = NextId();
-	r.m_Type = SRequest::Clan;
+	r.m_Type = SRequest::EType::Clan;
 	r.m_From = FromClient; // issuer (clan leader/co-leader)
 	r.m_To = ToClient; // target player
 	r.m_ClanId = ClanId;
@@ -153,7 +153,7 @@ bool CRequests::AcceptRequest(int RequestId)
 	auto it = std::find_if(m_Requests.begin(), m_Requests.end(), [RequestId](const SRequest &r) { return r.m_Id == RequestId; });
 	if(it == m_Requests.end())
 		return false;
-	if(it->m_Type == SRequest::OneOnOne)
+	if(it->m_Type == SRequest::EType::OneOnOne)
 	{
 		// start a 1on1 match via new component-based event system
 		int from = it->m_From;
@@ -217,7 +217,7 @@ bool CRequests::AcceptRequest(int RequestId)
 		return true;
 	}
 
-	if(it->m_Type == SRequest::Clan)
+	if(it->m_Type == SRequest::EType::Clan)
 	{
 		// clan invite accept flow
 		int from = it->m_From; // issuer
@@ -270,10 +270,35 @@ bool CRequests::AcceptRequest(int RequestId)
 			return false;
 		}
 
-		GameServer()->Clans()->AssignClan(pTo->GetCid(), pTo->GetPlayerName(), clanId, pTo->GetAccId());
-		pTo->SetAuthLevel(1);
+		if(pFrom->GetClanId() != clanId || pFrom->GetAuthLevel() < ClanAuthLevel::COLEADER)
+		{
+			if(CheckClientId(to) && GameServer()->m_apPlayers[to])
+				GameServer()->SendChatTarget(to, "Invite no longer valid: inviter lost sufficient clan rights.");
+			if(CheckClientId(from) && GameServer()->m_apPlayers[from])
+				GameServer()->SendChatTarget(from, "Your pending clan invite was invalidated due to insufficient rights.");
+			int id = it->m_Id;
+			auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
+			if(eraseIt != m_Requests.end())
+				m_Requests.erase(eraseIt);
+			return false;
+		}
+
+		if(!GameServer()->Clans())
+		{
+			dbg_msg("clan", "AcceptRequest: Clans() subsystem unavailable while accepting invite (from=%d to=%d clan=%d)", from, to, clanId);
+			if(CheckClientId(to) && GameServer()->m_apPlayers[to])
+				GameServer()->SendChatTarget(to, "Clan system unavailable. Try again later.");
+			int id = it->m_Id;
+			auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
+			if(eraseIt != m_Requests.end())
+				m_Requests.erase(eraseIt);
+			return false;
+		}
+
+		GameServer()->Clans()->AssignClan(from, pTo->m_Account.m_aName, clanId, pTo->GetAccId());
+
 		if(CheckClientId(from) && GameServer()->m_apPlayers[from])
-			GameServer()->SendChatTarget(from, "Your clan invite was accepted.");
+			GameServer()->SendChatTarget(from, "Your clan invite was accepted. Assigning player...");
 
 		int id = it->m_Id;
 		auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
@@ -299,7 +324,7 @@ bool CRequests::DeclineRequest(int RequestId)
 	if(it == m_Requests.end())
 		return false;
 
-	if(it->m_Type == SRequest::Clan)
+	if(it->m_Type == SRequest::EType::Clan)
 	{
 		int from = it->m_From;
 		int to = it->m_To;
@@ -328,42 +353,42 @@ bool CRequests::GetRequestInfo(int RequestId, SRequest &pOut) const
 	return true;
 }
 
-std::vector<int> CRequests::GetRequestsFor(int ClientId, int TypeFilter) const
+std::vector<int> CRequests::GetRequestsFor(int ClientId, std::optional<SRequest::EType> typeFilter) const
 {
 	std::vector<int> out;
 	for(const auto &r : m_Requests)
 	{
 		if(r.m_To == ClientId || r.m_From == ClientId)
 		{
-			if(TypeFilter == -1 || (int)r.m_Type == TypeFilter)
+			if(!typeFilter.has_value() || r.m_Type == *typeFilter)
 				out.push_back(r.m_Id);
 		}
 	}
 	return out;
 }
 
-std::vector<int> CRequests::GetRequestIdsTo(int ToClient, int TypeFilter) const
+std::vector<int> CRequests::GetRequestIdsTo(int ToClient, std::optional<SRequest::EType> typeFilter) const
 {
 	std::vector<int> out;
 	for(const auto &r : m_Requests)
 	{
 		if(r.m_To == ToClient)
 		{
-			if(TypeFilter == -1 || (int)r.m_Type == TypeFilter)
+			if(!typeFilter.has_value() || r.m_Type == *typeFilter)
 				out.push_back(r.m_Id);
 		}
 	}
 	return out;
 }
 
-std::vector<int> CRequests::GetRequestIdsFromTo(int FromClient, int ToClient, int TypeFilter) const
+std::vector<int> CRequests::GetRequestIdsFromTo(int FromClient, int ToClient, std::optional<SRequest::EType> typeFilter) const
 {
 	std::vector<int> out;
 	for(const auto &r : m_Requests)
 	{
 		if(r.m_To == ToClient && r.m_From == FromClient)
 		{
-			if(TypeFilter == -1 || (int)r.m_Type == TypeFilter)
+			if(!typeFilter.has_value() || r.m_Type == *typeFilter)
 				out.push_back(r.m_Id);
 		}
 	}
@@ -386,19 +411,35 @@ void CRequests::OnTick()
 		if(!GetRequestInfo(Id, req))
 			continue; // already handled/removed
 
-		char aBuf[256];
-		if(req.m_Type == SRequest::OneOnOne)
+		char aBufFrom[256];
+		char aBufTo[256];
+		bool notifyTo = false;
+
+		if(req.m_Type == SRequest::EType::OneOnOne)
 		{
 			const char *pToName = SafeClientName(GameServer(), req.m_To);
-			str_format(aBuf, sizeof(aBuf), "Your 1on1 invite to '%s' has expired.", pToName);
+			const char *pFromName = SafeClientName(GameServer(), req.m_From);
+			str_format(aBufFrom, sizeof(aBufFrom), "Your 1on1 invite to '%s' has expired.", pToName);
+			str_format(aBufTo, sizeof(aBufTo), "The 1on1 invite from '%s' has expired.", pFromName);
+			notifyTo = true;
+		}
+		else if(req.m_Type == SRequest::EType::Clan)
+		{
+			const char *pToName = SafeClientName(GameServer(), req.m_To);
+			const char *pFromName = SafeClientName(GameServer(), req.m_From);
+			str_format(aBufFrom, sizeof(aBufFrom), "Your clan invite to '%s' has expired.", pToName);
+			str_format(aBufTo, sizeof(aBufTo), "The clan invite from '%s' has expired.", pFromName);
+			notifyTo = true;
 		}
 		else
 		{
-			str_copy(aBuf, "Your shop request has expired.", sizeof(aBuf));
+			str_copy(aBufFrom, "Your shop request has expired.", sizeof(aBufFrom));
 		}
 
 		if(CheckClientId(req.m_From) && GameServer()->m_apPlayers[req.m_From])
-			GameServer()->SendChatTarget(req.m_From, aBuf);
+			GameServer()->SendChatTarget(req.m_From, aBufFrom);
+		if(notifyTo && req.m_From != req.m_To && CheckClientId(req.m_To) && GameServer()->m_apPlayers[req.m_To])
+			GameServer()->SendChatTarget(req.m_To, aBufTo);
 
 		auto it = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
 		if(it != m_Requests.end())

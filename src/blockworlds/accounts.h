@@ -1,3 +1,14 @@
+#ifndef BLOCKWORLDS_CLAN_AUTH_LEVEL_ENUM
+#define BLOCKWORLDS_CLAN_AUTH_LEVEL_ENUM
+
+enum class ClanAuthLevel : int
+{
+	NONE = 0,
+	MEMBER = 1,
+	COLEADER = 2,
+	LEADER = 3
+};
+#endif
 #ifndef BLOCKWORLDS_ACCOUNTS_H
 #define BLOCKWORLDS_ACCOUNTS_H
 
@@ -72,7 +83,7 @@ struct CAccountData
 	int m_ClientId;
 
 	int m_Id;
-	char m_aName[12];		// Match SQL schema varchar(11) + null terminator
+	char m_aName[12]; // Match SQL schema varchar(11) + null terminator
 	char m_aPassword[256];
 	char m_aAddress[48];
 	int m_Vip;
@@ -82,7 +93,7 @@ struct CAccountData
 	int m_Weaponkits;
 	int m_Ranking;
 	int m_ClanId;
-	int m_AuthLevel;
+	ClanAuthLevel m_AuthLevel;
 	int m_Blockpoints;
 	char m_aKnockouts[256];
 	char m_aGundesign[256];
@@ -102,7 +113,6 @@ struct CAccountData
 	char m_aLastSkin[33];
 	int m_LastBodyColor;
 	int m_LastFeetColor;
-
 };
 
 struct CAdminCommandResult : ISqlResult
