@@ -17,6 +17,7 @@
 #include <engine/engine.h>
 #include <engine/map.h>
 #include <engine/server/server.h>
+#include <engine/server/databases/connection_pool.h>
 #include <engine/shared/config.h>
 #include <engine/shared/datafile.h>
 #include <engine/shared/json.h>
@@ -844,6 +845,30 @@ void CGameContext::SendChat(int ChatterClientId, int Team, const char *pText, in
 		if(ProcessSpamProtection(SpamProtectionClientId))
 			return;
 
+	auto IsChatBlocked = [this](int ClientId) -> bool {
+		if(ClientId < 0 || ClientId >= MAX_CLIENTS)
+			return false;
+		if(!m_apPlayers[ClientId])
+			return false;
+		if(Server()->GetAuthedState(ClientId) > 0)
+			return false;
+		if(auto events = g_ComponentRegistry.Get<CEvents>())
+		{
+			auto active = events->GetActiveEvent();
+			if(active && active->GetState() == CEventComponent::EEventState::Active)
+			{
+				const char *pName = active->GetName();
+				if((str_comp(pName, "LMB") == 0 || str_comp(pName, "tdm") == 0))
+				{
+					const auto &Parts = active->Participants();
+					if(std::find(Parts.begin(), Parts.end(), ClientId) != Parts.end())
+						return true;
+				}
+			}
+		}
+		return false;
+	};
+
 	char aBuf[256], aText[256];
 	str_copy(aText, pText, sizeof(aText));
 	if(ChatterClientId >= 0 && ChatterClientId < MAX_CLIENTS)
@@ -877,7 +902,7 @@ void CGameContext::SendChat(int ChatterClientId, int Team, const char *pText, in
 			bool Send = (Server()->IsSixup(i) && (VersionFlags & FLAG_SIXUP)) ||
 				    (!Server()->IsSixup(i) && (VersionFlags & FLAG_SIX));
 
-			if(!m_apPlayers[i]->m_DND && Send)
+			if(!m_apPlayers[i]->m_DND && Send && !IsChatBlocked(i))
 				Server()->SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, i);
 		}
 
@@ -2471,6 +2496,28 @@ void CGameContext::OnSayNetMessage(const CNetMsg_Cl_Say *pMsg, int ClientId, con
 	}
 	else
 	{
+		bool BlockSpeak = false;
+		if(Server()->GetAuthedState(ClientId) == 0)
+		{
+			if(auto events = g_ComponentRegistry.Get<CEvents>())
+			{
+				auto active = events->GetActiveEvent();
+				if(active && active->GetState() == CEventComponent::EEventState::Active)
+				{
+					const char *pName = active->GetName();
+					if((str_comp(pName, "LMB") == 0 || str_comp(pName, "tdm") == 0))
+					{
+						const auto &Parts = active->Participants();
+						if(std::find(Parts.begin(), Parts.end(), ClientId) != Parts.end())
+							BlockSpeak = true;
+					}
+				}
+			}
+		}
+		if(BlockSpeak)
+		{
+			return;
+		}
 		pPlayer->UpdatePlaytime();
 		char aCensoredMessage[256];
 		CensorMessage(aCensoredMessage, pMsg->m_pMessage, sizeof(aCensoredMessage));
@@ -2480,9 +2527,11 @@ void CGameContext::OnSayNetMessage(const CNetMsg_Cl_Say *pMsg, int ClientId, con
 
 void CGameContext::OnCallVoteNetMessage(const CNetMsg_Cl_CallVote *pMsg, int ClientId)
 {
-	if(RateLimitPlayerVote(ClientId) || m_VoteCloseTime)
+	if(RateLimitPlayerVote(ClientId))
 		return;
-	if(HandleCosmeticsVote(pMsg, ClientId)) // if cosmetics have been found, return
+	if(HandleCosmeticsVote(pMsg, ClientId))
+		return;
+	if(m_VoteCloseTime)
 		return;
 	m_apPlayers[ClientId]->UpdatePlaytime();
 
@@ -4842,43 +4891,68 @@ void CGameContext::PreShutdownFlush()
 		return;
 	s_Ran = true;
 	int AccountsQueued = 0;
+	std::vector<std::shared_ptr<ISqlResult>> Results; Results.reserve(256);
 	if(m_pAccounts)
 	{
 		m_pAccounts->BeginShutdownFlush();
+		m_pAccounts->BeginShutdownCollection(Results);
 		for(int i = 0; i < MAX_CLIENTS; ++i)
 		{
 			CPlayer *pPl = m_apPlayers[i];
 			if(!pPl || !pPl->IsLoggedIn())
 				continue;
-			// save and logout so that logout queries are also critical and processed before pool shutdown
-			pPl->OnPlayerSave(true);
+			str_copy(pPl->m_Account.m_aLastName, Server()->ClientName(i), sizeof(pPl->m_Account.m_aLastName));
+			str_copy(pPl->m_Account.m_aLastSkin, pPl->m_TeeInfos.m_aSkinName, sizeof(pPl->m_Account.m_aLastSkin));
+			pPl->m_Account.m_LastBodyColor = pPl->m_TeeInfos.m_ColorBody;
+			pPl->m_Account.m_LastFeetColor = pPl->m_TeeInfos.m_ColorFeet;
+			int64_t SessionTicks = Server()->Tick() - pPl->m_JoinTick;
+			if(SessionTicks > 0)
+			{
+				int64_t SessionSeconds = SessionTicks / Server()->TickSpeed();
+				if(SessionSeconds > 0)
+					pPl->m_Account.m_Playtime += SessionSeconds;
+			}
+			pPl->OnPlayerSave(false);
 			AccountsQueued++;
 		}
 
 		m_pAccounts->ClearLogins();
+		m_pAccounts->EndShutdownCollection();
 	}
 	int ClansQueued = 0;
 	if(m_pClans)
+	{
+		m_pClans->BeginShutdownCollection(Results);
 		ClansQueued = m_pClans->SaveAllClansOnShutdown();
+		m_pClans->EndShutdownCollection();
+	}
 	char aBuf[128];
 	str_format(aBuf, sizeof(aBuf), "pre-shutdown flush: queued %d account saves, %d clan saves", AccountsQueued, ClansQueued);
 	dbg_msg("shutdown", "%s", aBuf);
+
 	int64_t Start = time_get();
-	while(time_get() - Start < time_freq() * 2)
+	const int64_t Timeout = time_freq() * 2;
+	while(time_get() - Start < Timeout)
 	{
-		bool AnyLogged = false;
-		for(int i = 0; i < MAX_CLIENTS; ++i)
+		bool AllDone = true;
+		for(auto &r : Results)
 		{
-			if(m_apPlayers[i] && m_apPlayers[i]->IsLoggedIn())
+			if(r && !r->m_Completed.load(std::memory_order_relaxed))
 			{
-				AnyLogged = true;
+				AllDone = false;
 				break;
 			}
 		}
-		if(!AnyLogged)
+		if(AllDone)
 			break;
-		sched_yield();
+		thread_yield();
 	}
+	int Pending = 0;
+	for(auto &r : Results)
+		if(r && !r->m_Completed.load(std::memory_order_relaxed))
+			Pending++;
+	if(Pending)
+		dbg_msg("shutdown", "pre-shutdown flush: %d queries still pending after timeout", Pending);
 }
 
 bool CGameContext::IsClientReady(int ClientId) const
@@ -5651,15 +5725,6 @@ bool CGameContext::HandleCosmeticsVote(const CNetMsg_Cl_CallVote *pMsg, int Clie
 	if(!pPlayer)
 		return false;
 
-	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
-	{
-		if(auto active = events->GetActiveEvent(); active)
-		{
-			const auto &parts = active->Participants();
-			if(std::find(parts.begin(), parts.end(), ClientId) != parts.end())
-				return false;
-		}
-	}
 
 	return g_VoteManager.HandleVote(pPlayer, pMsg->m_pValue, ClientId, this);
 }

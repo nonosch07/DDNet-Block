@@ -1257,6 +1257,8 @@ int CClanManager::SaveAllClansOnShutdown()
 		pRequest->m_ClientId = -1;
 		pRequest->m_ClanId = id;
 		pRequest->m_Critical = true;
+		if(m_pShutdownCollector)
+			m_pShutdownCollector->push_back(pResult);
 		m_pPool->Execute(SaveClanThread, std::move(pRequest), "save clan shutdown");
 		Count++;
 	}

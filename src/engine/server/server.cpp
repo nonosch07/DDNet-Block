@@ -3099,16 +3099,27 @@ int CServer::Run()
 		log_info("server", "shutdown from game server (%s)", m_aErrorShutdownReason);
 		pDisconnectReason = m_aErrorShutdownReason;
 	}
-	// run pre-shutdown flush while clients & game objects are intact.
 	if(auto pCtx = dynamic_cast<CGameContext *>(GameServer()))
-		pCtx->PreShutdownFlush();
+	{
+		pCtx->SendChat(-1, TEAM_ALL, "Server is shutting down...", -1, CGameContext::FLAG_SIX);
+	}
 
-	// disconnect all clients after queuing critical saves
+	net_socket_read_wait(m_NetServer.Socket(), 25000);
+
+	// disconnect all clients first so they receive a proper shutdown reason promptly
 	for(int i = 0; i < MAX_CLIENTS; ++i)
 	{
 		if(m_aClients[i].m_State != CClient::STATE_EMPTY)
 			m_NetServer.Drop(i, pDisconnectReason);
 	}
+
+	int64_t FlushStart = time_get();
+	if(auto pCtx = dynamic_cast<CGameContext *>(GameServer()))
+		pCtx->PreShutdownFlush();
+	int64_t FlushElapsed = (time_get() - FlushStart) * 1000 / time_freq();
+	char aFlushBuf[128];
+	str_format(aFlushBuf, sizeof(aFlushBuf), "shutdown flush completed in %lld ms", (long long)FlushElapsed);
+	Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "shutdown", aFlushBuf);
 
 	m_pRegister->OnShutdown();
 	m_Econ.Shutdown();

@@ -478,18 +478,6 @@ bool CCosmeticsHandler::ToggleSkinmani(int ClientID, const char *pName)
 	if(HasSkinmani(ClientID, Effect) == false)
 		return false;
 
-	if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
-	{
-		if(eventsAccessor->GetActiveEvent())
-		{
-			int Prev = pPlayer->GetSkinMani();
-			// if the player is trying to enable a skinmani (different from current)
-			// and there's an active event, reject it
-			if(Prev != Effect && Effect != -1)
-				return false;
-		}
-	}
-
 	int Prev = pPlayer->GetSkinMani();
 	int New = pPlayer->ToggleSkinMani(Effect);
 

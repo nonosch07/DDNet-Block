@@ -118,6 +118,7 @@ class CClanManager
 
 	// local cache of clans loaded from the skibidi db
 	std::vector<CClansData> m_vClansData;
+	std::vector<std::shared_ptr<ISqlResult>> *m_pShutdownCollector = nullptr;
 
 	void ExecClanThread(bool (*pFuncPtr)(IDbConnection *, const ISqlData *, char *, int),
 		const char *pThreadName,
@@ -174,6 +175,8 @@ public:
 	bool IsClanJoinable(int ClanId) const;
 
 	int SaveAllClansOnShutdown();
+	void BeginShutdownCollection(std::vector<std::shared_ptr<ISqlResult>> &v) { m_pShutdownCollector = &v; }
+	void EndShutdownCollection() { m_pShutdownCollector = nullptr; }
 };
 
 #endif // BLOCKWORLDS_CLANS_H

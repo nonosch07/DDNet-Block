@@ -295,6 +295,7 @@ class CAccounts
 	IServer *m_pServer;
 
 	bool m_ShutdownFlushActive = false;
+	std::vector<std::shared_ptr<ISqlResult>> *m_pShutdownCollector = nullptr;
 
 	bool RateLimitPlayer(int ClientId);
 
@@ -347,6 +348,8 @@ public:
 	// Mark start of shutdown flush; all subsequently queued queries become critical.
 	void BeginShutdownFlush() { m_ShutdownFlushActive = true; }
 	bool ShutdownFlushActive() const { return m_ShutdownFlushActive; }
+	void BeginShutdownCollection(std::vector<std::shared_ptr<ISqlResult>> &v) { m_pShutdownCollector = &v; }
+	void EndShutdownCollection() { m_pShutdownCollector = nullptr; }
 
 	// Accounts
 	void Save(int ClientId, CAccountData *pAccountData);

@@ -246,7 +246,11 @@ void CAccounts::ExecUserThread(
 	}
 	Tmp->m_AccountId = AccountId;
 	if(m_ShutdownFlushActive)
+	{
 		Tmp->m_Critical = true;
+		if(m_pShutdownCollector && pResult)
+			m_pShutdownCollector->push_back(pResult);
+	}
 
 	m_pPool->Execute(pFuncPtr, std::move(Tmp), pThreadName);
 }
@@ -757,10 +761,7 @@ bool CAccounts::LogoutThread(IDbConnection *pSqlServer, const ISqlData *pGameDat
 		dbg_msg("logout", "Failed to remove account_busy entry: %s", pError);
 		return true;
 	}
-	if(Deleted == 0)
-	{
-		dbg_msg("logout", "Failed to remove account_busy entry: %s", pError);
-	}
+	// if Deleted == 0 thenb we silently ignore (can happen if bulk ClearLogins already removed it)
 	return false;
 }
 
