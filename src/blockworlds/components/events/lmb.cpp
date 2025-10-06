@@ -175,8 +175,10 @@ void CLastManBlockingEvent::FinishEvent()
 	{
 		if(m_Winner != -1)
 		{
-			GameServer()->SendChatTarget(-1, "'%s' has won the %s", Server()->ClientName(m_Winner), GetEventName());
-			GameServer()->SendBroadcast(-1, "'%s' has won the %s", Server()->ClientName(m_Winner), GetEventName());
+			char aBuf[256];
+			str_format(aBuf, sizeof(aBuf), "'%s' has won the %s", Server()->ClientName(m_Winner), GetEventName());
+			GameServer()->SendChatTarget(-1, aBuf);
+			GameServer()->SendBroadcast(-1, aBuf, false);
 
 			int BlockpointsReward = 250;
 			CPlayer *pWinner = GameServer()->GetPlayer(m_Winner);
@@ -184,37 +186,36 @@ void CLastManBlockingEvent::FinishEvent()
 			{
 				pWinner->SetPlayerLevel(pWinner->GetPlayerLevel() + 5);
 				pWinner->SetPlayerBlockpoints(pWinner->GetPlayerBlockpoints() + BlockpointsReward);
-				GameServer()->SendChatTarget(m_Winner, "You've received 5 levels and %d blockpoints for winning!", BlockpointsReward);
+				str_format(aBuf, sizeof(aBuf), "You've received 5 levels and %d blockpoints for winning!", BlockpointsReward);
+				GameServer()->SendChatTarget(m_Winner, aBuf);
 			}
 
 			GameServer()->GetPlayer(m_Winner)->AddExpMultiplier(Config()->m_SvLMBWinnerExpMultiplier, Config()->m_SvLMBWinnerExpMultiplierDuration);
-			GameServer()->SendChatTarget(m_Winner, "%d%% experience bonus enabled for 5 minutes!");
-
-			CPlayer *pPlayer = GameServer()->GetPlayer(m_Winner);
-			if(pPlayer)
-			{
-				pPlayer->GiveFlag(Config()->m_SvLMBWinnerExpMultiplierDuration * 60);
-				GameServer()->SendChatTarget(m_Winner, "Flag effect enabled for %d minutes!", Config()->m_SvLMBWinnerExpMultiplierDuration);
-			}
+			str_format(aBuf, sizeof(aBuf), "%d%% experience bonus enabled for %d minutes!", Config()->m_SvLMBWinnerExpMultiplier, Config()->m_SvLMBWinnerExpMultiplierDuration);
+			GameServer()->SendChatTarget(m_Winner, aBuf);
 		}
 		else
 		{
-			const char *pReason = m_ActiveEndTick <= Server()->Tick() ? "Timelimit" :
-										    "Tie";
-
-			GameServer()->SendChatTarget(-1, "No one has won the %s (%s)", GetEventName(), pReason);
-			GameServer()->SendBroadcast(-1, "No one has won the %s (%s)", GetEventName(), pReason);
+			const char *pReason = m_ActiveEndTick <= Server()->Tick() ? "Timelimit" : "Tie";
+			char aBuf[256];
+			str_format(aBuf, sizeof(aBuf), "No one has won the %s (%s)", GetEventName(), pReason);
+			GameServer()->SendChatTarget(-1, aBuf);
+			GameServer()->SendBroadcast(-1, aBuf, false);
 		}
 	}
 	else if(m_FinishingReason == NOT_ENOUGH_CANDIDATES)
 	{
-		GameServer()->SendChatTarget(-1, "Not enough candidates joined %s", GetEventName());
-		GameServer()->SendBroadcast(-1, "Not enough candidates joined %s", GetEventName());
+		char aBuf[256];
+		str_format(aBuf, sizeof(aBuf), "Not enough candidates joined %s", GetEventName());
+		GameServer()->SendChatTarget(-1, aBuf);
+		GameServer()->SendBroadcast(-1, aBuf, false);
 	}
 	else if(m_FinishingReason == EMERGENCY)
 	{
-		GameServer()->SendChatTarget(-1, "%s finished prematurely", GetEventName());
-		GameServer()->SendBroadcast(-1, "%s finished prematurely", GetEventName());
+		char aBuf[256];
+		str_format(aBuf, sizeof(aBuf), "%s finished prematurely", GetEventName());
+		GameServer()->SendChatTarget(-1, aBuf);
+		GameServer()->SendBroadcast(-1, aBuf, false);
 	}
 
 	auto RemainingParticipants = m_Participants;
@@ -281,7 +282,11 @@ bool CLastManBlockingEvent::Register(int ClientId)
 	}
 
 	m_Candidates.push_back(ClientId);
-	GameServer()->SendChatTarget(ClientId, "You successfully joined %s!", GetEventName());
+	{
+		char aBuf[256];
+		str_format(aBuf, sizeof(aBuf), "You successfully joined %s!", GetEventName());
+		GameServer()->SendChatTarget(ClientId, aBuf);
+	}
 	return true;
 }
 bool CLastManBlockingEvent::DeRegister(int ClientId)
@@ -299,7 +304,11 @@ bool CLastManBlockingEvent::DeRegister(int ClientId)
 	}
 
 	m_Candidates.erase(ClientIdIt);
-	GameServer()->SendChatTarget(ClientId, "You successfully left %s.", GetEventName());
+	{
+		char aBuf[256];
+		str_format(aBuf, sizeof(aBuf), "You successfully left %s.", GetEventName());
+		GameServer()->SendChatTarget(ClientId, aBuf);
+	}
 	return true;
 }
 

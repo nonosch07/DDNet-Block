@@ -92,5 +92,11 @@ MACRO_CONFIG_INT(SvTDMBroadcastRate, sv_tdm_broadcast_rate, 50, 1, 500, CFGFLAG_
 MACRO_CONFIG_INT(SvTDMFreezeTime, sv_tdm_freeze_time, 3, 5, 30, CFGFLAG_SERVER, "Specifies the time required for a player to be frozen in order to die")
 
 // VIP flag experience bonus
-MACRO_CONFIG_INT(SvVipFlagExpMultiplier, sv_vip_flag_exp_multiplier, 200, 100, 10000, CFGFLAG_SERVER, "Exp multiplier granted by the VIP flag (percents)")
-MACRO_CONFIG_INT(SvVipFlagExpDuration, sv_vip_flag_exp_duration, 5, 1, 1440, CFGFLAG_SERVER, "Duration for VIP flag experience bonus (minutes)")
+MACRO_CONFIG_INT(SvVipFlagExpMultiplier, sv_flag_exp_multiplier, 200, 100, 10000, CFGFLAG_SERVER, "Exp multiplier granted by the VIP flag (percents)")
+MACRO_CONFIG_INT(SvVipFlagExpDuration, sv_flag_exp_duration, 5, 1, 1440, CFGFLAG_SERVER, "Duration for VIP flag experience bonus (minutes)")
+
+// 1on1 draw detection settings
+MACRO_CONFIG_INT(Sv1on1DrawFreezeGrace, sv_1on1_draw_freeze_grace, 3, 0, 120, CFGFLAG_SERVER, "1on1: Grace period after round start before counting simultaneous freeze (seconds)")
+MACRO_CONFIG_INT(Sv1on1DrawFreezeStalemate, sv_1on1_draw_freeze_stalemate, 5, 1, 300, CFGFLAG_SERVER, "1on1: Both players frozen this long (after grace) => draw (seconds)")
+MACRO_CONFIG_INT(Sv1on1DrawDeathTickTolerance, sv_1on1_draw_death_tick_tolerance, 1, 0, 50, CFGFLAG_SERVER, "1on1: Max tick diff to treat dual death as draw")
+MACRO_CONFIG_INT(Sv1on1DrawDeathExtendedWindow, sv_1on1_draw_death_extended_window, 50, 0, 2000, CFGFLAG_SERVER, "1on1: Extended tick window for dual death draw (ticks)")

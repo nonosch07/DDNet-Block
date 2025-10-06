@@ -50,6 +50,12 @@ void COneOnOneEvent::StartEvent()
 
 	m_Score1 = 0;
 	m_Score2 = 0;
+	m_Player1DeathTick = -1;
+	m_Player2DeathTick = -1;
+	m_LastAwardedPlayer = 0;
+	m_LastAwardedTick = -1;
+	m_RoundStartTick = Server()->Tick();
+	m_BothFrozenSinceTick = -1;
 
 	// initialize participants' visible score to 0
 	CPlayer *pStart1 = GameServer()->GetPlayer(m_Player1ID);
@@ -169,6 +175,41 @@ void COneOnOneEvent::OnTick()
 		GameServer()->SendBroadcast(m_Player1ID, "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);
 		GameServer()->SendBroadcast(m_Player2ID, "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);
 	}
+
+	const int GraceTicks = Config()->m_Sv1on1DrawFreezeGrace * Server()->TickSpeed();
+	const int StalemateThresholdTicks = Config()->m_Sv1on1DrawFreezeStalemate * Server()->TickSpeed();
+	CCharacter *pChr1 = GameServer()->GetPlayerChar(m_Player1ID);
+	CCharacter *pChr2 = GameServer()->GetPlayerChar(m_Player2ID);
+	bool bothChars = pChr1 && pChr2;
+	bool bothFrozen = bothChars && pChr1->m_FreezeTime > 0 && pChr2->m_FreezeTime > 0;
+	if(bothFrozen)
+	{
+		if(m_BothFrozenSinceTick == -1)
+		{
+			// only start counting after grace period
+			if(m_CurrentTick > m_RoundStartTick + GraceTicks)
+				m_BothFrozenSinceTick = m_CurrentTick;
+		}
+		else if(m_CurrentTick - m_BothFrozenSinceTick >= StalemateThresholdTicks)
+		{
+			// announce draw due to stalemate
+			GameServer()->SendChatTarget(m_Player1ID, "[1on1] Draw (stalemate: both frozen)! Round restarting...");
+			GameServer()->SendChatTarget(m_Player2ID, "[1on1] Draw (stalemate: both frozen)! Round restarting...");
+			char aDrawBuf[256];
+			str_format(aDrawBuf, sizeof(aDrawBuf), "%s: %d\n%s: %d\nStalemate draw! restarting...", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2);
+			GameServer()->SendBroadcast(aDrawBuf, m_Player1ID, false);
+			GameServer()->SendBroadcast(aDrawBuf, m_Player2ID, false);
+			// reset freeze timers so they can't unfreeze before respawn
+			m_Player1DeathTick = -1; // ensure normal death draw logic does not interfere because otherwise we're fucked
+			m_Player2DeathTick = -1;
+			RestartRoundAfterDraw();
+			return;
+		}
+	}
+	else
+	{
+		m_BothFrozenSinceTick = -1; // reset if condition breaks
+	}
 }
 
 void COneOnOneEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
@@ -182,19 +223,24 @@ void COneOnOneEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 	if(p1)
 		p1->m_allowDeath = false;
 	if(p2)
-		p2->m_allowDeath = false;
+		p2->m_allowDeath = false; 
 
-	std::vector<vec2> tilePositions;
-	GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), tilePositions);
-	// teleport both to a spawn pair if exists
-	if(tilePositions.size() >= 2)
-	{
-		GameServer()->Teleport(GameServer()->GetPlayerChar(m_Player1ID), tilePositions[0]);
-		GameServer()->Teleport(GameServer()->GetPlayerChar(m_Player2ID), tilePositions[1]);
-
-		GameServer()->GetPlayerChar(m_Player1ID)->Freeze(3);
-		GameServer()->GetPlayerChar(m_Player2ID)->Freeze(3);
-	}
+			CCharacter *pChr1 = GameServer()->GetPlayerChar(m_Player1ID);
+			CCharacter *pChr2 = GameServer()->GetPlayerChar(m_Player2ID);
+			if(pChr1 && pChr2)
+			{
+				std::vector<vec2> tilePositions;
+				GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), tilePositions);
+				if(tilePositions.size() >= 2)
+				{
+					GameServer()->Teleport(pChr1, tilePositions[0]);
+					GameServer()->Teleport(pChr2, tilePositions[1]);
+					pChr1->ResetVelocity();
+					pChr2->ResetVelocity();
+					pChr1->Freeze(3);
+					pChr2->Freeze(3);
+				}
+			}
 }
 
 // award points on death: opponent gets one point (suicides count)
@@ -205,9 +251,23 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 	if(GetState() != CEventComponent::EEventState::Active)
 		return;
 
+	if(m_DrawRestartInProgress)
+		return;
+
+	if(ClientId == m_Player1ID)
+	{
+		m_Player1DeathTick = Server()->Tick();
+	}
+	else if(ClientId == m_Player2ID)
+	{
+		m_Player2DeathTick = Server()->Tick();
+	}
+
 	if(ClientId == m_Player1ID)
 	{
 		m_Score2 += 1;
+		m_LastAwardedPlayer = 2;
+		m_LastAwardedTick = Server()->Tick();
 		dbg_msg("1on1", "CharacterDeath: %s died -> %s awarded 1 point. Scores now %d-%d", pVictimName, Server()->ClientName(m_Player2ID), m_Score1, m_Score2);
 
 		if(auto p = GameServer()->GetPlayer(m_Player2ID))
@@ -218,6 +278,8 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 	else if(ClientId == m_Player2ID)
 	{
 		m_Score1 += 1;
+		m_LastAwardedPlayer = 1;
+		m_LastAwardedTick = Server()->Tick();
 		dbg_msg("1on1", "CharacterDeath: %s died -> %s awarded 1 point. Scores now %d-%d", pVictimName, Server()->ClientName(m_Player1ID), m_Score1, m_Score2);
 
 		if(auto p = GameServer()->GetPlayer(m_Player1ID))
@@ -227,6 +289,51 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 	}
 	else
 	{
+		return;
+	}
+
+	bool DrawDetected = false;
+	int tickTolerance = Config()->m_Sv1on1DrawDeathTickTolerance; // max tick diff for immediate dual-death draw
+	if(m_Player1DeathTick != -1 && m_Player2DeathTick != -1 && absolute(m_Player1DeathTick - m_Player2DeathTick) <= tickTolerance)
+	{
+		DrawDetected = true;
+	}
+	else
+	{
+		CCharacter *pChr1 = GameServer()->GetPlayerChar(m_Player1ID);
+		CCharacter *pChr2 = GameServer()->GetPlayerChar(m_Player2ID);
+		bool Dead1 = !pChr1 || !pChr1->IsAlive();
+		bool Dead2 = !pChr2 || !pChr2->IsAlive();
+		int extendedWindow = Config()->m_Sv1on1DrawDeathExtendedWindow; // ticks
+		if(extendedWindow > 0 && Dead1 && Dead2 && (m_Player1DeathTick != -1 && m_Player2DeathTick != -1) && absolute(m_Player1DeathTick - m_Player2DeathTick) <= extendedWindow)
+		{
+			DrawDetected = true;
+		}
+	}
+
+	if(DrawDetected)
+	{
+		if(m_Score1 > 0)
+		{
+			m_Score1 -= 1;
+			if(auto p = GameServer()->GetPlayer(m_Player1ID))
+				p->m_Score = m_Score1;
+		}
+		if(m_Score2 > 0)
+		{
+			m_Score2 -= 1;
+			if(auto p = GameServer()->GetPlayer(m_Player2ID))
+				p->m_Score = m_Score2;
+		}
+
+		GameServer()->SendChatTarget(m_Player1ID, "[1on1] Draw! Round restarting...");
+		GameServer()->SendChatTarget(m_Player2ID, "[1on1] Draw! Round restarting...");
+		char aDrawBuf[256];
+		str_format(aDrawBuf, sizeof(aDrawBuf), "%s: %d\n%s: %d\nRound draw! restarting...", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2);
+		GameServer()->SendBroadcast(aDrawBuf, m_Player1ID, false);
+		GameServer()->SendBroadcast(aDrawBuf, m_Player2ID, false);
+
+		RestartRoundAfterDraw();
 		return;
 	}
 
@@ -247,6 +354,38 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 bool COneOnOneEvent::CheckEndCondition()
 {
 	return m_Score1 >= 10 || m_Score2 >= 10;
+}
+
+void COneOnOneEvent::RestartRoundAfterDraw()
+{
+	m_DrawRestartInProgress = true;
+	m_Player1DeathTick = -1;
+	m_Player2DeathTick = -1;
+	m_LastAwardedPlayer = 0;
+	m_LastAwardedTick = -1;
+	m_RoundStartTick = Server()->Tick();
+	m_BothFrozenSinceTick = -1;
+
+	std::vector<vec2> startPositions;
+	GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), startPositions);
+	CPlayer *p1 = GameServer()->GetPlayer(m_Player1ID);
+	CPlayer *p2 = GameServer()->GetPlayer(m_Player2ID);
+	if(p1)
+	{
+		p1->KillCharacter(WEAPON_WORLD, false);
+		p1->ForceSpawn(vec2(0, 0), false);
+		// restore event team
+		auto pController = (CGameControllerDDRace *)GameServer()->m_pController;
+		pController->Teams().SetForceCharacterTeam(m_Player1ID, m_Team);
+	}
+	if(p2)
+	{
+		p2->KillCharacter(WEAPON_WORLD, false);
+		p2->ForceSpawn(vec2(0, 0), false);
+		auto pController = (CGameControllerDDRace *)GameServer()->m_pController;
+		pController->Teams().SetForceCharacterTeam(m_Player2ID, m_Team);
+	}
+	m_DrawRestartInProgress = false;
 }
 
 void COneOnOneEvent::FinishEvent()

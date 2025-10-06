@@ -40,6 +40,17 @@ private:
 	int64_t m_StartTimer;
 	int64_t m_CurrentTick;
 	bool m_SuppressFinishBroadcast;
+
+	// draw handling helpers
+	int m_Player1DeathTick = -1;
+	int m_Player2DeathTick = -1;
+	int m_LastAwardedPlayer = 0; // 1 or 2 (who received the last point due to a death), 0 = none
+	int m_LastAwardedTick = -1;
+	bool m_DrawRestartInProgress = false; // guard to skip scoring during forced deaths
+	bool m_DrawRestartPending = false; // (future use if we defer restarts)
+	int m_RoundStartTick = -1; // tick when curent round (initial or after draw) started
+	int m_BothFrozenSinceTick = -1; // tick when both players became frozen simultanoeusly
+	void RestartRoundAfterDraw();
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_1ON1_H
