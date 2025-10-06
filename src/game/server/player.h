@@ -387,6 +387,8 @@ public:
 	int sent1on1InviteTo;
 	// last tick when the player sent a 1on1 invite (anti-spam)
 	int64_t m_Last1on1InviteTick;
+	// last tick when player created a blockpoint transfer offer
+	int64_t m_LastBpTransferOfferTick = 0;
 	// last tick when the player executed /register (anti-zombie-account spam)
 	int64_t m_LastRegisterTick;
 	bool m_HideInfo = false;

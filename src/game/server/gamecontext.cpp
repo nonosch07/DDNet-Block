@@ -1967,6 +1967,11 @@ void CGameContext::OnClientDrop(int ClientId, const char *pReason)
 	for(const auto &Component : g_ComponentRegistry.Active())
 		Component->OnPlayerDropping(ClientId);
 
+	if(auto requests = g_ComponentRegistry.Get<CRequests>())
+	{
+		requests->CancelRequestsInvolving(ClientId, std::nullopt, "player disconnected");
+	}
+
 	AbortVoteKickOnDisconnect(ClientId);
 	m_pController->OnPlayerDisconnect(m_apPlayers[ClientId], pReason);
 	delete m_apPlayers[ClientId];
@@ -5424,6 +5429,9 @@ void CGameContext::RegisterBlockworldsChatCommands()
 
 	Console()->Register("blockpoints", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayBlockpoints, this, "Show your current blockpoints.");
 	Console()->Register("bp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayBlockpoints, this, "Show your current blockpoints.");
+	Console()->Register("give_bp", "s[player name] i[amount]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConGiveBlockpointsRequest, this, "Offer to transfer blockpoints to another player (requires their acceptance).");
+	Console()->Register("accept_bp", "?s[player name]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConAcceptBlockpointsRequest, this, "Accept a pending blockpoints transfer.");
+	Console()->Register("decline_bp", "?s[player name]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDeclineBlockpointsRequest, this, "Decline a pending blockpoints transfer.");
 	Console()->Register("profile", "?s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayProfile, this, "Display your own or another player's profile.");
 
 	Console()->Register("deathnote", "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDeathnote, this, "Use one of your deathnote pages.");

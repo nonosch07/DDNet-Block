@@ -695,6 +695,9 @@ private:
 	static void ConShopDecline(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConDisplayBlockpoints(IConsole::IResult *pResult, void *pUserData);
+	static void ConGiveBlockpointsRequest(IConsole::IResult *pResult, void *pUserData); // /give_bp
+	static void ConAcceptBlockpointsRequest(IConsole::IResult *pResult, void *pUserData); // /accept_bp
+	static void ConDeclineBlockpointsRequest(IConsole::IResult *pResult, void *pUserData); // /decline_bp
 	static void ConDisplayProfile(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConDeathnote(IConsole::IResult *pResult, void *pUserData);

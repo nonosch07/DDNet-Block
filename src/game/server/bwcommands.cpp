@@ -182,6 +182,11 @@ void CGameContext::ConAccountLogout(IConsole::IResult *pResult, void *pUserData)
 	if(pSpawnZone && pReqPlayer && pReqPlayer->GetCharacter() && !pSpawnZone->IsInZone(pReqPlayer->GetCharacter()->m_Pos))
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You can only logout while in the spawn zone.");
 
+	// cancel any pending requests involving this client before logout (so others aren't left with stale offers)
+	if(auto requests = g_ComponentRegistry.Get<CRequests>())
+	{
+		requests->CancelRequestsInvolving(pResult->m_ClientId, std::nullopt, "player logged out");
+	}
 	pPlayer->OnPlayerLogout();
 	pSelf->SendChatTarget(pResult->m_ClientId, "you have been logged out!");
 }
@@ -206,6 +211,155 @@ void CGameContext::ConDisplayBlockpoints(IConsole::IResult *pResult, void *pUser
 		pSelf->m_apPlayers[pResult->m_ClientId]->m_Account.m_Blockpoints,
 		pSelf->m_apPlayers[pResult->m_ClientId]->m_Account.m_Blockpoints != 1 ? "s" : "");
 	pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+}
+
+// /give_bp <playerName> <amount>
+void CGameContext::ConGiveBlockpointsRequest(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	if(!g_Config.m_SvAccountsystem)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+	CPlayer *pFrom = pSelf->m_apPlayers[pResult->m_ClientId];
+	if(!pFrom || !pFrom->IsLoggedIn())
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You are not logged in.");
+	if(pResult->NumArguments() < 2)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Usage: /give_bp <playerName> <amount>");
+	const char *pTargetName = pResult->GetString(0);
+	int Amount = pResult->GetInteger(1);
+	if(Amount < g_Config.m_SvBpTransferAmountMin)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Amount below minimum transfer threshold.");
+	if(Amount > g_Config.m_SvBpTransferAmountCap)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Amount exceeds max cap.");
+	if(Amount < 1)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Amount too small.");
+	CPlayer *pTo = pSelf->GetPlayerByName(pTargetName);
+	if(!pTo || !pTo->IsLoggedIn())
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Target player not found or not logged in.");
+	if(pTo->GetCid() == pFrom->GetCid())
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You cannot transfer blockpoints to yourself.");
+	if(pFrom->GetPlayerBlockpoints() < Amount)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You don't have enough blockpoints.");
+	// disallow if either player is currently in an event
+	if(pSelf->isInEvent(pFrom->GetCid()) || pSelf->isInEvent(pTo->GetCid()))
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Blockpoint transfers are not allowed while either player is in an event.");
+	int Cooldown = g_Config.m_SvBpTransferCooldown;
+	if(Cooldown > 0 && pFrom->m_LastBpTransferOfferTick != 0 && pSelf->Server()->Tick() - pFrom->m_LastBpTransferOfferTick < Cooldown * pSelf->Server()->TickSpeed())
+	{
+		int Rem = (int)((Cooldown * pSelf->Server()->TickSpeed() - (pSelf->Server()->Tick() - pFrom->m_LastBpTransferOfferTick)) / pSelf->Server()->TickSpeed());
+		char aBuf[128];
+		str_format(aBuf, sizeof(aBuf), "Please wait %d second%s before sending another transfer.", Rem, Rem != 1 ? "s" : "");
+		return pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+	}
+	// outstanding per sender check
+	if(auto requestsTmp = g_ComponentRegistry.Get<CRequests>())
+	{
+		int outstanding = 0;
+		auto list = requestsTmp->GetRequestsFor(pFrom->GetCid(), CRequests::SRequest::EType::BlockpointTransfer);
+		for(int id : list) { (void)id; outstanding++; }
+		if(outstanding >= g_Config.m_SvBpTransferMaxOutstandingPerSender)
+			return pSelf->SendChatTarget(pResult->m_ClientId, "You have too many pending transfers. Wait for them to resolve.");
+	}
+	auto requests = g_ComponentRegistry.Get<CRequests>();
+	if(!requests)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Request subsystem is not available.");
+	int expiry = g_Config.m_SvBpTransferExpiry;
+	int id = requests->CreateBlockpointTransfer(pFrom->GetCid(), pTo->GetCid(), Amount, expiry);
+	if(id == -1)
+		return; // error already messaged
+	pFrom->m_LastBpTransferOfferTick = pSelf->Server()->Tick();
+	char aBuf[256];
+	str_format(aBuf, sizeof(aBuf), "Transfer offer (%ds) sent to %s for %d blockpoints.", expiry, pSelf->Server()->ClientName(pTo->GetCid()), Amount);
+	pSelf->SendChatTarget(pFrom->GetCid(), aBuf);
+}
+
+// /accept_bp [playerName]
+void CGameContext::ConAcceptBlockpointsRequest(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	if(!g_Config.m_SvAccountsystem)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+	if(!pPlayer || !pPlayer->IsLoggedIn())
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You are not logged in.");
+	auto requests = g_ComponentRegistry.Get<CRequests>();
+	if(!requests)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Request subsystem is not available.");
+	auto matchIds = requests->GetRequestIdsTo(pResult->m_ClientId, CRequests::SRequest::EType::BlockpointTransfer);
+	int chosen = -1;
+	if(pResult->NumArguments() > 0)
+	{
+		const char *pFromName = pResult->GetString(0);
+		CPlayer *pFrom = pSelf->GetPlayerByName(pFromName);
+		if(!pFrom)
+			return pSelf->SendChatTarget(pResult->m_ClientId, "Player not found");
+		auto specific = requests->GetRequestIdsFromTo(pFrom->GetCid(), pResult->m_ClientId, CRequests::SRequest::EType::BlockpointTransfer);
+		for(int id : specific)
+		{
+			CRequests::SRequest info;
+			if(requests->GetRequestInfo(id, info) && info.m_ExpireTick > pSelf->Server()->Tick())
+				chosen = std::max(chosen, id);
+		}
+	}
+	else if(matchIds.size() == 1)
+	{
+		chosen = matchIds[0];
+	}
+	else
+	{
+		return pSelf->SendChatTarget(pResult->m_ClientId, matchIds.empty() ? "No blockpoint transfer to accept." : "Multiple transfers pending. Use /accept_bp <playerName>.");
+	}
+	if(chosen == -1)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "No valid (non-expired) transfer found.");
+	if(!requests->AcceptRequest(chosen))
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Failed to accept the transfer (it may have expired).");
+}
+
+// /decline_bp [playerName]
+void CGameContext::ConDeclineBlockpointsRequest(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	if(!g_Config.m_SvAccountsystem)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+	if(!pPlayer || !pPlayer->IsLoggedIn())
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You are not logged in.");
+	auto requests = g_ComponentRegistry.Get<CRequests>();
+	if(!requests)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Request subsystem is not available.");
+	auto matchIds = requests->GetRequestIdsTo(pResult->m_ClientId, CRequests::SRequest::EType::BlockpointTransfer);
+	int chosen = -1;
+	if(pResult->NumArguments() > 0)
+	{
+		const char *pFromName = pResult->GetString(0);
+		CPlayer *pFrom = pSelf->GetPlayerByName(pFromName);
+		if(!pFrom)
+			return pSelf->SendChatTarget(pResult->m_ClientId, "Player not found");
+		auto specific = requests->GetRequestIdsFromTo(pFrom->GetCid(), pResult->m_ClientId, CRequests::SRequest::EType::BlockpointTransfer);
+		for(int id : specific)
+		{
+			CRequests::SRequest info;
+			if(requests->GetRequestInfo(id, info) && info.m_ExpireTick > pSelf->Server()->Tick())
+				chosen = std::max(chosen, id);
+		}
+	}
+	else if(matchIds.size() == 1)
+	{
+		chosen = matchIds[0];
+	}
+	else
+	{
+		return pSelf->SendChatTarget(pResult->m_ClientId, matchIds.empty() ? "No blockpoint transfer to decline." : "Multiple transfers pending. Use /decline_bp <playerName>.");
+	}
+	if(chosen == -1)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "No valid (non-expired) transfer found.");
+	if(!requests->DeclineRequest(chosen))
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Failed to decline the transfer (it may have expired).");
 }
 
 void CGameContext::ConChangePassword(IConsole::IResult *pResult, void *pUserData)

@@ -19,6 +19,18 @@ MACRO_CONFIG_INT(Sv1on1system, sv_1on1_system, 1, 0, 1, CFGFLAG_SERVER, "Toggle 
 MACRO_CONFIG_INT(Sv1on1InviteCooldown, sv_1on1_invite_cooldown, 5, 0, 3600, CFGFLAG_SERVER, "Cooldown time (in seconds) a player must wait between 1on1 invites.")
 MACRO_CONFIG_INT(Sv1on1MaxOutstandingInvitesPerSender, sv_1on1_max_outstanding_invites_per_sender, 3, 1, 100, CFGFLAG_SERVER, "Maximum number of outstanding 1on1 invites a single player can have.")
 
+MACRO_CONFIG_INT(SvBpTransferCooldown, sv_bp_transfer_cooldown, 30, 0, 3600, CFGFLAG_SERVER, "Cooldown time (in seconds) between initiating blockpoint transfer offers.")
+MACRO_CONFIG_INT(SvBpTransferExpiry, sv_bp_transfer_expiry, 30, 5, 600, CFGFLAG_SERVER, "Expiry time (in seconds) for a pending blockpoint transfer offer.")
+MACRO_CONFIG_INT(SvBpTransferAmountCap, sv_bp_transfer_amount_cap, 3500, 1, 100000, CFGFLAG_SERVER, "Maximum allowed blockpoints in a single transfer offer.")
+MACRO_CONFIG_INT(SvBpTransferMaxOutstandingPerSender, sv_bp_transfer_max_outstanding_per_sender, 3, 1, 100, CFGFLAG_SERVER, "Maximum number of outstanding blockpoint transfer offers a player can have to others.")
+MACRO_CONFIG_INT(SvBpTransferAmountMin, sv_bp_transfer_amount_min, 100, 1, 100000, CFGFLAG_SERVER, "Minimum allowed blockpoints in a single transfer offer.")
+
+MACRO_CONFIG_INT(Sv1on1InviteExpiry, sv_1on1_invite_expiry, 15, 5, 600, CFGFLAG_SERVER, "Expiry time (in seconds) for 1on1 invites.")
+MACRO_CONFIG_INT(SvClanInviteCooldown, sv_clan_invite_cooldown, 60, 0, 3600, CFGFLAG_SERVER, "Cooldown time (in seconds) between clan invites from the same player.")
+MACRO_CONFIG_INT(SvClanInviteExpiry, sv_clan_invite_expiry, 15, 5, 600, CFGFLAG_SERVER, "Expiry time (in seconds) for clan invites.")
+MACRO_CONFIG_INT(SvClanInviteMaxOutstandingPerSender, sv_clan_invite_max_outstanding_per_sender, 5, 1, 100, CFGFLAG_SERVER, "Maximum number of outstanding clan invites a single player can have.")
+MACRO_CONFIG_INT(SvShopRequestExpiry, sv_shop_request_expiry, 10, 5, 600, CFGFLAG_SERVER, "Expiry time (in seconds) for shop purchase requests.")
+
 // Register/IP throttling configuration
 MACRO_CONFIG_INT(SvRegisterCooldownPerIp, sv_register_cooldown_per_ip, 10, 0, 3600, CFGFLAG_SERVER, "Cooldown time (seconds) per IP between register attempts.")
 MACRO_CONFIG_INT(SvRegisterIpAttemptWindow, sv_register_ip_attempt_window, 60, 1, 3600, CFGFLAG_SERVER, "Time window (seconds) in which register attempts per IP are counted.")
@@ -27,7 +39,7 @@ MACRO_CONFIG_INT(SvRegisterIpBanSeconds, sv_register_ip_ban_seconds, 300, 0, 864
 
 // Experience and block-related settings:
 MACRO_CONFIG_INT(SvBlockExperienceMultiplierStacking, sv_block_expirience_multiplier_stacking, 1, 1, NUM_EXP_CALC_METHODS, CFGFLAG_SERVER, "0-highest, 1-additive, 2-logarithmic, 3-multiplicative")
-MACRO_CONFIG_INT(SvBlockExperience, sv_block_experience, 3, 0, 0, CFGFLAG_SERVER, "Experience points awarded for each registered block.")
+MACRO_CONFIG_INT(SvBlockExperience, sv_block_experience, 1, 0, 0, CFGFLAG_SERVER, "Experience points awarded for each registered block.")
 MACRO_CONFIG_INT(SvBlockFreezedInterval, sv_block_freezed, 3, 0, 0, CFGFLAG_SERVER, "Duration (in seconds) a player must remain frozen to be considered for blocking.")
 MACRO_CONFIG_INT(SvBlockResetUnfreezedInterval, sv_block_reset_unfreezed, 3, 0, 0, CFGFLAG_SERVER, "Time (in seconds) a player must remain unfrozen before losing the enemy’s block impact.")
 MACRO_CONFIG_INT(SvBlockResetNoImpactInterval, sv_block_reset_no_impact, 2, 0, 0, CFGFLAG_SERVER, "Time (in seconds) after unfreezing during which an enemy’s impact is still counted.")

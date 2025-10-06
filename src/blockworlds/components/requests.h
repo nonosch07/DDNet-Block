@@ -21,6 +21,7 @@ public:
 			OneOnOne = 0,
 			Shop = 1,
 			Clan = 2,
+			BlockpointTransfer = 3,
 		};
 		int m_Id{};
 		EType m_Type{EType::OneOnOne};
@@ -31,6 +32,7 @@ public:
 		int m_Category{}; // shop category
 		int m_Item{}; // shop item id
 		int m_ExpireTick{};
+			// NOTE: for BlockpointTransfer we reuse m_Wager to store transfer amount to avoiding expanding struct size.
 	};
 
 	// helper conversion
@@ -39,9 +41,14 @@ public:
 	explicit CRequests(class CGameContext *pGameServer);
 
 	// create requests
-	int Create1on1Invite(int FromClient, int ToClient, int Wager, int ExpireSeconds = 30);
+	int Create1on1Invite(int FromClient, int ToClient, int Wager, int ExpireSeconds = 15);
 	int CreateClanInvite(int FromClient, int ToClient, int ClanId, int ExpireSeconds = 15);
 	int CreateShopRequest(int OwnerClient, int Category, int ItemId, int Price, int ExpireSeconds = 15);
+	int CreateBlockpointTransfer(int FromClient, int ToClient, int Amount, int ExpireSeconds = 15);
+
+	// cancel all requests involving a client (either as sender or receiver). Optional type filter.
+	// returns number of cancelled requests.
+	int CancelRequestsInvolving(int ClientId, std::optional<SRequest::EType> typeFilter = std::nullopt, const char *pReason = nullptr);
 
 	// accept/decline
 	bool AcceptRequest(int RequestId);

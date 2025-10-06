@@ -74,13 +74,14 @@ int CRequests::Create1on1Invite(int FromClient, int ToClient, int Wager, int Exp
 		}
 	}
 
+	int expiryCfg = g_Config.m_Sv1on1InviteExpiry > 0 ? g_Config.m_Sv1on1InviteExpiry : ExpireSeconds;
 	SRequest r;
 	r.m_Id = NextId();
 	r.m_Type = SRequest::EType::OneOnOne;
 	r.m_From = FromClient;
 	r.m_To = ToClient;
 	r.m_Wager = Wager;
-	r.m_ExpireTick = Server()->Tick() + ExpireSeconds * Server()->TickSpeed();
+	r.m_ExpireTick = Server()->Tick() + expiryCfg * Server()->TickSpeed();
 	m_Requests.push_back(r);
 
 	// record last invite tick on the sender for cooldown enforcement
@@ -89,7 +90,7 @@ int CRequests::Create1on1Invite(int FromClient, int ToClient, int Wager, int Exp
 
 	char aBuf[256];
 	const char *pFromName = SafeClientName(GameServer(), FromClient);
-	str_format(aBuf, sizeof(aBuf), "%s challenged you for a 1on1! Use /accept %s or /decline %s to respond. (%d BP)", pFromName, pFromName, pFromName, Wager);
+	str_format(aBuf, sizeof(aBuf), "%s challenged you for a 1on1! Use /accept or /decline to respond. (%d BP)", pFromName, Wager);
 	if(CheckClientId(ToClient) && GameServer()->m_apPlayers[ToClient])
 		GameServer()->SendChatTarget(ToClient, aBuf);
 	return r.m_Id;
@@ -97,6 +98,7 @@ int CRequests::Create1on1Invite(int FromClient, int ToClient, int Wager, int Exp
 
 int CRequests::CreateShopRequest(int OwnerClient, int Category, int ItemId, int Price, int ExpireSeconds)
 {
+	int expiryCfg = g_Config.m_SvShopRequestExpiry > 0 ? g_Config.m_SvShopRequestExpiry : ExpireSeconds;
 	SRequest r;
 	r.m_Id = NextId();
 	r.m_Type = SRequest::EType::Shop;
@@ -104,7 +106,7 @@ int CRequests::CreateShopRequest(int OwnerClient, int Category, int ItemId, int 
 	r.m_To = OwnerClient; // owner/operator
 	r.m_Category = Category;
 	r.m_Item = ItemId;
-	r.m_ExpireTick = Server()->Tick() + ExpireSeconds * Server()->TickSpeed();
+	r.m_ExpireTick = Server()->Tick() + expiryCfg * Server()->TickSpeed();
 	m_Requests.push_back(r);
 	return r.m_Id;
 }
@@ -123,13 +125,14 @@ int CRequests::CreateClanInvite(int FromClient, int ToClient, int ClanId, int Ex
 		}
 	}
 
+	int expiryCfg = g_Config.m_SvClanInviteExpiry > 0 ? g_Config.m_SvClanInviteExpiry : ExpireSeconds;
 	SRequest r;
 	r.m_Id = NextId();
 	r.m_Type = SRequest::EType::Clan;
 	r.m_From = FromClient; // issuer (clan leader/co-leader)
 	r.m_To = ToClient; // target player
 	r.m_ClanId = ClanId;
-	r.m_ExpireTick = Server()->Tick() + ExpireSeconds * Server()->TickSpeed();
+	r.m_ExpireTick = Server()->Tick() + expiryCfg * Server()->TickSpeed();
 	m_Requests.push_back(r);
 
 	const char *pFromName = SafeClientName(GameServer(), FromClient);
@@ -145,6 +148,43 @@ int CRequests::CreateClanInvite(int FromClient, int ToClient, int ClanId, int Ex
 	if(CheckClientId(ToClient) && GameServer()->m_apPlayers[ToClient])
 		GameServer()->SendChatTarget(ToClient, aBuf);
 
+	return r.m_Id;
+}
+
+int CRequests::CreateBlockpointTransfer(int FromClient, int ToClient, int Amount, int ExpireSeconds)
+{
+	// prevent duplicate pending transfer (same pair, same amount) to avoid spam
+	for(const auto &existing : m_Requests)
+	{
+		if(existing.m_Type == SRequest::EType::BlockpointTransfer && existing.m_From == FromClient && existing.m_To == ToClient && existing.m_Wager == Amount)
+		{
+			int64_t ticksLeft = existing.m_ExpireTick - Server()->Tick();
+			int secondsLeft = ticksLeft > 0 ? (int)(ticksLeft / Server()->TickSpeed()) : 0;
+			if(CheckClientId(FromClient) && GameServer()->m_apPlayers[FromClient])
+			{
+				char aBuf[256];
+				str_format(aBuf, sizeof(aBuf), "You already have a pending BP transfer to this player (%d BP). Expires in %d second%s.", Amount, secondsLeft, secondsLeft != 1 ? "s" : "");
+				GameServer()->SendChatTarget(FromClient, aBuf);
+			}
+			return -1;
+		}
+	}
+
+	int expiryCfg = g_Config.m_SvBpTransferExpiry > 0 ? g_Config.m_SvBpTransferExpiry : ExpireSeconds;
+	SRequest r;
+	r.m_Id = NextId();
+	r.m_Type = SRequest::EType::BlockpointTransfer;
+	r.m_From = FromClient;
+	r.m_To = ToClient;
+	r.m_Wager = Amount; // reuse field
+	r.m_ExpireTick = Server()->Tick() + expiryCfg * Server()->TickSpeed();
+	m_Requests.push_back(r);
+
+	const char *pFromName = SafeClientName(GameServer(), FromClient);
+	char aBuf[256];
+	str_format(aBuf, sizeof(aBuf), "%s wants to send you %d blockpoints. Use /accept_bp or /decline_bp.", pFromName, Amount);
+	if(CheckClientId(ToClient) && GameServer()->m_apPlayers[ToClient])
+		GameServer()->SendChatTarget(ToClient, aBuf);
 	return r.m_Id;
 }
 
@@ -187,6 +227,31 @@ bool CRequests::AcceptRequest(int RequestId)
 			return false;
 		}
 
+		// notify both parties of acceptance before starting the event
+		if(CheckClientId(from) && GameServer()->m_apPlayers[from])
+		{
+			char aBuf[192];
+			str_format(aBuf, sizeof(aBuf), "%s accepted your 1on1 challenge%s%s", SafeClientName(GameServer(), to), wager > 0 ? " (wager " : "", wager > 0 ? std::to_string(wager).c_str() : "");
+			if(wager > 0)
+			{
+				int len = str_length(aBuf);
+				if(len < (int)sizeof(aBuf) - 2)
+					str_append(aBuf, ")", sizeof(aBuf));
+			}
+			GameServer()->SendChatTarget(from, aBuf);
+		}
+		if(CheckClientId(to) && GameServer()->m_apPlayers[to])
+		{
+			char aBuf[192];
+			str_format(aBuf, sizeof(aBuf), "You accepted the 1on1 challenge from %s%s%s", SafeClientName(GameServer(), from), wager > 0 ? " (wager " : "", wager > 0 ? std::to_string(wager).c_str() : "");
+			if(wager > 0)
+			{
+				int len = str_length(aBuf);
+				if(len < (int)sizeof(aBuf) - 2)
+					str_append(aBuf, ")", sizeof(aBuf));
+			}
+			GameServer()->SendChatTarget(to, aBuf);
+		}
 		if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
 		{
 			auto ev = events->CreateEventByName("1on1");
@@ -308,6 +373,53 @@ bool CRequests::AcceptRequest(int RequestId)
 		return true;
 	}
 
+	if(it->m_Type == SRequest::EType::BlockpointTransfer)
+	{
+		int from = it->m_From;
+		int to = it->m_To;
+		int amount = it->m_Wager;
+		bool fromPresent = CheckClientId(from) && GameServer()->m_apPlayers[from];
+		bool toPresent = CheckClientId(to) && GameServer()->m_apPlayers[to];
+		CPlayer *pFrom = fromPresent ? GameServer()->m_apPlayers[from] : nullptr;
+		CPlayer *pTo = toPresent ? GameServer()->m_apPlayers[to] : nullptr;
+		if(!fromPresent || !toPresent || !pFrom || !pTo || !pFrom->IsLoggedIn() || !pTo->IsLoggedIn())
+		{
+			if(toPresent)
+				GameServer()->SendChatTarget(to, "Transfer failed: one of the players disconnected or is not logged in.");
+			int id = it->m_Id;
+			auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
+			if(eraseIt != m_Requests.end())
+				m_Requests.erase(eraseIt);
+			return false;
+		}
+		if(pFrom->GetPlayerBlockpoints() < amount || amount <= 0)
+		{
+			GameServer()->SendChatTarget(to, "Transfer cancelled: sender no longer has sufficient blockpoints.");
+			if(fromPresent)
+				GameServer()->SendChatTarget(from, "Your blockpoint transfer was cancelled due to insufficient funds.");
+			int id = it->m_Id;
+			auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
+			if(eraseIt != m_Requests.end())
+				m_Requests.erase(eraseIt);
+			return false;
+		}
+		pFrom->SetPlayerBlockpoints(pFrom->GetPlayerBlockpoints() - amount);
+		pTo->SetPlayerBlockpoints(pTo->GetPlayerBlockpoints() + amount);
+		GameServer()->Accounts()->Save(from, &pFrom->m_Account);
+		GameServer()->Accounts()->Save(to, &pTo->m_Account);
+		char aBuf[256];
+		str_format(aBuf, sizeof(aBuf), "You sent %d blockpoints to %s (now %d)", amount, SafeClientName(GameServer(), to), pFrom->GetPlayerBlockpoints());
+		GameServer()->SendChatTarget(from, aBuf);
+		str_format(aBuf, sizeof(aBuf), "You received %d blockpoints from %s (now %d)", amount, SafeClientName(GameServer(), from), pTo->GetPlayerBlockpoints());
+		GameServer()->SendChatTarget(to, aBuf);
+		dbg_msg("bp_transfer", "transfer id=%d from=%d to=%d amount=%d", it->m_Id, from, to, amount);
+		int id = it->m_Id;
+		auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
+		if(eraseIt != m_Requests.end())
+			m_Requests.erase(eraseIt);
+		return true;
+	}
+
 	// unknown/other request types: just erase and return false
 	{
 		int id = it->m_Id;
@@ -323,6 +435,22 @@ bool CRequests::DeclineRequest(int RequestId)
 	auto it = std::find_if(m_Requests.begin(), m_Requests.end(), [RequestId](const SRequest &r) { return r.m_Id == RequestId; });
 	if(it == m_Requests.end())
 		return false;
+
+	if(it->m_Type == SRequest::EType::OneOnOne)
+	{
+		int from = it->m_From; // inviter
+		int to = it->m_To;   // declining player
+		if(CheckClientId(to) && GameServer()->m_apPlayers[to])
+			GameServer()->SendChatTarget(to, "You declined the 1on1 challenge.");
+		if(CheckClientId(from) && GameServer()->m_apPlayers[from])
+		{
+			char aBuf[160];
+			str_format(aBuf, sizeof(aBuf), "Your 1on1 challenge to %s was declined.", SafeClientName(GameServer(), to));
+			GameServer()->SendChatTarget(from, aBuf);
+		}
+		m_Requests.erase(it);
+		return true;
+	}
 
 	if(it->m_Type == SRequest::EType::Clan)
 	{
@@ -423,6 +551,14 @@ void CRequests::OnTick()
 			str_format(aBufTo, sizeof(aBufTo), "The 1on1 invite from '%s' has expired.", pFromName);
 			notifyTo = true;
 		}
+		else if(req.m_Type == SRequest::EType::BlockpointTransfer)
+		{
+			const char *pToName = SafeClientName(GameServer(), req.m_To);
+			const char *pFromName = SafeClientName(GameServer(), req.m_From);
+			str_format(aBufFrom, sizeof(aBufFrom), "Your blockpoint transfer to '%s' (%d BP) has expired.", pToName, req.m_Wager);
+			str_format(aBufTo, sizeof(aBufTo), "The blockpoint transfer from '%s' (%d BP) has expired.", pFromName, req.m_Wager);
+			notifyTo = true;
+		}
 		else if(req.m_Type == SRequest::EType::Clan)
 		{
 			const char *pToName = SafeClientName(GameServer(), req.m_To);
@@ -445,4 +581,38 @@ void CRequests::OnTick()
 		if(it != m_Requests.end())
 			m_Requests.erase(it);
 	}
+}
+
+int CRequests::CancelRequestsInvolving(int ClientId, std::optional<SRequest::EType> typeFilter, const char *pReason)
+{
+	int cancelled = 0;
+	// collect first to avoid iterator invalidation complexity
+	std::vector<int> ids;
+	for(const auto &r : m_Requests)
+	{
+		if((r.m_From == ClientId || r.m_To == ClientId) && (!typeFilter.has_value() || r.m_Type == *typeFilter))
+			ids.push_back(r.m_Id);
+	}
+	for(int id : ids)
+	{
+		auto it = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
+		if(it == m_Requests.end())
+			continue;
+		// notify counterpart if online
+		int other = (it->m_From == ClientId) ? it->m_To : it->m_From;
+		if(CheckClientId(other) && GameServer()->m_apPlayers[other])
+		{
+			char aBuf[256];
+			if(pReason)
+				str_format(aBuf, sizeof(aBuf), "A pending %s request was cancelled: %s", it->m_Type == SRequest::EType::BlockpointTransfer ? "blockpoint transfer" : it->m_Type == SRequest::EType::OneOnOne ? "1on1" : it->m_Type == SRequest::EType::Clan ? "clan" : "request", pReason);
+			else
+				str_format(aBuf, sizeof(aBuf), "A pending %s request was cancelled.", it->m_Type == SRequest::EType::BlockpointTransfer ? "blockpoint transfer" : it->m_Type == SRequest::EType::OneOnOne ? "1on1" : it->m_Type == SRequest::EType::Clan ? "clan" : "request");
+			GameServer()->SendChatTarget(other, aBuf);
+		}
+		m_Requests.erase(it);
+		cancelled++;
+	}
+	if(cancelled > 0)
+		dbg_msg("requests", "cancelled %d request(s) involving client %d", cancelled, ClientId);
+	return cancelled;
 }
