@@ -46,12 +46,14 @@ void CExperience::Tick()
 
 		if(pPlayer->IsLoggedIn())
 		{
-			pPlayer->AddPlayerExp(g_Config.m_SvBlockExperience);
+			int Amount = m_Amount; // dynamic amount
+			pPlayer->AddPlayerExp(Amount);
 			pPlayer->SetPlayerKills(pPlayer->GetPlayerKills() + 1);
 			pPlayer->SetPlayerBlockpoints(pPlayer->GetPlayerBlockpoints() + 1);
 
 			if(pPlayer->GetClanId())
-				GameServer()->Clans()->AddClanExp(pPlayer->GetClanId(), g_Config.m_SvBlockExperience);
+				GameServer()->Clans()->AddClanExp(pPlayer->GetClanId(), Amount);
+
 		}
 		else
 		{

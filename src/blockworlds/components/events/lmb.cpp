@@ -180,13 +180,12 @@ void CLastManBlockingEvent::FinishEvent()
 			GameServer()->SendChatTarget(-1, aBuf);
 			GameServer()->SendBroadcast(-1, aBuf, false);
 
-			int BlockpointsReward = 250;
+			int BlockpointsReward = Config()->m_SvLMBBlockpointsReward;
 			CPlayer *pWinner = GameServer()->GetPlayer(m_Winner);
 			if(pWinner)
 			{
-				pWinner->SetPlayerLevel(pWinner->GetPlayerLevel() + 5);
 				pWinner->SetPlayerBlockpoints(pWinner->GetPlayerBlockpoints() + BlockpointsReward);
-				str_format(aBuf, sizeof(aBuf), "You've received 5 levels and %d blockpoints for winning!", BlockpointsReward);
+				str_format(aBuf, sizeof(aBuf), "You've received %d blockpoints for winning!", BlockpointsReward);
 				GameServer()->SendChatTarget(m_Winner, aBuf);
 			}
 

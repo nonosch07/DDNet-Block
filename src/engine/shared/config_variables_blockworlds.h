@@ -54,6 +54,24 @@ MACRO_CONFIG_INT(SvIgnoreClanmateKills, sv_ignore_clanmate_kills, 1, 0, 1, CFGFL
 MACRO_CONFIG_INT(SvBlockMinAliveTime, sv_block_min_alive_time, 20, 1, 120, CFGFLAG_SERVER, "Minimum time (in seconds) a player must stay alive to earn experience.")
 MACRO_CONFIG_INT(SvBlockInterval, sv_block_interval, 0, 0, 1, CFGFLAG_SERVER, "Interval (in seconds) between two countable fights.")
 
+// Anti-farming / PvP EXP integrity settings
+MACRO_CONFIG_INT(SvMinActivePlayersForExp, sv_min_active_players_for_exp, 8, 0, MAX_CLIENTS, CFGFLAG_SERVER, "Minimum number of active (non-afk, non-spec, playing) players required to award PvP/block EXP")
+MACRO_CONFIG_INT(SvExpTargetFullPlayers, sv_exp_target_full_players, 10, 0, MAX_CLIENTS, CFGFLAG_SERVER, "Player count at which population scaling reaches 100% EXP")
+MACRO_CONFIG_INT(SvExpVictimRecentActionSec, sv_exp_victim_recent_action_sec, 6, 0, 120, CFGFLAG_SERVER, "Victim must have acted within this many seconds to grant EXP")
+MACRO_CONFIG_INT(SvExpKillerRecentActionSec, sv_exp_killer_recent_action_sec, 4, 0, 120, CFGFLAG_SERVER, "Killer must have acted within this many seconds to receive EXP")
+MACRO_CONFIG_INT(SvExpMinSpawnMoveDist, sv_exp_min_spawn_move_dist, 0, 0, 10000, CFGFLAG_SERVER, "Minimum distance (game units) a victim must have moved since spawn to grant EXP (0=disabled)")
+MACRO_CONFIG_INT(SvExpMaxSameVictim, sv_exp_max_same_victim, 3, 1, 50, CFGFLAG_SERVER, "Maximum EXP-granting kills on the same victim within the configured window")
+MACRO_CONFIG_INT(SvExpSameVictimWindowSec, sv_exp_same_victim_window_sec, 180, 10, 86400, CFGFLAG_SERVER, "Time window (seconds) for counting repeated kills on the same victim")
+MACRO_CONFIG_INT(SvExpMinUniqueRatioPercent, sv_exp_min_unique_ratio_percent, 40, 0, 100, CFGFLAG_SERVER, "Minimum unique victim ratio (percent) in recent kills before applying diversity penalty")
+MACRO_CONFIG_INT(SvExpLoopDetectionWindowSec, sv_exp_loop_detection_window_sec, 90, 5, 3600, CFGFLAG_SERVER, "Window (seconds) to inspect for reciprocal kill loop patterns")
+MACRO_CONFIG_INT(SvExpLoopMinAlternations, sv_exp_loop_min_alternations, 3, 1, 20, CFGFLAG_SERVER, "Minimum A-B-A-B alternations to flag a farming loop")
+MACRO_CONFIG_INT(SvExpLevelDiffSoftCap, sv_exp_level_diff_soft_cap, 6, 0, 100, CFGFLAG_SERVER, "Level difference after which EXP starts decaying for high-level killers vs low-level victims")
+MACRO_CONFIG_INT(SvExpLevelDiffDecayKPercent, sv_exp_level_diff_decay_k_percent, 400, 1, 10000, CFGFLAG_SERVER, "Decay constant (percent) used in exp(-Δ/K) scaling (K = value/100)")
+MACRO_CONFIG_INT(SvExpDailySoftCap, sv_exp_daily_soft_cap, 5000, 0, 1000000, CFGFLAG_SERVER, "Daily soft cap for PvP EXP before diminishing returns")
+MACRO_CONFIG_INT(SvExpMinSessionMinutes, sv_exp_min_session_minutes, 3, 0, 120, CFGFLAG_SERVER, "Minimum connection time (minutes) for both players to allow EXP")
+MACRO_CONFIG_INT(SvExpMaxAfkVictimRatioPercent, sv_exp_max_afk_victim_ratio_percent, 30, 0, 100, CFGFLAG_SERVER, "Maximum percent of recent kills on AFK victims before EXP suppression")
+MACRO_CONFIG_INT(SvDebugAntifarm, sv_debug_antifarm, 0, 0, 1, CFGFLAG_SERVER, "Enable verbose anti-farm debug messages to killers (1=on)")
+
 // Deathnote settings:
 MACRO_CONFIG_INT(SvDeathNoteCoolDown, sv_deathnote_cooldown, 600, 60, 3600, CFGFLAG_SERVER, "Cooldown time (in seconds) a player must wait before reusing the Deathnote.")
 
@@ -74,6 +92,7 @@ MACRO_CONFIG_INT(SvLMBWinnerExpMultiplierDuration, sv_lmb_winner_exp_multiplier_
 MACRO_CONFIG_INT(SvLMBFreezeTimeout, sv_lmb_freeze_timeout, 150, 1, 50000, CFGFLAG_SERVER, "Duration of character freeze to be counted as loss (ticks, 50 ticks = 1 second)") // not related to lmb?
 MACRO_CONFIG_INT(SvLMBBroadcastRate, sv_lmb_broadcast_rate, 50, 1, 500, CFGFLAG_SERVER, "Rate at which information broadcasts will be sent (ticks, 50 ticks = 1 second)") // not related to lmb?
 MACRO_CONFIG_INT(SvLMBMinimumCandidates, sv_lmb_minimum_candidates, 8, 2, MAX_CLIENTS, CFGFLAG_SERVER, "Minimum amount of candidates to start the active phase")
+MACRO_CONFIG_INT(SvLMBBlockpointsReward, sv_lmb_blockpoints_reward, 250, 1, 10000, CFGFLAG_SERVER, "Blockpoints reward for winning the LMB event")
 
 // Weaponkits setting: persist whether weaponkits are allowed on this server
 MACRO_CONFIG_INT(SvWeaponkitsAllowed, sv_weaponkits_allowed, 1, 0, 1, CFGFLAG_SERVER, "Allow (1) or disable (0) weaponkits on the server.")
