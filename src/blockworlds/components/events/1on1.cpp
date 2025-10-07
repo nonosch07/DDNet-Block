@@ -223,24 +223,24 @@ void COneOnOneEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 	if(p1)
 		p1->m_allowDeath = false;
 	if(p2)
-		p2->m_allowDeath = false; 
+		p2->m_allowDeath = false;
 
-			CCharacter *pChr1 = GameServer()->GetPlayerChar(m_Player1ID);
-			CCharacter *pChr2 = GameServer()->GetPlayerChar(m_Player2ID);
-			if(pChr1 && pChr2)
-			{
-				std::vector<vec2> tilePositions;
-				GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), tilePositions);
-				if(tilePositions.size() >= 2)
-				{
-					GameServer()->Teleport(pChr1, tilePositions[0]);
-					GameServer()->Teleport(pChr2, tilePositions[1]);
-					pChr1->ResetVelocity();
-					pChr2->ResetVelocity();
-					pChr1->Freeze(3);
-					pChr2->Freeze(3);
-				}
-			}
+	CCharacter *pChr1 = GameServer()->GetPlayerChar(m_Player1ID);
+	CCharacter *pChr2 = GameServer()->GetPlayerChar(m_Player2ID);
+	if(pChr1 && pChr2)
+	{
+		std::vector<vec2> tilePositions;
+		GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), tilePositions);
+		if(tilePositions.size() >= 2)
+		{
+			GameServer()->Teleport(pChr1, tilePositions[0]);
+			GameServer()->Teleport(pChr2, tilePositions[1]);
+			pChr1->ResetVelocity();
+			pChr2->ResetVelocity();
+			pChr1->Freeze(3);
+			pChr2->Freeze(3);
+		}
+	}
 }
 
 // award points on death: opponent gets one point (suicides count)

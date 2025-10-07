@@ -1,12 +1,12 @@
 #ifndef BLOCKWORLDS_BLOCKTRACKER_H
 #define BLOCKWORLDS_BLOCKTRACKER_H
 
-#include <cstdint>
-#include <engine/shared/protocol.h>
-#include <unordered_map>
 #include <base/vmath.h>
+#include <cstdint>
 #include <deque>
+#include <engine/shared/protocol.h>
 #include <string>
+#include <unordered_map>
 class CGameContext;
 
 class CBlockTracker
@@ -37,7 +37,13 @@ class CBlockTracker
 	struct SKillerRecent
 	{
 		// victim id -> (count, firstTick, lastTick, wasAfkVictimCount aggregated separately)
-		struct SVictimStats { int Count; int64_t FirstTick; int64_t LastTick; bool LastWasAfk; };
+		struct SVictimStats
+		{
+			int Count;
+			int64_t FirstTick;
+			int64_t LastTick;
+			bool LastWasAfk;
+		};
 		std::unordered_map<int, SVictimStats> m_Victims;
 		int m_TodayExp; // for daily soft cap
 		int m_TodayDate; // yyyymmdd to reset

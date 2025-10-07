@@ -16,8 +16,8 @@
 #include <engine/console.h>
 #include <engine/engine.h>
 #include <engine/map.h>
-#include <engine/server/server.h>
 #include <engine/server/databases/connection_pool.h>
+#include <engine/server/server.h>
 #include <engine/shared/config.h>
 #include <engine/shared/datafile.h>
 #include <engine/shared/json.h>
@@ -31,6 +31,7 @@
 #include <game/mapitems.h>
 #include <game/version.h>
 
+#include <blockworlds/components/ai/ai_bot.h>
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
 #include <blockworlds/components/promises.h>
@@ -153,6 +154,7 @@ void CGameContext::Construct(int Resetting)
 		g_ComponentRegistry.Register<CPromises>(CPromises::GetNameStatic());
 		g_ComponentRegistry.Register<CEvents>(CEvents::GetNameStatic());
 		g_ComponentRegistry.Register<CRequests>(CRequests::GetNameStatic());
+		g_ComponentRegistry.Register<CAiBotComponent>(CAiBotComponent::GetNameStatic());
 	}
 }
 
@@ -4891,7 +4893,8 @@ void CGameContext::PreShutdownFlush()
 		return;
 	s_Ran = true;
 	int AccountsQueued = 0;
-	std::vector<std::shared_ptr<ISqlResult>> Results; Results.reserve(256);
+	std::vector<std::shared_ptr<ISqlResult>> Results;
+	Results.reserve(256);
 	if(m_pAccounts)
 	{
 		m_pAccounts->BeginShutdownFlush();
@@ -5724,7 +5727,6 @@ bool CGameContext::HandleCosmeticsVote(const CNetMsg_Cl_CallVote *pMsg, int Clie
 	CPlayer *pPlayer = GetPlayer(ClientId);
 	if(!pPlayer)
 		return false;
-
 
 	return g_VoteManager.HandleVote(pPlayer, pMsg->m_pValue, ClientId, this);
 }

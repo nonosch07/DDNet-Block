@@ -53,7 +53,6 @@ void CExperience::Tick()
 
 			if(pPlayer->GetClanId())
 				GameServer()->Clans()->AddClanExp(pPlayer->GetClanId(), Amount);
-
 		}
 		else
 		{
