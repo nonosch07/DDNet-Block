@@ -227,7 +227,12 @@ void CBackup::ProcessQueries()
 		}
 		else if(pThreadData->m_Mode == CSqlExecData::WRITE_ACCESS && m_pWriteBackup.get())
 		{
-			bool Success = CDbConnectionPool::ExecSqlFunc(m_pWriteBackup.get(), pThreadData, Write::BACKUP_FIRST);
+			char aError[256] = "unknown error";
+			bool Success = !pThreadData->m_Ptr.m_pWriteFunc(m_pWriteBackup.get(), pThreadData->m_pThreadData.get(), Write::BACKUP_FIRST, aError, sizeof(aError));
+			if(!Success)
+			{
+				dbg_msg("sql", "backup failed: %s", aError);
+			}
 			dbg_msg("sql", "[%i] %s done on write backup database, Success=%i", JobNum, pThreadData->m_pName, Success);
 		}
 		m_pShared->m_NumWorker.Signal();

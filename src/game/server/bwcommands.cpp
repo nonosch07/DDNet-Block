@@ -74,33 +74,8 @@ void CGameContext::ConRegister(IConsole::IResult *pResult, void *pUserData)
 		if(pReqPlayer->m_LastRegisterTick != 0 && now - pReqPlayer->m_LastRegisterTick < RegisterCooldownSeconds * pSelf->Server()->TickSpeed())
 		{
 			int remaining = (int)((RegisterCooldownSeconds * pSelf->Server()->TickSpeed() - (now - pReqPlayer->m_LastRegisterTick)) / pSelf->Server()->TickSpeed());
-			char aBuf[128];
-			str_format(aBuf, sizeof(aBuf), "Please wait %d second%s before trying to register again.", remaining, remaining != 1 ? "s" : "");
-			return pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
-		}
-	}
-
-	struct IpDataDef
-	{
-		int Attempts = 0;
-		int64_t FirstAttemptTick = 0;
-		int64_t BannedUntilTick = 0;
-	};
-	static std::unordered_map<std::string, IpDataDef> s_IpAttempts;
-
-	char aAddrStrCheck[NETADDR_MAXSTRSIZE];
-	pSelf->Server()->GetClientAddr(pResult->m_ClientId, aAddrStrCheck, sizeof(aAddrStrCheck));
-	std::string ipKeyCheck(aAddrStrCheck);
-	int64_t now_check = pSelf->Server()->Tick();
-	int TickSpeed_check = pSelf->Server()->TickSpeed();
-	auto it_check = s_IpAttempts.find(ipKeyCheck);
-	if(it_check != s_IpAttempts.end())
-	{
-		if(it_check->second.BannedUntilTick > now_check)
-		{
-			int remaining = (int)((it_check->second.BannedUntilTick - now_check) / TickSpeed_check);
-			char aBuf[128];
-			str_format(aBuf, sizeof(aBuf), "Registrations from your IP are temporarily blocked. Try again in %d second%s.", remaining, remaining != 1 ? "s" : "");
+			char aBuf[160];
+			str_format(aBuf, sizeof(aBuf), "Please wait %d second%s before trying again.", remaining, remaining != 1 ? "s" : "");
 			return pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
 		}
 	}
@@ -117,20 +92,43 @@ void CGameContext::ConRegister(IConsole::IResult *pResult, void *pUserData)
 	if(!CheckValidChars(pUsername) || !CheckValidChars(pPassword))
 		return pSelf->SendChatTarget(pResult->m_ClientId, "Only the characters A-Z and 0-9 are allowed!");
 
-	char aAddrStr[NETADDR_MAXSTRSIZE];
-	pSelf->Server()->GetClientAddr(pResult->m_ClientId, aAddrStr, sizeof(aAddrStr));
-	bool justBanned = pSelf->Accounts()->RegisterIpAttempt(aAddrStr);
-	if(justBanned)
+	char aAddrStrCheck[NETADDR_MAXSTRSIZE];
+	pSelf->Server()->GetClientAddr(pResult->m_ClientId, aAddrStrCheck, sizeof(aAddrStrCheck));
+	int RemainingBan = 0;
+	if(!pPlayer->m_IsNpc)
 	{
-		int BanSeconds = g_Config.m_SvRegisterIpBanSeconds;
-		char aBuf[128];
-		str_format(aBuf, sizeof(aBuf), "Too many registration attempts from your IP. IP blocked for %d second%s.", BanSeconds, BanSeconds != 1 ? "s" : "");
-		return pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+		if(pSelf->Accounts()->IsIpBanned(aAddrStrCheck, RemainingBan))
+		{
+			char aBuf[192];
+			str_format(aBuf, sizeof(aBuf), "Too many recent attempts from your connection. Please wait %d second%s and try again.", RemainingBan, RemainingBan == 1 ? "" : "s");
+			return pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+		}
+		if(!pSelf->Accounts()->RegisterIpAttempt(aAddrStrCheck))
+		{
+			pSelf->Accounts()->IsIpBanned(aAddrStrCheck, RemainingBan);
+			char aBuf[192];
+			str_format(aBuf, sizeof(aBuf), "You're trying a lot. Take a short break (%d second%s) and try again.", RemainingBan, RemainingBan == 1 ? "" : "s");
+			return pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+		}
 	}
 
 	pSelf->Accounts()->Register(pResult->m_ClientId, pUsername, pPassword);
 	if(pReqPlayer)
 		pReqPlayer->m_LastRegisterTick = pSelf->Server()->Tick();
+}
+
+void CGameContext::ConIntegrityCheck(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+	if(pSelf->Server()->GetAuthedState(pResult->m_ClientId) <= 0)
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "You are not authorized to run integrity checks.");
+		return;
+	}
+	pSelf->Accounts()->IntegrityCheck(pResult->m_ClientId);
+	pSelf->SendChatTarget(pResult->m_ClientId, "Integrity scan queued.");
 }
 
 void CGameContext::ConLogin(IConsole::IResult *pResult, void *pUserData)

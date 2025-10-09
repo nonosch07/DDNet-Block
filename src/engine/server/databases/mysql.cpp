@@ -324,6 +324,11 @@ void CMysqlConnection::Disconnect()
 
 bool CMysqlConnection::PrepareStatement(const char *pStmt, char *pError, int ErrorSize)
 {
+	if(m_pStmt && m_LastStmtHadResultSet)
+	{
+		mysql_stmt_free_result(m_pStmt.get());
+		m_LastStmtHadResultSet = false;
+	}
 	if(mysql_stmt_prepare(m_pStmt.get(), pStmt, str_length(pStmt)))
 	{
 		StoreErrorStmt("prepare");
@@ -493,7 +498,8 @@ bool CMysqlConnection::ExecuteUpdate(int *pNumUpdated, char *pError, int ErrorSi
 			str_copy(pError, m_aErrorDetail, ErrorSize);
 			return true;
 		}
-		*pNumUpdated = mysql_stmt_affected_rows(m_pStmt.get());
+		if(pNumUpdated)
+			*pNumUpdated = mysql_stmt_affected_rows(m_pStmt.get());
 		return false;
 	}
 	str_copy(pError, "tried to execute update without query", ErrorSize);

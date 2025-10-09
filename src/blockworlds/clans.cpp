@@ -140,6 +140,15 @@ void CClanManager::SaveClan(int ClientId, int ClanId)
 	ExecClanThread(SaveClanThread, "save clan", ClientId, "", "", 0, ClanId);
 }
 
+void CClanManager::QueueBackgroundSave(int ClanId)
+{
+	auto pResult = std::make_shared<CClanResult>();
+	auto pRequest = std::make_unique<CSqlClanRequest>(pResult, this);
+	pRequest->m_ClientId = -1;
+	pRequest->m_ClanId = ClanId;
+	m_pPool->Execute(SaveClanThread, std::move(pRequest), "autosave clan");
+}
+
 void CClanManager::ShowTopClans(int ClientId)
 {
 	if(RateLimitPlayer(ClientId))
@@ -167,6 +176,11 @@ void CClanManager::RenameClan(int ClientId, int ClanId, const char *pNewClanName
 	auto pRequest = std::make_unique<CSqlClanRequest>(pResult, this);
 	pRequest->m_ClientId = ClientId;
 	pRequest->m_ClanId = ClanId;
+
+	if(CPlayer *pPlayer = GameServer()->m_apPlayers[ClientId])
+	{
+		pRequest->m_AccountId = pPlayer->GetAccId();
+	}
 	str_copy(pRequest->m_aNewClanName, pNewClanName, sizeof(pRequest->m_aNewClanName));
 	m_pPool->Execute(RenameClanThread, std::move(pRequest), "rename clan");
 }
@@ -202,7 +216,7 @@ void CClanManager::LoadAllClans()
 static bool CheckClanPermission(IDbConnection *pSqlServer, int AccountId, int ClanId, int RequiredAuthLevel, char *pError, int ErrorSize)
 {
 	char aBuf[256];
-	str_copy(aBuf, "SELECT clanID, auth_level FROM accounts WHERE id = ?;", sizeof(aBuf));
+	str_copy(aBuf, "SELECT clanID, auth_level FROM accounts_progress WHERE account_id = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		return false;
 	pSqlServer->BindInt(1, AccountId);
@@ -236,7 +250,6 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 
 	pResult->SetVariant(CClanResult::DIRECT);
 
-	// Copy & normalize clan name (trim spaces) without mutating original structure buffer.
 	char aNormalizedName[MAX_CLAN_NAME_LENGTH + 1];
 	str_copy(aNormalizedName, pData->m_aClanName, sizeof(aNormalizedName));
 	TrimSpaces(aNormalizedName);
@@ -253,6 +266,31 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 			str_copy(pResult->m_aaMessages[0], "Clan name can only contain letters, numbers, underscore, dash and spaces.", sizeof(pResult->m_aaMessages[0]));
 			return false;
 		}
+	}
+
+	str_copy(aBuf, "SELECT clanID FROM accounts_progress WHERE account_id = ? LIMIT 1;", sizeof(aBuf));
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Error 090: Failed to validate account state.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	pSqlServer->BindInt(1, pData->m_AccountId);
+	bool EndAcc = false;
+	if(pSqlServer->Step(&EndAcc, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Error 091: Failed to validate account state (step).", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	if(EndAcc)
+	{
+		str_copy(pResult->m_aaMessages[0], "Account not found.", sizeof(pResult->m_aaMessages[0]));
+		return false;
+	}
+	int ExistingClan = pSqlServer->GetInt(1);
+	if(ExistingClan != 0)
+	{
+		str_copy(pResult->m_aaMessages[0], "You are already in a clan. Leave it before creating a new one.", sizeof(pResult->m_aaMessages[0]));
+		return false;
 	}
 
 	// Case-insensitive uniqueness check
@@ -277,6 +315,14 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		str_copy(pResult->m_aaMessages[0], "Clan name already exists.", sizeof(pResult->m_aaMessages[0]));
 		return false; // not a server error
 	}
+
+	if(pSqlServer->PrepareStatement("BEGIN;", pError, ErrorSize) || pSqlServer->ExecuteUpdate(nullptr, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Error 099: Failed to start transaction.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+
+	bool TxFailed = false;
 
 	str_copy(aBuf, "INSERT INTO clans (name) VALUES (?);", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
@@ -311,43 +357,28 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		return true;
 	}
 
-	str_copy(aBuf, "SELECT id FROM clans WHERE name = ?;", sizeof(aBuf));
-	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+	if(pSqlServer->PrepareStatement("SELECT LAST_INSERT_ID();", pError, ErrorSize))
 	{
-		if(pError && *pError)
-		{
-			char aTmp[1024];
-			str_format(aTmp, sizeof(aTmp), "Error 104: Failed to prepare SELECT statement: %s", pError);
-			str_copy(pError, aTmp, ErrorSize);
-		}
-		str_copy(pResult->m_aaMessages[0], "Error 104: Clan creation issue. Please try again.", sizeof(pResult->m_aaMessages[0]));
+		str_copy(pResult->m_aaMessages[0], "Error 104: Failed to retrieve clan id.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
-	pSqlServer->BindString(1, aNormalizedName);
 	int ClanId = -1;
-	bool End;
-	if(pSqlServer->Step(&End, pError, ErrorSize))
+	bool End = false;
+	if(pSqlServer->Step(&End, pError, ErrorSize) || End)
 	{
-		if(pError && *pError)
-		{
-			char aTmp[1024];
-			str_format(aTmp, sizeof(aTmp), "Error 105: Failed to execute SELECT statement: %s", pError);
-			str_copy(pError, aTmp, ErrorSize);
-		}
-		str_copy(pResult->m_aaMessages[0], "Error 105: Clan creation issue. Please try again.", sizeof(pResult->m_aaMessages[0]));
+		str_copy(pResult->m_aaMessages[0], "Error 105: Clan creation issue (no id).", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
-	if(!End)
-		ClanId = pSqlServer->GetInt(1);
-	if(ClanId == -1)
+	ClanId = pSqlServer->GetInt(1);
+	if(ClanId <= 0)
 	{
 		if(pError && ErrorSize > 0)
-			str_copy(pError, "Error 106: Failed to retrieve Clan ID.", ErrorSize);
+			str_copy(pError, "Error 106: Invalid Clan ID.", ErrorSize);
 		str_copy(pResult->m_aaMessages[0], "Error 106: Clan creation issue. Please try again.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
 
-	str_format(aBuf, sizeof(aBuf), "UPDATE accounts SET clanID = ?, auth_level = %d WHERE id = ?;", (int)ClanAuthLevel::LEADER);
+	str_format(aBuf, sizeof(aBuf), "UPDATE accounts_progress SET clanID = ?, auth_level = %d WHERE account_id = ?;", (int)ClanAuthLevel::LEADER);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		if(pError && *pError)
@@ -381,7 +412,7 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		return true;
 	}
 
-	// push the new skidibi clan data into the skibidi in-memory container
+	// push the new clan data into the in-memory container
 	{
 		CClansData NewClan;
 		NewClan.m_Id = ClanId;
@@ -392,6 +423,8 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		ToLowercase(aNameLower);
 		NewClan.m_Level = 1;
 		NewClan.m_Experience = 0;
+		NewClan.m_LastSavedTick = pData->m_pClanManager ? pData->m_pClanManager->GameServer()->Server()->Tick() : 0;
+		NewClan.m_Dirty = true; // new clan needs a save after creation (level/exp baseline)
 		if(pData->m_pClanManager)
 		{
 			std::lock_guard<std::mutex> lock(g_ClansDataMutex);
@@ -410,6 +443,17 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		pResult->m_ActionNewClanId = ClanId;
 		pResult->m_ActionNewAuthLevel = static_cast<int>(ClanAuthLevel::LEADER);
 	}
+
+	if(pSqlServer->PrepareStatement("COMMIT;", pError, ErrorSize) || pSqlServer->ExecuteUpdate(nullptr, pError, ErrorSize))
+		TxFailed = true;
+	if(TxFailed)
+	{
+		if(pSqlServer->PrepareStatement("ROLLBACK;", nullptr, 0) == 0)
+			pSqlServer->ExecuteUpdate(nullptr, nullptr, 0);
+		str_copy(pResult->m_aaMessages[0], "Error 110: Transaction failed. Clan not created.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+
 	str_copy(pResult->m_aaMessages[0], "Clan created successfully!", sizeof(pResult->m_aaMessages[0]));
 	pResult->m_Success = true;
 	return false;
@@ -428,6 +472,13 @@ bool CClanManager::DeleteClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		str_copy(pResult->m_aaMessages[0], pError, sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
+
+	if(pSqlServer->PrepareStatement("BEGIN;", pError, ErrorSize) || pSqlServer->ExecuteUpdate(nullptr, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Error 191: Failed to start transaction.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	bool TxAbort = false;
 
 	str_copy(aBuf, "DELETE FROM clans WHERE id = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
@@ -462,7 +513,7 @@ bool CClanManager::DeleteClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		return true;
 	}
 
-	str_format(aBuf, sizeof(aBuf), "UPDATE accounts SET clanID = 0, auth_level = %d WHERE clanID = ?;", (int)ClanAuthLevel::NONE);
+	str_format(aBuf, sizeof(aBuf), "UPDATE accounts_progress SET clanID = 0, auth_level = %d WHERE clanID = ?;", (int)ClanAuthLevel::NONE);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		if(pError && *pError)
@@ -529,6 +580,19 @@ bool CClanManager::DeleteClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		}
 	}
 
+	if(!TxAbort)
+	{
+		if(pSqlServer->PrepareStatement("COMMIT;", pError, ErrorSize) || pSqlServer->ExecuteUpdate(nullptr, pError, ErrorSize))
+			TxAbort = true;
+	}
+	if(TxAbort)
+	{
+		if(pSqlServer->PrepareStatement("ROLLBACK;", nullptr, 0) == 0)
+			pSqlServer->ExecuteUpdate(nullptr, nullptr, 0);
+		str_copy(pResult->m_aaMessages[0], "Error 199: Clan deletion transaction failed.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+
 	str_copy(pResult->m_aaMessages[0], "Clan deleted successfully!", sizeof(pResult->m_aaMessages[0]));
 	pResult->m_Success = true;
 	return false;
@@ -559,9 +623,38 @@ bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		}
 	}
 
+	if(pSqlServer->PrepareStatement("BEGIN;", pError, ErrorSize) || pSqlServer->ExecuteUpdate(nullptr, pError, ErrorSize))
+		return true;
+	bool TxFail = false;
+
 	if(pData->m_AccountId != 0)
 	{
-		str_format(aBuf, sizeof(aBuf), "UPDATE accounts SET clanID = ?, auth_level = %d WHERE id = ?;", (int)ClanAuthLevel::MEMBER);
+		str_copy(aBuf, "SELECT clanID FROM accounts_progress WHERE account_id = ? LIMIT 1;", sizeof(aBuf));
+		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+		{
+			str_copy(pResult->m_aaMessages[0], "Error 210: Failed to validate target account.", sizeof(pResult->m_aaMessages[0]));
+			return true;
+		}
+		pSqlServer->BindInt(1, pData->m_AccountId);
+		bool EndMember = false;
+		if(pSqlServer->Step(&EndMember, pError, ErrorSize))
+		{
+			str_copy(pResult->m_aaMessages[0], "Error 211: Failed to validate target account (step).", sizeof(pResult->m_aaMessages[0]));
+			return true;
+		}
+		if(EndMember)
+		{
+			str_copy(pResult->m_aaMessages[0], "Target account not found.", sizeof(pResult->m_aaMessages[0]));
+			return false;
+		}
+		int TargetClan = pSqlServer->GetInt(1);
+		if(TargetClan != 0)
+		{
+			str_copy(pResult->m_aaMessages[0], "Player is already in a clan.", sizeof(pResult->m_aaMessages[0]));
+			return false;
+		}
+
+		str_format(aBuf, sizeof(aBuf), "UPDATE accounts_progress SET clanID = ?, auth_level = %d WHERE account_id = ?;", (int)ClanAuthLevel::MEMBER);
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		{
 			if(pError && *pError)
@@ -578,7 +671,32 @@ bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	}
 	else
 	{
-		str_format(aBuf, sizeof(aBuf), "UPDATE accounts SET clanID = ?, auth_level = %d WHERE name = ?;", (int)ClanAuthLevel::MEMBER);
+		str_copy(aBuf, "SELECT p.clanID FROM accounts_core c JOIN accounts_progress p ON c.id=p.account_id WHERE c.name = ? LIMIT 1;", sizeof(aBuf));
+		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+		{
+			str_copy(pResult->m_aaMessages[0], "Error 212: Failed to validate target username.", sizeof(pResult->m_aaMessages[0]));
+			return true;
+		}
+		pSqlServer->BindString(1, pData->m_aUsername);
+		bool EndMemberName = false;
+		if(pSqlServer->Step(&EndMemberName, pError, ErrorSize))
+		{
+			str_copy(pResult->m_aaMessages[0], "Error 213: Failed to validate target username (step).", sizeof(pResult->m_aaMessages[0]));
+			return true;
+		}
+		if(EndMemberName)
+		{
+			str_copy(pResult->m_aaMessages[0], "Target player not found.", sizeof(pResult->m_aaMessages[0]));
+			return false;
+		}
+		int TargetClan = pSqlServer->GetInt(1);
+		if(TargetClan != 0)
+		{
+			str_copy(pResult->m_aaMessages[0], "Player is already in a clan.", sizeof(pResult->m_aaMessages[0]));
+			return false;
+		}
+
+		str_format(aBuf, sizeof(aBuf), "UPDATE accounts_progress p JOIN accounts_core c ON p.account_id=c.id SET p.clanID = ?, p.auth_level = %d WHERE c.name = ?;", (int)ClanAuthLevel::MEMBER);
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		{
 			if(pError && *pError)
@@ -630,6 +748,17 @@ bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		pGameServer->SendChatClan(pData->m_ClanId, aBroadcast);
 	}
 
+	if(!TxFail)
+	{
+		if(pSqlServer->PrepareStatement("COMMIT;", pError, ErrorSize) || pSqlServer->ExecuteUpdate(nullptr, pError, ErrorSize))
+			TxFail = true;
+	}
+	if(TxFail)
+	{
+		pSqlServer->PrepareStatement("ROLLBACK;", nullptr, 0);
+		pSqlServer->ExecuteUpdate(nullptr, nullptr, 0);
+		return true;
+	}
 	// mark result as successful so the main thread processes it
 	pResult->m_Success = true;
 	return false;
@@ -648,7 +777,57 @@ bool CClanManager::RemoveFromClanThread(IDbConnection *pSqlServer, const ISqlDat
 		return true;
 	}
 
-	str_format(aBuf, sizeof(aBuf), "UPDATE accounts SET clanID = 0, auth_level = %d WHERE name = ? AND clanID = ?;", (int)ClanAuthLevel::NONE);
+	if(pSqlServer->PrepareStatement("BEGIN;", pError, ErrorSize) || pSqlServer->ExecuteUpdate(nullptr, pError, ErrorSize))
+		return true;
+	bool TxErr = false;
+
+	str_copy(aBuf, "SELECT p.auth_level FROM accounts_core c JOIN accounts_progress p ON c.id=p.account_id WHERE c.name = ? AND p.clanID = ? LIMIT 1;", sizeof(aBuf));
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Error 320: Failed to validate target rank.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	pSqlServer->BindString(1, pData->m_aUsername);
+	pSqlServer->BindInt(2, pData->m_ClanId);
+	bool EndRank = false;
+	if(pSqlServer->Step(&EndRank, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Error 321: Failed to validate target rank (step).", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	if(EndRank)
+	{
+		str_copy(pResult->m_aaMessages[0], "Player not found in clan.", sizeof(pResult->m_aaMessages[0]));
+		return false;
+	}
+	int TargetAuth = pSqlServer->GetInt(1);
+	if(TargetAuth == (int)ClanAuthLevel::LEADER)
+	{
+		str_copy(aBuf, "SELECT COUNT(*) FROM accounts_progress WHERE clanID = ? AND auth_level = 3;", sizeof(aBuf));
+		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+		{
+			str_copy(pResult->m_aaMessages[0], "Error 322: Failed to count leaders.", sizeof(pResult->m_aaMessages[0]));
+			return true;
+		}
+		pSqlServer->BindInt(1, pData->m_ClanId);
+		bool EndCount = false;
+		if(pSqlServer->Step(&EndCount, pError, ErrorSize))
+		{
+			str_copy(pResult->m_aaMessages[0], "Error 323: Failed to count leaders (step).", sizeof(pResult->m_aaMessages[0]));
+			return true;
+		}
+		if(!EndCount)
+		{
+			int LeaderCount = pSqlServer->GetInt(1);
+			if(LeaderCount <= 1)
+			{
+				str_copy(pResult->m_aaMessages[0], "You cannot kick the only leader. Transfer leadership or delete clan.", sizeof(pResult->m_aaMessages[0]));
+				return false;
+			}
+		}
+	}
+
+	str_format(aBuf, sizeof(aBuf), "UPDATE accounts_progress p JOIN accounts_core c ON p.account_id=c.id SET p.clanID = 0, p.auth_level = %d WHERE c.name = ? AND p.clanID = ?;", (int)ClanAuthLevel::NONE);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		if(pError && *pError)
@@ -716,7 +895,17 @@ bool CClanManager::RemoveFromClanThread(IDbConnection *pSqlServer, const ISqlDat
 		pGameServer->SendChatClan(pData->m_ClanId, aBroadcast);
 	}
 
-	// Mark the SQL result as successful so the main thread processes it
+	if(!TxErr)
+	{
+		if(pSqlServer->PrepareStatement("COMMIT;", pError, ErrorSize) || pSqlServer->ExecuteUpdate(nullptr, pError, ErrorSize))
+			TxErr = true;
+	}
+	if(TxErr)
+	{
+		pSqlServer->PrepareStatement("ROLLBACK;", nullptr, 0);
+		pSqlServer->ExecuteUpdate(nullptr, nullptr, 0);
+		return true;
+	}
 	pResult->m_Success = true;
 
 	return false;
@@ -730,7 +919,65 @@ bool CClanManager::ClanLeaveThread(IDbConnection *pSqlServer, const ISqlData *pG
 
 	pResult->SetVariant(CClanResult::DIRECT);
 
-	str_format(aBuf, sizeof(aBuf), "UPDATE accounts SET clanID = 0, auth_level = %d WHERE id = ? AND clanID = ?;", (int)ClanAuthLevel::NONE);
+	if(pSqlServer->PrepareStatement("BEGIN;", pError, ErrorSize) || pSqlServer->ExecuteUpdate(nullptr, pError, ErrorSize))
+		return true;
+	bool TxErr = false;
+	// prevent sole leader from leaving to avoid orphaned clan
+	str_copy(aBuf, "SELECT clanID, auth_level FROM accounts_progress WHERE account_id = ? LIMIT 1;", sizeof(aBuf));
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Error 560: Failed to validate leave state.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	pSqlServer->BindInt(1, pData->m_AccountId);
+	bool EndAcc = false;
+	if(pSqlServer->Step(&EndAcc, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Error 561: Failed to validate leave state (step).", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	if(EndAcc)
+	{
+		str_copy(pResult->m_aaMessages[0], "Account not found.", sizeof(pResult->m_aaMessages[0]));
+		return false;
+	}
+	int DbClanId = pSqlServer->GetInt(1);
+	int DbAuth = pSqlServer->GetInt(2);
+	if(DbClanId != pData->m_ClanId || DbClanId == 0)
+	{
+		str_copy(pResult->m_aaMessages[0], "You are not in this clan.", sizeof(pResult->m_aaMessages[0]));
+		return false;
+	}
+	if(DbAuth == (int)ClanAuthLevel::LEADER)
+	{
+		str_copy(aBuf, "SELECT COUNT(*) FROM accounts_progress WHERE clanID = ? AND auth_level = ?;", sizeof(aBuf));
+		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+		{
+			str_copy(pResult->m_aaMessages[0], "Error 562: Failed to verify leader count.", sizeof(pResult->m_aaMessages[0]));
+			return true;
+		}
+		pSqlServer->BindInt(1, pData->m_ClanId);
+		pSqlServer->BindInt(2, (int)ClanAuthLevel::LEADER);
+		bool EndCnt = false;
+		if(pSqlServer->Step(&EndCnt, pError, ErrorSize))
+		{
+			str_copy(pResult->m_aaMessages[0], "Error 563: Failed to verify leader count (step).", sizeof(pResult->m_aaMessages[0]));
+			return true;
+		}
+		if(EndCnt)
+		{
+			str_copy(pResult->m_aaMessages[0], "Error 564: Leader count query empty.", sizeof(pResult->m_aaMessages[0]));
+			return true; // treat as error; inconsistent state
+		}
+		int LeaderCount = pSqlServer->GetInt(1);
+		if(LeaderCount <= 1)
+		{
+			str_copy(pResult->m_aaMessages[0], "You are the sole leader. Transfer leadership or delete the clan before leaving.", sizeof(pResult->m_aaMessages[0]));
+			return false; // not a server error
+		}
+	}
+
+	str_format(aBuf, sizeof(aBuf), "UPDATE accounts_progress SET clanID = 0, auth_level = %d WHERE account_id = ? AND clanID = ?;", (int)ClanAuthLevel::NONE);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		if(pError && *pError)
@@ -771,6 +1018,17 @@ bool CClanManager::ClanLeaveThread(IDbConnection *pSqlServer, const ISqlData *pG
 		pResult->m_ActionNewClanId = 0;
 		pResult->m_ActionNewAuthLevel = static_cast<int>(ClanAuthLevel::NONE);
 	}
+	if(!TxErr)
+	{
+		if(pSqlServer->PrepareStatement("COMMIT;", pError, ErrorSize) || pSqlServer->ExecuteUpdate(nullptr, pError, ErrorSize))
+			TxErr = true;
+	}
+	if(TxErr)
+	{
+		pSqlServer->PrepareStatement("ROLLBACK;", nullptr, 0);
+		pSqlServer->ExecuteUpdate(nullptr, nullptr, 0);
+		return true;
+	}
 	str_copy(pResult->m_aaMessages[0], "You have left the clan successfully!", sizeof(pResult->m_aaMessages[0]));
 	pResult->m_Success = true;
 	return false;
@@ -784,13 +1042,65 @@ bool CClanManager::SetAuthLevelThread(IDbConnection *pSqlServer, const ISqlData 
 
 	pResult->SetVariant(CClanResult::CLAN);
 
+	if(pSqlServer->PrepareStatement("BEGIN;", pError, ErrorSize) || pSqlServer->ExecuteUpdate(nullptr, pError, ErrorSize))
+		return true;
+	bool TxErr = false;
 	if(!CheckClanPermission(pSqlServer, pData->m_AccountId, pData->m_ClanId, 3, pError, ErrorSize))
 	{
 		str_copy(pResult->m_aaMessages[0], pError, sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
 
-	str_copy(aBuf, "UPDATE accounts SET auth_level = ? WHERE name = ? AND clanID = ?;", sizeof(aBuf));
+	if(pData->m_NewAuthLevel < (int)ClanAuthLevel::NONE || pData->m_NewAuthLevel > (int)ClanAuthLevel::LEADER)
+	{
+		str_copy(pResult->m_aaMessages[0], "Invalid auth level.", sizeof(pResult->m_aaMessages[0]));
+		return false;
+	}
+	if(pData->m_NewAuthLevel < (int)ClanAuthLevel::LEADER)
+	{
+		str_copy(aBuf, "SELECT p.auth_level FROM accounts_core c JOIN accounts_progress p ON c.id=p.account_id WHERE c.name = ? AND p.clanID = ? LIMIT 1;", sizeof(aBuf));
+		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+		{
+			str_copy(pResult->m_aaMessages[0], "Error 550: Failed to read current auth.", sizeof(pResult->m_aaMessages[0]));
+			return true;
+		}
+		pSqlServer->BindString(1, pData->m_aUsername);
+		pSqlServer->BindInt(2, pData->m_ClanId);
+		bool EndCur = false;
+		if(pSqlServer->Step(&EndCur, pError, ErrorSize))
+		{
+			str_copy(pResult->m_aaMessages[0], "Error 551: Failed to read current auth (step).", sizeof(pResult->m_aaMessages[0]));
+			return true;
+		}
+		if(EndCur)
+		{
+			str_copy(pResult->m_aaMessages[0], "Player not found.", sizeof(pResult->m_aaMessages[0]));
+			return false;
+		}
+		int CurrentAuth = pSqlServer->GetInt(1);
+		if(CurrentAuth == (int)ClanAuthLevel::LEADER)
+		{
+			str_copy(aBuf, "SELECT COUNT(*) FROM accounts_progress WHERE clanID = ? AND auth_level = 3;", sizeof(aBuf));
+			if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+			{
+				str_copy(pResult->m_aaMessages[0], "Error 552: Failed to count leaders.", sizeof(pResult->m_aaMessages[0]));
+				return true;
+			}
+			pSqlServer->BindInt(1, pData->m_ClanId);
+			bool EndCount = false;
+			if(pSqlServer->Step(&EndCount, pError, ErrorSize))
+			{
+				str_copy(pResult->m_aaMessages[0], "Error 553: Failed to count leaders (step).", sizeof(pResult->m_aaMessages[0]));
+				return true;
+			}
+			if(!EndCount && pSqlServer->GetInt(1) <= 1)
+			{
+				str_copy(pResult->m_aaMessages[0], "Cannot demote the only leader. Promote another player first.", sizeof(pResult->m_aaMessages[0]));
+				return false;
+			}
+		}
+	}
+	str_copy(aBuf, "UPDATE accounts_progress p JOIN accounts_core c ON p.account_id=c.id SET p.auth_level = ? WHERE c.name = ? AND p.clanID = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		if(pError && *pError)
@@ -844,6 +1154,17 @@ bool CClanManager::SetAuthLevelThread(IDbConnection *pSqlServer, const ISqlData 
 
 	char aMessage[256];
 	str_format(aMessage, sizeof(aMessage), "Auth level updated: %s is now %s.", pData->m_aUsername, aRank);
+	if(!TxErr)
+	{
+		if(pSqlServer->PrepareStatement("COMMIT;", pError, ErrorSize) || pSqlServer->ExecuteUpdate(nullptr, pError, ErrorSize))
+			TxErr = true;
+	}
+	if(TxErr)
+	{
+		pSqlServer->PrepareStatement("ROLLBACK;", nullptr, 0);
+		pSqlServer->ExecuteUpdate(nullptr, nullptr, 0);
+		return true;
+	}
 	str_copy(pResult->m_aaMessages[0], aMessage, sizeof(pResult->m_aaMessages[0]));
 	pResult->m_Success = true;
 
@@ -858,10 +1179,51 @@ bool CClanManager::RenameClanThread(IDbConnection *pSqlServer, const ISqlData *p
 
 	pResult->SetVariant(CClanResult::DIRECT);
 
+	char aNormalizedName[MAX_CLAN_NAME_LENGTH + 1];
+	str_copy(aNormalizedName, pData->m_aNewClanName, sizeof(aNormalizedName));
+	TrimSpaces(aNormalizedName);
+	int NewNameLen = str_length(aNormalizedName);
+	if(NewNameLen < 3 || NewNameLen > MAX_CLAN_NAME_LENGTH)
+	{
+		pResult->SetVariant(CClanResult::DIRECT);
+		str_copy(pResult->m_aaMessages[0], "Clan name must be between 3 and 32 characters (after trimming).", sizeof(pResult->m_aaMessages[0]));
+		return false;
+	}
+	for(int i = 0; aNormalizedName[i]; ++i)
+	{
+		char c = aNormalizedName[i];
+		if(!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == ' '))
+		{
+			pResult->SetVariant(CClanResult::DIRECT);
+			str_copy(pResult->m_aaMessages[0], "Clan name can only contain letters, numbers, underscore, dash and spaces.", sizeof(pResult->m_aaMessages[0]));
+			return false;
+		}
+	}
+
 	if(!CheckClanPermission(pSqlServer, pData->m_AccountId, pData->m_ClanId, 3, pError, ErrorSize))
 	{
 		str_copy(pResult->m_aaMessages[0], pError, sizeof(pResult->m_aaMessages[0]));
 		return true;
+	}
+
+	str_copy(aBuf, "SELECT id FROM clans WHERE LOWER(name) = LOWER(?) AND id <> ? LIMIT 1;", sizeof(aBuf));
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Error 600: Failed to validate clan name uniqueness.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	pSqlServer->BindString(1, aNormalizedName);
+	pSqlServer->BindInt(2, pData->m_ClanId);
+	bool EndCheck = false;
+	if(pSqlServer->Step(&EndCheck, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Error 600: Failed to validate clan name uniqueness (step).", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	if(!EndCheck)
+	{
+		str_copy(pResult->m_aaMessages[0], "Clan name already exists.", sizeof(pResult->m_aaMessages[0]));
+		return false;
 	}
 
 	str_copy(aBuf, "UPDATE clans SET name = ? WHERE id = ?;", sizeof(aBuf));
@@ -876,7 +1238,7 @@ bool CClanManager::RenameClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		str_copy(pResult->m_aaMessages[0], "Error 601: Rename clan failed. Please try again later.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
-	pSqlServer->BindString(1, pData->m_aNewClanName);
+	pSqlServer->BindString(1, aNormalizedName);
 	pSqlServer->BindInt(2, pData->m_ClanId);
 	int NumUpdated;
 	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
@@ -910,7 +1272,7 @@ bool CClanManager::RenameClanThread(IDbConnection *pSqlServer, const ISqlData *p
 				if(Clan.m_Id == pData->m_ClanId)
 				{
 					oldNameLower = Clan.m_ClanName;
-					str_copy(Clan.m_ClanName, pData->m_aNewClanName, sizeof(Clan.m_ClanName));
+					str_copy(Clan.m_ClanName, aNormalizedName, sizeof(Clan.m_ClanName));
 					break;
 				}
 			}
@@ -924,8 +1286,8 @@ bool CClanManager::RenameClanThread(IDbConnection *pSqlServer, const ISqlData *p
 					g_ClanNameToId.erase(oldNameLower);
 				// set new name in id map and add name->id map
 				it->second.m_ClanName[0] = '\0';
-				str_copy(it->second.m_ClanName, pData->m_aNewClanName, sizeof(it->second.m_ClanName));
-				std::string newLower(pData->m_aNewClanName);
+				str_copy(it->second.m_ClanName, aNormalizedName, sizeof(it->second.m_ClanName));
+				std::string newLower(aNormalizedName);
 				std::transform(newLower.begin(), newLower.end(), newLower.begin(), ::tolower);
 				g_ClanNameToId[newLower] = pData->m_ClanId;
 			}
@@ -974,6 +1336,8 @@ bool CClanManager::LoadClansThread(IDbConnection *pSqlServer, const ISqlData *pG
 			pSqlServer->GetString(2, Data.m_ClanName, sizeof(Data.m_ClanName));
 			Data.m_Level = pSqlServer->GetInt(3);
 			Data.m_Experience = pSqlServer->GetInt(4);
+			Data.m_LastSavedTick = 0;
+			Data.m_Dirty = false; // fresh from DB
 			pResult->m_vClans.push_back(Data);
 		}
 	}
@@ -1008,7 +1372,7 @@ void CClanManager::OnClansLoaded(const std::vector<CClansData> &vClans)
 			dbg_msg("clan", "Duplicate clan name '%s' detected!", clan.m_ClanName);
 			continue;
 		}
-		g_ClanIdMap[clan.m_Id] = clan;
+		g_ClanIdMap[clan.m_Id] = clan; // m_Dirty already false
 		g_ClanNameToId[nameLower] = clan.m_Id;
 	}
 	dbg_msg("clan", "Loaded %d clans into memory (map size: %zu)", (int)m_vClansData.size(), g_ClanIdMap.size());
@@ -1072,6 +1436,7 @@ void CClanManager::AddClanExp(int ClanId, int Amount)
 			{
 				vecClan.m_Experience = Clan.m_Experience;
 				vecClan.m_Level = Clan.m_Level;
+				vecClan.m_Dirty = true; // mark dirty for autosave
 				break;
 			}
 		}
@@ -1165,6 +1530,7 @@ bool CClanManager::SaveClanThread(IDbConnection *pSqlServer, const ISqlData *pGa
 			if(Clan.m_Id == ClanCopy.m_Id)
 			{
 				Clan.m_LastSavedTick = CurrentTick;
+				Clan.m_Dirty = false; // cleared after successful save attempt
 				break;
 			}
 		}
@@ -1263,4 +1629,25 @@ int CClanManager::SaveAllClansOnShutdown()
 		Count++;
 	}
 	return Count;
+}
+
+void CClanManager::AutosaveTick()
+{
+	int IntervalTicks = GameServer()->Server()->TickSpeed() * g_Config.m_SvClanSaveInterval;
+	int Now = GameServer()->Server()->Tick();
+	std::vector<int> ToSave;
+	{
+		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
+		for(const auto &Clan : m_vClansData)
+		{
+			if(Clan.m_Dirty || (Clan.m_LastSavedTick + IntervalTicks < Now))
+			{
+				ToSave.push_back(Clan.m_Id);
+			}
+		}
+	}
+	for(int id : ToSave)
+	{
+		QueueBackgroundSave(id);
+	}
 }

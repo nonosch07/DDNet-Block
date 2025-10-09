@@ -1,62 +1,62 @@
+
 #include <cstddef>
 #include <engine/server/databases/connection.h>
+#include <engine/shared/config.h>
 #include <engine/shared/protocol.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
+#include <mutex>
+
+#include <base/hash_ctxt.h>
+#include <base/system.h>
+#include <unordered_map>
+#include <vector>
 
 #include "accounts.h"
-#include "engine/shared/config.h"
-
-// Credits: Strongly inspired by ChillerDragon's account system.
+#include "password_hash.h"
 
 CAdminCommandResult::CAdminCommandResult()
 {
-	SetVariant(Variant::DIRECT, NULL);
+	m_State = -1;
+	m_Type = DIRECT;
+	m_aUsername[0] = '\0';
+	m_aPassword[0] = '\0';
+	m_MessageKind = DIRECT;
+	for(auto &aMessage : m_aaMessages)
+		aMessage[0] = '\0';
 }
 
-void CAdminCommandResult::SetVariant(Variant v, const CSqlAdminCommandRequest *pRequest)
+void CAdminCommandResult::SetVariant(Variant v, const struct CSqlAdminCommandRequest *pRequest)
 {
-	if(pRequest)
-	{
-		m_AdminClientId = pRequest->m_AdminClientId;
-		m_TargetAccountId = pRequest->m_TargetAccountId;
-		m_State = pRequest->m_State;
-		m_Type = pRequest->m_Type;
-		str_copy(m_aUsername, pRequest->m_aUsername, sizeof(m_aUsername));
-		str_copy(m_aPassword, pRequest->m_aPassword, sizeof(m_aPassword));
-	}
-	else
-	{
-		m_AdminClientId = -1;
-		m_TargetAccountId = -1;
-		m_State = -1;
-		m_Type = DIRECT;
-		m_aUsername[0] = '\0';
-		m_aPassword[0] = '\0';
-	}
 	m_MessageKind = v;
 	switch(v)
 	{
+	case DIRECT:
+	case ALL:
+	case LOG_ONLY:
+	case BROADCAST:
 	case FREEZE_ACC:
 	case MODERATOR:
 	case SUPER_MODERATOR:
 	case SUPPORTER:
-	case DIRECT:
-	case ALL:
 		for(auto &aMessage : m_aaMessages)
-			aMessage[0] = 0;
+			aMessage[0] = '\0';
 		break;
-	case BROADCAST:
-		m_aBroadcast[0] = 0;
-		break;
-	case LOG_ONLY:
-		break;
+	}
+	if(pRequest)
+	{
+		m_State = pRequest->m_State;
+		m_Type = pRequest->m_Type;
+		str_copy(m_aUsername, pRequest->m_aUsername, sizeof(m_aUsername));
+		str_copy(m_aPassword, pRequest->m_aPassword, sizeof(m_aPassword));
+		m_AdminClientId = pRequest->m_AdminClientId;
+		m_TargetAccountId = pRequest->m_TargetAccountId;
 	}
 }
 
 CAccountResult::CAccountResult()
 {
-	SetVariant(Variant::DIRECT);
+	SetVariant(DIRECT);
 }
 
 CAccounts::CAccounts(CGameContext *pGameServer, CDbConnectionPool *pPool) :
@@ -64,6 +64,36 @@ CAccounts::CAccounts(CGameContext *pGameServer, CDbConnectionPool *pPool) :
 	m_pGameServer(pGameServer),
 	m_pServer(pGameServer->Server())
 {
+}
+
+bool CAccounts::SyncSaveBlocking(int ClientId, const CAccountData &Acc, int TimeoutMs)
+{
+	auto pResult = NewSqlAccountResult(ClientId);
+	if(!pResult)
+		return false;
+	auto Tmp = std::make_unique<CSqlAccountRequest>(pResult, GameServer());
+	Tmp->m_ClientId = ClientId;
+	Tmp->m_AccountId = Acc.m_Id;
+	str_copy(Tmp->m_aUsername, Acc.m_aName, sizeof(Tmp->m_aUsername));
+	Tmp->m_AccountData = Acc;
+	Tmp->m_Critical = true;
+	Tmp->m_pFunc = SaveThread;
+	m_pPool->ExecuteWrite([](IDbConnection *pSql, const ISqlData *pData, Write, char *pErr, int ErrSz) -> bool {
+		auto *pReq = dynamic_cast<const CSqlAccountRequest *>(pData);
+		return pReq && pReq->m_pFunc ? pReq->m_pFunc(pSql, pData, pErr, ErrSz) : true;
+	},
+		std::move(Tmp), "sync account save");
+	int64_t start = time_get();
+	int64_t deadline = start + (int64_t)TimeoutMs * time_freq() / 1000;
+	while(!pResult->m_Completed.load(std::memory_order_relaxed) && time_get() < deadline)
+	{
+		for(int s = 0; s < 2000; ++s)
+		{
+			asm volatile("");
+		}
+		thread_yield();
+	}
+	return pResult->m_Completed.load() && pResult->m_Success;
 }
 
 struct IpTrackerEntry
@@ -75,76 +105,119 @@ struct IpTrackerEntry
 };
 
 static std::unordered_map<std::string, IpTrackerEntry> s_IpTracker;
-static std::deque<std::string> s_IpOrder;
 static std::mutex s_IpTrackerMutex;
+
+static std::unordered_map<int, int64_t> s_LastPlayerActionTick;
+static const int PLAYER_ACTION_COOLDOWN_TICKS = 50;
+
+static inline int cfg_ip_max_attempts()
+{
+	int v = g_Config.m_SvRegisterIpMaxAttempts;
+	if(v < 1)
+		v = 1;
+	return v;
+}
+static inline int cfg_ip_window_seconds()
+{
+	int v = g_Config.m_SvRegisterIpAttemptWindow;
+	if(v < 1)
+		v = 1;
+	return v;
+}
+static inline int cfg_ip_ban_seconds()
+{
+	int v = g_Config.m_SvRegisterIpBanSeconds;
+	if(v < 0)
+		v = 0;
+	return v;
+}
+static inline int cfg_ip_expiry_seconds()
+{
+	long long win = cfg_ip_window_seconds();
+	long long exp = win * 15LL;
+	if(exp < win)
+		exp = win; // overflow/guard
+	if(exp > 24LL * 60 * 60)
+		exp = 24LL * 60 * 60; // cap to 24h
+	return (int)exp;
+}
 
 bool CAccounts::IsIpBanned(const char *pIp, int &RemainingSeconds) const
 {
-	std::lock_guard<std::mutex> l(s_IpTrackerMutex);
+	std::lock_guard<std::mutex> lock(s_IpTrackerMutex);
 	auto it = s_IpTracker.find(pIp);
+	int64_t Now = time_get();
 	if(it == s_IpTracker.end())
 	{
 		RemainingSeconds = 0;
 		return false;
 	}
-	int64_t now = Server()->Tick();
-	if(it->second.BannedUntilTick > now)
+	const IpTrackerEntry &E = it->second;
+	if(E.BannedUntilTick > Now)
 	{
-		RemainingSeconds = (int)((it->second.BannedUntilTick - now) / Server()->TickSpeed());
+		RemainingSeconds = (int)((E.BannedUntilTick - Now) / time_freq());
 		return true;
 	}
 	RemainingSeconds = 0;
 	return false;
 }
 
+bool CAccounts::RateLimitPlayer(int ClientId)
+{
+	if(ClientId < 0 || ClientId >= MAX_CLIENTS)
+		return false; // ignore invalid
+	int64_t Now = Server()->Tick();
+	if(GameServer()->m_apPlayers[ClientId] && GameServer()->m_apPlayers[ClientId]->m_IsNpc)
+	{
+		return false;
+	}
+	auto it = s_LastPlayerActionTick.find(ClientId);
+	if(it != s_LastPlayerActionTick.end())
+	{
+		if(Now - it->second < PLAYER_ACTION_COOLDOWN_TICKS)
+		{
+			if(GameServer()->m_apPlayers[ClientId])
+				GameServer()->SendChatTarget(ClientId, "Please wait a moment before trying again.");
+			return true;
+		}
+	}
+	s_LastPlayerActionTick[ClientId] = Now;
+	return false;
+}
+
 bool CAccounts::RegisterIpAttempt(const char *pIp)
 {
-	std::lock_guard<std::mutex> l(s_IpTrackerMutex);
-	const int TickSpeed = Server()->TickSpeed();
-	int64_t now = Server()->Tick();
+	std::lock_guard<std::mutex> lock(s_IpTrackerMutex);
+	int64_t Now = time_get();
+	int64_t Freq = time_freq();
+	auto &E = s_IpTracker[pIp];
 
-	const size_t MAX_ENTRIES = 8192;
-	const size_t CLEANUP_THRESHOLD = MAX_ENTRIES + 1024;
-	if(s_IpTracker.size() > CLEANUP_THRESHOLD)
+	if(E.LastSeenTick && Now - E.LastSeenTick > (int64_t)cfg_ip_expiry_seconds() * Freq)
 	{
-		size_t toRemove = s_IpTracker.size() - MAX_ENTRIES;
-		for(size_t i = 0; i < toRemove && !s_IpOrder.empty(); ++i)
-		{
-			const std::string &old = s_IpOrder.front();
-			s_IpOrder.pop_front();
-			s_IpTracker.erase(old);
-		}
-		dbg_msg("account", "IP tracker cleanup: removed %zu entries, %zu remaining", toRemove, s_IpTracker.size());
+		E = IpTrackerEntry();
 	}
-
-	auto &entry = s_IpTracker[pIp];
-	entry.LastSeenTick = now;
-
-	int WindowSeconds = g_Config.m_SvRegisterIpAttemptWindow;
-	if(entry.FirstAttemptTick == 0 || now - entry.FirstAttemptTick > WindowSeconds * TickSpeed)
+	E.LastSeenTick = Now;
+	if(E.BannedUntilTick > Now)
 	{
-		entry.Attempts = 0;
-		entry.FirstAttemptTick = now;
+		return false; // still banned
 	}
-
-	entry.Attempts++;
-	int MaxAttempts = g_Config.m_SvRegisterIpMaxAttempts;
-	if(entry.Attempts > MaxAttempts)
+	if(E.FirstAttemptTick == 0 || Now - E.FirstAttemptTick > (int64_t)cfg_ip_window_seconds() * Freq)
 	{
-		int BanSeconds = g_Config.m_SvRegisterIpBanSeconds;
-		entry.BannedUntilTick = now + BanSeconds * TickSpeed;
-		// push ip into order as last seen
-		s_IpOrder.push_back(std::string(pIp));
-		return true;
+		E.FirstAttemptTick = Now;
+		E.Attempts = 0;
 	}
-
-	s_IpOrder.push_back(std::string(pIp));
-	return false;
+	E.Attempts++;
+	if(E.Attempts > cfg_ip_max_attempts())
+	{
+		E.BannedUntilTick = Now + (int64_t)cfg_ip_ban_seconds() * Freq;
+		return false; // now banned
+	}
+	return true; // allowed
 }
 
 void CAccounts::ClearIpBan(const char *pIp)
 {
-	std::lock_guard<std::mutex> l(s_IpTrackerMutex);
+	std::lock_guard<std::mutex> lock(s_IpTrackerMutex);
 	auto it = s_IpTracker.find(pIp);
 	if(it != s_IpTracker.end())
 	{
@@ -156,30 +229,25 @@ void CAccounts::ClearIpBan(const char *pIp)
 
 std::vector<std::pair<std::string, int>> CAccounts::ListIpBans() const
 {
-	std::lock_guard<std::mutex> l(s_IpTrackerMutex);
-	std::vector<std::pair<std::string, int>> out;
-	int64_t now = Server()->Tick();
+	std::lock_guard<std::mutex> lock(s_IpTrackerMutex);
+	std::vector<std::pair<std::string, int>> v;
+	int64_t Now = time_get();
 	for(const auto &kv : s_IpTracker)
 	{
-		if(kv.second.BannedUntilTick > now)
+		if(kv.second.BannedUntilTick > Now)
 		{
-			int remaining = (int)((kv.second.BannedUntilTick - now) / Server()->TickSpeed());
-			out.emplace_back(kv.first, remaining);
+			int Remaining = (int)((kv.second.BannedUntilTick - Now) / time_freq());
+			v.emplace_back(kv.first, Remaining);
 		}
 	}
-	return out;
+	return v;
 }
 
-std::shared_ptr<CAdminCommandResult> CAccounts::NewSqlAdminCommandResult(int ClientId)
+struct CSqlIntegrityRequest : ISqlData
 {
-	CPlayer *pCurPlayer = GameServer()->m_apPlayers[ClientId];
-	if(!pCurPlayer || ClientId < 0 || ClientId >= MAX_CLIENTS)
-		return nullptr;
-
-	auto pResult = std::make_shared<CAdminCommandResult>();
-	pCurPlayer->m_AdminCommandQueryResult.push(pResult);
-	return pResult;
-}
+	CSqlIntegrityRequest(std::shared_ptr<CAccountResult> pRes) :
+		ISqlData(std::move(pRes)) {}
+};
 
 void CAccounts::ExecAdminThread(
 	bool (*pFuncPtr)(IDbConnection *, const ISqlData *, char *pError, int ErrorSize),
@@ -193,7 +261,7 @@ void CAccounts::ExecAdminThread(
 	const char *pQuery)
 {
 	auto pResult = NewSqlAdminCommandResult(AdminClientId);
-	if(pResult == nullptr)
+	if(!pResult)
 		return;
 	auto Tmp = std::make_unique<CSqlAdminCommandRequest>(pResult);
 	Tmp->m_AdminClientId = AdminClientId;
@@ -202,20 +270,36 @@ void CAccounts::ExecAdminThread(
 	Tmp->m_Type = Type;
 	str_copy(Tmp->m_aUsername, pUsername, sizeof(Tmp->m_aUsername));
 	str_copy(Tmp->m_aPassword, pPassword, sizeof(Tmp->m_aPassword));
-	str_copy(Tmp->m_aQuery, pQuery, sizeof(Tmp->m_aQuery));
-
+	if(pQuery)
+		str_copy(Tmp->m_aQuery, pQuery, sizeof(Tmp->m_aQuery));
 	m_pPool->Execute(pFuncPtr, std::move(Tmp), pThreadName);
+}
+
+void CAccounts::Login(int ClientId, const char *pUsername, const char *pPassword)
+{
+	if(RateLimitPlayer(ClientId))
+		return;
+	ExecUserThread(LoginThread, "login user", ClientId, pUsername, pPassword, "", 0, NULL);
 }
 
 std::shared_ptr<CAccountResult> CAccounts::NewSqlAccountResult(int ClientId)
 {
-	CPlayer *pCurPlayer = GameServer()->m_apPlayers[ClientId];
-	if(!pCurPlayer || ClientId < 0 || ClientId >= MAX_CLIENTS)
-		return nullptr;
+	auto pRes = std::make_shared<CAccountResult>();
+	pRes->m_Account.m_ClientId = ClientId;
+	// during shutdown flush , mark as critical so it's executed even late we don't care
+	if(m_ShutdownFlushActive && m_pShutdownCollector)
+	{
+		m_pShutdownCollector->push_back(pRes);
+	}
+	return pRes;
+}
 
-	auto pResult = std::make_shared<CAccountResult>();
-	pCurPlayer->m_AccountQueryResult.push(pResult);
-	return pResult;
+std::shared_ptr<CAdminCommandResult> CAccounts::NewSqlAdminCommandResult(int ClientId)
+{
+	auto pRes = std::make_shared<CAdminCommandResult>();
+	if(m_ShutdownFlushActive && m_pShutdownCollector)
+		m_pShutdownCollector->push_back(pRes);
+	return pRes;
 }
 
 void CAccounts::ExecUserThread(
@@ -229,125 +313,34 @@ void CAccounts::ExecUserThread(
 	CAccountData *pAccountData)
 {
 	auto pResult = NewSqlAccountResult(ClientId);
-	if(pResult == nullptr)
+	if(!pResult)
 		return;
-	auto Tmp = std::make_unique<CSqlAccountRequest>(pResult, m_pGameServer);
+	auto Tmp = std::make_unique<CSqlAccountRequest>(pResult, GameServer());
 	Tmp->m_ClientId = ClientId;
-	str_copy(Tmp->m_aUsername, pUsername, sizeof(Tmp->m_aUsername));
-	str_copy(Tmp->m_aPassword, pPassword, sizeof(Tmp->m_aPassword));
-	str_copy(Tmp->m_aNewPassword, pNewPassword, sizeof(Tmp->m_aNewPassword));
-	if(pAccountData)
-	{
-		Tmp->m_AccountData = *pAccountData;
-	}
-	else
-	{
-		Tmp->m_AccountData = CAccountData();
-	}
 	Tmp->m_AccountId = AccountId;
+	if(pUsername)
+		str_copy(Tmp->m_aUsername, pUsername, sizeof(Tmp->m_aUsername));
+	if(pPassword)
+		str_copy(Tmp->m_aPassword, pPassword, sizeof(Tmp->m_aPassword));
+	if(pNewPassword)
+		str_copy(Tmp->m_aNewPassword, pNewPassword, sizeof(Tmp->m_aNewPassword));
+	if(pAccountData)
+		Tmp->m_AccountData = *pAccountData;
 	if(m_ShutdownFlushActive)
-	{
 		Tmp->m_Critical = true;
-		if(m_pShutdownCollector && pResult)
-			m_pShutdownCollector->push_back(pResult);
+	if(ClientId >= 0 && ClientId < MAX_CLIENTS && GameServer()->m_apPlayers[ClientId])
+	{
+		GameServer()->m_apPlayers[ClientId]->m_AccountQueryResult.push(pResult);
 	}
-
 	m_pPool->Execute(pFuncPtr, std::move(Tmp), pThreadName);
 }
 
-bool CAccounts::RateLimitPlayer(int ClientId)
+static bool SqlWritePerRequestAdapter(IDbConnection *pSqlServer, const ISqlData *pGameData, Write /*w*/, char *pError, int ErrorSize)
 {
-	CPlayer *pPlayer = GameServer()->m_apPlayers[ClientId];
-	if(pPlayer == 0)
-		return true;
-	if(pPlayer->m_LastSqlQuery + (int64_t)g_Config.m_SvSqlQueriesDelay * Server()->TickSpeed() >= Server()->Tick())
-		return true;
-	pPlayer->m_LastSqlQuery = Server()->Tick();
-	return false;
-}
-
-void CAccounts::Save(int ClientId, CAccountData *pAccountData)
-{
-	ExecUserThread(SaveThread, "save user", ClientId, "", "", "", 0, pAccountData);
-}
-
-bool CAccounts::SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
-{
-	const CSqlAccountRequest *pData = dynamic_cast<const CSqlAccountRequest *>(pGameData);
-	CAccountResult *pResult = dynamic_cast<CAccountResult *>(pGameData->m_pResult.get());
-	pResult->SetVariant(CAccountResult::LOG_ONLY);
-
-	char aBuf[2048];
-	str_copy(aBuf,
-		"UPDATE accounts SET "
-		"address = ?, vip = ?, pages = ?, level = ?, experience = ?, weaponkits = ?, ranking = ?, "
-		"clanID = ?, auth_level = ?, blockpoints = ?, knockouts = ?, gundesign = ?, skinmani = ?, passive = ?, ranked_games = ?, "
-		"ranked_kills = ?, ranked_deaths = ?, ranked_wins = ?, kills = ?, deaths = ?, tourney_win = ?, playtime = ?, killstreak = ?, "
-		"last_name = ?, last_skin = ?, last_body_color = ?, last_feet_color = ? "
-		"WHERE id = ?;",
-		sizeof(aBuf));
-
-	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
-	{
-		dbg_msg("sql", "SaveThread - PrepareStatement failed for account %d: %s", pData->m_AccountData.m_Id, pError);
-		return true;
-	}
-
-	const CAccountData *pAcc = &pData->m_AccountData;
-	int Index = 1;
-
-#define BIND_STRING(dest) pSqlServer->BindString(Index++, dest)
-#define BIND_INT(dest) pSqlServer->BindInt(Index++, dest)
-#define BIND_INT64(dest) pSqlServer->BindInt64(Index++, dest)
-
-	BIND_STRING(pAcc->m_aAddress);
-	BIND_INT(pAcc->m_Vip);
-	BIND_INT(pAcc->m_Pages);
-	BIND_INT(pAcc->m_Level);
-	BIND_INT(pAcc->m_Experience);
-	BIND_INT(pAcc->m_Weaponkits);
-	BIND_INT(pAcc->m_Ranking);
-	BIND_INT(pAcc->m_ClanId);
-	BIND_INT(static_cast<int>(pAcc->m_AuthLevel));
-	BIND_INT(pAcc->m_Blockpoints);
-	BIND_STRING(pAcc->m_aKnockouts);
-	BIND_STRING(pAcc->m_aGundesign);
-	BIND_STRING(pAcc->m_aSkinmani);
-	BIND_INT(pAcc->m_Passive);
-	BIND_INT(pAcc->m_RankedGames);
-	BIND_INT(pAcc->m_RankedKills);
-	BIND_INT(pAcc->m_RankedDeaths);
-	BIND_INT(pAcc->m_RankedWins);
-	BIND_INT(pAcc->m_Kills);
-	BIND_INT(pAcc->m_Deaths);
-	BIND_INT(pAcc->m_TourneyWin);
-	BIND_INT64(pAcc->m_Playtime);
-	BIND_INT(pAcc->m_Killstreak);
-	BIND_STRING(pAcc->m_aLastName);
-	BIND_STRING(pAcc->m_aLastSkin);
-	BIND_INT(pAcc->m_LastBodyColor);
-	BIND_INT(pAcc->m_LastFeetColor);
-	BIND_INT(pAcc->m_Id);
-
-#undef BIND_STRING
-#undef BIND_INT
-#undef BIND_INT64
-
-	int NumUpdated = 0;
-	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
-	{
-		dbg_msg("sql", "SaveThread - ExecuteUpdate failed for account %d: %s", pAcc->m_Id, pError);
-		return true;
-	}
-	dbg_msg("sql", "SaveThread - Successfully saved account %d (%d rows updated)", pAcc->m_Id, NumUpdated);
-	return false;
-}
-
-void CAccounts::Login(int ClientId, const char *pUsername, const char *pPassword)
-{
-	if(RateLimitPlayer(ClientId))
-		return;
-	ExecUserThread(LoginThread, "login user", ClientId, pUsername, pPassword, "", 0, NULL);
+	auto *pReq = dynamic_cast<const CSqlAccountRequest *>(pGameData);
+	if(!pReq || !pReq->m_pFunc)
+		return true; // fail
+	return pReq->m_pFunc(pSqlServer, pGameData, pError, ErrorSize);
 }
 
 bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
@@ -355,17 +348,10 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 	const CSqlAccountRequest *pRequestData = dynamic_cast<const CSqlAccountRequest *>(pGameData);
 	CAccountResult *pResult = dynamic_cast<CAccountResult *>(pGameData->m_pResult.get());
 
-	SHA256_DIGEST HashedPassword = CGameContext::HashPassword(pRequestData->m_aPassword);
-	char aHashedPassword[SHA256_DIGEST_LENGTH * 2 + 1];
-	sha256_str(HashedPassword, aHashedPassword, sizeof(aHashedPassword));
-
 	{ // wrong creds
 		char aBuf[2048];
 		str_copy(aBuf,
-			"SELECT "
-			"id "
-			"FROM accounts "
-			"WHERE name = ? AND password = ?;",
+			"SELECT id, password FROM accounts_core WHERE name = ?;",
 			sizeof(aBuf));
 
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
@@ -375,7 +361,6 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 		}
 
 		pSqlServer->BindString(1, pRequestData->m_aUsername);
-		pSqlServer->BindString(2, aHashedPassword);
 
 		bool End;
 		if(pSqlServer->Step(&End, pError, ErrorSize))
@@ -390,8 +375,17 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 			return false;
 		}
 	}
-
 	int AccountId = pSqlServer->GetInt(1);
+	char aStored[256];
+	pSqlServer->GetString(2, aStored, sizeof(aStored));
+	dbg_msg("login", "Fetched stored hash len=%d sample='%.32s...'", (int)str_length(aStored), aStored);
+	if(!pw_hash_verify(pRequestData->m_aPassword, aStored))
+	{
+		pResult->SetVariant(CAccountResult::LOGIN_WRONG_PASS);
+		mem_zero(aStored, sizeof(aStored));
+		return false;
+	}
+	mem_zero(aStored, sizeof(aStored));
 
 	{ // is account busy
 		char aBusyBuf[512];
@@ -426,13 +420,13 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 
 	char aBuf[2048];
 	str_copy(aBuf,
-		"SELECT "
-		"id, name, password, address, vip, pages, level, experience, weaponkits, ranking, "
-		"clanID, auth_level, blockpoints, knockouts, gundesign, skinmani, passive, registerdate, ranked_games, "
-		"ranked_kills, ranked_deaths, ranked_wins, kills, deaths, tourney_win, playtime, killstreak, "
-		"last_name, last_skin, last_body_color, last_feet_color "
-		"FROM accounts "
-		"WHERE id = ?;",
+		"SELECT c.id, c.name, c.password, c.address, i.vip, i.pages, p.level, p.experience, i.weaponkits, p.ranking, "
+		"p.clanID, p.auth_level, p.blockpoints, i.knockouts, i.gundesign, i.skinmani, p.passive, c.registerdate, r.ranked_games, "
+		"r.ranked_kills, r.ranked_deaths, r.ranked_wins, p.kills, p.deaths, p.tourney_win, p.playtime, p.killstreak, "
+		"c.last_name, c.last_skin, c.last_body_color, c.last_feet_color FROM accounts_core c "
+		"JOIN accounts_progress p ON c.id=p.account_id "
+		"JOIN accounts_inventory i ON c.id=i.account_id "
+		"JOIN accounts_ranked r ON c.id=r.account_id WHERE c.id = ?;",
 		sizeof(aBuf));
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
@@ -555,12 +549,11 @@ bool CAccounts::ChangePasswordAdminThread(IDbConnection *pSqlServer, const ISqlD
 		return true;
 	pResult->SetVariant(CAdminCommandResult::DIRECT, pData);
 
-	SHA256_DIGEST HashedNewPassword = CGameContext::HashPassword(pData->m_aPassword);
-	char aHashedNewPassword[SHA256_DIGEST_LENGTH * 2 + 1];
-	sha256_str(HashedNewPassword, aHashedNewPassword, sizeof(aHashedNewPassword));
+	char aHashedNewPassword[256];
+	pw_hash_generate(pData->m_aPassword, aHashedNewPassword, sizeof(aHashedNewPassword), 0);
 
 	char aBuf[512];
-	str_copy(aBuf, "UPDATE accounts SET password = ? WHERE name = ?;", sizeof(aBuf));
+	str_copy(aBuf, "UPDATE accounts_core SET password = ? WHERE name = ?;", sizeof(aBuf));
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		str_copy(pResult->m_aaMessages[0], "Failed to prepare change password statement.", sizeof(pResult->m_aaMessages[0]));
@@ -571,9 +564,11 @@ bool CAccounts::ChangePasswordAdminThread(IDbConnection *pSqlServer, const ISqlD
 	int NumUpdated = 0;
 	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
 	{
+		mem_zero(aHashedNewPassword, sizeof(aHashedNewPassword));
 		str_copy(pResult->m_aaMessages[0], "Failed to execute change password statement.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
+	mem_zero(aHashedNewPassword, sizeof(aHashedNewPassword));
 
 	if(NumUpdated == 1)
 	{
@@ -626,7 +621,6 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 	CAccountResult *pResult = static_cast<CAccountResult *>(pGameData->m_pResult.get());
 	pResult->SetVariant(CAccountResult::REGISTER);
 
-	// Input validation
 	if(str_length(pData->m_aUsername) < 3 || str_length(pData->m_aUsername) > 11)
 	{
 		str_copy(pResult->m_aaMessages[0], "Username must be between 3 and 11 characters.", sizeof(pResult->m_aaMessages[0]));
@@ -649,95 +643,232 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 	}
 
 	char aBuf[2048];
-	str_copy(aBuf, "SELECT name FROM accounts WHERE name = ?;", sizeof(aBuf));
+	char aHashedPassword[256];
+	if(pw_hash_generate(pData->m_aPassword, aHashedPassword, sizeof(aHashedPassword), 0) != 0)
+	{
+		str_copy(pResult->m_aaMessages[0], "Internal password hashing error.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	dbg_msg("register", "Generated hash length=%d sample='%.32s...'", (int)str_length(aHashedPassword), aHashedPassword);
 
+	dbg_msg("register", "BEGIN transaction");
+	int txAffected = 0;
+	if(pSqlServer->PrepareStatement("BEGIN;", pError, ErrorSize) || pSqlServer->ExecuteUpdate(&txAffected, pError, ErrorSize))
+	{
+		dbg_msg("register", "BEGIN failed: %s", pError);
+		return true;
+	}
+
+	str_copy(aBuf, "INSERT INTO accounts_core (name, password) VALUES (?, ?);", sizeof(aBuf));
+	dbg_msg("register", "Preparing core insert");
+	bool Failed = false; // track failure instead of goto to keep initialization order safe
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
-	{
-		if(pError && *pError)
-		{
-			char aTmp[1024];
-			str_format(aTmp, sizeof(aTmp), "Failed to prepare SELECT statement: %s", pError);
-			str_copy(pError, aTmp, ErrorSize);
-		}
-		return true;
-	}
-
+		Failed = true;
 	pSqlServer->BindString(1, pData->m_aUsername);
+	pSqlServer->BindString(2, aHashedPassword);
 
-	bool End;
-	if(pSqlServer->Step(&End, pError, ErrorSize))
+	dbg_msg("register", "Executing core insert for '%s'", pData->m_aUsername);
+	if(!Failed && pSqlServer->ExecuteUpdate(&txAffected, pError, ErrorSize))
 	{
-		if(pError && *pError)
+		if(pError && str_find_nocase(pError, "duplicate"))
 		{
-			char aTmp[1024];
-			str_format(aTmp, sizeof(aTmp), "Failed to execute SELECT statement: %s", pError);
-			str_copy(pError, aTmp, ErrorSize);
+			str_copy(pResult->m_aaMessages[0], "This username already exists.", sizeof(pResult->m_aaMessages[0]));
+			pResult->m_Account.m_ClientId = pData->m_ClientId;
+			str_copy(pResult->m_Account.m_aName, pData->m_aUsername, sizeof(pResult->m_Account.m_aName));
+			pSqlServer->PrepareStatement("ROLLBACK;", nullptr, 0);
+			pSqlServer->ExecuteUpdate(&txAffected, nullptr, 0);
+			return false;
 		}
+		Failed = true;
+	}
+	int NewId = 0;
+	if(!Failed)
+	{
+		dbg_msg("register", "Inserted core row");
+
+		if(pSqlServer->PrepareStatement("SELECT LAST_INSERT_ID();", pError, ErrorSize))
+			Failed = true;
+		bool IdEnd = false;
+		if(!Failed && (pSqlServer->Step(&IdEnd, pError, ErrorSize) || IdEnd))
+			Failed = true;
+		if(!Failed)
+		{
+			NewId = pSqlServer->GetInt(1);
+			dbg_msg("register", "Fetched new id = %d", NewId);
+
+			dbg_msg("register", "Creating dependent rows for id=%d", NewId);
+			str_copy(aBuf, "INSERT INTO accounts_progress (account_id) VALUES (?);", sizeof(aBuf));
+			if(!Failed && pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+				Failed = true;
+			if(!Failed)
+			{
+				pSqlServer->BindInt(1, NewId);
+				if(pSqlServer->ExecuteUpdate(&txAffected, pError, ErrorSize))
+					Failed = true;
+			}
+			str_copy(aBuf, "INSERT INTO accounts_inventory (account_id) VALUES (?);", sizeof(aBuf));
+			if(!Failed && pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+				Failed = true;
+			if(!Failed)
+			{
+				pSqlServer->BindInt(1, NewId);
+				if(pSqlServer->ExecuteUpdate(&txAffected, pError, ErrorSize))
+					Failed = true;
+			}
+			str_copy(aBuf, "INSERT INTO accounts_ranked (account_id) VALUES (?);", sizeof(aBuf));
+			if(!Failed && pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+				Failed = true;
+			if(!Failed)
+			{
+				pSqlServer->BindInt(1, NewId);
+				if(pSqlServer->ExecuteUpdate(&txAffected, pError, ErrorSize))
+					Failed = true;
+			}
+		}
+		if(!Failed && (pSqlServer->PrepareStatement("COMMIT;", pError, ErrorSize) || pSqlServer->ExecuteUpdate(&txAffected, pError, ErrorSize)))
+		{
+			dbg_msg("register", "COMMIT failed: %s", pError);
+			Failed = true;
+		}
+	}
+	if(Failed)
+	{
+		pSqlServer->PrepareStatement("ROLLBACK;", nullptr, 0);
+		pSqlServer->ExecuteUpdate(&txAffected, nullptr, 0);
+		mem_zero(aHashedPassword, sizeof(aHashedPassword));
+		str_copy(pResult->m_aaMessages[0], "Registration failed (transaction).", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
-
-	bool UsernameExists = !End;
-
-	if(UsernameExists)
-	{
-		str_copy(pResult->m_aaMessages[0], "This username already exists.", sizeof(pResult->m_aaMessages[0]));
-		return false;
-	}
-	else
-	{
-		SHA256_DIGEST HashedPassword = CGameContext::HashPassword(pData->m_aPassword);
-		char aHashedPassword[SHA256_DIGEST_LENGTH * 2 + 1];
-		sha256_str(HashedPassword, aHashedPassword, sizeof(aHashedPassword));
-
-		str_copy(aBuf, "INSERT INTO accounts (name, password) VALUES (?, ?);", sizeof(aBuf));
-
-		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
-		{
-			if(pError && *pError)
-			{
-				char aTmp[1024];
-				str_format(aTmp, sizeof(aTmp), "Failed to prepare INSERT statement: %s", pError);
-				str_copy(pError, aTmp, ErrorSize);
-			}
-			return true;
-		}
-
-		pSqlServer->BindString(1, pData->m_aUsername);
-		pSqlServer->BindString(2, aHashedPassword);
-
-		int NumInserted;
-		if(pSqlServer->ExecuteUpdate(&NumInserted, pError, ErrorSize))
-		{
-			if(pError && *pError)
-			{
-				char aTmp[1024];
-				str_format(aTmp, sizeof(aTmp), "Failed to execute INSERT statement: %s", pError);
-				str_copy(pError, aTmp, ErrorSize);
-			}
-			return true;
-		}
-
-		if(NumInserted == 1)
-		{
-			str_copy(pResult->m_aaMessages[0], "Account registered successfully!", sizeof(pResult->m_aaMessages[0]));
-			str_copy(pResult->m_aaMessages[1], "Please log in with /login <name> <pass>", sizeof(pResult->m_aaMessages[1]));
-		}
-		else
-		{
-			if(pError && ErrorSize > 0)
-			{
-				str_copy(pError, "Account registration failed. No rows inserted.", ErrorSize);
-			}
-			return true;
-		}
-	}
-
+	mem_zero(aHashedPassword, sizeof(aHashedPassword));
+	pResult->m_Account.m_Id = NewId;
+	str_copy(pResult->m_Account.m_aName, pData->m_aUsername, sizeof(pResult->m_Account.m_aName));
+	pResult->m_Account.m_ClientId = pData->m_ClientId;
+	str_copy(pResult->m_aaMessages[0], "Account registered successfully!", sizeof(pResult->m_aaMessages[0]));
+	str_copy(pResult->m_aaMessages[1], "Please log in with /login <name> <pass>", sizeof(pResult->m_aaMessages[1]));
 	return false;
+}
+
+void CAccounts::Save(int ClientId, CAccountData *pAccountData)
+{
+	if(!pAccountData || pAccountData->m_Id <= 0)
+		return; // nothing to save
+	if(!pAccountData->m_DirtyCore && !pAccountData->m_DirtyProgress && !pAccountData->m_DirtyInventory && !pAccountData->m_DirtyRanked)
+		return;
+	CAccountData Snapshot = *pAccountData;
+	pAccountData->m_DirtyCore = pAccountData->m_DirtyProgress = pAccountData->m_DirtyInventory = pAccountData->m_DirtyRanked = false;
+	auto pResult = NewSqlAccountResult(ClientId);
+	if(!pResult)
+		return;
+	auto Tmp = std::make_unique<CSqlAccountRequest>(pResult, GameServer());
+	Tmp->m_ClientId = ClientId;
+	Tmp->m_AccountId = Snapshot.m_Id;
+	str_copy(Tmp->m_aUsername, Snapshot.m_aName, sizeof(Tmp->m_aUsername));
+	Tmp->m_AccountData = Snapshot;
+	Tmp->m_pFunc = SaveThread; // per-request target
+	if(m_ShutdownFlushActive)
+		Tmp->m_Critical = true;
+	if(ClientId >= 0 && ClientId < MAX_CLIENTS && GameServer()->m_apPlayers[ClientId])
+		GameServer()->m_apPlayers[ClientId]->m_AccountQueryResult.push(pResult);
+	m_pPool->ExecuteWrite(SqlWritePerRequestAdapter, std::move(Tmp), m_ShutdownFlushActive ? "save account shutdown" : "save account");
+}
+
+bool CAccounts::SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
+{
+	const CSqlAccountRequest *pReq = dynamic_cast<const CSqlAccountRequest *>(pGameData);
+	if(!pReq)
+		return true;
+	const CAccountData &Acc = pReq->m_AccountData;
+	bool DoCore = Acc.m_DirtyCore;
+	bool DoProg = Acc.m_DirtyProgress;
+	bool DoInv = Acc.m_DirtyInventory;
+	bool DoRank = Acc.m_DirtyRanked;
+	if(!DoCore && !DoProg && !DoInv && !DoRank)
+		return false; // nothing to do
+
+	int TransactionAffected = 0;
+	if(pSqlServer->PrepareStatement("BEGIN;", pError, ErrorSize) || pSqlServer->ExecuteUpdate(&TransactionAffected, pError, ErrorSize))
+		return true;
+
+	char aBuf[1024];
+	int Affected = 0;
+
+	if(DoCore)
+	{
+		str_copy(aBuf, "UPDATE accounts_core SET address = ?, last_name = ?, last_skin = ?, last_body_color = ?, last_feet_color = ? WHERE id = ?;", sizeof(aBuf));
+		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+			goto fail;
+		pSqlServer->BindString(1, Acc.m_aAddress);
+		pSqlServer->BindString(2, Acc.m_aLastName);
+		pSqlServer->BindString(3, Acc.m_aLastSkin);
+		pSqlServer->BindInt(4, Acc.m_LastBodyColor);
+		pSqlServer->BindInt(5, Acc.m_LastFeetColor);
+		pSqlServer->BindInt(6, Acc.m_Id);
+		if(pSqlServer->ExecuteUpdate(&Affected, pError, ErrorSize))
+			goto fail;
+	}
+	if(DoProg)
+	{
+		str_copy(aBuf, "UPDATE accounts_progress SET level=?, experience=?, ranking=?, clanID=?, auth_level=?, blockpoints=?, passive=?, kills=?, deaths=?, tourney_win=?, playtime=?, killstreak=? WHERE account_id=?;", sizeof(aBuf));
+		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+			goto fail;
+		pSqlServer->BindInt(1, Acc.m_Level);
+		pSqlServer->BindInt(2, Acc.m_Experience);
+		pSqlServer->BindInt(3, Acc.m_Ranking);
+		pSqlServer->BindInt(4, Acc.m_ClanId);
+		pSqlServer->BindInt(5, (int)Acc.m_AuthLevel);
+		pSqlServer->BindInt(6, Acc.m_Blockpoints);
+		pSqlServer->BindInt(7, Acc.m_Passive);
+		pSqlServer->BindInt(8, Acc.m_Kills);
+		pSqlServer->BindInt(9, Acc.m_Deaths);
+		pSqlServer->BindInt(10, Acc.m_TourneyWin);
+		pSqlServer->BindInt64(11, Acc.m_Playtime);
+		pSqlServer->BindInt(12, Acc.m_Killstreak);
+		pSqlServer->BindInt(13, Acc.m_Id);
+		if(pSqlServer->ExecuteUpdate(&Affected, pError, ErrorSize))
+			goto fail;
+	}
+	if(DoInv)
+	{
+		str_copy(aBuf, "UPDATE accounts_inventory SET vip=?, pages=?, weaponkits=?, knockouts=?, gundesign=?, skinmani=? WHERE account_id=?;", sizeof(aBuf));
+		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+			goto fail;
+		pSqlServer->BindInt(1, Acc.m_Vip);
+		pSqlServer->BindInt(2, Acc.m_Pages);
+		pSqlServer->BindInt(3, Acc.m_Weaponkits);
+		pSqlServer->BindString(4, Acc.m_aKnockouts);
+		pSqlServer->BindString(5, Acc.m_aGundesign);
+		pSqlServer->BindString(6, Acc.m_aSkinmani);
+		pSqlServer->BindInt(7, Acc.m_Id);
+		if(pSqlServer->ExecuteUpdate(&Affected, pError, ErrorSize))
+			goto fail;
+	}
+	if(DoRank)
+	{
+		str_copy(aBuf, "UPDATE accounts_ranked SET ranked_games=?, ranked_kills=?, ranked_deaths=?, ranked_wins=? WHERE account_id=?;", sizeof(aBuf));
+		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+			goto fail;
+		pSqlServer->BindInt(1, Acc.m_RankedGames);
+		pSqlServer->BindInt(2, Acc.m_RankedKills);
+		pSqlServer->BindInt(3, Acc.m_RankedDeaths);
+		pSqlServer->BindInt(4, Acc.m_RankedWins);
+		pSqlServer->BindInt(5, Acc.m_Id);
+		if(pSqlServer->ExecuteUpdate(&Affected, pError, ErrorSize))
+			goto fail;
+	}
+
+	if(pSqlServer->PrepareStatement("COMMIT;", pError, ErrorSize) || pSqlServer->ExecuteUpdate(&TransactionAffected, pError, ErrorSize))
+		return true; // commit failed, we're doomed
+	return false;
+
+fail:
+	pSqlServer->PrepareStatement("ROLLBACK;", nullptr, 0);
+	pSqlServer->ExecuteUpdate(&TransactionAffected, nullptr, 0);
+	return true;
 }
 
 void CAccounts::Logout(int ClientId, int AccountId)
 {
-	ExecUserThread(LogoutThread, "logout user", ClientId, "", "", "", AccountId, nullptr);
+	ExecUserThread(LogoutThread, m_ShutdownFlushActive ? "logout user shutdown" : "logout user", ClientId, "", "", "", AccountId, nullptr);
 }
 
 bool CAccounts::LogoutThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
@@ -813,7 +944,7 @@ bool CAccounts::ChangePasswordThread(IDbConnection *pSqlServer, const ISqlData *
 	pResult->SetVariant(CAccountResult::DIRECT);
 
 	char aBuf[2048];
-	str_copy(aBuf, "SELECT password FROM accounts WHERE name = ?;", sizeof(aBuf));
+	str_copy(aBuf, "SELECT password FROM accounts_core WHERE name = ?;", sizeof(aBuf));
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -834,24 +965,20 @@ bool CAccounts::ChangePasswordThread(IDbConnection *pSqlServer, const ISqlData *
 		return false;
 	}
 
-	char aStoredPasswordHash[SHA256_DIGEST_LENGTH * 2 + 1];
+	char aStoredPasswordHash[256];
 	pSqlServer->GetString(1, aStoredPasswordHash, sizeof(aStoredPasswordHash));
-
-	SHA256_DIGEST HashedOldPassword = CGameContext::HashPassword(pData->m_aPassword);
-	char aHashedOldPassword[SHA256_DIGEST_LENGTH * 2 + 1];
-	sha256_str(HashedOldPassword, aHashedOldPassword, sizeof(aHashedOldPassword));
-
-	if(str_comp(aHashedOldPassword, aStoredPasswordHash) != 0)
+	if(!pw_hash_verify(pData->m_aPassword, aStoredPasswordHash))
 	{
 		str_copy(pResult->m_aaMessages[0], "Old password is incorrect.", sizeof(pResult->m_aaMessages[0]));
+		mem_zero(aStoredPasswordHash, sizeof(aStoredPasswordHash));
 		return false;
 	}
+	mem_zero(aStoredPasswordHash, sizeof(aStoredPasswordHash));
 
-	SHA256_DIGEST HashedNewPassword = CGameContext::HashPassword(pData->m_aNewPassword);
-	char aHashedNewPassword[SHA256_DIGEST_LENGTH * 2 + 1];
-	sha256_str(HashedNewPassword, aHashedNewPassword, sizeof(aHashedNewPassword));
+	char aHashedNewPassword[256];
+	pw_hash_generate(pData->m_aNewPassword, aHashedNewPassword, sizeof(aHashedNewPassword), 0);
 
-	str_copy(aBuf, "UPDATE accounts SET password = ? WHERE name = ?;", sizeof(aBuf));
+	str_copy(aBuf, "UPDATE accounts_core SET password = ? WHERE name = ?;", sizeof(aBuf));
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -864,8 +991,10 @@ bool CAccounts::ChangePasswordThread(IDbConnection *pSqlServer, const ISqlData *
 	int NumUpdated;
 	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
 	{
+		mem_zero(aHashedNewPassword, sizeof(aHashedNewPassword));
 		return true;
 	}
+	mem_zero(aHashedNewPassword, sizeof(aHashedNewPassword));
 
 	if(NumUpdated == 1)
 	{
@@ -891,7 +1020,7 @@ bool CAccounts::ShowTopLevelThread(IDbConnection *pSqlServer, const ISqlData *pG
 	CAccountResult *pResult = dynamic_cast<CAccountResult *>(pGameData->m_pResult.get());
 
 	char aBuf[512];
-	str_copy(aBuf, "SELECT last_name, level FROM accounts ORDER BY level DESC LIMIT 10;", sizeof(aBuf));
+	str_copy(aBuf, "SELECT c.last_name, p.level FROM accounts_core c JOIN accounts_progress p ON c.id=p.account_id ORDER BY p.level DESC LIMIT 10;", sizeof(aBuf));
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -968,7 +1097,7 @@ bool CAccounts::ShowTopBlockpointsThread(IDbConnection *pSqlServer, const ISqlDa
 	pResult->SetVariant(CAccountResult::TOP_MESSAGES);
 
 	char aBuf[512];
-	str_copy(aBuf, "SELECT last_name, blockpoints FROM accounts ORDER BY blockpoints DESC LIMIT 10;", sizeof(aBuf));
+	str_copy(aBuf, "SELECT c.last_name, p.blockpoints FROM accounts_core c JOIN accounts_progress p ON c.id=p.account_id ORDER BY p.blockpoints DESC LIMIT 10;", sizeof(aBuf));
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -1039,13 +1168,20 @@ void CAccounts::ShowTopKillStreak(int ClientId)
 	ExecUserThread(ShowTopKillStreaksThread, "show top killstreak thread", ClientId, "", "", "", 0, NULL);
 }
 
+void CAccounts::IntegrityCheck(int ClientId)
+{
+	if(RateLimitPlayer(ClientId))
+		return;
+	ExecUserThread(IntegrityCheckThread, "integrity check", ClientId, "", "", "", 0, NULL);
+}
+
 bool CAccounts::ShowTopKillStreaksThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
 {
 	CAccountResult *pResult = dynamic_cast<CAccountResult *>(pGameData->m_pResult.get());
 	pResult->SetVariant(CAccountResult::TOP_MESSAGES);
 
 	char aBuf[512];
-	str_copy(aBuf, "SELECT last_name, killstreak FROM accounts ORDER BY level DESC LIMIT 10;", sizeof(aBuf));
+	str_copy(aBuf, "SELECT c.last_name, p.killstreak FROM accounts_core c JOIN accounts_progress p ON c.id=p.account_id ORDER BY p.killstreak DESC LIMIT 10;", sizeof(aBuf));
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -1106,5 +1242,123 @@ bool CAccounts::ShowTopKillStreaksThread(IDbConnection *pSqlServer, const ISqlDa
 		return true;
 	}
 
+	return false;
+}
+
+bool CAccounts::IntegrityCheckThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
+{
+	CAccountResult *pResult = dynamic_cast<CAccountResult *>(pGameData->m_pResult.get());
+	if(!pResult)
+		return true;
+	pResult->SetVariant(CAccountResult::DIRECT);
+
+	// We'll gather up to MAX_MESSAGES-1 issues, final line is summary.
+	int Issues = 0;
+	auto AddIssue = [&](const char *pMsg) {
+		if(Issues < CAccountResult::MAX_MESSAGES - 1)
+		{
+			str_copy(pResult->m_aaMessages[Issues], pMsg, sizeof(pResult->m_aaMessages[Issues]));
+		}
+		Issues++;
+	};
+
+	char aBuf[512];
+
+	// 1 - orphan progress rows (progress without core) - should not happen (lets hope so :D)
+	str_copy(aBuf, "SELECT COUNT(*) FROM accounts_progress p LEFT JOIN accounts_core c ON p.account_id=c.id WHERE c.id IS NULL;", sizeof(aBuf));
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(nullptr, pError, ErrorSize))
+		return true;
+	int OrphanProgress = pSqlServer->GetInt(1);
+	if(OrphanProgress > 0)
+	{
+		char aTmp[128];
+		str_format(aTmp, sizeof(aTmp), "Orphan accounts_progress rows: %d", OrphanProgress);
+		AddIssue(aTmp);
+	}
+
+	// 2 - orphan inventory rows
+	str_copy(aBuf, "SELECT COUNT(*) FROM accounts_inventory i LEFT JOIN accounts_core c ON i.account_id=c.id WHERE c.id IS NULL;", sizeof(aBuf));
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(nullptr, pError, ErrorSize))
+		return true;
+	int OrphanInv = pSqlServer->GetInt(1);
+	if(OrphanInv > 0)
+	{
+		char aTmp[128];
+		str_format(aTmp, sizeof(aTmp), "Orphan accounts_inventory rows: %d", OrphanInv);
+		AddIssue(aTmp);
+	}
+
+	// 3 - orphan ranked rows
+	str_copy(aBuf, "SELECT COUNT(*) FROM accounts_ranked r LEFT JOIN accounts_core c ON r.account_id=c.id WHERE c.id IS NULL;", sizeof(aBuf));
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(nullptr, pError, ErrorSize))
+		return true;
+	int OrphanRanked = pSqlServer->GetInt(1);
+	if(OrphanRanked > 0)
+	{
+		char aTmp[128];
+		str_format(aTmp, sizeof(aTmp), "Orphan accounts_ranked rows: %d", OrphanRanked);
+		AddIssue(aTmp);
+	}
+
+	// 4 - auth with no clan (auth_level>0 but clanID=0)
+	str_copy(aBuf, "SELECT COUNT(*) FROM accounts_progress WHERE auth_level>0 AND clanID=0;", sizeof(aBuf));
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(nullptr, pError, ErrorSize))
+		return true;
+	int AuthNoClan = pSqlServer->GetInt(1);
+	if(AuthNoClan > 0)
+	{
+		char aTmp[128];
+		str_format(aTmp, sizeof(aTmp), "Auth level >0 with clanID=0 rows: %d", AuthNoClan);
+		AddIssue(aTmp);
+	}
+
+	// 5 - clan with nonexistent clan id (progress.clanID referencing missing clan)
+	str_copy(aBuf, "SELECT COUNT(*) FROM accounts_progress p LEFT JOIN clans c ON p.clanID=c.id WHERE p.clanID<>0 AND c.id IS NULL;", sizeof(aBuf));
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(nullptr, pError, ErrorSize))
+		return true;
+	int BadClanRefs = pSqlServer->GetInt(1);
+	if(BadClanRefs > 0)
+	{
+		char aTmp[128];
+		str_format(aTmp, sizeof(aTmp), "accounts_progress rows referencing missing clan: %d", BadClanRefs);
+		AddIssue(aTmp);
+	}
+
+	// 6 - duplicate clan names case-insensitive (should be prevented by unique index but check)
+	str_copy(aBuf, "SELECT COUNT(*) FROM (SELECT LOWER(name) ln, COUNT(*) c FROM clans GROUP BY ln HAVING c>1) t;", sizeof(aBuf));
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(nullptr, pError, ErrorSize))
+		return true;
+	int DuplicateClans = pSqlServer->GetInt(1);
+	if(DuplicateClans > 0)
+	{
+		char aTmp[128];
+		str_format(aTmp, sizeof(aTmp), "Duplicate clan names detected groups: %d", DuplicateClans);
+		AddIssue(aTmp);
+	}
+
+	// 7 - busy table orphan references
+	str_copy(aBuf, "SELECT COUNT(*) FROM accounts_busy b LEFT JOIN accounts_core c ON b.account_id=c.id WHERE c.id IS NULL;", sizeof(aBuf));
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(nullptr, pError, ErrorSize))
+		return true;
+	int BusyOrphans = pSqlServer->GetInt(1);
+	if(BusyOrphans > 0)
+	{
+		char aTmp[128];
+		str_format(aTmp, sizeof(aTmp), "accounts_busy orphan rows: %d", BusyOrphans);
+		AddIssue(aTmp);
+	}
+
+	if(Issues == 0)
+	{
+		str_copy(pResult->m_aaMessages[0], "Integrity OK: no issues detected.", sizeof(pResult->m_aaMessages[0]));
+	}
+	else
+	{
+		char aSummary[128];
+		str_format(aSummary, sizeof(aSummary), "Integrity complete: %d issue%s (see above).", Issues, Issues == 1 ? "" : "s");
+		int Line = std::min(Issues, CAccountResult::MAX_MESSAGES - 1);
+		str_copy(pResult->m_aaMessages[Line], aSummary, sizeof(pResult->m_aaMessages[Line]));
+	}
+	pResult->m_Success = true;
 	return false;
 }

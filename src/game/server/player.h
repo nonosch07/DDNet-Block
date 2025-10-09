@@ -276,34 +276,138 @@ public:
 	void SetPlayerName(const char *Name) { str_copy(m_Account.m_aName, Name, sizeof(m_Account.m_aName)); }
 	void SetPlayerPassword(const char *Password) { str_copy(m_Account.m_aPassword, Password, sizeof(m_Account.m_aPassword)); }
 	void SetPlayerAddress(const char *Address) { str_copy(m_Account.m_aAddress, Address, sizeof(m_Account.m_aAddress)); }
-	void SetPlayerVip(int Vip) { m_Account.m_Vip = Vip; }
-	void SetPlayerPages(int Pages) { m_Account.m_Pages = Pages; }
-	void SetPlayerLevel(int Level) { m_Account.m_Level = Level; }
-	void SetPlayerExperience(int Experience) { m_Account.m_Experience = Experience; }
-	void SetPlayerWeaponkits(int Weaponkits) { m_Account.m_Weaponkits = Weaponkits; }
+	void SetPlayerVip(int Vip)
+	{
+		m_Account.m_Vip = Vip;
+		m_Account.m_DirtyInventory = true;
+	}
+	void SetPlayerPages(int Pages)
+	{
+		m_Account.m_Pages = Pages;
+		m_Account.m_DirtyInventory = true;
+	}
+	void SetPlayerLevel(int Level)
+	{
+		m_Account.m_Level = Level;
+		m_Account.m_DirtyProgress = true;
+	}
+	void SetPlayerExperience(int Experience)
+	{
+		m_Account.m_Experience = Experience;
+		m_Account.m_DirtyProgress = true;
+	}
+	void SetPlayerWeaponkits(int Weaponkits)
+	{
+		m_Account.m_Weaponkits = Weaponkits;
+		m_Account.m_DirtyInventory = true;
+	}
 	// void SetPlayerClan(const char *ClanName) {}
-	void SetPlayerRanking(int Ranking) { m_Account.m_Ranking = Ranking; }
-	void SetClanId(int ClanId) { m_Account.m_ClanId = ClanId; }
-	void SetAuthLevel(ClanAuthLevel Level) { m_Account.m_AuthLevel = Level; }
-	void SetPlayerBlockpoints(int Blockpoints) { m_Account.m_Blockpoints = Blockpoints; }
-	void SetPlayerKnockouts(int Index, char Value) { m_Account.m_aKnockouts[Index] = Value; }
-	void SetPlayerGundesign(int Index, char Value) { m_Account.m_aGundesign[Index] = Value; }
-	void SetPlayerSkinmani(int Index, char Value) { m_Account.m_aSkinmani[Index] = Value; }
-	void SetPlayerPassive(int PassiveDuration) { m_Account.m_Passive = PassiveDuration; }
+	void SetPlayerRanking(int Ranking)
+	{
+		m_Account.m_Ranking = Ranking;
+		m_Account.m_DirtyProgress = true;
+	}
+	void SetClanId(int ClanId)
+	{
+		m_Account.m_ClanId = ClanId;
+		m_Account.m_DirtyProgress = true;
+	}
+	void SetAuthLevel(ClanAuthLevel Level)
+	{
+		m_Account.m_AuthLevel = Level;
+		m_Account.m_DirtyProgress = true;
+	}
+	void SetPlayerBlockpoints(int Blockpoints)
+	{
+		m_Account.m_Blockpoints = Blockpoints;
+		m_Account.m_DirtyProgress = true;
+	}
+	void SetPlayerKnockouts(int Index, char Value)
+	{
+		m_Account.m_aKnockouts[Index] = Value;
+		m_Account.m_DirtyInventory = true;
+	}
+	void SetPlayerGundesign(int Index, char Value)
+	{
+		m_Account.m_aGundesign[Index] = Value;
+		m_Account.m_DirtyInventory = true;
+	}
+	void SetPlayerSkinmani(int Index, char Value)
+	{
+		m_Account.m_aSkinmani[Index] = Value;
+		m_Account.m_DirtyInventory = true;
+	}
+	void SetPlayerPassive(int PassiveDuration)
+	{
+		m_Account.m_Passive = PassiveDuration;
+		m_Account.m_DirtyProgress = true;
+	}
 	void SetPlayerRegisterDate(const char *RegisterDate) { str_copy(m_Account.m_RegisterDate, RegisterDate, sizeof(m_Account.m_RegisterDate)); }
-	void SetPlayerRankedGames(int RankedGames) { m_Account.m_RankedGames = RankedGames; }
-	void SetPlayerRankedKills(int RankedKills) { m_Account.m_RankedKills = RankedKills; }
-	void SetPlayerRankedDeaths(int RankedDeaths) { m_Account.m_RankedDeaths = RankedDeaths; }
-	void SetPlayerRankedWins(int RankedWins) { m_Account.m_RankedWins = RankedWins; }
-	void SetPlayerKills(int Kills) { m_Account.m_Kills = Kills; }
-	void SetPlayerDeaths(int Deaths) { m_Account.m_Deaths = Deaths; }
-	void SetPlayerTourneyWin(int TourneyWin) { m_Account.m_TourneyWin = TourneyWin; }
-	void SetPlayerPlaytime(long long Playtime) { m_Account.m_Playtime = Playtime; }
-	void SetPlayerKillstreak(int Killstreak) { m_Account.m_Killstreak = Killstreak; }
-	void SetPlayerLastName(const char *LastName) { str_copy(m_Account.m_aLastName, LastName, sizeof(m_Account.m_aLastName)); }
-	void SetPlayerLastSkin(const char *LastSkin) { str_copy(m_Account.m_aLastSkin, LastSkin, sizeof(m_Account.m_aLastSkin)); }
-	void SetPlayerLastBodyColor(int LastBodyColor) { m_Account.m_LastBodyColor = LastBodyColor; }
-	void SetPlayerLastFeetColor(int LastFeetColor) { m_Account.m_LastFeetColor = LastFeetColor; }
+	void SetPlayerRankedGames(int RankedGames)
+	{
+		m_Account.m_RankedGames = RankedGames;
+		m_Account.m_DirtyRanked = true;
+	}
+	void SetPlayerRankedKills(int RankedKills)
+	{
+		m_Account.m_RankedKills = RankedKills;
+		m_Account.m_DirtyRanked = true;
+	}
+	void SetPlayerRankedDeaths(int RankedDeaths)
+	{
+		m_Account.m_RankedDeaths = RankedDeaths;
+		m_Account.m_DirtyRanked = true;
+	}
+	void SetPlayerRankedWins(int RankedWins)
+	{
+		m_Account.m_RankedWins = RankedWins;
+		m_Account.m_DirtyRanked = true;
+	}
+	void SetPlayerKills(int Kills)
+	{
+		m_Account.m_Kills = Kills;
+		m_Account.m_DirtyProgress = true;
+	}
+	void SetPlayerDeaths(int Deaths)
+	{
+		m_Account.m_Deaths = Deaths;
+		m_Account.m_DirtyProgress = true;
+	}
+	void SetPlayerTourneyWin(int TourneyWin)
+	{
+		m_Account.m_TourneyWin = TourneyWin;
+		m_Account.m_DirtyProgress = true;
+	}
+	void SetPlayerPlaytime(long long Playtime)
+	{
+		m_Account.m_Playtime = Playtime;
+		m_Account.m_DirtyProgress = true;
+	}
+	void SetPlayerKillstreak(int Killstreak)
+	{
+		m_Account.m_Killstreak = Killstreak;
+		m_Account.m_DirtyProgress = true;
+	}
+	void SetPlayerLastName(const char *LastName)
+	{
+		str_copy(m_Account.m_aLastName, LastName, sizeof(m_Account.m_aLastName));
+		m_Account.m_DirtyCore = true;
+	}
+	void SetPlayerLastSkin(const char *LastSkin)
+	{
+		str_copy(m_Account.m_aLastSkin, LastSkin, sizeof(m_Account.m_aLastSkin));
+		m_Account.m_DirtyCore = true;
+	}
+	void SetPlayerLastBodyColor(int LastBodyColor)
+	{
+		m_Account.m_LastBodyColor = LastBodyColor;
+		m_Account.m_DirtyCore = true;
+	}
+	void SetPlayerLastFeetColor(int LastFeetColor)
+	{
+		m_Account.m_LastFeetColor = LastFeetColor;
+		m_Account.m_DirtyCore = true;
+	}
 
 	// Getters
 	int GetPlayerId() { return m_Account.m_Id; }
@@ -362,6 +466,9 @@ public:
 	int64_t m_LastClanInviteTick = 0;
 
 	bool m_IsNpc = false;
+
+	bool m_PendingLoginCoreSave = false;
+	int64_t m_PendingLoginSaveTick = 0;
 
 	int64_t m_LastDeathnote;
 	int64_t m_LastExpAccountAlert;

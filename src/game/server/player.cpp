@@ -215,6 +215,15 @@ void CPlayer::Tick()
 		BWProcessAccountsResult(*m_AccountQueryResult.front());
 		m_AccountQueryResult.pop();
 	}
+	if(m_PendingLoginCoreSave && IsLoggedIn())
+	{
+		if(Server()->Tick() > m_PendingLoginSaveTick)
+		{
+			GameServer()->Accounts()->Save(GetCid(), &m_Account);
+			dbg_msg("account", "login snapshot saved for AccountId=%d (deferred)", m_Account.m_Id);
+			m_PendingLoginCoreSave = false;
+		}
+	}
 	if(!m_AdminCommandQueryResult.empty() && m_AdminCommandQueryResult.front() && m_AdminCommandQueryResult.front()->m_Completed)
 	{
 		BWProcessAdminCommandResult(*m_AdminCommandQueryResult.front());
@@ -1484,6 +1493,59 @@ void CPlayer::OnPlayerLogin()
 			m_aSpecialsOwned[i] = '1';
 		}
 	}
+
+	if(m_Account.m_Id > 0)
+	{
+		bool Dirty = false;
+		const char *pCurName = Server()->ClientName(GetCid());
+		if(pCurName[0] && str_comp(pCurName, m_Account.m_aLastName) != 0)
+		{
+			str_copy(m_Account.m_aLastName, pCurName, sizeof(m_Account.m_aLastName));
+			Dirty = true;
+		}
+		const char *pSkin = m_TeeInfos.m_aSkinName;
+		if(pSkin[0] && str_comp(pSkin, m_Account.m_aLastSkin) != 0)
+		{
+			str_copy(m_Account.m_aLastSkin, pSkin, sizeof(m_Account.m_aLastSkin));
+			Dirty = true;
+		}
+		if(m_TeeInfos.m_ColorBody != m_Account.m_LastBodyColor)
+		{
+			m_Account.m_LastBodyColor = m_TeeInfos.m_ColorBody;
+			Dirty = true;
+		}
+		if(m_TeeInfos.m_ColorFeet != m_Account.m_LastFeetColor)
+		{
+			m_Account.m_LastFeetColor = m_TeeInfos.m_ColorFeet;
+			Dirty = true;
+		}
+		char aIp[48] = {0};
+		Server()->GetClientAddr(GetCid(), aIp, sizeof(aIp));
+		if(aIp[0])
+		{
+			bool Invalid = false;
+			for(int i = 0; aIp[i]; ++i)
+			{
+				unsigned char c = (unsigned char)aIp[i];
+				if(c < 0x20 || c > 0x7E)
+				{
+					Invalid = true;
+					break;
+				}
+			}
+			if(!Invalid)
+			{
+				str_copy(m_Account.m_aAddress, aIp, sizeof(m_Account.m_aAddress));
+				Dirty = true;
+			}
+		}
+		if(Dirty)
+		{
+			m_Account.m_DirtyCore = true;
+			m_PendingLoginCoreSave = true;
+			m_PendingLoginSaveTick = Server()->Tick();
+		}
+	}
 }
 
 void CPlayer::OnPlayerSave(bool Logout)
@@ -1499,14 +1561,32 @@ void CPlayer::OnPlayerSave(bool Logout)
 	if(str_comp(aName, m_Account.m_aLastName) != 0)
 	{
 		str_format(m_Account.m_aLastName, sizeof(m_Account.m_aLastName), "%s", aName);
+		m_Account.m_DirtyCore = true;
 	}
 
-	char aIp[48];
+	char aIp[48] = {0};
 	Server()->GetClientAddr(GetCid(), aIp, sizeof(aIp));
-
-	if(str_comp(aIp, m_Account.m_aAddress) != 0)
+	if(aIp[0])
 	{
-		str_format(m_Account.m_aAddress, sizeof(m_Account.m_aAddress), "%s", aIp);
+		bool Invalid = false;
+		for(int i = 0; aIp[i]; ++i)
+		{
+			unsigned char c = (unsigned char)aIp[i];
+			if(c < 0x20 || c > 0x7E)
+			{
+				Invalid = true;
+				break;
+			}
+		}
+		if(Invalid)
+		{
+			str_copy(aIp, "npc", sizeof(aIp)); // fallback safe token
+		}
+		if(str_comp(aIp, m_Account.m_aAddress) != 0)
+		{
+			str_copy(m_Account.m_aAddress, aIp, sizeof(m_Account.m_aAddress));
+			m_Account.m_DirtyCore = true;
+		}
 	}
 
 	int ColorFeet = GameServer()->m_apPlayers[m_ClientId]->m_TeeInfos.m_ColorFeet;
@@ -1514,6 +1594,7 @@ void CPlayer::OnPlayerSave(bool Logout)
 	if(ColorFeet != m_Account.m_LastFeetColor)
 	{
 		m_Account.m_LastFeetColor = ColorFeet;
+		m_Account.m_DirtyCore = true;
 	}
 
 	int ColorBody = GameServer()->m_apPlayers[m_ClientId]->m_TeeInfos.m_ColorBody;
@@ -1521,6 +1602,7 @@ void CPlayer::OnPlayerSave(bool Logout)
 	if(ColorBody != m_Account.m_LastBodyColor)
 	{
 		m_Account.m_LastBodyColor = ColorBody;
+		m_Account.m_DirtyCore = true;
 	}
 
 	const char *aSkinName = GameServer()->m_apPlayers[m_ClientId]->m_TeeInfos.m_aSkinName;
@@ -1528,6 +1610,7 @@ void CPlayer::OnPlayerSave(bool Logout)
 	if(str_comp(aSkinName, m_Account.m_aLastSkin) != 0)
 	{
 		str_format(m_Account.m_aLastSkin, sizeof(m_Account.m_aLastSkin), "%s", aSkinName);
+		m_Account.m_DirtyCore = true;
 	}
 
 	GameServer()->Accounts()->Save(GetCid(), &m_Account);
@@ -1539,6 +1622,12 @@ void CPlayer::OnPlayerLogout()
 {
 	if(!IsLoggedIn())
 		return;
+	if(GameServer()->Accounts() && GameServer()->Accounts()->ShutdownFlushActive())
+	{
+		dbg_msg("account", "skip duplicate logout save for AccountId=%d during shutdown", GetAccId());
+		m_Account = CAccountData();
+		return;
+	}
 
 	GameServer()->ClearVotes(GetCid());
 	GameServer()->ProgressVoteOptions(GetCid());

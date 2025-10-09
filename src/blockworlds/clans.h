@@ -19,6 +19,7 @@ struct CClansData
 	int m_Experience;
 
 	int m_LastSavedTick;
+	bool m_Dirty; // true if EXP/level changed since last successful save
 };
 
 struct CClanListResult : ISqlResult
@@ -159,6 +160,8 @@ public:
 	void SaveClan(int ClientId, int ClanId);
 	void ShowTopClans(int ClientId);
 
+	void QueueBackgroundSave(int ClanId);
+
 	void LoadAllClans();
 
 	void OnClansLoaded(const std::vector<CClansData> &vClans);
@@ -171,7 +174,8 @@ public:
 
 	void AddClanExp(int ClanId, int Amount);
 
-	// Returns true if the clan exists and can be joined (basic existence check)
+	void AutosaveTick();
+
 	bool IsClanJoinable(int ClanId) const;
 
 	int SaveAllClansOnShutdown();

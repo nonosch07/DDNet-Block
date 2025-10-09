@@ -41,49 +41,56 @@ class CGameContext;
 
 	Has an instance on every player object and one in the sql result
 */
+// Grouped semantic structs (copy-based, optional use)
+struct CAccountCore
+{
+	int m_Id;
+	char m_aName[12];
+	char m_aAddress[48];
+	char m_RegisterDate[64];
+	char m_aLastName[17];
+	char m_aLastSkin[33];
+	int m_LastBodyColor;
+	int m_LastFeetColor;
+};
+struct CAccountProgress
+{
+	int m_Level;
+	int m_Experience;
+	int m_Ranking;
+	int m_ClanId;
+	ClanAuthLevel m_AuthLevel;
+	int m_Blockpoints;
+	int m_Passive;
+	int m_Kills;
+	int m_Deaths;
+	int m_TourneyWin;
+	long long m_Playtime;
+	int m_Killstreak;
+};
+struct CAccountInventory
+{
+	int m_Vip;
+	int m_Pages;
+	int m_Weaponkits;
+	char m_aKnockouts[256];
+	char m_aGundesign[256];
+	char m_aSkinmani[256];
+};
+struct CAccountRanked
+{
+	int m_RankedGames;
+	int m_RankedKills;
+	int m_RankedDeaths;
+	int m_RankedWins;
+};
+
 struct CAccountData
 {
-	CAccountData()
-	{
-		m_ClientId = -1;
-
-		m_Id = 0;
-		m_aName[0] = '\0';
-		m_aPassword[0] = '\0';
-		m_aAddress[0] = '\0';
-		m_Vip = 0;
-		m_Pages = 0;
-		m_Level = 1;
-		m_Experience = 0;
-		m_Weaponkits = 0;
-		m_Ranking = 0;
-		m_ClanId = 0;
-		m_Blockpoints = 0;
-		m_aKnockouts[0] = '\0';
-		m_aGundesign[0] = '\0';
-		m_aSkinmani[0] = '\0';
-		m_Passive = 0;
-		m_RegisterDate[0] = '\0';
-		m_RankedGames = 0;
-		m_RankedKills = 0;
-		m_RankedDeaths = 0;
-		m_RankedWins = 0;
-		m_Kills = 0;
-		m_Deaths = 0;
-		m_TourneyWin = 0;
-		m_Playtime = 0;
-		m_Killstreak = 0;
-		m_aLastName[0] = '\0';
-		m_aLastSkin[0] = '\0';
-		m_LastBodyColor = 0;
-		m_LastFeetColor = 0;
-	}
-
-	// Meta
+	CAccountData();
 	int m_ClientId;
-
 	int m_Id;
-	char m_aName[12]; // Match SQL schema varchar(11) + null terminator
+	char m_aName[12];
 	char m_aPassword[256];
 	char m_aAddress[48];
 	int m_Vip;
@@ -113,7 +120,47 @@ struct CAccountData
 	char m_aLastSkin[33];
 	int m_LastBodyColor;
 	int m_LastFeetColor;
+
+	// Dirty flags for selective persistence when normalized schema is active
+	bool m_DirtyCore = false;
+	bool m_DirtyProgress = false;
+	bool m_DirtyInventory = false;
+	bool m_DirtyRanked = false;
+
+	CAccountCore ToCore() const;
+	CAccountProgress ToProgress() const;
+	CAccountInventory ToInventory() const;
+	CAccountRanked ToRanked() const;
 };
+
+inline CAccountData::CAccountData() :
+	m_ClientId(-1), m_Id(0), m_Vip(0), m_Pages(0), m_Level(1), m_Experience(0), m_Weaponkits(0), m_Ranking(0), m_ClanId(0), m_AuthLevel(ClanAuthLevel::NONE), m_Blockpoints(0), m_Passive(0), m_RankedGames(0), m_RankedKills(0), m_RankedDeaths(0), m_RankedWins(0), m_Kills(0), m_Deaths(0), m_TourneyWin(0), m_Playtime(0), m_Killstreak(0), m_LastBodyColor(0), m_LastFeetColor(0)
+{
+	m_aName[0] = m_aPassword[0] = m_aAddress[0] = m_aKnockouts[0] = m_aGundesign[0] = m_aSkinmani[0] = m_RegisterDate[0] = m_aLastName[0] = m_aLastSkin[0] = '\0';
+}
+
+inline CAccountCore CAccountData::ToCore() const
+{
+	CAccountCore c{m_Id, {0}, {0}, {0}, {0}, {0}, {0}, {0}};
+	str_copy(c.m_aName, m_aName, sizeof(c.m_aName));
+	str_copy(c.m_aAddress, m_aAddress, sizeof(c.m_aAddress));
+	str_copy(c.m_RegisterDate, m_RegisterDate, sizeof(c.m_RegisterDate));
+	str_copy(c.m_aLastName, m_aLastName, sizeof(c.m_aLastName));
+	str_copy(c.m_aLastSkin, m_aLastSkin, sizeof(c.m_aLastSkin));
+	c.m_LastBodyColor = m_LastBodyColor;
+	c.m_LastFeetColor = m_LastFeetColor;
+	return c;
+}
+inline CAccountProgress CAccountData::ToProgress() const { return CAccountProgress{m_Level, m_Experience, m_Ranking, m_ClanId, m_AuthLevel, m_Blockpoints, m_Passive, m_Kills, m_Deaths, m_TourneyWin, m_Playtime, m_Killstreak}; }
+inline CAccountInventory CAccountData::ToInventory() const
+{
+	CAccountInventory inv{m_Vip, m_Pages, m_Weaponkits, {0}, {0}, {0}};
+	str_copy(inv.m_aKnockouts, m_aKnockouts, sizeof(inv.m_aKnockouts));
+	str_copy(inv.m_aGundesign, m_aGundesign, sizeof(inv.m_aGundesign));
+	str_copy(inv.m_aSkinmani, m_aSkinmani, sizeof(inv.m_aSkinmani));
+	return inv;
+}
+inline CAccountRanked CAccountData::ToRanked() const { return CAccountRanked{m_RankedGames, m_RankedKills, m_RankedDeaths, m_RankedWins}; }
 
 struct CAdminCommandResult : ISqlResult
 {
@@ -218,6 +265,9 @@ struct CSqlAccountRequest : ISqlData
 
 	CGameContext *m_pGameContext;
 
+	// Optional: target thread function for write-dispatch wrapper
+	bool (*m_pFunc)(IDbConnection *, const ISqlData *, char *pError, int ErrorSize) = nullptr;
+
 	CAccountData m_AccountData;
 	char m_aUsername[12];
 	char m_aPassword[64];
@@ -311,6 +361,7 @@ class CAccounts
 	static bool ShowTopLevelThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool ShowTopBlockpointsThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool ShowTopKillStreaksThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
+	static bool IntegrityCheckThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 
 	// non ratelimited server side queries
 	static bool ClearLoginsThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
@@ -362,9 +413,12 @@ public:
 	void ChangePasswordAdmin(int AdminClientId, const char *pUsername, const char *pNewPassword);
 	void ExecuteSql(const char *pQuery);
 
+	bool SyncSaveBlocking(int ClientId, const CAccountData &Acc, int TimeoutMs = 500);
+
 	void ShowTopLevel(int ClientId);
 	void ShowTopBlockpoints(int ClientId);
 	void ShowTopKillStreak(int ClientId);
+	void IntegrityCheck(int ClientId);
 
 	bool IsIpBanned(const char *pIp, int &RemainingSeconds) const;
 	bool RegisterIpAttempt(const char *pIp);

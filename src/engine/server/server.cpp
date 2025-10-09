@@ -631,8 +631,21 @@ void CServer::SetClientDDNetVersion(int ClientId, int DDNetVersion)
 
 void CServer::GetClientAddr(int ClientId, char *pAddrStr, int Size) const
 {
-	if(ClientId >= 0 && ClientId < MAX_CLIENTS && m_aClients[ClientId].m_State == CClient::STATE_INGAME)
+	if(ClientId < 0 || ClientId >= MAX_CLIENTS || !pAddrStr || Size <= 0)
+		return;
+
+	pAddrStr[0] = '\0';
+
+	if(m_aClients[ClientId].m_State == CClient::STATE_INGAME)
+	{
 		net_addr_str(m_NetServer.ClientAddr(ClientId), pAddrStr, Size, false);
+		return;
+	}
+	if(m_aClients[ClientId].m_State == CClient::STATE_NPC)
+	{
+		str_copy(pAddrStr, "npc", Size);
+		return;
+	}
 }
 
 const char *CServer::ClientName(int ClientId) const
@@ -3086,6 +3099,10 @@ int CServer::Run()
 			if(IsInterrupted())
 			{
 				Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "interrupted");
+				if(auto pCtxEarly = dynamic_cast<CGameContext *>(GameServer()))
+				{
+					pCtxEarly->PreShutdownFlush();
+				}
 				break;
 			}
 		}
@@ -3102,24 +3119,32 @@ int CServer::Run()
 	if(auto pCtx = dynamic_cast<CGameContext *>(GameServer()))
 	{
 		pCtx->SendChat(-1, TEAM_ALL, "Server is shutting down...", -1, CGameContext::FLAG_SIX);
+		// queue all account & clan saves BEFORE disconnecting clients so their player objects still hold the data we wabt
+		int64_t FlushStart = time_get();
+		pCtx->PreShutdownFlush();
+		int64_t FlushElapsed = (time_get() - FlushStart) * 1000 / time_freq();
+		char aFlushBuf[128];
+		str_format(aFlushBuf, sizeof(aFlushBuf), "shutdown pre-drop flush completed in %lld ms", (long long)FlushElapsed);
+		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "shutdown", aFlushBuf);
 	}
 
 	net_socket_read_wait(m_NetServer.Socket(), 25000);
 
-	// disconnect all clients first so they receive a proper shutdown reason promptly
 	for(int i = 0; i < MAX_CLIENTS; ++i)
 	{
 		if(m_aClients[i].m_State != CClient::STATE_EMPTY)
 			m_NetServer.Drop(i, pDisconnectReason);
 	}
 
-	int64_t FlushStart = time_get();
 	if(auto pCtx = dynamic_cast<CGameContext *>(GameServer()))
-		pCtx->PreShutdownFlush();
-	int64_t FlushElapsed = (time_get() - FlushStart) * 1000 / time_freq();
-	char aFlushBuf[128];
-	str_format(aFlushBuf, sizeof(aFlushBuf), "shutdown flush completed in %lld ms", (long long)FlushElapsed);
-	Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "shutdown", aFlushBuf);
+	{
+		int64_t FlushStart2 = time_get();
+		pCtx->PreShutdownFlush(); // will early-return if already run
+		int64_t FlushElapsed2 = (time_get() - FlushStart2) * 1000 / time_freq();
+		char aFlushBuf2[128];
+		str_format(aFlushBuf2, sizeof(aFlushBuf2), "shutdown final flush completed in %lld ms", (long long)FlushElapsed2);
+		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "shutdown", aFlushBuf2);
+	}
 
 	m_pRegister->OnShutdown();
 	m_Econ.Shutdown();

@@ -4904,18 +4904,46 @@ void CGameContext::PreShutdownFlush()
 			CPlayer *pPl = m_apPlayers[i];
 			if(!pPl || !pPl->IsLoggedIn())
 				continue;
-			str_copy(pPl->m_Account.m_aLastName, Server()->ClientName(i), sizeof(pPl->m_Account.m_aLastName));
-			str_copy(pPl->m_Account.m_aLastSkin, pPl->m_TeeInfos.m_aSkinName, sizeof(pPl->m_Account.m_aLastSkin));
-			pPl->m_Account.m_LastBodyColor = pPl->m_TeeInfos.m_ColorBody;
-			pPl->m_Account.m_LastFeetColor = pPl->m_TeeInfos.m_ColorFeet;
+			CAccountData &Acc = pPl->m_Account;
 			int64_t SessionTicks = Server()->Tick() - pPl->m_JoinTick;
 			if(SessionTicks > 0)
 			{
 				int64_t SessionSeconds = SessionTicks / Server()->TickSpeed();
 				if(SessionSeconds > 0)
-					pPl->m_Account.m_Playtime += SessionSeconds;
+				{
+					Acc.m_Playtime += SessionSeconds;
+					Acc.m_DirtyProgress = true;
+				}
 			}
-			pPl->OnPlayerSave(false);
+			const char *pCurName = Server()->ClientName(i);
+			if(str_comp(pCurName, Acc.m_aLastName) != 0)
+			{
+				str_copy(Acc.m_aLastName, pCurName, sizeof(Acc.m_aLastName));
+				Acc.m_DirtyCore = true;
+			}
+			if(str_comp(pPl->m_TeeInfos.m_aSkinName, Acc.m_aLastSkin) != 0)
+			{
+				str_copy(Acc.m_aLastSkin, pPl->m_TeeInfos.m_aSkinName, sizeof(Acc.m_aLastSkin));
+				Acc.m_DirtyCore = true;
+			}
+			if(pPl->m_TeeInfos.m_ColorBody != Acc.m_LastBodyColor)
+			{
+				Acc.m_LastBodyColor = pPl->m_TeeInfos.m_ColorBody;
+				Acc.m_DirtyCore = true;
+			}
+			if(pPl->m_TeeInfos.m_ColorFeet != Acc.m_LastFeetColor)
+			{
+				Acc.m_LastFeetColor = pPl->m_TeeInfos.m_ColorFeet;
+				Acc.m_DirtyCore = true;
+			}
+			char aIp[48] = {0};
+			Server()->GetClientAddr(i, aIp, sizeof(aIp));
+			if(aIp[0] && str_comp(aIp, Acc.m_aAddress) != 0)
+			{
+				str_copy(Acc.m_aAddress, aIp, sizeof(Acc.m_aAddress));
+				Acc.m_DirtyCore = true;
+			}
+			m_pAccounts->Save(i, &Acc);
 			AccountsQueued++;
 		}
 
@@ -4934,28 +4962,61 @@ void CGameContext::PreShutdownFlush()
 	dbg_msg("shutdown", "%s", aBuf);
 
 	int64_t Start = time_get();
-	const int64_t Timeout = time_freq() * 2;
+	const int64_t Timeout = time_freq() * 5;
+	int LastPct = -1;
 	while(time_get() - Start < Timeout)
 	{
-		bool AllDone = true;
+		int PendingLocal = 0;
 		for(auto &r : Results)
-		{
 			if(r && !r->m_Completed.load(std::memory_order_relaxed))
+				PendingLocal++;
+		int Total = (int)Results.size();
+		int Done = Total - PendingLocal;
+		int Pct = Total ? (Done * 100 / Total) : 100;
+		if(PendingLocal == 0)
+			break;
+		if(Pct != LastPct && (time_get() - Start) > time_freq() / 4)
+		{
+			dbg_msg("shutdown", "flush progress: %d%% (%d/%d done)", Pct, Done, Total);
+			LastPct = Pct;
+		}
+		for(int spin = 0; spin < 2000; ++spin)
+		{
+			asm volatile("");
+		}
+		thread_yield();
+	}
+	// final synchronous flush for any remaining dirty accounts
+	if(m_pAccounts)
+	{
+		for(int i = 0; i < MAX_CLIENTS; ++i)
+		{
+			CPlayer *pPl = m_apPlayers[i];
+			if(!pPl || !pPl->IsLoggedIn())
+				continue;
+			CAccountData &Acc = pPl->m_Account;
+			if(!Acc.m_DirtyCore && !Acc.m_DirtyProgress && !Acc.m_DirtyInventory && !Acc.m_DirtyRanked)
+				continue;
+			bool ok = m_pAccounts->SyncSaveBlocking(i, Acc, 500);
+			if(ok)
 			{
-				AllDone = false;
-				break;
+				Acc.m_DirtyCore = Acc.m_DirtyProgress = Acc.m_DirtyInventory = Acc.m_DirtyRanked = false;
+				dbg_msg("shutdown", "final sync save ok for account %d", Acc.m_Id);
+			}
+			else
+			{
+				dbg_msg("shutdown", "final sync save FAILED for account %d", Acc.m_Id);
 			}
 		}
-		if(AllDone)
-			break;
-		thread_yield();
 	}
 	int Pending = 0;
 	for(auto &r : Results)
 		if(r && !r->m_Completed.load(std::memory_order_relaxed))
 			Pending++;
 	if(Pending)
+	{
 		dbg_msg("shutdown", "pre-shutdown flush: %d queries still pending after timeout", Pending);
+	}
 }
 
 bool CGameContext::IsClientReady(int ClientId) const
@@ -5607,6 +5668,7 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("topbp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopBlockpoints, this, "Display the leaderboard of top blockpoints.");
 	Console()->Register("topks", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopKillStreak, this, "Show the leaderboard for top kill streaks.");
 	Console()->Register("topclans", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopClans, this, "Display the top clans leaderboard.");
+	Console()->Register("acc_integrity", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConIntegrityCheck, this, "Run an accounts/clans integrity scan (admins).");
 
 	Console()->Register("yes", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConShopPurchase, this, "Confirm the pending shop purchase.");
 	Console()->Register("no", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConShopDecline, this, "Cancel the pending shop purchase.");
@@ -5744,5 +5806,10 @@ void CGameContext::BW_OnTick()
 			if(pEv)
 				pEv->OnTick();
 		}
+	}
+
+	if(m_pClans)
+	{
+		m_pClans->AutosaveTick();
 	}
 }

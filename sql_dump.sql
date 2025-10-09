@@ -1,129 +1,214 @@
 -- phpMyAdmin SQL Dump
--- version 5.2.1
+-- version 5.2.2deb1
 -- https://www.phpmyadmin.net/
 --
--- Host: 127.0.0.1
--- Generation Time: Mar 06, 2025 at 06:56 AM
--- Server version: 10.4.32-MariaDB
--- PHP Version: 8.0.30
+-- Hôte : localhost:3306
+-- Généré le : jeu. 09 oct. 2025 à 15:14
+-- Version du serveur : 11.8.3-MariaDB-0+deb13u1 from Debian
+-- Version de PHP : 8.4.11
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
 SET time_zone = "+00:00";
 
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+
 --
--- Database: `bw`
+-- Base de données : `testdb`
 --
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `accounts`
---
-
-CREATE TABLE `accounts` (
-                            `id` int(11) NOT NULL,
-                            `name` varchar(11) NOT NULL,
-                            `password` varchar(256) NOT NULL,
-                            `address` varchar(47) DEFAULT '0.0.0.0',
-                            `vip` int(11) DEFAULT 0,
-                            `pages` int(11) DEFAULT 0,
-                            `level` int(11) DEFAULT 1,
-                            `experience` int(11) DEFAULT 0,
-                            `weaponkits` int(11) DEFAULT 0,
-                            `ranking` int(11) DEFAULT 0,
-                            `clanID` int(11) NOT NULL DEFAULT 0,
-                            `auth_level` int(11) DEFAULT 0,
-                            `blockpoints` int(11) DEFAULT 0,
-                            `knockouts` varchar(256) DEFAULT '00000000000',
-                            `gundesign` varchar(256) DEFAULT '0000000000',
-                            `skinmani` varchar(256) DEFAULT '0000000000',
-                            `passive` int(4) DEFAULT 0,
-                            `registerdate` timestamp NOT NULL DEFAULT current_timestamp(),
-                            `ranked_games` int(11) DEFAULT 0,
-                            `ranked_kills` int(11) DEFAULT 0,
-                            `ranked_deaths` int(11) DEFAULT 0,
-                            `ranked_wins` int(11) DEFAULT 0,
-                            `kills` int(11) DEFAULT 0,
-                            `deaths` int(11) DEFAULT 0,
-                            `tourney_win` int(11) DEFAULT 0,
-                            `playtime` bigint(20) DEFAULT 0,
-                            `killstreak` int(11) DEFAULT 0,
-                            `last_name` varchar(16) DEFAULT 'nameless tee',
-                            `last_skin` varchar(32) DEFAULT 'default',
-                            `last_body_color` int(11) DEFAULT 0,
-                            `last_feet_color` int(11) DEFAULT 0
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `accounts_busy`
+-- Structure de la table `accounts_busy`
 --
 
 CREATE TABLE `accounts_busy` (
-                                 `account_id` int(11) NOT NULL,
-                                 `server_id` varchar(32) NOT NULL
+  `account_id` int(11) NOT NULL,
+  `server_id` varchar(32) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `clans`
+-- Structure de la table `accounts_core`
+--
+
+CREATE TABLE `accounts_core` (
+  `id` int(11) NOT NULL,
+  `name` varchar(11) NOT NULL,
+  `password` varchar(256) NOT NULL,
+  `address` varchar(47) DEFAULT '0.0.0.0',
+  `registerdate` timestamp NOT NULL DEFAULT current_timestamp(),
+  `last_name` varchar(16) DEFAULT 'nameless tee',
+  `last_skin` varchar(32) DEFAULT 'default',
+  `last_body_color` int(11) DEFAULT 0,
+  `last_feet_color` int(11) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+-- --------------------------------------------------------
+
+--
+-- Structure de la table `accounts_inventory`
+--
+
+CREATE TABLE `accounts_inventory` (
+  `account_id` int(11) NOT NULL,
+  `vip` int(11) DEFAULT 0,
+  `pages` int(11) DEFAULT 0,
+  `weaponkits` int(11) DEFAULT 0,
+  `knockouts` varchar(256) DEFAULT '00000000000',
+  `gundesign` varchar(256) DEFAULT '0000000000',
+  `skinmani` varchar(256) DEFAULT '0000000000'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+-- --------------------------------------------------------
+
+--
+-- Structure de la table `accounts_progress`
+--
+
+CREATE TABLE `accounts_progress` (
+  `account_id` int(11) NOT NULL,
+  `level` int(11) DEFAULT 1,
+  `experience` int(11) DEFAULT 0,
+  `ranking` int(11) DEFAULT 0,
+  `clanID` int(11) DEFAULT 0,
+  `auth_level` int(11) DEFAULT 0,
+  `blockpoints` int(11) DEFAULT 0,
+  `passive` int(11) DEFAULT 0,
+  `kills` int(11) DEFAULT 0,
+  `deaths` int(11) DEFAULT 0,
+  `tourney_win` int(11) DEFAULT 0,
+  `playtime` bigint(20) DEFAULT 0,
+  `killstreak` int(11) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+-- --------------------------------------------------------
+
+--
+-- Structure de la table `accounts_ranked`
+--
+
+CREATE TABLE `accounts_ranked` (
+  `account_id` int(11) NOT NULL,
+  `ranked_games` int(11) DEFAULT 0,
+  `ranked_kills` int(11) DEFAULT 0,
+  `ranked_deaths` int(11) DEFAULT 0,
+  `ranked_wins` int(11) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+-- --------------------------------------------------------
+
+--
+-- Structure de la table `clans`
 --
 
 CREATE TABLE `clans` (
-                         `id` int(11) NOT NULL,
-                         `name` varchar(32) NOT NULL,
-                         `level` int(11) DEFAULT 1,
-                         `experience` int(11) DEFAULT 0
+  `id` int(11) NOT NULL,
+  `name` varchar(32) NOT NULL,
+  `level` int(11) DEFAULT 1,
+  `experience` int(11) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 --
--- Indexes for dumped tables
+-- Index pour les tables déchargées
 --
 
 --
--- Indexes for table `accounts`
---
-ALTER TABLE `accounts`
-    ADD PRIMARY KEY (`id`);
-
---
--- Indexes for table `accounts_busy`
+-- Index pour la table `accounts_busy`
 --
 ALTER TABLE `accounts_busy`
-    ADD UNIQUE KEY `account_id` (`account_id`);
+  ADD UNIQUE KEY `ux_busy_account` (`account_id`);
 
 --
--- Indexes for table `clans`
+-- Index pour la table `accounts_core`
+--
+ALTER TABLE `accounts_core`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `ux_accounts_core_name` (`name`);
+
+--
+-- Index pour la table `accounts_inventory`
+--
+ALTER TABLE `accounts_inventory`
+  ADD PRIMARY KEY (`account_id`);
+
+--
+-- Index pour la table `accounts_progress`
+--
+ALTER TABLE `accounts_progress`
+  ADD PRIMARY KEY (`account_id`),
+  ADD KEY `ix_progress_level` (`level`),
+  ADD KEY `ix_progress_blockpoints` (`blockpoints`),
+  ADD KEY `ix_progress_killstreak` (`killstreak`),
+  ADD KEY `ix_progress_ranking` (`ranking`),
+  ADD KEY `ix_progress_clan_auth` (`clanID`,`auth_level`);
+
+--
+-- Index pour la table `accounts_ranked`
+--
+ALTER TABLE `accounts_ranked`
+  ADD PRIMARY KEY (`account_id`),
+  ADD KEY `ix_ranked_wins` (`ranked_wins`),
+  ADD KEY `ix_ranked_kills` (`ranked_kills`);
+
+--
+-- Index pour la table `clans`
 --
 ALTER TABLE `clans`
-    ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `ux_clans_name` (`name`);
 
 --
--- AUTO_INCREMENT for dumped tables
+-- AUTO_INCREMENT pour les tables déchargées
 --
 
 --
--- AUTO_INCREMENT for table `accounts`
+-- AUTO_INCREMENT pour la table `accounts_core`
 --
-ALTER TABLE `accounts`
-    MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+ALTER TABLE `accounts_core`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=630;
 
 --
--- AUTO_INCREMENT for table `clans`
+-- AUTO_INCREMENT pour la table `clans`
 --
 ALTER TABLE `clans`
-    MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
--- Constraints for dumped tables
+-- Contraintes pour les tables déchargées
 --
 
 --
--- Constraints for table `accounts_busy`
+-- Contraintes pour la table `accounts_busy`
 --
 ALTER TABLE `accounts_busy`
-    ADD CONSTRAINT `accounts_busy_account_id` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+  ADD CONSTRAINT `fk_busy_core` FOREIGN KEY (`account_id`) REFERENCES `accounts_core` (`id`) ON DELETE CASCADE;
+
+--
+-- Contraintes pour la table `accounts_inventory`
+--
+ALTER TABLE `accounts_inventory`
+  ADD CONSTRAINT `fk_acc_inv_core` FOREIGN KEY (`account_id`) REFERENCES `accounts_core` (`id`) ON DELETE CASCADE;
+
+--
+-- Contraintes pour la table `accounts_progress`
+--
+ALTER TABLE `accounts_progress`
+  ADD CONSTRAINT `fk_acc_prog_core` FOREIGN KEY (`account_id`) REFERENCES `accounts_core` (`id`) ON DELETE CASCADE;
+
+--
+-- Contraintes pour la table `accounts_ranked`
+--
+ALTER TABLE `accounts_ranked`
+  ADD CONSTRAINT `fk_acc_ranked_core` FOREIGN KEY (`account_id`) REFERENCES `accounts_core` (`id`) ON DELETE CASCADE;
 COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;

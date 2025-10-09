@@ -57,11 +57,6 @@ static std::string NormalizeForCompare(const std::string &s)
 	return ToLowerAscii(out);
 }
 
-void SetVoteDescriptionAtIndex(int *pIndex, const char *pStr, CNetMsg_Sv_VoteOptionListAdd *pOptionMsg)
-{
-	CosmeticsVoteManager::SetVoteDescriptionAtIndex(pIndex, pStr, pOptionMsg);
-}
-
 static inline std::string TrimAscii(std::string s)
 {
 	while(!s.empty() && std::isspace(static_cast<unsigned char>(s.front())))
