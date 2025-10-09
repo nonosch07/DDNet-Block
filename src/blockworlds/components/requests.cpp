@@ -4,9 +4,31 @@
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
 #include <blockworlds/components/events/1on1.h>
+#include <blockworlds/discord/webhook.h>
 #include <engine/shared/config.h>
+#include <game/mapitems.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
+#include <ctime>
+
+static int GetTilePositions(int TileID, CGameContext *pSelf, std::vector<vec2> &result)
+{
+	if(TileID < 0 || TileID > 255)
+		return 0;
+	int Length = pSelf->Collision()->GetWidth() * pSelf->Collision()->GetHeight();
+	int foundIndex = 0;
+	for(int i = 0; i < Length; i++)
+	{
+		if(pSelf->Collision()->GetTileIndex(i) == TileID)
+		{
+			int X = pSelf->Collision()->GetPos(i).x;
+			int Y = pSelf->Collision()->GetPos(i).y;
+			result.push_back(vec2(X, Y));
+			foundIndex++;
+		}
+	}
+	return foundIndex;
+}
 
 CRequests::CRequests(CGameContext *pGameServer) :
 	CComponent(pGameServer) {}
@@ -25,6 +47,18 @@ static const char *SafeClientName(CGameContext *pGameServer, int ClientId)
 	return "<disconnected>";
 }
 
+static int CurrentUtcYyyymmdd()
+{
+	time_t now = time(nullptr);
+	struct tm utc{};
+#if defined(__unix__) || defined(__APPLE__)
+	gmtime_r(&now, &utc);
+#else
+	utc = *gmtime(&now);
+#endif
+	return (utc.tm_year + 1900) * 10000 + (utc.tm_mon + 1) * 100 + utc.tm_mday;
+}
+
 int CRequests::Create1on1Invite(int FromClient, int ToClient, int Wager, int ExpireSeconds)
 {
 	for(const auto &existing : m_Requests)
@@ -39,7 +73,7 @@ int CRequests::Create1on1Invite(int FromClient, int ToClient, int Wager, int Exp
 				GameServer()->SendChatTarget(FromClient, aBuf);
 			return -1;
 		}
-	}
+	} 
 
 	// Anti-spam: limit how often a player can send any 1on1 invite and how many are outstanding.
 	CPlayer *pFrom = GameServer()->m_apPlayers[FromClient];
@@ -153,6 +187,98 @@ int CRequests::CreateClanInvite(int FromClient, int ToClient, int ClanId, int Ex
 
 int CRequests::CreateBlockpointTransfer(int FromClient, int ToClient, int Amount, int ExpireSeconds)
 {
+	// basic sanity
+	if(!CheckClientId(FromClient) || !CheckClientId(ToClient) || FromClient == ToClient)
+		return -1;
+	CPlayer *pFrom = GameServer()->m_apPlayers[FromClient];
+	CPlayer *pTo = GameServer()->m_apPlayers[ToClient];
+	if(!pFrom || !pTo)
+		return -1;
+	if(!pFrom->IsLoggedIn() || !pTo->IsLoggedIn())
+	{
+		if(pFrom)
+			GameServer()->SendChatTarget(FromClient, "You and the target must both be logged in.");
+		return -1;
+	}
+	if(Amount <= 0)
+	{
+		GameServer()->SendChatTarget(FromClient, "Amount must be greater than zero.");
+		return -1;
+	}
+	if(Amount < g_Config.m_SvBpTransferAmountMin)
+	{
+		GameServer()->SendChatTarget(FromClient, "Amount below minimum transfer threshold.");
+		return -1;
+	}
+	if(Amount > g_Config.m_SvBpTransferAmountCap)
+	{
+		GameServer()->SendChatTarget(FromClient, "Amount exceeds max cap.");
+		return -1;
+	}
+	if(GameServer()->isInEvent(FromClient) || GameServer()->isInEvent(ToClient))
+	{
+		GameServer()->SendChatTarget(FromClient, "Transfers are not allowed while either player is in an event.");
+		return -1;
+	}
+	int Cooldown = g_Config.m_SvBpTransferCooldown;
+	if(Cooldown > 0 && pFrom->m_LastBpTransferOfferTick != 0 && Server()->Tick() - pFrom->m_LastBpTransferOfferTick < Cooldown * Server()->TickSpeed())
+	{
+		int Rem = (int)((Cooldown * Server()->TickSpeed() - (Server()->Tick() - pFrom->m_LastBpTransferOfferTick)) / Server()->TickSpeed());
+		char aBuf[128];
+		str_format(aBuf, sizeof(aBuf), "Please wait %d second%s before sending another transfer.", Rem, Rem != 1 ? "s" : "");
+		GameServer()->SendChatTarget(FromClient, aBuf);
+		return -1;
+	}
+
+	// cap outstanding offers per sender (only those from this sender to anyone)
+	{
+		int outstanding = 0;
+		for(const auto &r : m_Requests)
+		{
+			if(r.m_Type == SRequest::EType::BlockpointTransfer && r.m_From == FromClient)
+				outstanding++;
+		}
+		if(outstanding >= g_Config.m_SvBpTransferMaxOutstandingPerSender)
+		{
+			char aBuf[160];
+			str_format(aBuf, sizeof(aBuf), "You already have %d outstanding BP transfer offer%s.", outstanding, outstanding != 1 ? "s" : "");
+			GameServer()->SendChatTarget(FromClient, aBuf);
+			return -1;
+		}
+	}
+	// sufficient funds at offer time to reduce failed accepts later
+	if(pFrom->GetPlayerBlockpoints() < Amount)
+	{
+		GameServer()->SendChatTarget(FromClient, "You don't have enough blockpoints.");
+		return -1;
+	}
+
+	// block if already at cap
+	{
+		const int AccId = pFrom->GetAccId();
+		if(AccId > 0)
+		{
+			int today = CurrentUtcYyyymmdd();
+			auto &ctr = m_BpDailyCounters[AccId];
+			if(ctr.m_TodayDate != today)
+			{
+				ctr.m_TodayDate = today;
+				ctr.m_TodayAmount = 0;
+				ctr.m_TodayCount = 0;
+			}
+			if(g_Config.m_SvBpTransferDailyCountCap > 0 && ctr.m_TodayCount >= g_Config.m_SvBpTransferDailyCountCap)
+			{
+				GameServer()->SendChatTarget(FromClient, "Daily transfer count cap reached. Try again tomorrow.");
+				return -1;
+			}
+			if(g_Config.m_SvBpTransferDailyAmountCap > 0 && ctr.m_TodayAmount >= g_Config.m_SvBpTransferDailyAmountCap)
+			{
+				GameServer()->SendChatTarget(FromClient, "Daily transfer amount cap reached. Try again tomorrow.");
+				return -1;
+			}
+		}
+	}
+
 	// prevent duplicate pending transfer (same pair, same amount) to avoid spam
 	for(const auto &existing : m_Requests)
 	{
@@ -185,6 +311,9 @@ int CRequests::CreateBlockpointTransfer(int FromClient, int ToClient, int Amount
 	str_format(aBuf, sizeof(aBuf), "%s wants to send you %d blockpoints. Use /accept_bp or /decline_bp.", pFromName, Amount);
 	if(CheckClientId(ToClient) && GameServer()->m_apPlayers[ToClient])
 		GameServer()->SendChatTarget(ToClient, aBuf);
+
+	// mark last offer for cooldown enforcement
+	pFrom->m_LastBpTransferOfferTick = Server()->Tick();
 	return r.m_Id;
 }
 
@@ -225,6 +354,51 @@ bool CRequests::AcceptRequest(int RequestId)
 			if(eraseIt != m_Requests.end())
 				m_Requests.erase(eraseIt);
 			return false;
+		}
+
+		CPlayer *pFrom = GameServer()->m_apPlayers[from];
+		CPlayer *pTo = GameServer()->m_apPlayers[to];
+		if(!pFrom || !pTo)
+			return false;
+		if(wager > 0)
+		{
+			if(!pFrom->IsLoggedIn() || !pTo->IsLoggedIn())
+			{
+				GameServer()->SendChatTarget(to, "Both players must be logged in to play with a wager.");
+				GameServer()->SendChatTarget(from, "Both players must be logged in to play with a wager.");
+				int id = it->m_Id;
+				auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
+				if(eraseIt != m_Requests.end())
+					m_Requests.erase(eraseIt);
+				return false;
+			}
+			if(pFrom->GetPlayerBlockpoints() < wager || pTo->GetPlayerBlockpoints() < wager)
+			{
+				char aBuf[256];
+				str_format(aBuf, sizeof(aBuf), "Cannot start 1on1: %s doesn't have enough blockpoints for the wager.", pFrom->GetPlayerBlockpoints() < wager ? SafeClientName(GameServer(), from) : SafeClientName(GameServer(), to));
+				GameServer()->SendChatTarget(from, aBuf);
+				GameServer()->SendChatTarget(to, aBuf);
+				int id = it->m_Id;
+				auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
+				if(eraseIt != m_Requests.end())
+					m_Requests.erase(eraseIt);
+				return false;
+			}
+		}
+
+		{
+			std::vector<vec2> startPositions;
+			GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), startPositions);
+			if(startPositions.empty())
+			{
+				GameServer()->SendChatTarget(from, "Cannot start 1on1: map missing 1on1 start positions.");
+				GameServer()->SendChatTarget(to, "Cannot start 1on1: map missing 1on1 start positions.");
+				int id = it->m_Id;
+				auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
+				if(eraseIt != m_Requests.end())
+					m_Requests.erase(eraseIt);
+				return false;
+			}
 		}
 
 		// notify both parties of acceptance before starting the event
@@ -382,6 +556,17 @@ bool CRequests::AcceptRequest(int RequestId)
 		bool toPresent = CheckClientId(to) && GameServer()->m_apPlayers[to];
 		CPlayer *pFrom = fromPresent ? GameServer()->m_apPlayers[from] : nullptr;
 		CPlayer *pTo = toPresent ? GameServer()->m_apPlayers[to] : nullptr;
+		if(from == to)
+		{
+			// shouldn't happen, but guard against self-accept
+			if(toPresent)
+				GameServer()->SendChatTarget(to, "You cannot accept your own transfer offer.");
+			int id = it->m_Id;
+			auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
+			if(eraseIt != m_Requests.end())
+				m_Requests.erase(eraseIt);
+			return false;
+		}
 		if(!fromPresent || !toPresent || !pFrom || !pTo || !pFrom->IsLoggedIn() || !pTo->IsLoggedIn())
 		{
 			if(toPresent)
@@ -392,17 +577,73 @@ bool CRequests::AcceptRequest(int RequestId)
 				m_Requests.erase(eraseIt);
 			return false;
 		}
-		if(pFrom->GetPlayerBlockpoints() < amount || amount <= 0)
+		// disallow accept if either is in an event
+		if(GameServer()->isInEvent(from) || GameServer()->isInEvent(to))
 		{
-			GameServer()->SendChatTarget(to, "Transfer cancelled: sender no longer has sufficient blockpoints.");
+			if(toPresent)
+				GameServer()->SendChatTarget(to, "Transfers are not allowed while either player is in an event.");
 			if(fromPresent)
-				GameServer()->SendChatTarget(from, "Your blockpoint transfer was cancelled due to insufficient funds.");
+				GameServer()->SendChatTarget(from, "Your blockpoint transfer was cancelled: event restriction.");
 			int id = it->m_Id;
 			auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
 			if(eraseIt != m_Requests.end())
 				m_Requests.erase(eraseIt);
 			return false;
 		}
+		// check bounds and current funds again at acceptance time
+		if(amount <= 0 || amount < g_Config.m_SvBpTransferAmountMin || amount > g_Config.m_SvBpTransferAmountCap || pFrom->GetPlayerBlockpoints() < amount)
+		{
+			GameServer()->SendChatTarget(to, "Transfer cancelled: invalid amount or insufficient sender funds.");
+			if(fromPresent)
+				GameServer()->SendChatTarget(from, "Your blockpoint transfer was cancelled due to invalid amount or insufficient funds.");
+			int id = it->m_Id;
+			auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
+			if(eraseIt != m_Requests.end())
+				m_Requests.erase(eraseIt);
+			return false;
+		}
+		// enforce daily caps at accept time (UTC day, per sender account)
+		{
+			const int fromAcc = pFrom->GetAccId();
+			int today = CurrentUtcYyyymmdd();
+			auto &ctr = m_BpDailyCounters[fromAcc];
+			if(ctr.m_TodayDate != today)
+			{
+				ctr.m_TodayDate = today;
+				ctr.m_TodayAmount = 0;
+				ctr.m_TodayCount = 0;
+			}
+			if(g_Config.m_SvBpTransferDailyCountCap > 0 && ctr.m_TodayCount + 1 > g_Config.m_SvBpTransferDailyCountCap)
+			{
+				GameServer()->SendChatTarget(to, "Transfer cancelled: sender reached daily transfer count cap.");
+				if(fromPresent)
+					GameServer()->SendChatTarget(from, "Blockpoint transfer cancelled: daily transfer count cap reached.");
+				int id2 = it->m_Id;
+				auto eraseIt2 = std::find_if(m_Requests.begin(), m_Requests.end(), [id2](const SRequest &r) { return r.m_Id == id2; });
+				if(eraseIt2 != m_Requests.end())
+					m_Requests.erase(eraseIt2);
+				return false;
+			}
+			if(g_Config.m_SvBpTransferDailyAmountCap > 0 && ctr.m_TodayAmount + amount > g_Config.m_SvBpTransferDailyAmountCap)
+			{
+				GameServer()->SendChatTarget(to, "Transfer cancelled: sender would exceed daily transfer amount cap.");
+				if(fromPresent)
+					GameServer()->SendChatTarget(from, "Blockpoint transfer cancelled: daily transfer amount cap would be exceeded.");
+				int id2 = it->m_Id;
+				auto eraseIt2 = std::find_if(m_Requests.begin(), m_Requests.end(), [id2](const SRequest &r) { return r.m_Id == id2; });
+				if(eraseIt2 != m_Requests.end())
+					m_Requests.erase(eraseIt2);
+				return false;
+			}
+		}
+
+		// remove request first to avoid any chance of re-entrancy duplicate application
+		int id = it->m_Id;
+		auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
+		if(eraseIt != m_Requests.end())
+			m_Requests.erase(eraseIt);
+
+		// apply transfer atomically after removal
 		pFrom->SetPlayerBlockpoints(pFrom->GetPlayerBlockpoints() - amount);
 		pTo->SetPlayerBlockpoints(pTo->GetPlayerBlockpoints() + amount);
 		GameServer()->Accounts()->Save(from, &pFrom->m_Account);
@@ -413,10 +654,37 @@ bool CRequests::AcceptRequest(int RequestId)
 		str_format(aBuf, sizeof(aBuf), "You received %d blockpoints from %s (now %d)", amount, SafeClientName(GameServer(), from), pTo->GetPlayerBlockpoints());
 		GameServer()->SendChatTarget(to, aBuf);
 		dbg_msg("bp_transfer", "transfer id=%d from=%d to=%d amount=%d", it->m_Id, from, to, amount);
-		int id = it->m_Id;
-		auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
-		if(eraseIt != m_Requests.end())
-			m_Requests.erase(eraseIt);
+
+		// update daily counters for sender
+		{
+			const int fromAcc = pFrom->GetAccId();
+			int today = CurrentUtcYyyymmdd();
+			auto &ctr = m_BpDailyCounters[fromAcc];
+			if(ctr.m_TodayDate != today)
+			{
+				ctr.m_TodayDate = today;
+				ctr.m_TodayAmount = 0;
+				ctr.m_TodayCount = 0;
+			}
+			ctr.m_TodayAmount += amount;
+			ctr.m_TodayCount += 1;
+		}
+
+		// discord log for accepted transfer
+		if(g_Config.m_SvDiscordEnabled && g_Config.m_SvDiscordLogsEnabled)
+		{
+			CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
+			const char *pUrl = g_Config.m_SvDiscordWebhookUrlLogs[0] ? g_Config.m_SvDiscordWebhookUrlLogs : nullptr;
+			if(Discord.IsConfigured(pUrl))
+			{
+				char aMsg[512];
+				str_format(aMsg, sizeof(aMsg), "[BP] Transfer accepted: %s -> %s : %d BP | sender now %d, receiver now %d",
+					SafeClientName(GameServer(), from), SafeClientName(GameServer(), to), amount, pFrom->GetPlayerBlockpoints(), pTo->GetPlayerBlockpoints());
+				CDiscordWebhook::SSendOptions Opt;
+				Opt.m_pWebhookUrl = pUrl;
+				Discord.Send(aMsg, Opt);
+			}
+		}
 		return true;
 	}
 
@@ -460,6 +728,34 @@ bool CRequests::DeclineRequest(int RequestId)
 			GameServer()->SendChatTarget(to, "You have declined the clan invitation.");
 		if(CheckClientId(from) && GameServer()->m_apPlayers[from])
 			GameServer()->SendChatTarget(from, "The clan invitation was declined.");
+		m_Requests.erase(it);
+		return true;
+	}
+
+	if(it->m_Type == SRequest::EType::BlockpointTransfer)
+	{
+		int from = it->m_From;
+		int to = it->m_To;
+		if(CheckClientId(to) && GameServer()->m_apPlayers[to])
+			GameServer()->SendChatTarget(to, "You declined the blockpoint transfer.");
+		if(CheckClientId(from) && GameServer()->m_apPlayers[from])
+			GameServer()->SendChatTarget(from, "Your blockpoint transfer was declined.");
+
+		// discord log for decline
+		if(g_Config.m_SvDiscordEnabled && g_Config.m_SvDiscordLogsEnabled)
+		{
+			CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
+			const char *pUrl = g_Config.m_SvDiscordWebhookUrlLogs[0] ? g_Config.m_SvDiscordWebhookUrlLogs : nullptr;
+			if(Discord.IsConfigured(pUrl))
+			{
+				char aMsg[512];
+				str_format(aMsg, sizeof(aMsg), "[BP] Transfer declined: %s -> %s",
+					SafeClientName(GameServer(), from), SafeClientName(GameServer(), to));
+				CDiscordWebhook::SSendOptions Opt;
+				Opt.m_pWebhookUrl = pUrl;
+				Discord.Send(aMsg, Opt);
+			}
+		}
 		m_Requests.erase(it);
 		return true;
 	}
@@ -558,6 +854,22 @@ void CRequests::OnTick()
 			str_format(aBufFrom, sizeof(aBufFrom), "Your blockpoint transfer to '%s' (%d BP) has expired.", pToName, req.m_Wager);
 			str_format(aBufTo, sizeof(aBufTo), "The blockpoint transfer from '%s' (%d BP) has expired.", pFromName, req.m_Wager);
 			notifyTo = true;
+
+			// discord log for expiry
+			if(g_Config.m_SvDiscordEnabled && g_Config.m_SvDiscordLogsEnabled)
+			{
+				CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
+				const char *pUrl = g_Config.m_SvDiscordWebhookUrlLogs[0] ? g_Config.m_SvDiscordWebhookUrlLogs : nullptr;
+				if(Discord.IsConfigured(pUrl))
+				{
+					char aMsg[512];
+					str_format(aMsg, sizeof(aMsg), "[BP] Transfer expired: %s -> %s : %d BP",
+						SafeClientName(GameServer(), req.m_From), SafeClientName(GameServer(), req.m_To), req.m_Wager);
+					CDiscordWebhook::SSendOptions Opt;
+					Opt.m_pWebhookUrl = pUrl;
+					Discord.Send(aMsg, Opt);
+				}
+			}
 		}
 		else if(req.m_Type == SRequest::EType::Clan)
 		{

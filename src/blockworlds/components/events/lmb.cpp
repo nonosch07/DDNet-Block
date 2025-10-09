@@ -10,6 +10,7 @@
 #include <game/teamscore.h>
 
 #include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/discord/webhook.h>
 
 CLastManBlockingEvent::CLastManBlockingEvent(CGameContext *pGameContext) :
 	CEventComponent(pGameContext), m_SpawnOffset(0), m_DDRaceTeam(-1), m_Winner(-1), m_FinishingReason(NATURAL)
@@ -180,6 +181,17 @@ void CLastManBlockingEvent::FinishEvent()
 			GameServer()->SendChatTarget(-1, aBuf);
 			GameServer()->SendBroadcast(-1, aBuf, false);
 
+			CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
+			if(g_Config.m_SvDiscordLmbEnabled && Discord.IsConfigured(g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr))
+			{
+				char aMsg[512];
+				const char *pMap = Server()->GetMapName();
+				str_format(aMsg, sizeof(aMsg), "LMB finished on %s: Winner **%s**", pMap ? pMap : "<map>", Server()->ClientName(m_Winner));
+				CDiscordWebhook::SSendOptions Opt;
+				Opt.m_pWebhookUrl = g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr;
+				Discord.Send(aMsg, Opt);
+			}
+
 			int BlockpointsReward = Config()->m_SvLMBBlockpointsReward;
 			CPlayer *pWinner = GameServer()->GetPlayer(m_Winner);
 			if(pWinner)
@@ -191,6 +203,7 @@ void CLastManBlockingEvent::FinishEvent()
 
 			GameServer()->GetPlayer(m_Winner)->AddExpMultiplier(Config()->m_SvLMBWinnerExpMultiplier, Config()->m_SvLMBWinnerExpMultiplierDuration);
 			str_format(aBuf, sizeof(aBuf), "%d%% experience bonus enabled for %d minutes!", Config()->m_SvLMBWinnerExpMultiplier, Config()->m_SvLMBWinnerExpMultiplierDuration);
+			GameServer()->GetPlayer(m_Winner)->GiveFlag(Config()->m_SvLMBWinnerExpMultiplierDuration);
 			GameServer()->SendChatTarget(m_Winner, aBuf);
 		}
 		else
@@ -200,6 +213,16 @@ void CLastManBlockingEvent::FinishEvent()
 			str_format(aBuf, sizeof(aBuf), "No one has won the %s (%s)", GetEventName(), pReason);
 			GameServer()->SendChatTarget(-1, aBuf);
 			GameServer()->SendBroadcast(-1, aBuf, false);
+
+			CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
+			if(g_Config.m_SvDiscordLmbEnabled && Discord.IsConfigured(g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr))
+			{
+				char aMsg[256];
+				str_format(aMsg, sizeof(aMsg), "LMB finished: No winner (%s)", pReason);
+				CDiscordWebhook::SSendOptions Opt;
+				Opt.m_pWebhookUrl = g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr;
+				Discord.Send(aMsg, Opt);
+			}
 		}
 	}
 	else if(m_FinishingReason == NOT_ENOUGH_CANDIDATES)
@@ -208,6 +231,14 @@ void CLastManBlockingEvent::FinishEvent()
 		str_format(aBuf, sizeof(aBuf), "Not enough candidates joined %s", GetEventName());
 		GameServer()->SendChatTarget(-1, aBuf);
 		GameServer()->SendBroadcast(-1, aBuf, false);
+
+	CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
+	if(g_Config.m_SvDiscordLmbEnabled && Discord.IsConfigured(g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr))
+		{
+			CDiscordWebhook::SSendOptions Opt;
+			Opt.m_pWebhookUrl = g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr;
+			Discord.Send("LMB cancelled: Not enough candidates", Opt);
+		}
 	}
 	else if(m_FinishingReason == EMERGENCY)
 	{
@@ -215,6 +246,14 @@ void CLastManBlockingEvent::FinishEvent()
 		str_format(aBuf, sizeof(aBuf), "%s finished prematurely", GetEventName());
 		GameServer()->SendChatTarget(-1, aBuf);
 		GameServer()->SendBroadcast(-1, aBuf, false);
+
+	CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
+	if(g_Config.m_SvDiscordLmbEnabled && Discord.IsConfigured(g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr))
+		{
+			CDiscordWebhook::SSendOptions Opt;
+			Opt.m_pWebhookUrl = g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr;
+			Discord.Send("LMB finished prematurely (emergency)", Opt);
+		}
 	}
 
 	auto RemainingParticipants = m_Participants;

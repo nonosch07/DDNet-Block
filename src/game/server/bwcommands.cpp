@@ -257,8 +257,9 @@ void CGameContext::ConGiveBlockpointsRequest(IConsole::IResult *pResult, void *p
 		auto list = requestsTmp->GetRequestsFor(pFrom->GetCid(), CRequests::SRequest::EType::BlockpointTransfer);
 		for(int id : list)
 		{
-			(void)id;
-			outstanding++;
+			CRequests::SRequest info;
+			if(requestsTmp->GetRequestInfo(id, info) && info.m_From == pFrom->GetCid())
+				outstanding++;
 		}
 		if(outstanding >= g_Config.m_SvBpTransferMaxOutstandingPerSender)
 			return pSelf->SendChatTarget(pResult->m_ClientId, "You have too many pending transfers. Wait for them to resolve.");
@@ -1808,6 +1809,8 @@ void CGameContext::Con1on1(IConsole::IResult *pResult, void *pUserData)
 
 	if(!pPlayer->IsLoggedIn() && Wager > 0)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You have to be logged in to place a wager in the pot.");
+	if(Wager > 0 && (!pTarget->IsLoggedIn()))
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Target player must be logged in to play with a wager.");
 	if(Wager > pPlayer->GetPlayerBlockpoints())
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You can't afford to wager that much!");
 

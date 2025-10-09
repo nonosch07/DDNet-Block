@@ -48,7 +48,6 @@ void CEventComponent::LoadPosition(int ClientId)
 		CCharacter *pChar = GameServer()->GetPlayerChar(ClientId);
 		if(!pChar && pPlayer)
 		{
-			pPlayer->KillCharacter(WEAPON_WORLD, false);
 			pChar = pPlayer->ForceSpawn(vec2(0, 0), false);
 		}
 

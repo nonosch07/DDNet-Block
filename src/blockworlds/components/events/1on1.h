@@ -27,6 +27,7 @@ public:
 	void OnCharacterSpawn(int ClientId, vec2 SpawnPos) override;
 	void OnCharacterDeath(int KillerId, int ClientId, int Weapon) override;
 	void OnPlayerDropping(int ClientId) override;
+	void EmergencyShutdown(const char *pMsg) override;
 
 	[[nodiscard]] std::optional<int> GetScoreOf(int ClientId) const override;
 
@@ -41,6 +42,10 @@ private:
 	int64_t m_CurrentTick;
 	bool m_SuppressFinishBroadcast;
 
+	// wager escrow handling
+	bool m_EscrowCollected = false; // true once we've deducted Wager from both players
+	int m_EscrowBalance = 0; // expected to be 2 * m_Wager after collection, 0 after payout/refund
+
 	// draw handling helpers
 	int m_Player1DeathTick = -1;
 	int m_Player2DeathTick = -1;
@@ -51,6 +56,16 @@ private:
 	int m_RoundStartTick = -1; // tick when curent round (initial or after draw) started
 	int m_BothFrozenSinceTick = -1; // tick when both players became frozen simultanoeusly
 	void RestartRoundAfterDraw();
+
+	// finish handling
+	bool m_DeferFinishRestore = false;
+	int m_RestoreAtTick = -1;
+
+	// helpers
+	bool CollectEscrow();
+	void RefundEscrow();
+	void PayoutWinner(class CPlayer *pWinner, class CPlayer *pLoser);
+	void AbortAndRefund(const char *pReason);
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_1ON1_H

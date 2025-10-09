@@ -6,6 +6,8 @@
 #include <game/server/gamemodes/DDRace.h>
 #include <game/server/player.h>
 
+#include <blockworlds/discord/webhook.h>
+
 static int GetTilePositions(int TileID, CGameContext *pSelf, std::vector<vec2> &result)
 {
 	if(TileID < 0 || TileID > 255)
@@ -70,6 +72,16 @@ void COneOnOneEvent::StartEvent()
 	}
 
 	dbg_msg("1on1", "StartEvent: P1=%d P2=%d wager=%d team=%d", m_Player1ID, m_Player2ID, m_Wager, m_Team);
+
+	// If there's a wager, collect escrow from both players up-front. Abort if collection fails.
+	if(m_Wager > 0)
+	{
+		if(!CollectEscrow())
+		{
+			AbortAndRefund("[1on1] Failed to collect wager from both players. Event aborted.");
+			return;
+		}
+	}
 
 	// save positions & teeinfos
 	SavePosition(m_Player1ID);
@@ -156,6 +168,26 @@ void COneOnOneEvent::StartEvent()
 void COneOnOneEvent::OnTick()
 {
 	m_CurrentTick = Server()->Tick();
+
+	// handle deferred finish restoration outside of death callbacks
+	if(GetState() == CEventComponent::EEventState::Ending && m_DeferFinishRestore && m_RestoreAtTick <= m_CurrentTick)
+	{
+		// restore team lock
+		auto pController = (CGameControllerDDRace *)GameServer()->m_pController;
+		if(m_Team >= 0)
+		{
+			pController->Teams().SetTeamEvent(m_Team, false);
+			pController->Teams().SetTeamLock(m_Team, false);
+		}
+
+		// restore positions
+		LoadPosition(m_Player1ID);
+		LoadPosition(m_Player2ID);
+
+		m_DeferFinishRestore = false;
+		SetState(EEventState::Finished);
+		return;
+	}
 	if(m_Player1ID < 0 || m_Player2ID < 0)
 		return;
 
@@ -214,6 +246,10 @@ void COneOnOneEvent::OnTick()
 
 void COneOnOneEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 {
+	// only manage spawns during the active phase of the event
+	if(GetState() != CEventComponent::EEventState::Active)
+		return;
+
 	if(ClientId < 0)
 		return;
 	// don't award points on spawn; scoring is handled on death
@@ -411,21 +447,32 @@ void COneOnOneEvent::FinishEvent()
 		char aBuf[256];
 		str_format(aBuf, sizeof(aBuf), "[1on1] - %s vs %s — %s won! (Result: %d - %d)", pName1, pName2, pWinnerName, m_Score1, m_Score2);
 		GameServer()->SendChatTarget(-1, aBuf);
+
+		// post to Discord webhook
+		CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
+		const char *p1on1Url = g_Config.m_SvDiscordWebhookUrl1on1[0] ? g_Config.m_SvDiscordWebhookUrl1on1 : nullptr;
+	if(g_Config.m_SvDiscord1on1Enabled && Discord.IsConfigured(p1on1Url))
+		{
+			char aMsg[512];
+			const char *pMap = Server()->GetMapName();
+			str_format(aMsg, sizeof(aMsg), "1on1 finished on %s: %s (%d) vs %s (%d) → Winner: %s | Score %d-%d", pMap ? pMap : "<map>", pName1, m_Score1, pName2, m_Score2, pWinnerName, m_Score1, m_Score2);
+			CDiscordWebhook::SSendOptions Opt;
+			Opt.m_pWebhookUrl = p1on1Url;
+			Discord.Send(aMsg, Opt);
+		}
 	}
 
-	// restore team lock
-	auto pController = (CGameControllerDDRace *)GameServer()->m_pController;
-	if(m_Team >= 0)
+	// safe payout via escrow
+	if(m_Wager > 0 && pWinner && pLoser)
 	{
-		pController->Teams().SetTeamEvent(m_Team, false);
-		pController->Teams().SetTeamLock(m_Team, false);
+		PayoutWinner(pWinner, pLoser);
 	}
+	
 
-	// restore positions
-	LoadPosition(m_Player1ID);
-	LoadPosition(m_Player2ID);
-
-	SetState(EEventState::Finished);
+	// defer team unlock and position restore to the next tick to avoid reentrant spawn during death handling
+	m_DeferFinishRestore = true;
+	m_RestoreAtTick = Server()->Tick() + 1;
+	SetState(EEventState::Ending);
 }
 
 bool COneOnOneEvent::Leave(int ClientId)
@@ -462,6 +509,18 @@ bool COneOnOneEvent::Leave(int ClientId)
 		m_SuppressFinishBroadcast = true;
 		FinishEvent();
 		m_SuppressFinishBroadcast = false;
+
+		// notify Discord about ragequit
+		CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
+		const char *p1on1Url = g_Config.m_SvDiscordWebhookUrl1on1[0] ? g_Config.m_SvDiscordWebhookUrl1on1 : nullptr;
+	if(g_Config.m_SvDiscord1on1Enabled && Discord.IsConfigured(p1on1Url))
+		{
+			char aMsg[256];
+			str_format(aMsg, sizeof(aMsg), "1on1 ragequit: %s left vs %s (score so far %d-%d)", pLeaverName, pOpponentName, m_Score1, m_Score2);
+			CDiscordWebhook::SSendOptions Opt;
+			Opt.m_pWebhookUrl = p1on1Url;
+			Discord.Send(aMsg, Opt);
+		}
 		return true;
 	}
 	return false;
@@ -483,4 +542,125 @@ std::optional<int> COneOnOneEvent::GetScoreOf(int ClientId) const
 	if(ClientId == m_Player2ID)
 		return m_Score2;
 	return std::nullopt;
+}
+
+// ========= Wager/Escrow helpers =========
+
+bool COneOnOneEvent::CollectEscrow()
+{
+	if(m_EscrowCollected || m_Wager <= 0)
+		return true;
+	CPlayer *p1 = GameServer()->GetPlayer(m_Player1ID);
+	CPlayer *p2 = GameServer()->GetPlayer(m_Player2ID);
+	if(!p1 || !p2)
+		return false;
+	if(!p1->IsLoggedIn() || !p2->IsLoggedIn())
+	{
+		GameServer()->SendChatTarget(-1, "[1on1] Wager requires both players to be logged in.");
+		return false;
+	}
+	if(p1->GetPlayerBlockpoints() < m_Wager || p2->GetPlayerBlockpoints() < m_Wager)
+	{
+		char aBuf[256];
+		const char *pWho = p1->GetPlayerBlockpoints() < m_Wager ? Server()->ClientName(m_Player1ID) : Server()->ClientName(m_Player2ID);
+		str_format(aBuf, sizeof(aBuf), "[1on1] Wager collection failed: %s doesn't have enough blockpoints.", pWho);
+		GameServer()->SendChatTarget(-1, aBuf);
+		return false;
+	}
+	// Deduct to escrow
+	p1->SetPlayerBlockpoints(p1->GetPlayerBlockpoints() - m_Wager);
+	p2->SetPlayerBlockpoints(p2->GetPlayerBlockpoints() - m_Wager);
+	GameServer()->Accounts()->Save(m_Player1ID, &p1->m_Account);
+	GameServer()->Accounts()->Save(m_Player2ID, &p2->m_Account);
+	m_EscrowCollected = true;
+	m_EscrowBalance = m_Wager * 2;
+	char aBuf[192];
+	str_format(aBuf, sizeof(aBuf), "[1on1] Escrow collected: %d BP from each player.", m_Wager);
+	GameServer()->SendChatTarget(m_Player1ID, aBuf);
+	GameServer()->SendChatTarget(m_Player2ID, aBuf);
+	return true;
+}
+
+void COneOnOneEvent::RefundEscrow()
+{
+	if(!m_EscrowCollected || m_EscrowBalance <= 0)
+		return;
+	CPlayer *p1 = GameServer()->GetPlayer(m_Player1ID);
+	CPlayer *p2 = GameServer()->GetPlayer(m_Player2ID);
+	if(p1)
+	{
+		p1->SetPlayerBlockpoints(p1->GetPlayerBlockpoints() + m_Wager);
+		GameServer()->Accounts()->Save(m_Player1ID, &p1->m_Account);
+	}
+	if(p2)
+	{
+		p2->SetPlayerBlockpoints(p2->GetPlayerBlockpoints() + m_Wager);
+		GameServer()->Accounts()->Save(m_Player2ID, &p2->m_Account);
+	}
+	m_EscrowBalance = 0;
+	m_EscrowCollected = false;
+	if(p1)
+		GameServer()->SendChatTarget(m_Player1ID, "[1on1] Escrow refunded.");
+	if(p2)
+		GameServer()->SendChatTarget(m_Player2ID, "[1on1] Escrow refunded.");
+}
+
+void COneOnOneEvent::PayoutWinner(CPlayer *pWinner, CPlayer *pLoser)
+{
+	if(m_EscrowCollected && m_EscrowBalance == m_Wager * 2)
+	{
+		pWinner->SetPlayerBlockpoints(pWinner->GetPlayerBlockpoints() + m_EscrowBalance);
+		GameServer()->Accounts()->Save(pWinner->GetCid(), &pWinner->m_Account);
+		char aBuf[256];
+		str_format(aBuf, sizeof(aBuf), "[1on1] - %s won the pot of %d blockpoints!", Server()->ClientName(pWinner->GetCid()), m_EscrowBalance);
+		GameServer()->SendChatTarget(-1, aBuf);
+		m_EscrowBalance = 0;
+		m_EscrowCollected = false;
+		return;
+	}
+	// Fallback
+	if(m_Wager > 0 && pLoser->GetPlayerBlockpoints() >= m_Wager)
+	{
+		pLoser->SetPlayerBlockpoints(pLoser->GetPlayerBlockpoints() - m_Wager);
+		pWinner->SetPlayerBlockpoints(pWinner->GetPlayerBlockpoints() + m_Wager);
+		GameServer()->Accounts()->Save(pLoser->GetCid(), &pLoser->m_Account);
+		GameServer()->Accounts()->Save(pWinner->GetCid(), &pWinner->m_Account);
+		char aBuf[256];
+		str_format(aBuf, sizeof(aBuf), "[1on1] - %s won %d blockpoints from %s!", Server()->ClientName(pWinner->GetCid()), m_Wager, Server()->ClientName(pLoser->GetCid()));
+		GameServer()->SendChatTarget(-1, aBuf);
+	}
+	else
+	{
+		char aBuf[256];
+		str_format(aBuf, sizeof(aBuf), "[1on1] - %s could not pay the wager of %d blockpoints to %s!", Server()->ClientName(pLoser->GetCid()), m_Wager, Server()->ClientName(pWinner->GetCid()));
+		GameServer()->SendChatTarget(-1, aBuf);
+	}
+}
+
+void COneOnOneEvent::AbortAndRefund(const char *pReason)
+{
+	if(pReason && pReason[0])
+	{
+		GameServer()->SendChatTarget(m_Player1ID, pReason);
+		GameServer()->SendChatTarget(m_Player2ID, pReason);
+	}
+	RefundEscrow();
+	// unlock team and restore players immediately
+	auto pController = (CGameControllerDDRace *)GameServer()->m_pController;
+	if(m_Team >= 0)
+	{
+		pController->Teams().SetTeamEvent(m_Team, false);
+		pController->Teams().SetTeamLock(m_Team, false);
+	}
+	LoadPosition(m_Player1ID);
+	LoadPosition(m_Player2ID);
+	SetState(EEventState::Finished);
+}
+
+void COneOnOneEvent::EmergencyShutdown(const char *pMsg)
+{
+	// base handles flags
+	CEventComponent::EmergencyShutdown(pMsg);
+	// ensure escrow is returned lol
+	RefundEscrow();
 }

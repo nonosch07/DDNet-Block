@@ -51,6 +51,7 @@
 
 #include <blockworlds/votes/cosmetics.h>
 #include <blockworlds/votes/votemanager.h>
+#include <blockworlds/discord/webhook.h>
 
 // Not thread-safe!
 class CClientChatLogger : public ILogger
@@ -2524,6 +2525,22 @@ void CGameContext::OnSayNetMessage(const CNetMsg_Cl_Say *pMsg, int ClientId, con
 		char aCensoredMessage[256];
 		CensorMessage(aCensoredMessage, pMsg->m_pMessage, sizeof(aCensoredMessage));
 		SendChat(ClientId, Team, aCensoredMessage, ClientId);
+
+		// relay chat to Discord if enabled (public chat only)
+		if(g_Config.m_SvDiscordEnabled && g_Config.m_SvDiscordChatEnabled)
+		{
+			CDiscordWebhook Discord(Engine(), Http());
+			const char *pChatUrl = g_Config.m_SvDiscordWebhookUrlChat[0] ? g_Config.m_SvDiscordWebhookUrlChat : nullptr;
+			if(Discord.IsConfigured(pChatUrl))
+			{
+				char aMsg[600];
+				const char *pName = Server()->ClientName(ClientId);
+				str_format(aMsg, sizeof(aMsg), "[%s]: %s", pName ? pName : "<unknown>", aCensoredMessage);
+				CDiscordWebhook::SSendOptions Opt;
+				Opt.m_pWebhookUrl = pChatUrl;
+				Discord.Send(aMsg, Opt);
+			}
+		}
 	}
 }
 
@@ -3989,6 +4006,7 @@ void CGameContext::OnConsoleInit()
 	m_pConfig = m_pConfigManager->Values();
 	m_pConsole = Kernel()->RequestInterface<IConsole>();
 	m_pEngine = Kernel()->RequestInterface<IEngine>();
+	m_pHttp = Kernel()->RequestInterface<IHttp>();
 	m_pStorage = Kernel()->RequestInterface<IStorage>();
 
 	Console()->Register("tune", "s[tuning] ?f[value]", CFGFLAG_SERVER | CFGFLAG_GAME, ConTuneParam, this, "Tune variable to value or show current value");
@@ -4234,6 +4252,7 @@ void CGameContext::OnInit(const void *pPersistentData)
 	m_pConfig = m_pConfigManager->Values();
 	m_pConsole = Kernel()->RequestInterface<IConsole>();
 	m_pEngine = Kernel()->RequestInterface<IEngine>();
+	m_pHttp = Kernel()->RequestInterface<IHttp>();
 	m_pStorage = Kernel()->RequestInterface<IStorage>();
 	m_pAntibot = Kernel()->RequestInterface<IAntibot>();
 	m_World.SetGameServer(this);

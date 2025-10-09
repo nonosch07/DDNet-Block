@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "core/component.h"
 
@@ -69,6 +70,15 @@ private:
 	int NextId();
 	std::vector<SRequest> m_Requests;
 	int m_NextId = 1;
+
+	// daily BP transfer counters per sender account (UTC day)
+	struct SDailyBpCounters
+	{
+		int m_TodayAmount = 0; // total amount sent today
+		int m_TodayCount = 0;  // number of completed transfers today
+		int m_TodayDate = 0;   // yyyymmdd (UTC)
+	};
+	std::unordered_map<int /*AccountId*/, SDailyBpCounters> m_BpDailyCounters;
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_REQUESTS_H

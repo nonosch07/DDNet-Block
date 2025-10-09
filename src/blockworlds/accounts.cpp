@@ -1266,8 +1266,11 @@ bool CAccounts::IntegrityCheckThread(IDbConnection *pSqlServer, const ISqlData *
 
 	// 1 - orphan progress rows (progress without core) - should not happen (lets hope so :D)
 	str_copy(aBuf, "SELECT COUNT(*) FROM accounts_progress p LEFT JOIN accounts_core c ON p.account_id=c.id WHERE c.id IS NULL;", sizeof(aBuf));
-	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(nullptr, pError, ErrorSize))
-		return true;
+	{
+		bool End = false;
+		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(&End, pError, ErrorSize))
+			return true;
+	}
 	int OrphanProgress = pSqlServer->GetInt(1);
 	if(OrphanProgress > 0)
 	{
@@ -1278,8 +1281,11 @@ bool CAccounts::IntegrityCheckThread(IDbConnection *pSqlServer, const ISqlData *
 
 	// 2 - orphan inventory rows
 	str_copy(aBuf, "SELECT COUNT(*) FROM accounts_inventory i LEFT JOIN accounts_core c ON i.account_id=c.id WHERE c.id IS NULL;", sizeof(aBuf));
-	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(nullptr, pError, ErrorSize))
-		return true;
+	{
+		bool End = false;
+		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(&End, pError, ErrorSize))
+			return true;
+	}
 	int OrphanInv = pSqlServer->GetInt(1);
 	if(OrphanInv > 0)
 	{
@@ -1290,8 +1296,11 @@ bool CAccounts::IntegrityCheckThread(IDbConnection *pSqlServer, const ISqlData *
 
 	// 3 - orphan ranked rows
 	str_copy(aBuf, "SELECT COUNT(*) FROM accounts_ranked r LEFT JOIN accounts_core c ON r.account_id=c.id WHERE c.id IS NULL;", sizeof(aBuf));
-	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(nullptr, pError, ErrorSize))
-		return true;
+	{
+		bool End = false;
+		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(&End, pError, ErrorSize))
+			return true;
+	}
 	int OrphanRanked = pSqlServer->GetInt(1);
 	if(OrphanRanked > 0)
 	{
@@ -1302,8 +1311,11 @@ bool CAccounts::IntegrityCheckThread(IDbConnection *pSqlServer, const ISqlData *
 
 	// 4 - auth with no clan (auth_level>0 but clanID=0)
 	str_copy(aBuf, "SELECT COUNT(*) FROM accounts_progress WHERE auth_level>0 AND clanID=0;", sizeof(aBuf));
-	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(nullptr, pError, ErrorSize))
-		return true;
+	{
+		bool End = false;
+		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(&End, pError, ErrorSize))
+			return true;
+	}
 	int AuthNoClan = pSqlServer->GetInt(1);
 	if(AuthNoClan > 0)
 	{
@@ -1314,8 +1326,11 @@ bool CAccounts::IntegrityCheckThread(IDbConnection *pSqlServer, const ISqlData *
 
 	// 5 - clan with nonexistent clan id (progress.clanID referencing missing clan)
 	str_copy(aBuf, "SELECT COUNT(*) FROM accounts_progress p LEFT JOIN clans c ON p.clanID=c.id WHERE p.clanID<>0 AND c.id IS NULL;", sizeof(aBuf));
-	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(nullptr, pError, ErrorSize))
-		return true;
+	{
+		bool End = false;
+		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(&End, pError, ErrorSize))
+			return true;
+	}
 	int BadClanRefs = pSqlServer->GetInt(1);
 	if(BadClanRefs > 0)
 	{
@@ -1326,8 +1341,11 @@ bool CAccounts::IntegrityCheckThread(IDbConnection *pSqlServer, const ISqlData *
 
 	// 6 - duplicate clan names case-insensitive (should be prevented by unique index but check)
 	str_copy(aBuf, "SELECT COUNT(*) FROM (SELECT LOWER(name) ln, COUNT(*) c FROM clans GROUP BY ln HAVING c>1) t;", sizeof(aBuf));
-	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(nullptr, pError, ErrorSize))
-		return true;
+	{
+		bool End = false;
+		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(&End, pError, ErrorSize))
+			return true;
+	}
 	int DuplicateClans = pSqlServer->GetInt(1);
 	if(DuplicateClans > 0)
 	{
@@ -1338,8 +1356,11 @@ bool CAccounts::IntegrityCheckThread(IDbConnection *pSqlServer, const ISqlData *
 
 	// 7 - busy table orphan references
 	str_copy(aBuf, "SELECT COUNT(*) FROM accounts_busy b LEFT JOIN accounts_core c ON b.account_id=c.id WHERE c.id IS NULL;", sizeof(aBuf));
-	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(nullptr, pError, ErrorSize))
-		return true;
+	{
+		bool End = false;
+		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(&End, pError, ErrorSize))
+			return true;
+	}
 	int BusyOrphans = pSqlServer->GetInt(1);
 	if(BusyOrphans > 0)
 	{

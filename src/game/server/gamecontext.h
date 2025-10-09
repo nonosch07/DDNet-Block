@@ -5,6 +5,7 @@
 
 #include <engine/console.h>
 #include <engine/server.h>
+#include <engine/http.h>
 
 #include <game/collision.h>
 #include <game/generated/protocol.h>
@@ -93,6 +94,7 @@ class CGameContext : public IGameServer
 	CConfig *m_pConfig;
 	IConsole *m_pConsole;
 	IEngine *m_pEngine;
+	IHttp *m_pHttp;
 	IStorage *m_pStorage;
 	IAntibot *m_pAntibot;
 	CLayers m_Layers;
@@ -191,6 +193,7 @@ public:
 	CConfig *Config() { return m_pConfig; }
 	IConsole *Console() { return m_pConsole; }
 	IEngine *Engine() { return m_pEngine; }
+	IHttp *Http() { return m_pHttp; }
 	IStorage *Storage() { return m_pStorage; }
 	CCollision *Collision() { return &m_Collision; }
 	CTuningParams *Tuning() { return &m_Tuning; }

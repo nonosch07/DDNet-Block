@@ -354,7 +354,7 @@ void CPlayer::Tick()
 		auto it = m_ExpModifiers.begin();
 		for(; it != m_ExpModifiers.end();)
 		{
-			if(it->second >= Server()->Tick())
+			if(it->second <= Server()->Tick())
 			{
 				it = m_ExpModifiers.erase(it);
 				RecalculationNeeded = true;
@@ -402,7 +402,7 @@ void CPlayer::GiveFlag(int DurationMinutes)
 	// spawn new flag entity attached to player
 	m_pFlagEntity = new CFlag(&GameServer()->m_World, GetCid(), 0);
 	if(DurationMinutes > 0)
-		m_FlagExpireTick = Server()->Tick() + DurationMinutes * Server()->TickSpeed();
+		m_FlagExpireTick = Server()->Tick() + DurationMinutes * 60 * Server()->TickSpeed();
 }
 
 void CPlayer::GiveTemporarySpecial(int SpecialIndex, int DurationMinutes)
@@ -1837,9 +1837,9 @@ void CPlayer::AddExpMultiplier(int ModifierPercent, int Duration)
 {
 	auto it = m_ExpModifiers.find(ModifierPercent);
 	if(it == m_ExpModifiers.end())
-		m_ExpModifiers.emplace(ModifierPercent, Server()->Tick() + Duration * Server()->TickSpeed());
+		m_ExpModifiers.emplace(ModifierPercent, Server()->Tick() + Duration * 60 * Server()->TickSpeed());
 	else
-		it->second += Duration * Server()->TickSpeed();
+		it->second += Duration * 60 * Server()->TickSpeed();
 
 	CalculateExpMultiplier();
 }
@@ -1875,7 +1875,10 @@ void CPlayer::CalculateExpMultiplier()
 		Multiplier = 1.0f;
 		for(const auto &ExpMultiplier : m_ExpModifiers)
 			Multiplier *= (ExpMultiplier.first) / 100.0f;
-		m_CurrentExpMultiplier = log2f(Multiplier);
+		// Keep baseline at 1.0 and apply diminishing returns via logarithm
+		m_CurrentExpMultiplier = 1.0f + log2f(Multiplier);
+		if(m_CurrentExpMultiplier < 1.0f)
+			m_CurrentExpMultiplier = 1.0f;
 		break;
 	}
 	case MULTIPLICATIVE:
