@@ -5,11 +5,11 @@
 #include <blockworlds/components/events.h>
 #include <blockworlds/components/events/1on1.h>
 #include <blockworlds/discord/webhook.h>
+#include <ctime>
 #include <engine/shared/config.h>
 #include <game/mapitems.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
-#include <ctime>
 
 static int GetTilePositions(int TileID, CGameContext *pSelf, std::vector<vec2> &result)
 {
@@ -50,7 +50,9 @@ static const char *SafeClientName(CGameContext *pGameServer, int ClientId)
 static int CurrentUtcYyyymmdd()
 {
 	time_t now = time(nullptr);
-	struct tm utc{};
+	struct tm utc
+	{
+	};
 #if defined(__unix__) || defined(__APPLE__)
 	gmtime_r(&now, &utc);
 #else
@@ -73,7 +75,7 @@ int CRequests::Create1on1Invite(int FromClient, int ToClient, int Wager, int Exp
 				GameServer()->SendChatTarget(FromClient, aBuf);
 			return -1;
 		}
-	} 
+	}
 
 	// Anti-spam: limit how often a player can send any 1on1 invite and how many are outstanding.
 	CPlayer *pFrom = GameServer()->m_apPlayers[FromClient];

@@ -78,6 +78,28 @@ bool CCosmeticsHandler::ToggleSpecial(int ClientID, const char *pName)
 	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
 		return false;
 
+	if(m_pGameServer)
+	{
+		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+		{
+			auto pEv = eventsAccessor->GetActiveEvent();
+			if(pEv)
+			{
+				const char *pEvName = pEv->GetEventName();
+				bool IsBlockedEvent = (str_comp(pEvName, "LMB") == 0) || (str_comp(pEvName, "Team Deathmatch") == 0);
+				if(IsBlockedEvent)
+				{
+					const auto &parts = pEv->Participants();
+					if(std::find(parts.begin(), parts.end(), ClientID) != parts.end())
+					{
+						m_pGameServer->SendChatTarget(ClientID, "Cosmetics are disabled during LMB/TDM.");
+						return false;
+					}
+				}
+			}
+		}
+	}
+
 	std::string sName = pName ? pName : "";
 	for(int i = 0; i < CCosmeticsHandler::NUM_SPECIALS; ++i)
 	{
@@ -252,6 +274,28 @@ bool CCosmeticsHandler::ToggleKnockout(int ClientID, const char *pName)
 	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
 		return false;
 
+	if(m_pGameServer)
+	{
+		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+		{
+			auto pEv = eventsAccessor->GetActiveEvent();
+			if(pEv)
+			{
+				const char *pEvName = pEv->GetEventName();
+				bool IsBlockedEvent = (str_comp(pEvName, "LMB") == 0) || (str_comp(pEvName, "Team Deathmatch") == 0);
+				if(IsBlockedEvent)
+				{
+					const auto &parts = pEv->Participants();
+					if(std::find(parts.begin(), parts.end(), ClientID) != parts.end())
+					{
+						m_pGameServer->SendChatTarget(ClientID, "Cosmetics are disabled during LMB/TDM.");
+						return false;
+					}
+				}
+			}
+		}
+	}
+
 	int Effect = FindKnockoutEffect(pName);
 	if(Effect == -1)
 		return false;
@@ -363,6 +407,28 @@ bool CCosmeticsHandler::ToggleGundesign(int ClientID, const char *pName)
 	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
 		return false;
 
+	if(m_pGameServer)
+	{
+		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+		{
+			auto pEv = eventsAccessor->GetActiveEvent();
+			if(pEv)
+			{
+				const char *pEvName = pEv->GetEventName();
+				bool IsBlockedEvent = (str_comp(pEvName, "LMB") == 0) || (str_comp(pEvName, "Team Deathmatch") == 0);
+				if(IsBlockedEvent)
+				{
+					const auto &parts = pEv->Participants();
+					if(std::find(parts.begin(), parts.end(), ClientID) != parts.end())
+					{
+						m_pGameServer->SendChatTarget(ClientID, "Cosmetics are disabled during LMB/TDM.");
+						return false;
+					}
+				}
+			}
+		}
+	}
+
 	int Effect = FindGundesign(pName);
 
 	if(Effect == -1)
@@ -462,6 +528,28 @@ bool CCosmeticsHandler::ToggleSkinmani(int ClientID, const char *pName)
 {
 	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
 		return false;
+
+	if(m_pGameServer)
+	{
+		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+		{
+			auto pEv = eventsAccessor->GetActiveEvent();
+			if(pEv)
+			{
+				const char *pEvName = pEv->GetEventName();
+				bool IsBlockedEvent = (str_comp(pEvName, "LMB") == 0) || (str_comp(pEvName, "Team Deathmatch") == 0);
+				if(IsBlockedEvent)
+				{
+					const auto &parts = pEv->Participants();
+					if(std::find(parts.begin(), parts.end(), ClientID) != parts.end())
+					{
+						m_pGameServer->SendChatTarget(ClientID, "Cosmetics are disabled during LMB/TDM.");
+						return false;
+					}
+				}
+			}
+		}
+	}
 
 	int Effect = FindSkinmani(pName);
 	if(Effect == -1)

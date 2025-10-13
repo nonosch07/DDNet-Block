@@ -49,9 +49,9 @@
 #include <blockworlds/shop/preview.h>
 #include <blockworlds/zones/zonemanager.h>
 
+#include <blockworlds/discord/webhook.h>
 #include <blockworlds/votes/cosmetics.h>
 #include <blockworlds/votes/votemanager.h>
-#include <blockworlds/discord/webhook.h>
 
 // Not thread-safe!
 class CClientChatLogger : public ILogger
@@ -1838,6 +1838,25 @@ void CGameContext::OnClientEnter(int ClientId)
 		if(g_Config.m_SvWelcome[0] != 0)
 			SendChatTarget(ClientId, g_Config.m_SvWelcome);
 
+		// inform about weekend EXP bonus
+		if(g_Config.m_SvWeekendExpEnabled)
+		{
+			time_t t = time(nullptr);
+			struct tm tmres;
+			localtime_r(&t, &tmres);
+			int wday = tmres.tm_wday; // 0=Sun,6=Sat
+			if(wday == 0 || wday == 6)
+			{
+				char aBuf[96];
+				int mult = g_Config.m_SvWeekendExpMultiplier;
+				if(mult < 100)
+					mult = 100;
+				float multx = mult / 100.0f;
+				str_format(aBuf, sizeof(aBuf), "Weekend bonus: x%.2g EXP is active!", multx);
+				SendChatTarget(ClientId, aBuf);
+			}
+		}
+
 		if(g_Config.m_SvShowOthersDefault > SHOW_OTHERS_OFF)
 		{
 			if(g_Config.m_SvShowOthers)
@@ -2867,6 +2886,25 @@ void CGameContext::OnSetTeamNetMessage(const CNetMsg_Cl_SetTeam *pMsg, int Clien
 	char aTeamJoinError[512];
 	if(m_pController->CanJoinTeam(pMsg->m_Team, ClientId, aTeamJoinError, sizeof(aTeamJoinError)))
 	{
+		// if player tries to go to spectators during an active event, make them leave the event instead
+		if(pMsg->m_Team == TEAM_SPECTATORS)
+		{
+			if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+			{
+				auto pEvent = eventsAccessor->GetActiveEvent();
+				if(pEvent && pEvent->GetState() == CEventComponent::EEventState::Active)
+				{
+					const auto &parts = pEvent->Participants();
+					if(std::find(parts.begin(), parts.end(), ClientId) != parts.end())
+					{
+						// treat as ragequit/leave from the current event
+						pEvent->Leave(ClientId);
+						return; // suppress actual team change
+					}
+				}
+			}
+		}
+
 		if(pPlayer->GetTeam() == TEAM_SPECTATORS || pMsg->m_Team == TEAM_SPECTATORS)
 			m_VoteUpdate = true;
 		m_pController->DoTeamChange(pPlayer, pMsg->m_Team);
@@ -4126,7 +4164,7 @@ void CGameContext::RegisterDDRaceCommands()
 	Console()->Register("freezehammer", "v[id]", CFGFLAG_SERVER | CMDFLAG_TEST, ConFreezeHammer, this, "Gives a player Freeze Hammer");
 	Console()->Register("unfreezehammer", "v[id]", CFGFLAG_SERVER | CMDFLAG_TEST, ConUnFreezeHammer, this, "Removes Freeze Hammer from a player");
 
-	Console()->Register("status_accounts", "?r[name]", CFGFLAG_SERVER, ConStatusAccounts, this, "List logged-in accounts containing name or all accounts");
+	Console()->Register("status_acc", "?r[name]", CFGFLAG_SERVER, ConStatusAccounts, this, "List logged-in accounts containing name or all accounts");
 
 	// Admin helpers for account/IP management
 	Console()->Register("ip_bans", "", CFGFLAG_SERVER, ConIpBans, this, "List active IP bans (admin)");
@@ -4144,8 +4182,8 @@ void CGameContext::RegisterDDRaceCommands()
 	Console()->Register("give_weaponkits", "v[id] i[amount]", CFGFLAG_SERVER, ConGiveWeaponkits, this, "Give weaponkits to player id");
 	Console()->Register("give_blockpoints", "v[id] i[amount]", CFGFLAG_SERVER, ConGiveBlockpoints, this, "Give blockpoints to player id");
 	Console()->Register("give_passive", "v[id] i[seconds]", CFGFLAG_SERVER, ConGivePassive, this, "Give passive seconds to player id");
-	Console()->Register("set_password", "s[name] s[newpass]", CFGFLAG_SERVER, ConAdminSetPassword, this, "Set an account password by account name");
-	Console()->Register("set_vip", "v[id] i[0|1]", CFGFLAG_SERVER, ConSetVip, this, "Set or remove VIP for player id (1=set, 0=remove)");
+	Console()->Register("set_acc_password", "s[name] s[newpass]", CFGFLAG_SERVER, ConAdminSetPassword, this, "Set an account password by account name");
+	Console()->Register("vip_player", "v[id] i[0|1]", CFGFLAG_SERVER, ConSetVip, this, "Set or remove VIP for player id (1=set, 0=remove)");
 }
 
 void CGameContext::RegisterChatCommands()

@@ -16,8 +16,7 @@
 #include <string>
 #include <vector>
 
-namespace
-{
+namespace {
 constexpr int DISCORD_MAX_CONTENT = 2000;
 
 static std::vector<std::string> ChunkMessage(const char *pMsg)
@@ -29,7 +28,7 @@ static std::vector<std::string> ChunkMessage(const char *pMsg)
 		return v;
 	}
 	const int Len = str_length(pMsg);
-	for(int pos = 0; pos < Len; )
+	for(int pos = 0; pos < Len;)
 	{
 		int take = minimum(DISCORD_MAX_CONTENT, Len - pos);
 		v.emplace_back(std::string(pMsg + pos, pMsg + pos + take));
@@ -50,9 +49,8 @@ class CDiscordWebhook::CSendJob : public IJob
 	bool m_Tts = false;
 
 public:
-	CSendJob(IHttp *pHttp, const char *pUrl, const std::vector<std::string> &vChunks, const SSendOptions *pOpt)
-		: m_pHttp(pHttp)
-		, m_vChunks(vChunks)
+	CSendJob(IHttp *pHttp, const char *pUrl, const std::vector<std::string> &vChunks, const SSendOptions *pOpt) :
+		m_pHttp(pHttp), m_vChunks(vChunks)
 	{
 		str_copy(m_aUrl, pUrl);
 		// Merge options with config defaults.
@@ -60,9 +58,12 @@ public:
 		const char *pAvatar = (pOpt && pOpt->m_pAvatarUrl && pOpt->m_pAvatarUrl[0]) ? pOpt->m_pAvatarUrl : g_Config.m_SvDiscordWebhookAvatar;
 		const char *pThread = (pOpt && pOpt->m_pThreadId && pOpt->m_pThreadId[0]) ? pOpt->m_pThreadId : g_Config.m_SvDiscordThreadId;
 		int Tts = (pOpt && pOpt->m_Tts != -1) ? pOpt->m_Tts : g_Config.m_SvDiscordTts;
-		if(pUser) str_copy(m_aUsername, pUser);
-		if(pAvatar) str_copy(m_aAvatar, pAvatar);
-		if(pThread) str_copy(m_aThreadId, pThread);
+		if(pUser)
+			str_copy(m_aUsername, pUser);
+		if(pAvatar)
+			str_copy(m_aAvatar, pAvatar);
+		if(pThread)
+			str_copy(m_aThreadId, pThread);
 		m_Tts = Tts != 0;
 		Abortable(true);
 	}
@@ -78,9 +79,21 @@ public:
 			W.BeginObject();
 			W.WriteAttribute("content");
 			W.WriteStrValue(Chunk.c_str());
-			if(m_aUsername[0]) { W.WriteAttribute("username"); W.WriteStrValue(m_aUsername); }
-			if(m_aAvatar[0]) { W.WriteAttribute("avatar_url"); W.WriteStrValue(m_aAvatar); }
-			if(m_Tts) { W.WriteAttribute("tts"); W.WriteBoolValue(true); }
+			if(m_aUsername[0])
+			{
+				W.WriteAttribute("username");
+				W.WriteStrValue(m_aUsername);
+			}
+			if(m_aAvatar[0])
+			{
+				W.WriteAttribute("avatar_url");
+				W.WriteStrValue(m_aAvatar);
+			}
+			if(m_Tts)
+			{
+				W.WriteAttribute("tts");
+				W.WriteBoolValue(true);
+			}
 			W.EndObject();
 			std::string Payload = W.GetOutputString();
 
@@ -114,9 +127,8 @@ public:
 	}
 };
 
-CDiscordWebhook::CDiscordWebhook(IEngine *pEngine, IHttp *pHttp)
-	: m_pEngine(pEngine)
-	, m_pHttp(pHttp)
+CDiscordWebhook::CDiscordWebhook(IEngine *pEngine, IHttp *pHttp) :
+	m_pEngine(pEngine), m_pHttp(pHttp)
 {
 }
 

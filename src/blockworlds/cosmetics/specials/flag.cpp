@@ -20,6 +20,11 @@ CFlag::CFlag(CGameWorld *pGameWorld, int Owner, int Team) :
 
 void CFlag::Tick()
 {
+	if(!Server()->ClientIngame(m_Owner))
+	{
+		m_MarkedForDestroy = true;
+		return;
+	}
 	CCharacter *pChar = GameServer()->GetPlayerChar(m_Owner);
 	if(pChar && pChar->IsAlive())
 	{

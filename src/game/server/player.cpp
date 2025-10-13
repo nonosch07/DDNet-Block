@@ -9,6 +9,7 @@
 #include <base/system.h>
 
 #include <cstdint>
+#include <ctime>
 #include <engine/antibot.h>
 #include <engine/server.h>
 #include <engine/shared/config.h>
@@ -756,6 +757,7 @@ void CPlayer::FakeSnap()
 
 void CPlayer::OnDisconnect()
 {
+	ClearCosmetics();
 	KillCharacter();
 	m_Moderating = false;
 }
@@ -1743,12 +1745,6 @@ bool CPlayer::ToggleSpecial(int SpecialIndex)
 	if(SpecialIndex < 0 || SpecialIndex >= CCosmeticsHandler::NUM_SPECIALS)
 		return false;
 
-	if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
-	{
-		if(eventsAccessor->GetActiveEvent())
-			return false;
-	}
-
 	if(m_CurrentSpecial == SpecialIndex)
 	{
 		if(m_pSpecialEntity)
@@ -1795,8 +1791,25 @@ bool CPlayer::ToggleSpecial(int SpecialIndex)
 
 void CPlayer::AddPlayerExp(int Amount, bool ApplyMultiplier)
 {
+	// apply player-specific multipliers and optional weekend bonus
+	float TotalMult = 1.0f;
 	if(ApplyMultiplier)
-		Amount = (int)((float)Amount * GetExpMultiplier());
+		TotalMult *= GetExpMultiplier();
+	if(g_Config.m_SvWeekendExpEnabled)
+	{
+		time_t t = time(nullptr);
+		struct tm tmres;
+		localtime_r(&t, &tmres);
+		int wday = tmres.tm_wday; // 0=Sunday, 6=Saturday
+		if(wday == 0 || wday == 6)
+		{
+			float weekendMult = (float)g_Config.m_SvWeekendExpMultiplier / 100.0f;
+			if(weekendMult < 0.01f)
+				weekendMult = 0.01f;
+			TotalMult *= weekendMult;
+		}
+	}
+	Amount = (int)((float)Amount * TotalMult);
 	m_Account.m_Experience += Amount;
 
 	if(GetPlayerExperience() >= NeededAccountExp(GetPlayerLevel()))

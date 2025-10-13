@@ -180,16 +180,29 @@ bool CBlockTracker::Blocked(int ClientID, int BlockerID)
 	float FinalExp = ExpBase * PopScale * UniqueScale * LevelScale * DailyScale * AfkScale;
 	int AwardExp = FinalExp <= 0.0f ? 0 : std::max(1, (int)FinalExp);
 
+	// report accurate, outcome-based scaling info without changing gameplay
+	const int BaseExpInt = (int)ExpBase;
 	if(AfkScale == 0.0f)
+	{
 		DebugMsg(BlockerID, "EXP suppressed: AFK victim ratio too high");
-	else if(UniqueScale < 1.0f)
-		DebugMsg(BlockerID, "EXP reduced: low unique victim diversity");
-	else if(LevelScale < 1.0f)
-		DebugMsg(BlockerID, "EXP reduced: large level difference");
-	else if(DailyScale < 1.0f)
-		DebugMsg(BlockerID, "EXP reduced: daily soft cap");
-	else if(PopScale < 1.0f)
-		DebugMsg(BlockerID, "EXP scaled down due to low population");
+	}
+	else if(AwardExp > 0)
+	{
+		// only claim a scale-down if the awarded EXP is actually smaller than base
+		if(AwardExp < BaseExpInt)
+		{
+			char aDbg[128];
+			str_format(aDbg, sizeof(aDbg), "EXP scaled: base %d -> %d", BaseExpInt, AwardExp);
+			DebugMsg(BlockerID, aDbg);
+		}
+		else if((PopScale < 1.0f || UniqueScale < 1.0f || LevelScale < 1.0f || DailyScale < 1.0f) && AwardExp == BaseExpInt)
+		{
+			// factors reduced but rounding/min clamp kept award at base; keep message honest
+			char aDbg[128];
+			str_format(aDbg, sizeof(aDbg), "EXP factors reduced (rounded to %d)", AwardExp);
+			DebugMsg(BlockerID, aDbg);
+		}
+	}
 
 	if(AwardExp > 0)
 	{

@@ -346,18 +346,17 @@ bool CosmeticsVoteManager::HandleVote(CPlayer *pPlayer, const std::string &voteI
 	EnsureCategoriesInitialized();
 	std::string normalizedVote = NormalizeForCompare(voteInput);
 
+	// if this vote exactly matches a real server vote option, don't treat it as cosmetics at all.
 	if(pGameContext && pGameContext->m_pVoteOptionFirst)
 	{
-		CVoteOptionServer *pOption = pGameContext->m_pVoteOptionFirst;
-		while(pOption)
+		for(CVoteOptionServer *pOpt = pGameContext->m_pVoteOptionFirst; pOpt; pOpt = pOpt->m_pNext)
 		{
-			std::string optionDesc = NormalizeForCompare(pOption->m_aDescription);
-			if(!optionDesc.empty() && (normalizedVote.find(optionDesc) != std::string::npos || optionDesc.find(normalizedVote) != std::string::npos))
+			std::string optNorm = NormalizeForCompare(pOpt->m_aDescription);
+			if(!optNorm.empty() && optNorm == normalizedVote)
 			{
-				pGameContext->CallVote(ClientId, pOption->m_aDescription, pOption->m_aCommand, "", "", nullptr);
-				return true;
+				// let the core vote system handle it; no cosmetics message.
+				return false;
 			}
-			pOption = pOption->m_pNext;
 		}
 	}
 
@@ -410,6 +409,17 @@ bool CosmeticsVoteManager::HandleVote(CPlayer *pPlayer, const std::string &voteI
 
 	if(!normalizedInput.empty())
 	{
+		// if this looks like a real server vote substring, defer to server votes.
+		if(pGameContext && pGameContext->m_pVoteOptionFirst)
+		{
+			for(CVoteOptionServer *pOpt = pGameContext->m_pVoteOptionFirst; pOpt; pOpt = pOpt->m_pNext)
+			{
+				std::string optNorm = NormalizeForCompare(pOpt->m_aDescription);
+				if(!optNorm.empty() && (optNorm == normalizedInput || optNorm.find(normalizedInput) != std::string::npos || normalizedInput.find(optNorm) != std::string::npos))
+					return false;
+			}
+		}
+
 		int bestOpt = -1;
 		size_t bestLen = 0;
 		for(size_t oi = 0; oi < m_OptionNormalized.size(); ++oi)
@@ -441,6 +451,16 @@ bool CosmeticsVoteManager::HandleVote(CPlayer *pPlayer, const std::string &voteI
 		{
 			if(try_apply_mapping(it->second))
 				return true;
+		}
+	}
+
+	if(pGameContext && pGameContext->m_pVoteOptionFirst)
+	{
+		for(CVoteOptionServer *pOpt = pGameContext->m_pVoteOptionFirst; pOpt; pOpt = pOpt->m_pNext)
+		{
+			std::string optNorm = NormalizeForCompare(pOpt->m_aDescription);
+			if(!optNorm.empty() && (optNorm == normalizedVote || optNorm.find(normalizedVote) != std::string::npos || normalizedVote.find(optNorm) != std::string::npos))
+				return false; // let core handle
 		}
 	}
 

@@ -57,6 +57,12 @@ private:
 	int m_BothFrozenSinceTick = -1; // tick when both players became frozen simultanoeusly
 	void RestartRoundAfterDraw();
 
+	// perma-freeze tracking (in-freeze tiles) to evaluate draw-at-death consistently
+	bool m_P1InFreezeTile = false;
+	bool m_P2InFreezeTile = false;
+	int m_P1InFreezeTileTick = -1;
+	int m_P2InFreezeTileTick = -1;
+
 	// finish handling
 	bool m_DeferFinishRestore = false;
 	int m_RestoreAtTick = -1;

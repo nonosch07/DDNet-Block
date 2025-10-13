@@ -4,8 +4,8 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
 #include "core/component.h"
 
@@ -75,8 +75,8 @@ private:
 	struct SDailyBpCounters
 	{
 		int m_TodayAmount = 0; // total amount sent today
-		int m_TodayCount = 0;  // number of completed transfers today
-		int m_TodayDate = 0;   // yyyymmdd (UTC)
+		int m_TodayCount = 0; // number of completed transfers today
+		int m_TodayDate = 0; // yyyymmdd (UTC)
 	};
 	std::unordered_map<int /*AccountId*/, SDailyBpCounters> m_BpDailyCounters;
 };

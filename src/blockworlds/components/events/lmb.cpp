@@ -232,8 +232,8 @@ void CLastManBlockingEvent::FinishEvent()
 		GameServer()->SendChatTarget(-1, aBuf);
 		GameServer()->SendBroadcast(-1, aBuf, false);
 
-	CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
-	if(g_Config.m_SvDiscordLmbEnabled && Discord.IsConfigured(g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr))
+		CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
+		if(g_Config.m_SvDiscordLmbEnabled && Discord.IsConfigured(g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr))
 		{
 			CDiscordWebhook::SSendOptions Opt;
 			Opt.m_pWebhookUrl = g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr;
@@ -247,8 +247,8 @@ void CLastManBlockingEvent::FinishEvent()
 		GameServer()->SendChatTarget(-1, aBuf);
 		GameServer()->SendBroadcast(-1, aBuf, false);
 
-	CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
-	if(g_Config.m_SvDiscordLmbEnabled && Discord.IsConfigured(g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr))
+		CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
+		if(g_Config.m_SvDiscordLmbEnabled && Discord.IsConfigured(g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr))
 		{
 			CDiscordWebhook::SSendOptions Opt;
 			Opt.m_pWebhookUrl = g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr;
@@ -363,6 +363,11 @@ bool CLastManBlockingEvent::Join(int ClientId)
 
 	if(auto pPlayer = GameServer()->GetPlayer(ClientId))
 	{
+		// remove all cosmetics and prevent reactivation during the event via cosmetics module checks
+		pPlayer->ClearCosmetics();
+		pPlayer->SetSkinMani(-1);
+		pPlayer->SetGunDesign(-1);
+		pPlayer->SetKnockout(-1);
 		if(pPlayer->GetCurrentSpecial() != -1)
 			pPlayer->ToggleSpecial(pPlayer->GetCurrentSpecial());
 	}
@@ -379,6 +384,10 @@ bool CLastManBlockingEvent::Leave(int ClientId)
 	LoadPosition(ClientId);
 
 	// restore specials state is intentionally left unchanged; players may re-enable after event
+	// communicate ragequit/leave to server
+	char aBuf[256];
+	str_format(aBuf, sizeof(aBuf), "[LMB] - %s left the event.", Server()->ClientName(ClientId));
+	GameServer()->SendChatTarget(-1, aBuf);
 	return true;
 }
 

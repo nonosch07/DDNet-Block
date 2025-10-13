@@ -4,8 +4,8 @@
 #define GAME_SERVER_GAMECONTEXT_H
 
 #include <engine/console.h>
-#include <engine/server.h>
 #include <engine/http.h>
+#include <engine/server.h>
 
 #include <game/collision.h>
 #include <game/generated/protocol.h>

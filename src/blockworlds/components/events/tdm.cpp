@@ -519,6 +519,11 @@ bool CTeamDeathmatchEvent::Join(int ClientId)
 
 	if(auto pPlayer = GameServer()->GetPlayer(ClientId))
 	{
+		// remove all cosmetics on join and rely on cosmetics module to block reactivation during event
+		pPlayer->ClearCosmetics();
+		pPlayer->SetSkinMani(-1);
+		pPlayer->SetGunDesign(-1);
+		pPlayer->SetKnockout(-1);
 		if(pPlayer->GetCurrentSpecial() != -1)
 			pPlayer->ToggleSpecial(pPlayer->GetCurrentSpecial());
 	}
@@ -543,6 +548,10 @@ bool CTeamDeathmatchEvent::Leave(int ClientId)
 		p->m_HideInfo = false;
 		p->m_HideInfoInScoreboard = false;
 	}
+	// communicate ragequit flavor text for clarity
+	char aBuf[256];
+	str_format(aBuf, sizeof(aBuf), "[TDM] - %s left the event.", Server()->ClientName(ClientId));
+	GameServer()->SendChatTarget(-1, aBuf);
 	return true;
 }
 

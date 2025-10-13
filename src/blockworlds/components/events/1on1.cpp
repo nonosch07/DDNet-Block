@@ -58,6 +58,10 @@ void COneOnOneEvent::StartEvent()
 	m_LastAwardedTick = -1;
 	m_RoundStartTick = Server()->Tick();
 	m_BothFrozenSinceTick = -1;
+	m_P1InFreezeTile = false;
+	m_P2InFreezeTile = false;
+	m_P1InFreezeTileTick = -1;
+	m_P2InFreezeTileTick = -1;
 
 	// initialize participants' visible score to 0
 	CPlayer *pStart1 = GameServer()->GetPlayer(m_Player1ID);
@@ -197,8 +201,7 @@ void COneOnOneEvent::OnTick()
 		return;
 	}
 
-	// update broadcasts every second
-	if((Server()->Tick() % Server()->TickSpeed()) == 0)
+	if(Config()->m_Sv1on1BroadcastRate > 0 && (Server()->Tick() % Config()->m_Sv1on1BroadcastRate) == 0)
 	{
 		static constexpr const char *s_padding = "                                                                                     "
 							 "                                                                                     "
@@ -213,8 +216,38 @@ void COneOnOneEvent::OnTick()
 	CCharacter *pChr1 = GameServer()->GetPlayerChar(m_Player1ID);
 	CCharacter *pChr2 = GameServer()->GetPlayerChar(m_Player2ID);
 	bool bothChars = pChr1 && pChr2;
-	bool bothFrozen = bothChars && pChr1->m_FreezeTime > 0 && pChr2->m_FreezeTime > 0;
-	if(bothFrozen)
+	bool bothInFreezeTile = bothChars && pChr1->Core()->m_IsInFreeze && pChr2->Core()->m_IsInFreeze;
+
+	// track if each player is currently in a freeze tile (perma-freeze context)
+	if(pChr1)
+	{
+		bool inFreeze = pChr1->Core()->m_IsInFreeze; // set in DDRaceTick
+		if(inFreeze)
+		{
+			if(!m_P1InFreezeTile)
+				m_P1InFreezeTileTick = m_CurrentTick;
+			m_P1InFreezeTile = true;
+		}
+		else
+		{
+			m_P1InFreezeTile = false;
+		}
+	}
+	if(pChr2)
+	{
+		bool inFreeze = pChr2->Core()->m_IsInFreeze;
+		if(inFreeze)
+		{
+			if(!m_P2InFreezeTile)
+				m_P2InFreezeTileTick = m_CurrentTick;
+			m_P2InFreezeTile = true;
+		}
+		else
+		{
+			m_P2InFreezeTile = false;
+		}
+	}
+	if(bothInFreezeTile)
 	{
 		if(m_BothFrozenSinceTick == -1)
 		{
@@ -299,6 +332,26 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 		m_Player2DeathTick = Server()->Tick();
 	}
 
+	CCharacter *pChr1 = GameServer()->GetPlayerChar(m_Player1ID);
+	CCharacter *pChr2 = GameServer()->GetPlayerChar(m_Player2ID);
+	bool p1InFreezeTileNow = pChr1 ? pChr1->Core()->m_IsInFreeze : m_P1InFreezeTile;
+	bool p2InFreezeTileNow = pChr2 ? pChr2->Core()->m_IsInFreeze : m_P2InFreezeTile;
+	if(p1InFreezeTileNow && p2InFreezeTileNow)
+	{
+		// undo any implicit scoring and restart round as draw
+		if(m_Score1 > 0 || m_Score2 > 0)
+		{
+		}
+		GameServer()->SendChatTarget(m_Player1ID, "[1on1] Draw! (both in freeze) Round restarting...");
+		GameServer()->SendChatTarget(m_Player2ID, "[1on1] Draw! (both in freeze) Round restarting...");
+		char aDrawBuf[256];
+		str_format(aDrawBuf, sizeof(aDrawBuf), "%s: %d\n%s: %d\nRound draw! restarting...", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2);
+		GameServer()->SendBroadcast(aDrawBuf, m_Player1ID, false);
+		GameServer()->SendBroadcast(aDrawBuf, m_Player2ID, false);
+		RestartRoundAfterDraw();
+		return;
+	}
+
 	if(ClientId == m_Player1ID)
 	{
 		m_Score2 += 1;
@@ -336,8 +389,7 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 	}
 	else
 	{
-		CCharacter *pChr1 = GameServer()->GetPlayerChar(m_Player1ID);
-		CCharacter *pChr2 = GameServer()->GetPlayerChar(m_Player2ID);
+		// reuse earlier character pointers to avoid shadowing warnings
 		bool Dead1 = !pChr1 || !pChr1->IsAlive();
 		bool Dead2 = !pChr2 || !pChr2->IsAlive();
 		int extendedWindow = Config()->m_Sv1on1DrawDeathExtendedWindow; // ticks
@@ -401,6 +453,10 @@ void COneOnOneEvent::RestartRoundAfterDraw()
 	m_LastAwardedTick = -1;
 	m_RoundStartTick = Server()->Tick();
 	m_BothFrozenSinceTick = -1;
+	m_P1InFreezeTile = false;
+	m_P2InFreezeTile = false;
+	m_P1InFreezeTileTick = -1;
+	m_P2InFreezeTileTick = -1;
 
 	std::vector<vec2> startPositions;
 	GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), startPositions);
@@ -451,7 +507,7 @@ void COneOnOneEvent::FinishEvent()
 		// post to Discord webhook
 		CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
 		const char *p1on1Url = g_Config.m_SvDiscordWebhookUrl1on1[0] ? g_Config.m_SvDiscordWebhookUrl1on1 : nullptr;
-	if(g_Config.m_SvDiscord1on1Enabled && Discord.IsConfigured(p1on1Url))
+		if(g_Config.m_SvDiscord1on1Enabled && Discord.IsConfigured(p1on1Url))
 		{
 			char aMsg[512];
 			const char *pMap = Server()->GetMapName();
@@ -467,7 +523,10 @@ void COneOnOneEvent::FinishEvent()
 	{
 		PayoutWinner(pWinner, pLoser);
 	}
-	
+
+	// clear per-player broadcasts using non-format overload
+	GameServer()->SendBroadcast(" ", m_Player1ID, false);
+	GameServer()->SendBroadcast(" ", m_Player2ID, false);
 
 	// defer team unlock and position restore to the next tick to avoid reentrant spawn during death handling
 	m_DeferFinishRestore = true;
@@ -506,14 +565,18 @@ bool COneOnOneEvent::Leave(int ClientId)
 		str_format(aBuf, sizeof(aBuf), s_RagequitMsgs[idx], pLeaverName, pOpponentName);
 		GameServer()->SendChatTarget(-1, aBuf);
 
-		m_SuppressFinishBroadcast = true;
-		FinishEvent();
+		// make the opponent the winner immediately
 		m_SuppressFinishBroadcast = false;
+		if(opponent == m_Player1ID)
+			m_Score1 = std::max(m_Score2 + 1, m_Score1 + 1);
+		else
+			m_Score2 = std::max(m_Score1 + 1, m_Score2 + 1);
+		FinishEvent();
 
 		// notify Discord about ragequit
 		CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
 		const char *p1on1Url = g_Config.m_SvDiscordWebhookUrl1on1[0] ? g_Config.m_SvDiscordWebhookUrl1on1 : nullptr;
-	if(g_Config.m_SvDiscord1on1Enabled && Discord.IsConfigured(p1on1Url))
+		if(g_Config.m_SvDiscord1on1Enabled && Discord.IsConfigured(p1on1Url))
 		{
 			char aMsg[256];
 			str_format(aMsg, sizeof(aMsg), "1on1 ragequit: %s left vs %s (score so far %d-%d)", pLeaverName, pOpponentName, m_Score1, m_Score2);
@@ -575,7 +638,7 @@ bool COneOnOneEvent::CollectEscrow()
 	m_EscrowCollected = true;
 	m_EscrowBalance = m_Wager * 2;
 	char aBuf[192];
-	str_format(aBuf, sizeof(aBuf), "[1on1] Escrow collected: %d BP from each player.", m_Wager);
+	str_format(aBuf, sizeof(aBuf), "[1on1] Pot started with %d BP from each player.", m_Wager);
 	GameServer()->SendChatTarget(m_Player1ID, aBuf);
 	GameServer()->SendChatTarget(m_Player2ID, aBuf);
 	return true;

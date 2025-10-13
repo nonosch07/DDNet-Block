@@ -42,7 +42,7 @@ MACRO_CONFIG_INT(SvRegisterIpMaxAttempts, sv_register_ip_max_attempts, 5, 1, 100
 MACRO_CONFIG_INT(SvRegisterIpBanSeconds, sv_register_ip_ban_seconds, 30, 0, 86400, CFGFLAG_SERVER, "Duration (seconds) to ban an IP after exceeding register attempts.")
 
 // Experience and block-related settings:
-MACRO_CONFIG_INT(SvBlockExperienceMultiplierStacking, sv_block_expirience_multiplier_stacking, 1, 0, NUM_EXP_CALC_METHODS-1, CFGFLAG_SERVER, "0-highest, 1-additive, 2-logarithmic, 3-multiplicative")
+MACRO_CONFIG_INT(SvBlockExperienceMultiplierStacking, sv_block_expirience_multiplier_stacking, 1, 0, NUM_EXP_CALC_METHODS - 1, CFGFLAG_SERVER, "0-highest, 1-additive, 2-logarithmic, 3-multiplicative")
 MACRO_CONFIG_INT(SvBlockExperience, sv_block_experience, 1, 0, 0, CFGFLAG_SERVER, "Experience points awarded for each registered block.")
 MACRO_CONFIG_INT(SvBlockFreezedInterval, sv_block_freezed, 3, 0, 0, CFGFLAG_SERVER, "Duration (in seconds) a player must remain frozen to be considered for blocking.")
 MACRO_CONFIG_INT(SvBlockResetUnfreezedInterval, sv_block_reset_unfreezed, 3, 0, 0, CFGFLAG_SERVER, "Time (in seconds) a player must remain unfrozen before losing the enemy’s block impact.")
@@ -75,6 +75,10 @@ MACRO_CONFIG_INT(SvExpDailySoftCap, sv_exp_daily_soft_cap, 5000, 0, 1000000, CFG
 MACRO_CONFIG_INT(SvExpMinSessionMinutes, sv_exp_min_session_minutes, 3, 0, 120, CFGFLAG_SERVER, "Minimum connection time (minutes) for both players to allow EXP")
 MACRO_CONFIG_INT(SvExpMaxAfkVictimRatioPercent, sv_exp_max_afk_victim_ratio_percent, 30, 0, 100, CFGFLAG_SERVER, "Maximum percent of recent kills on AFK victims before EXP suppression")
 MACRO_CONFIG_INT(SvDebugAntifarm, sv_debug_antifarm, 0, 0, 1, CFGFLAG_SERVER, "Enable verbose anti-farm debug messages to killers (1=on)")
+
+// weekend EXP bonus (server-local time)
+MACRO_CONFIG_INT(SvWeekendExpEnabled, sv_weekend_exp_enabled, 1, 0, 1, CFGFLAG_SERVER, "Enable weekend EXP bonus (Saturday/Sunday)")
+MACRO_CONFIG_INT(SvWeekendExpMultiplier, sv_weekend_exp_multiplier, 200, 100, 10000, CFGFLAG_SERVER, "Weekend EXP multiplier (percent), e.g. 200 = 2x")
 
 // Deathnote settings:
 MACRO_CONFIG_INT(SvDeathNoteCoolDown, sv_deathnote_cooldown, 600, 60, 3600, CFGFLAG_SERVER, "Cooldown time (in seconds) a player must wait before reusing the Deathnote.")
@@ -123,25 +127,26 @@ MACRO_CONFIG_INT(Sv1on1DrawFreezeGrace, sv_1on1_draw_freeze_grace, 3, 0, 120, CF
 MACRO_CONFIG_INT(Sv1on1DrawFreezeStalemate, sv_1on1_draw_freeze_stalemate, 5, 1, 300, CFGFLAG_SERVER, "1on1: Both players frozen this long (after grace) => draw (seconds)")
 MACRO_CONFIG_INT(Sv1on1DrawDeathTickTolerance, sv_1on1_draw_death_tick_tolerance, 1, 0, 50, CFGFLAG_SERVER, "1on1: Max tick diff to treat dual death as draw")
 MACRO_CONFIG_INT(Sv1on1DrawDeathExtendedWindow, sv_1on1_draw_death_extended_window, 50, 0, 2000, CFGFLAG_SERVER, "1on1: Extended tick window for dual death draw (ticks)")
+MACRO_CONFIG_INT(Sv1on1BroadcastRate, sv_1on1_broadcast_rate, 25, 1, 500, CFGFLAG_SERVER, "Rate at which 1on1 score broadcasts will be sent (ticks, 50 ticks = 1 second)")
 
 MACRO_CONFIG_INT(SvPasswordPbkdf2Iter, sv_password_pbkdf2_iter, 120000, 10000, 2000000, CFGFLAG_SERVER, "PBKDF2 iteration count for account password hashing")
 
 // Discord integration
-MACRO_CONFIG_INT(SvDiscordEnabled, sv_discord_enabled, 1, 0, 1, CFGFLAG_SERVER|CFGFLAG_GAME, "Enable Discord webhook sending")
-MACRO_CONFIG_STR(SvDiscordWebhookUrl, sv_discord_webhook_url, 512, "https://discord.com/api/webhooks/1351471976241303552/H2GEmS6zBwTI47C-bQ3qklU74YGh-3A8sTtErIf95kGay1Vsf8ePqw70Q8n86KtiPFPH", CFGFLAG_SERVER|CFGFLAG_GAME, "Discord webhook URL")
-MACRO_CONFIG_STR(SvDiscordWebhookUsername, sv_discord_webhook_username, 127, "", CFGFLAG_SERVER|CFGFLAG_GAME, "Override webhook username (optional)")
-MACRO_CONFIG_STR(SvDiscordWebhookAvatar, sv_discord_webhook_avatar, 255, "", CFGFLAG_SERVER|CFGFLAG_GAME, "Override webhook avatar URL (optional)")
-MACRO_CONFIG_INT(SvDiscordTts, sv_discord_tts, 0, 0, 1, CFGFLAG_SERVER|CFGFLAG_GAME, "Send messages as TTS")
-MACRO_CONFIG_STR(SvDiscordThreadId, sv_discord_thread_id, 127, "", CFGFLAG_SERVER|CFGFLAG_GAME, "Thread ID to post under (optional)")
+MACRO_CONFIG_INT(SvDiscordEnabled, sv_discord_enabled, 1, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Enable Discord webhook sending")
+MACRO_CONFIG_STR(SvDiscordWebhookUrl, sv_discord_webhook_url, 512, "https://discord.com/api/webhooks/1351471976241303552/H2GEmS6zBwTI47C-bQ3qklU74YGh-3A8sTtErIf95kGay1Vsf8ePqw70Q8n86KtiPFPH", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL")
+MACRO_CONFIG_STR(SvDiscordWebhookUsername, sv_discord_webhook_username, 127, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Override webhook username (optional)")
+MACRO_CONFIG_STR(SvDiscordWebhookAvatar, sv_discord_webhook_avatar, 255, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Override webhook avatar URL (optional)")
+MACRO_CONFIG_INT(SvDiscordTts, sv_discord_tts, 0, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Send messages as TTS")
+MACRO_CONFIG_STR(SvDiscordThreadId, sv_discord_thread_id, 127, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Thread ID to post under (optional)")
 
-MACRO_CONFIG_INT(SvDiscord1on1Enabled, sv_discord_1on1_enabled, 1, 0, 1, CFGFLAG_SERVER|CFGFLAG_GAME, "Enable 1on1 Discord messages")
-MACRO_CONFIG_STR(SvDiscordWebhookUrl1on1, sv_discord_webhook_url_1on1, 512, "https://discord.com/api/webhooks/1351471976241303552/H2GEmS6zBwTI47C-bQ3qklU74YGh-3A8sTtErIf95kGay1Vsf8ePqw70Q8n86KtiPFPH", CFGFLAG_SERVER|CFGFLAG_GAME, "Discord webhook URL for 1on1 events")
+MACRO_CONFIG_INT(SvDiscord1on1Enabled, sv_discord_1on1_enabled, 1, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Enable 1on1 Discord messages")
+MACRO_CONFIG_STR(SvDiscordWebhookUrl1on1, sv_discord_webhook_url_1on1, 512, "https://discord.com/api/webhooks/1351471976241303552/H2GEmS6zBwTI47C-bQ3qklU74YGh-3A8sTtErIf95kGay1Vsf8ePqw70Q8n86KtiPFPH", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for 1on1 events")
 
-MACRO_CONFIG_INT(SvDiscordLogsEnabled, sv_discord_bp_logs_enabled, 0, 0, 1, CFGFLAG_SERVER|CFGFLAG_GAME, "Enable Discord logging for blockpoint transfer events")
-MACRO_CONFIG_STR(SvDiscordWebhookUrlLogs, sv_discord_webhook_url_bp_logs, 512, "", CFGFLAG_SERVER|CFGFLAG_GAME, "Discord webhook URL used for blockpoint transfer logs")
+MACRO_CONFIG_INT(SvDiscordLogsEnabled, sv_discord_bp_logs_enabled, 0, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Enable Discord logging for blockpoint transfer events")
+MACRO_CONFIG_STR(SvDiscordWebhookUrlLogs, sv_discord_webhook_url_bp_logs, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL used for blockpoint transfer logs")
 
-MACRO_CONFIG_INT(SvDiscordLmbEnabled, sv_discord_lmb_enabled, 1, 0, 1, CFGFLAG_SERVER|CFGFLAG_GAME, "Enable LMB Discord messages")
-MACRO_CONFIG_STR(SvDiscordWebhookUrlLmb, sv_discord_webhook_url_lmb, 512, "https://discord.com/api/webhooks/1351471976241303552/H2GEmS6zBwTI47C-bQ3qklU74YGh-3A8sTtErIf95kGay1Vsf8ePqw70Q8n86KtiPFPH", CFGFLAG_SERVER|CFGFLAG_GAME, "Discord webhook URL for LMB events")
+MACRO_CONFIG_INT(SvDiscordLmbEnabled, sv_discord_lmb_enabled, 1, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Enable LMB Discord messages")
+MACRO_CONFIG_STR(SvDiscordWebhookUrlLmb, sv_discord_webhook_url_lmb, 512, "https://discord.com/api/webhooks/1351471976241303552/H2GEmS6zBwTI47C-bQ3qklU74YGh-3A8sTtErIf95kGay1Vsf8ePqw70Q8n86KtiPFPH", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for LMB events")
 
-MACRO_CONFIG_INT(SvDiscordChatEnabled, sv_discord_chat_enabled, 1, 0, 1, CFGFLAG_SERVER|CFGFLAG_GAME, "Enable relaying in-game chat to Discord")
-MACRO_CONFIG_STR(SvDiscordWebhookUrlChat, sv_discord_webhook_url_chat, 512, "https://discord.com/api/webhooks/1351471976241303552/H2GEmS6zBwTI47C-bQ3qklU74YGh-3A8sTtErIf95kGay1Vsf8ePqw70Q8n86KtiPFPH", CFGFLAG_SERVER|CFGFLAG_GAME, "Discord webhook URL for chat relay")
+MACRO_CONFIG_INT(SvDiscordChatEnabled, sv_discord_chat_enabled, 1, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Enable relaying in-game chat to Discord")
+MACRO_CONFIG_STR(SvDiscordWebhookUrlChat, sv_discord_webhook_url_chat, 512, "https://discord.com/api/webhooks/1351471976241303552/H2GEmS6zBwTI47C-bQ3qklU74YGh-3A8sTtErIf95kGay1Vsf8ePqw70Q8n86KtiPFPH", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for chat relay")
