@@ -2133,7 +2133,7 @@ void CGameContext::ConWhois(IConsole::IResult *pResult, void *pUserData)
 	}
 	int Mode = clamp(pResult->GetInteger(0), 0, 1);
 	int Cutoff = clamp(pResult->GetInteger(1), 0, 2);
-	int Target = pResult->GetVictim(2);
+	int Target = pResult->GetInteger(2);
 	if(Target < 0 || Target >= MAX_CLIENTS || !pSelf->Server()->ClientIngame(Target))
 	{
 		pSelf->SendChatTarget(ClientId, "Invalid target client id");
