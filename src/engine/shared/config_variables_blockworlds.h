@@ -150,3 +150,6 @@ MACRO_CONFIG_STR(SvDiscordWebhookUrlLmb, sv_discord_webhook_url_lmb, 512, "https
 
 MACRO_CONFIG_INT(SvDiscordChatEnabled, sv_discord_chat_enabled, 1, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Enable relaying in-game chat to Discord")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlChat, sv_discord_webhook_url_chat, 512, "https://discord.com/api/webhooks/1351471976241303552/H2GEmS6zBwTI47C-bQ3qklU74YGh-3A8sTtErIf95kGay1Vsf8ePqw70Q8n86KtiPFPH", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for chat relay")
+
+// Whois retention (months); 0 disables purging
+MACRO_CONFIG_INT(SvWhoisRetentionMonths, sv_whois_retention_months, 6, 0, 120, CFGFLAG_SERVER, "Delete whois records older than this many months (0 = keep forever)")

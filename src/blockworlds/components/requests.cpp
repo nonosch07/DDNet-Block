@@ -319,6 +319,60 @@ int CRequests::CreateBlockpointTransfer(int FromClient, int ToClient, int Amount
 	return r.m_Id;
 }
 
+int CRequests::CreateClanDeleteConfirm(int ClientId, int ClanId, int ExpireSeconds)
+{
+	SRequest r;
+	r.m_Id = NextId();
+	r.m_Type = SRequest::EType::ClanDeleteConfirm;
+	r.m_From = ClientId;
+	r.m_To = ClientId; // self-confirmation
+	r.m_ClanId = ClanId;
+	r.m_ExpireTick = Server()->Tick() + (ExpireSeconds > 0 ? ExpireSeconds : 15) * Server()->TickSpeed();
+	m_Requests.push_back(r);
+
+	// notify
+	const char *pClanName = "<clan>";
+	if(GameServer()->Clans())
+	{
+		CClansData tmp;
+		if(GameServer()->Clans()->GetClanSnapshotById(ClanId, tmp))
+			pClanName = tmp.m_ClanName;
+	}
+	char aBuf[256];
+	str_format(aBuf, sizeof(aBuf), "Are you sure you want to delete clan '%s'? Type /clan_yes or /clan_no.", pClanName);
+	if(CheckClientId(ClientId) && GameServer()->m_apPlayers[ClientId])
+		GameServer()->SendChatTarget(ClientId, aBuf);
+	return r.m_Id;
+}
+
+int CRequests::CreateClanKickConfirm(int ClientId, int ClanId, const char *pTargetAccountName, int ExpireSeconds)
+{
+	SRequest r;
+	r.m_Id = NextId();
+	r.m_Type = SRequest::EType::ClanKickConfirm;
+	r.m_From = ClientId;
+	r.m_To = ClientId; // self-confirmation
+	r.m_ClanId = ClanId;
+	r.m_ExpireTick = Server()->Tick() + (ExpireSeconds > 0 ? ExpireSeconds : 15) * Server()->TickSpeed();
+	r.m_aUsername[0] = '\0';
+	if(pTargetAccountName)
+		str_copy(r.m_aUsername, pTargetAccountName, sizeof(r.m_aUsername));
+	m_Requests.push_back(r);
+
+	const char *pClanName = "<clan>";
+	if(GameServer()->Clans())
+	{
+		CClansData tmp;
+		if(GameServer()->Clans()->GetClanSnapshotById(ClanId, tmp))
+			pClanName = tmp.m_ClanName;
+	}
+	char aBuf[256];
+	str_format(aBuf, sizeof(aBuf), "Are you sure you want to kick '%s' from clan '%s'? Type /clan_yes or /clan_no.", r.m_aUsername[0] ? r.m_aUsername : "<unknown>", pClanName);
+	if(CheckClientId(ClientId) && GameServer()->m_apPlayers[ClientId])
+		GameServer()->SendChatTarget(ClientId, aBuf);
+	return r.m_Id;
+}
+
 bool CRequests::AcceptRequest(int RequestId)
 {
 	auto it = std::find_if(m_Requests.begin(), m_Requests.end(), [RequestId](const SRequest &r) { return r.m_Id == RequestId; });
@@ -455,6 +509,62 @@ bool CRequests::AcceptRequest(int RequestId)
 			if(eraseIt != m_Requests.end())
 				m_Requests.erase(eraseIt);
 		}
+		return true;
+	}
+
+	if(it->m_Type == SRequest::EType::ClanDeleteConfirm)
+	{
+		int clientId = it->m_From; // same as To
+		int clanId = it->m_ClanId;
+		CPlayer *pPl = CheckClientId(clientId) ? GameServer()->m_apPlayers[clientId] : nullptr;
+		if(!pPl || !pPl->IsLoggedIn())
+		{
+			if(CheckClientId(clientId) && GameServer()->m_apPlayers[clientId])
+				GameServer()->SendChatTarget(clientId, "You must be logged in to confirm clan deletion.");
+			m_Requests.erase(it);
+			return false;
+		}
+		if(pPl->GetClanId() != clanId || pPl->GetAuthLevel() != ClanAuthLevel::LEADER)
+		{
+			GameServer()->SendChatTarget(clientId, "You are no longer the leader of this clan.");
+			m_Requests.erase(it);
+			return false;
+		}
+		if(GameServer()->Clans())
+		{
+			GameServer()->Clans()->DeleteClan(clientId, clanId, pPl->GetAccId());
+			GameServer()->SendChatTarget(clientId, "Clan deletion confirmed.");
+		}
+		m_Requests.erase(it);
+		return true;
+	}
+
+	if(it->m_Type == SRequest::EType::ClanKickConfirm)
+	{
+		int clientId = it->m_From;
+		int clanId = it->m_ClanId;
+		CPlayer *pPl = CheckClientId(clientId) ? GameServer()->m_apPlayers[clientId] : nullptr;
+		if(!pPl || !pPl->IsLoggedIn())
+		{
+			if(CheckClientId(clientId) && GameServer()->m_apPlayers[clientId])
+				GameServer()->SendChatTarget(clientId, "You must be logged in to confirm clan kick.");
+			m_Requests.erase(it);
+			return false;
+		}
+		if(pPl->GetClanId() != clanId || pPl->GetAuthLevel() < ClanAuthLevel::COLEADER)
+		{
+			GameServer()->SendChatTarget(clientId, "You no longer have permission to kick from this clan.");
+			m_Requests.erase(it);
+			return false;
+		}
+		if(GameServer()->Clans())
+		{
+			GameServer()->Clans()->RemoveFromClan(clientId, it->m_aUsername, clanId);
+			char aBuf[192];
+			str_format(aBuf, sizeof(aBuf), "Clan kick confirmed: '%s' will be removed.", it->m_aUsername);
+			GameServer()->SendChatTarget(clientId, aBuf);
+		}
+		m_Requests.erase(it);
 		return true;
 	}
 
@@ -762,6 +872,28 @@ bool CRequests::DeclineRequest(int RequestId)
 		return true;
 	}
 
+	if(it->m_Type == SRequest::EType::ClanDeleteConfirm)
+	{
+		int clientId = it->m_From;
+		if(CheckClientId(clientId) && GameServer()->m_apPlayers[clientId])
+			GameServer()->SendChatTarget(clientId, "Cancelled clan deletion.");
+		m_Requests.erase(it);
+		return true;
+	}
+
+	if(it->m_Type == SRequest::EType::ClanKickConfirm)
+	{
+		int clientId = it->m_From;
+		if(CheckClientId(clientId) && GameServer()->m_apPlayers[clientId])
+		{
+			char aBuf[192];
+			str_format(aBuf, sizeof(aBuf), "Cancelled kicking '%s' from clan.", it->m_aUsername);
+			GameServer()->SendChatTarget(clientId, aBuf);
+		}
+		m_Requests.erase(it);
+		return true;
+	}
+
 	char aBuf[256];
 	str_copy(aBuf, "Your invite has been declined.", sizeof(aBuf));
 	if(CheckClientId(it->m_From) && GameServer()->m_apPlayers[it->m_From])
@@ -880,6 +1012,16 @@ void CRequests::OnTick()
 			str_format(aBufFrom, sizeof(aBufFrom), "Your clan invite to '%s' has expired.", pToName);
 			str_format(aBufTo, sizeof(aBufTo), "The clan invite from '%s' has expired.", pFromName);
 			notifyTo = true;
+		}
+		else if(req.m_Type == SRequest::EType::ClanDeleteConfirm)
+		{
+			str_copy(aBufFrom, "Your clan deletion confirmation expired.", sizeof(aBufFrom));
+		}
+		else if(req.m_Type == SRequest::EType::ClanKickConfirm)
+		{
+			char aTmp[64];
+			str_format(aTmp, sizeof(aTmp), "%s", req.m_aUsername[0] ? req.m_aUsername : "target");
+			str_format(aBufFrom, sizeof(aBufFrom), "Your confirmation to kick '%s' expired.", aTmp);
 		}
 		else
 		{

@@ -296,19 +296,50 @@ void COneOnOneEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 
 	CCharacter *pChr1 = GameServer()->GetPlayerChar(m_Player1ID);
 	CCharacter *pChr2 = GameServer()->GetPlayerChar(m_Player2ID);
+
+	std::vector<vec2> tilePositions;
+	GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), tilePositions);
+
+	// if both are present, position/freeze both together for a clean round start
 	if(pChr1 && pChr2)
 	{
-		std::vector<vec2> tilePositions;
-		GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), tilePositions);
 		if(tilePositions.size() >= 2)
 		{
 			GameServer()->Teleport(pChr1, tilePositions[0]);
 			GameServer()->Teleport(pChr2, tilePositions[1]);
-			pChr1->ResetVelocity();
-			pChr2->ResetVelocity();
-			pChr1->Freeze(3);
-			pChr2->Freeze(3);
 		}
+		else if(!tilePositions.empty())
+		{
+			GameServer()->Teleport(pChr1, tilePositions[0]);
+			GameServer()->Teleport(pChr2, tilePositions[0]);
+		}
+		if(pChr1) { pChr1->ResetVelocity(); pChr1->Freeze(3); }
+		if(pChr2) { pChr2->ResetVelocity(); pChr2->Freeze(3); }
+		return;
+	}
+
+	// If only one is present (spawns first), still reset and freeze that player immediately
+	if(ClientId == m_Player1ID && pChr1)
+	{
+		if(tilePositions.size() >= 1)
+		{
+			GameServer()->Teleport(pChr1, tilePositions[0]);
+		}
+		pChr1->ResetVelocity();
+		pChr1->Freeze(3);
+	}
+	else if(ClientId == m_Player2ID && pChr2)
+	{
+		if(tilePositions.size() >= 2)
+		{
+			GameServer()->Teleport(pChr2, tilePositions[1]);
+		}
+		else if(!tilePositions.empty())
+		{
+			GameServer()->Teleport(pChr2, tilePositions[0]);
+		}
+		pChr2->ResetVelocity();
+		pChr2->Freeze(3);
 	}
 }
 

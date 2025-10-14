@@ -1824,6 +1824,13 @@ void CPlayer::AddPlayerExp(int Amount, bool ApplyMultiplier)
 		GameServer()->CreateSound(pPlayer->GetCharacter()->GetPos(), SOUND_CTF_CAPTURE, -1);
 		pPlayer->GetCharacter()->SetEmote(EMOTE_HAPPY, Server()->Tick() + 2 * Server()->TickSpeed());
 
+		// confetti effect
+		if(pPlayer->GetCharacter())
+		{
+			CCharacter *pChar = pPlayer->GetCharacter();
+			GameServer()->CreateFinishEffect(pChar->GetPos(), pChar->TeamMask());
+		}
+
 		char aBuf[256];
 		str_format(aBuf, sizeof(aBuf), "[LevelUp+]: You are now level %d!", GetPlayerLevel());
 		GameServer()->SendChatTarget(m_ClientId, aBuf);
@@ -1842,10 +1849,6 @@ void CPlayer::AddPlayerExp(int Amount, bool ApplyMultiplier)
 	}
 }
 
-void CPlayer::AddExpMultiplier(float Modifier, int Duration)
-{
-	AddExpMultiplier((int)(Modifier * 100), Duration);
-}
 void CPlayer::AddExpMultiplier(int ModifierPercent, int Duration)
 {
 	auto it = m_ExpModifiers.find(ModifierPercent);

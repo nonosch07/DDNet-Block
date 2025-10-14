@@ -19,6 +19,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <blockworlds/cosmetics/animations.h>
 #include <blockworlds/cosmetics/cosmetics.h>
@@ -71,6 +72,8 @@ class CAccounts;
 class CClanManager;
 class CZoneManager;
 class CShopPreview;
+class CWhoIs;
+struct CWhoIsResult;
 
 struct CSnapContext
 {
@@ -659,6 +662,8 @@ public:
 	static SHA256_DIGEST HashPassword(const char *pPassword);
 
 	CAccounts *Accounts() { return m_pAccounts; }
+	// whois helper
+	class CWhoIs *WhoIs() { return m_pWhoIs; }
 	CClanManager *Clans() { return m_pClans; }
 
 	CZoneManager *ZoneManager() { return &m_ZoneManager; }
@@ -680,6 +685,9 @@ public:
 
 private:
 	CAccounts *m_pAccounts;
+	class CWhoIs *m_pWhoIs{};
+	std::vector<std::shared_ptr<CWhoIsResult>> m_vWhoisResults;
+	int64_t m_aWhoisCooldown[MAX_CLIENTS]{};
 	CClanManager *m_pClans;
 
 	CZoneManager m_ZoneManager;
@@ -724,6 +732,14 @@ private:
 	static void ConClanInvite(IConsole::IResult *pResult, void *pUserData);
 	static void ConClanAccept(IConsole::IResult *pResult, void *pUserData);
 	static void ConClanDecline(IConsole::IResult *pResult, void *pUserData);
+	static void ConClanYes(IConsole::IResult *pResult, void *pUserData);
+	static void ConClanNo(IConsole::IResult *pResult, void *pUserData);
+	static void ConContributors(IConsole::IResult *pResult, void *pUserData);
+
+	// Whois
+    static void ConWhois(IConsole::IResult *pResult, void *pUserData);
+    static void ConWhoisStr(IConsole::IResult *pResult, void *pUserData);
+	static void ConWhoisPurge(IConsole::IResult *pResult, void *pUserData);
 
 	//Event commands
 

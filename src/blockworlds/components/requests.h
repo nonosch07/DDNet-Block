@@ -23,6 +23,8 @@ public:
 			Shop = 1,
 			Clan = 2,
 			BlockpointTransfer = 3,
+			ClanDeleteConfirm = 4,
+			ClanKickConfirm = 5,
 		};
 		int m_Id{};
 		EType m_Type{EType::OneOnOne};
@@ -33,6 +35,7 @@ public:
 		int m_Category{}; // shop category
 		int m_Item{}; // shop item id
 		int m_ExpireTick{};
+		char m_aUsername[12]{}; //for ClanKickConfirm: target account name (varchar(11) + null)
 		// NOTE: for BlockpointTransfer we reuse m_Wager to store transfer amount to avoiding expanding struct size.
 	};
 
@@ -46,6 +49,8 @@ public:
 	int CreateClanInvite(int FromClient, int ToClient, int ClanId, int ExpireSeconds = 15);
 	int CreateShopRequest(int OwnerClient, int Category, int ItemId, int Price, int ExpireSeconds = 15);
 	int CreateBlockpointTransfer(int FromClient, int ToClient, int Amount, int ExpireSeconds = 15);
+	int CreateClanDeleteConfirm(int ClientId, int ClanId, int ExpireSeconds = 15);
+	int CreateClanKickConfirm(int ClientId, int ClanId, const char *pTargetAccountName, int ExpireSeconds = 15);
 
 	// cancel all requests involving a client (either as sender or receiver). Optional type filter.
 	// returns number of cancelled requests.

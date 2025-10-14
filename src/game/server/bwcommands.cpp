@@ -1571,7 +1571,11 @@ void CGameContext::ConClanDelete(IConsole::IResult *pResult, void *pUserData)
 	if(pPlayer->m_Account.m_ClanId < 1 || pPlayer->m_Account.m_AuthLevel != ClanAuthLevel::LEADER)
 		return pSelf->SendChatTarget(ClientId, "You are either not in a clan or not its leader.");
 
-	pSelf->Clans()->DeleteClan(ClientId, pPlayer->GetClanId(), pPlayer->GetAccId());
+	if(auto requests = g_ComponentRegistry.Get<CRequests>())
+	{
+		requests->CreateClanDeleteConfirm(ClientId, pPlayer->GetClanId(), 15);
+		return; // message sent by requests
+	}
 }
 
 void CGameContext::ConClanRemove(IConsole::IResult *pResult, void *pUserData)
@@ -1633,8 +1637,85 @@ void CGameContext::ConClanRemove(IConsole::IResult *pResult, void *pUserData)
 		return pSelf->SendChatTarget(ClientId, "You cannot remove a leader or co-leader from the clan.");
 	}
 
-	// pass issuer id (ClientId) to allow permission checks using issuer account id
-	pSelf->Clans()->RemoveFromClan(ClientId, pTargetPlayer->m_Account.m_aName, pPlayer->m_Account.m_ClanId);
+	// confirmation
+	if(auto requests = g_ComponentRegistry.Get<CRequests>())
+	{
+		requests->CreateClanKickConfirm(ClientId, pPlayer->m_Account.m_ClanId, pTargetPlayer->m_Account.m_aName, 15);
+		return; // message sent by requests
+	}
+}
+
+// /clan_yes: confirm last self-addressed clan confirmation (delete/kick)
+void CGameContext::ConClanYes(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+	auto requests = g_ComponentRegistry.Get<CRequests>();
+	if(!requests)
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "Requests subsystem unavailable.");
+		return;
+	}
+	auto ids = requests->GetRequestIdsTo(pResult->m_ClientId, std::nullopt);
+	// find the most recent applicable clan confirm addressed to self
+	int chosen = -1;
+	for(int id : ids)
+	{
+		CRequests::SRequest info;
+		if(!requests->GetRequestInfo(id, info))
+			continue;
+		if(info.m_To != pResult->m_ClientId || info.m_From != pResult->m_ClientId)
+			continue;
+		if(info.m_Type == CRequests::SRequest::EType::ClanDeleteConfirm || info.m_Type == CRequests::SRequest::EType::ClanKickConfirm)
+		{
+			if(info.m_ExpireTick > pSelf->Server()->Tick())
+				chosen = std::max(chosen, id);
+		}
+	}
+	if(chosen == -1)
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "No pending clan confirmation to accept.");
+		return;
+	}
+	if(!requests->AcceptRequest(chosen))
+		pSelf->SendChatTarget(pResult->m_ClientId, "Failed to accept confirmation.");
+}
+
+// /clan_no: decline last self-addressed clan confirmation
+void CGameContext::ConClanNo(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+	auto requests = g_ComponentRegistry.Get<CRequests>();
+	if(!requests)
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "Requests subsystem unavailable.");
+		return;
+	}
+	auto ids = requests->GetRequestIdsTo(pResult->m_ClientId, std::nullopt);
+	int chosen = -1;
+	for(int id : ids)
+	{
+		CRequests::SRequest info;
+		if(!requests->GetRequestInfo(id, info))
+			continue;
+		if(info.m_To != pResult->m_ClientId || info.m_From != pResult->m_ClientId)
+			continue;
+		if(info.m_Type == CRequests::SRequest::EType::ClanDeleteConfirm || info.m_Type == CRequests::SRequest::EType::ClanKickConfirm)
+		{
+			if(info.m_ExpireTick > pSelf->Server()->Tick())
+				chosen = std::max(chosen, id);
+		}
+	}
+	if(chosen == -1)
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "No pending clan confirmation to decline.");
+		return;
+	}
+	if(!requests->DeclineRequest(chosen))
+		pSelf->SendChatTarget(pResult->m_ClientId, "Failed to decline confirmation.");
 }
 
 void CGameContext::ConClanLeave(IConsole::IResult *pResult, void *pUserData)
@@ -1772,6 +1853,15 @@ void CGameContext::ConDisplayTopClans(IConsole::IResult *pResult, void *pUserDat
 	if(!pPlayer)
 		return;
 	pSelf->Clans()->ShowTopClans(ClientId);
+}
+
+void CGameContext::ConContributors(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+	pSelf->SendChatTarget(pResult->m_ClientId, "Huge thanks to Blockworlds contributors:");
+	pSelf->SendChatTarget(pResult->m_ClientId, "melon, Anime.pdf, zhn, ReiTW, Brokecdx-, Sakido, Gegongt, noby, potato");
 }
 
 void CGameContext::Con1on1(IConsole::IResult *pResult, void *pUserData)

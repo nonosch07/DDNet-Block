@@ -53,6 +53,8 @@
 #include <blockworlds/votes/cosmetics.h>
 #include <blockworlds/votes/votemanager.h>
 
+#include <blockworlds/whois.h>
+
 // Not thread-safe!
 class CClientChatLogger : public ILogger
 {
@@ -1569,6 +1571,31 @@ void CGameContext::OnTick()
 	for(const auto &Component : g_ComponentRegistry.Active())
 		Component->OnPostTick();
 
+	if(m_pWhoIs)
+	{
+		m_pWhoIs->SnapshotTick();
+		m_pWhoIs->DrainAndPrintResults(); // print maintenance (purge) outputs
+		for(auto it = m_vWhoisResults.begin(); it != m_vWhoisResults.end();)
+		{
+			auto &pRes = *it;
+			if(pRes && pRes->m_Completed)
+			{
+				for(const auto &line : pRes->m_vLines)
+				{
+					char aBuf[1024];
+					str_format(aBuf, sizeof(aBuf), "[%s]: %s", pRes->m_aTag, line.c_str());
+					if(pRes->m_SendToChat && pRes->m_TargetClientId >= 0)
+						SendChatTarget(pRes->m_TargetClientId, aBuf);
+					else
+						Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, pRes->m_aTag, line.c_str());
+				}
+				it = m_vWhoisResults.erase(it);
+			}
+			else
+				++it;
+		}
+	}
+
 	// Record player position at the end of the tick
 	if(m_TeeHistorianActive)
 	{
@@ -1950,6 +1977,9 @@ void CGameContext::OnClientEnter(int ClientId)
 		Component->OnPlayerEnter(ClientId);
 
 	LogEvent("Connect", ClientId);
+
+	if(m_pWhoIs)
+		m_pWhoIs->LogJoin(ClientId);
 }
 
 bool CGameContext::OnClientDataPersist(int ClientId, void *pData)
@@ -2011,6 +2041,9 @@ void CGameContext::OnClientDrop(int ClientId, const char *pReason)
 {
 	LogEvent("Disconnect", ClientId);
 
+	if(m_pWhoIs)
+		m_pWhoIs->LogLeave(ClientId);
+
 	for(const auto &Component : g_ComponentRegistry.Active())
 		Component->OnPlayerDropping(ClientId);
 
@@ -2069,6 +2102,112 @@ void CGameContext::TeehistorianRecordAntibot(const void *pData, int DataSize)
 	{
 		m_TeeHistorian.RecordAntibot(pData, DataSize);
 	}
+}
+
+// Admin-only: whois on client id
+void CGameContext::ConWhois(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int ClientId = pResult->m_ClientId;
+	if(pSelf->Server()->GetAuthedState(ClientId) <= 0)
+	{
+		pSelf->SendChatTarget(ClientId, "Permission denied");
+		return;
+	}
+	// Rate limit: 1 request per 2 seconds per admin
+	int64_t Now = pSelf->Server()->Tick();
+	if(pSelf->m_aWhoisCooldown[ClientId] && Now < pSelf->m_aWhoisCooldown[ClientId])
+	{
+		pSelf->SendChatTarget(ClientId, "Please wait before using whois again");
+		return;
+	}
+	if(!pSelf->m_pWhoIs)
+	{
+		pSelf->SendChatTarget(ClientId, "Whois not available");
+		return;
+	}
+	if(pResult->NumArguments() < 3)
+	{
+		pSelf->SendChatTarget(ClientId, "Usage: whois <mode 0|1> <cutoff 0|1|2> <id>");
+		return;
+	}
+	int Mode = clamp(pResult->GetInteger(0), 0, 1);
+	int Cutoff = clamp(pResult->GetInteger(1), 0, 2);
+	int Target = pResult->GetVictim(2);
+	if(Target < 0 || Target >= MAX_CLIENTS || !pSelf->Server()->ClientIngame(Target))
+	{
+		pSelf->SendChatTarget(ClientId, "Invalid target client id");
+		return;
+	}
+	// Track async result for printing
+	auto pRes = std::make_shared<CWhoIsResult>();
+	pRes->m_TargetClientId = ClientId;
+	str_copy(pRes->m_aTag, "whois", sizeof(pRes->m_aTag));
+	pSelf->m_vWhoisResults.push_back(pRes);
+	pSelf->m_pWhoIs->CmdWhois(ClientId, Mode, Cutoff, Target, pRes);
+	pSelf->m_aWhoisCooldown[ClientId] = Now + 2 * pSelf->Server()->TickSpeed();
+}
+
+// Admin-only: whois on string (ip/name)
+void CGameContext::ConWhoisStr(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int ClientId = pResult->m_ClientId;
+	if(pSelf->Server()->GetAuthedState(ClientId) <= 0)
+	{
+		pSelf->SendChatTarget(ClientId, "Permission denied");
+		return;
+	}
+	// Rate limit: 1 request per 2 seconds per admin
+	int64_t Now = pSelf->Server()->Tick();
+	if(pSelf->m_aWhoisCooldown[ClientId] && Now < pSelf->m_aWhoisCooldown[ClientId])
+	{
+		pSelf->SendChatTarget(ClientId, "Please wait before using whois again");
+		return;
+	}
+	if(!pSelf->m_pWhoIs)
+	{
+		pSelf->SendChatTarget(ClientId, "Whois not available");
+		return;
+	}
+	if(pResult->NumArguments() < 3)
+	{
+		pSelf->SendChatTarget(ClientId, "Usage: whois_str <mode 0|1> <cutoff 0|1|2> <ip|name>");
+		return;
+	}
+	int Mode = clamp(pResult->GetInteger(0), 0, 1);
+	int Cutoff = clamp(pResult->GetInteger(1), 0, 2);
+	const char *pTarget = pResult->GetString(2);
+	if(!pTarget || !*pTarget)
+	{
+		pSelf->SendChatTarget(ClientId, "Target must not be empty");
+		return;
+	}
+	auto pRes = std::make_shared<CWhoIsResult>();
+	pRes->m_TargetClientId = ClientId;
+	str_copy(pRes->m_aTag, "whois", sizeof(pRes->m_aTag));
+	pSelf->m_vWhoisResults.push_back(pRes);
+	pSelf->m_pWhoIs->CmdWhoisStr(ClientId, Mode, Cutoff, pTarget, pRes);
+	pSelf->m_aWhoisCooldown[ClientId] = Now + 2 * pSelf->Server()->TickSpeed();
+}
+
+void CGameContext::ConWhoisPurge(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int ClientId = pResult->m_ClientId;
+	if(ClientId >= 0 && pSelf->Server()->GetAuthedState(ClientId) <= 0)
+	{
+		pSelf->SendChatTarget(ClientId, "Permission denied");
+		return;
+	}
+	if(!pSelf->m_pWhoIs)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "Whois not available");
+		return;
+	}
+
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "Scheduling immediate whois purge...");
+	pSelf->m_pWhoIs->PurgeNow(Months);
 }
 
 void CGameContext::TeehistorianRecordPlayerJoin(int ClientId, bool Sixup)
@@ -2455,9 +2594,34 @@ void CGameContext::OnSayNetMessage(const CNetMsg_Cl_Say *pMsg, int ClientId, con
 
 	int GameTeam = GetDDRaceTeam(pPlayer->GetCid());
 	if(Team)
-		Team = ((pPlayer->GetTeam() == TEAM_SPECTATORS) ? TEAM_SPECTATORS : GameTeam);
+	{
+		// repurpose as clan chat
+		if(!pPlayer->IsLoggedIn() || pPlayer->GetClanId() <= 0)
+		{
+			SendChatTarget(ClientId, "You must be logged in and in a clan to use clan chat");
+			return; // don't fall back to public
+		}
+	
+		char aCensored[256];
+		CensorMessage(aCensored, pMsg->m_pMessage, sizeof(aCensored));
+		char aFinal[300];
+		const char *pName = Server()->ClientName(ClientId);
+		char aClanName[64] = "";
+		if(Clans())
+		{
+			CClansData Tmp;
+			if(Clans()->GetClanSnapshotById(pPlayer->GetClanId(), Tmp))
+				str_copy(aClanName, Tmp.m_ClanName, sizeof(aClanName));
+		}
+
+		str_format(aFinal, sizeof(aFinal), "%s: %s", pName, aCensored);
+		SendChatClan(pPlayer->GetClanId(), aFinal);
+		return;
+	}
 	else
+	{
 		Team = TEAM_ALL;
+	}
 
 	if(pMsg->m_pMessage[0] == '/')
 	{
@@ -4094,6 +4258,11 @@ void CGameContext::OnConsoleInit()
 
 	RegisterDDRaceCommands();
 	RegisterChatCommands();
+
+	// Admin-only whois commands
+	Console()->Register("whois", "i[mode] i[cutoff] v[id]", CFGFLAG_SERVER, ConWhois, this, "whois <mode 0 ip|1 name> <cutoff 0 /32|1 /24|2 /16> <client id>");
+	Console()->Register("whois_str", "i[mode] i[cutoff] r[target]", CFGFLAG_SERVER, ConWhoisStr, this, "whois_str <mode 0 ip|1 name> <cutoff 0 /32|1 /24|2 /16> <ip|name>");
+	Console()->Register("whois_purge", "?i[retention_months]", CFGFLAG_SERVER, ConWhoisPurge, this, "Force-run whois retention purge now (optional override months, default=sv_whois_retention_months)");
 }
 
 void CGameContext::RegisterDDRaceCommands()
@@ -4485,6 +4654,12 @@ void CGameContext::OnInit(const void *pPersistentData)
 		m_pAccounts = new CAccounts(this, ((CServer *)Server())->DbPool());
 	if(!m_pClans)
 		m_pClans = new CClanManager(this, ((CServer *)Server())->DbPool());
+
+	if(!m_pWhoIs)
+	{
+		m_pWhoIs = new CWhoIs(this, ((CServer *)Server())->DbPool());
+		m_pWhoIs->EnsureSchema();
+	}
 	m_Animations.Init(this);
 	m_CosmeticsHandler.Init(this);
 	m_ZoneManager.Init(this);
@@ -5727,6 +5902,8 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("topclans", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayTopClans, this, "Display the top clans leaderboard.");
 	Console()->Register("acc_integrity", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConIntegrityCheck, this, "Run an accounts/clans integrity scan (admins).");
 
+	Console()->Register("contributors", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConContributors, this, "Show thanks to Blockworlds contributors.");
+
 	Console()->Register("yes", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConShopPurchase, this, "Confirm the pending shop purchase.");
 	Console()->Register("no", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConShopDecline, this, "Cancel the pending shop purchase.");
 
@@ -5739,6 +5916,10 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("clan_invite", "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanInvite, this, "Invite a user to join your clan.");
 	Console()->Register("clan_accept", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanAccept, this, "Accept a pending clan invitation.");
 	Console()->Register("clan_decline", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanDecline, this, "Decline a pending clan invitation.");
+
+	// confirmations for delete/kick
+	Console()->Register("clan_yes", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanYes, this, "Confirm the last pending clan action (delete/kick).");
+	Console()->Register("clan_no", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanNo, this, "Cancel the last pending clan action (delete/kick).");
 
 	Console()->Register("clan_exp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanExp, this, "Display the current experience progress of your clan.");
 
