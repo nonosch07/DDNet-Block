@@ -1,21 +1,21 @@
 #include "whois.h"
 
-#include <engine/server/databases/connection.h>
-#include <engine/server/databases/connection_pool.h>
-#include <engine/server.h>
-#include <engine/shared/config.h>
 #include "whois.h"
-
+#include <engine/server.h>
 #include <engine/server/databases/connection.h>
 #include <engine/server/databases/connection_pool.h>
+#include <engine/shared/config.h>
+
 #include <engine/server.h>
+#include <engine/server/databases/connection.h>
+#include <engine/server/databases/connection_pool.h>
 #include <engine/shared/config.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
+#include "sql_prefix.h"
 #include <algorithm>
 #include <atomic>
-#include "sql_prefix.h"
 
 static const char *TAG = "whois";
 
@@ -84,7 +84,6 @@ void CWhoIs::NormalizeIpNoPort(char *pIp)
 
 bool CWhoIs::ThreadLog(IDbConnection *pSql, const ISqlData *pData, Write w, char *pError, int ErrorSize)
 {
-
 	if(w == Write::BACKUP_FIRST || w == Write::NORMAL_SUCCEEDED)
 		return false; // no-op success on backup
 	if(w == Write::NORMAL_FAILED)
@@ -107,7 +106,8 @@ bool CWhoIs::ThreadLog(IDbConnection *pSql, const ISqlData *pData, Write w, char
 
 static void PrintLines(CGameContext *pGame, int TargetClientId, const std::vector<std::string> &vLines, const char *pTag, bool SendToChat)
 {
-	(void)TargetClientId; (void)SendToChat; // whois no longer outputs to chat
+	(void)TargetClientId;
+	(void)SendToChat; // whois no longer outputs to chat
 	for(const auto &s : vLines)
 	{
 		pGame->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, pTag, s.c_str());
@@ -131,7 +131,6 @@ bool CWhoIs::ThreadQuery(IDbConnection *pSql, const ISqlData *pData, char *pErro
 		NormalizeIpNoPort(aIp);
 		if(Cut <= 0)
 		{
-			
 			str_format(aStmt, sizeof(aStmt),
 				"SELECT c.name, COUNT(*) AS cnt, MAX(c.created_at) AS last_seen, COUNT(DISTINCT NULLIF(c.account_id,0)) AS accs,"
 				" (SELECT ac.name FROM %s ac WHERE ac.id = ("
@@ -140,14 +139,22 @@ bool CWhoIs::ThreadQuery(IDbConnection *pSql, const ISqlData *pData, char *pErro
 				"   ORDER BY wi.created_at DESC LIMIT 1)) AS acc_name"
 				" FROM %s c WHERE c.ip = ? GROUP BY c.name ORDER BY cnt DESC",
 				TBL_ACCOUNTS_CORE, TBL_WHOIS_CONNECTIONS, TBL_WHOIS_CONNECTIONS);
-			if(pSql->PrepareStatement(aStmt, pError, ErrorSize)) return true;
+			if(pSql->PrepareStatement(aStmt, pError, ErrorSize))
+				return true;
 			pSql->BindString(1, aIp);
 			pSql->BindString(2, aIp);
 
 			bool End = false;
 			int Total = 0;
 			int Distinct = 0;
-			struct Entry { char Name[32]; int Cnt; char Last[20]; int Accs; char AccName[16]; };
+			struct Entry
+			{
+				char Name[32];
+				int Cnt;
+				char Last[20];
+				int Accs;
+				char AccName[16];
+			};
 			std::vector<Entry> vEntries;
 			while(!pSql->Step(&End, pError, ErrorSize) && !End)
 			{
@@ -196,15 +203,24 @@ bool CWhoIs::ThreadQuery(IDbConnection *pSql, const ISqlData *pData, char *pErro
 		else
 		{
 			// /8, /24 or /16: cut trailing octets and do prefix match. Fallback to exact matc
-			int dots = 0; int lastDotPos[4] = {-1,-1,-1,-1};
+			int dots = 0;
+			int lastDotPos[4] = {-1, -1, -1, -1};
 			for(int i = 0; aIp[i]; ++i)
-				if(aIp[i] == '.') { if(dots < 4) lastDotPos[dots] = i; dots++; }
+				if(aIp[i] == '.')
+				{
+					if(dots < 4)
+						lastDotPos[dots] = i;
+					dots++;
+				}
 
 			bool CanCut = (Cut == 1 && dots >= 3) || (Cut == 2 && dots >= 2) || (Cut == 3 && dots >= 1);
 			if(CanCut)
 			{
 				int cutPos = (Cut == 1) ? lastDotPos[2] : (Cut == 2 ? lastDotPos[1] : lastDotPos[0]);
-				if(cutPos > 0) { aIp[cutPos] = '\0'; }
+				if(cutPos > 0)
+				{
+					aIp[cutPos] = '\0';
+				}
 				str_format(aLike, sizeof(aLike), "%s.%%", aIp);
 
 				str_format(aStmt, sizeof(aStmt),
@@ -215,7 +231,8 @@ bool CWhoIs::ThreadQuery(IDbConnection *pSql, const ISqlData *pData, char *pErro
 					"   ORDER BY wi.created_at DESC LIMIT 1)) AS acc_name"
 					" FROM %s c WHERE c.ip LIKE ? GROUP BY c.ip,c.name ORDER BY c.ip ASC, cnt DESC",
 					TBL_ACCOUNTS_CORE, TBL_WHOIS_CONNECTIONS, TBL_WHOIS_CONNECTIONS);
-				if(pSql->PrepareStatement(aStmt, pError, ErrorSize)) return true;
+				if(pSql->PrepareStatement(aStmt, pError, ErrorSize))
+					return true;
 				pSql->BindString(1, aLike);
 			}
 			else
@@ -228,7 +245,8 @@ bool CWhoIs::ThreadQuery(IDbConnection *pSql, const ISqlData *pData, char *pErro
 					"   ORDER BY wi.created_at DESC LIMIT 1)) AS acc_name"
 					" FROM %s c WHERE c.ip = ? GROUP BY c.name ORDER BY cnt DESC",
 					TBL_ACCOUNTS_CORE, TBL_WHOIS_CONNECTIONS, TBL_WHOIS_CONNECTIONS);
-				if(pSql->PrepareStatement(aStmt, pError, ErrorSize)) return true;
+				if(pSql->PrepareStatement(aStmt, pError, ErrorSize))
+					return true;
 				pSql->BindString(1, aIp);
 				pSql->BindString(2, aIp);
 			}
@@ -236,10 +254,18 @@ bool CWhoIs::ThreadQuery(IDbConnection *pSql, const ISqlData *pData, char *pErro
 			bool End = false;
 			std::string curIp;
 			int curTotal = 0;
-			struct NameInfo { std::string Name; int Cnt; char Last[20]; int Accs; char AccName[16]; };
+			struct NameInfo
+			{
+				std::string Name;
+				int Cnt;
+				char Last[20];
+				int Accs;
+				char AccName[16];
+			};
 			std::vector<NameInfo> curNames;
 			auto FlushCur = [&]() {
-				if(curIp.empty()) return;
+				if(curIp.empty())
+					return;
 				char aHead[256];
 				str_format(aHead, sizeof(aHead), "%s connected %d times with %d names:", curIp.c_str(), curTotal, (int)curNames.size());
 				pRes->m_vLines.emplace_back(aHead);
@@ -261,7 +287,9 @@ bool CWhoIs::ThreadQuery(IDbConnection *pSql, const ISqlData *pData, char *pErro
 						str_format(aTmp, sizeof(aTmp), " - %s (%d)%s", nn.Name.c_str(), nn.Cnt, aAccPart);
 					pRes->m_vLines.emplace_back(aTmp);
 				}
-				curIp.clear(); curTotal = 0; curNames.clear();
+				curIp.clear();
+				curTotal = 0;
+				curNames.clear();
 			};
 
 			while(!pSql->Step(&End, pError, ErrorSize) && !End)
@@ -278,16 +306,24 @@ bool CWhoIs::ThreadQuery(IDbConnection *pSql, const ISqlData *pData, char *pErro
 				char aAccName[16] = {0};
 				if(!pSql->IsNull(6))
 					pSql->GetString(6, aAccName, sizeof(aAccName));
-				if(curIp.empty()) curIp = aResIp;
+				if(curIp.empty())
+					curIp = aResIp;
 				if(curIp != aResIp)
 				{
 					FlushCur();
 					curIp = aResIp;
 				}
 				curTotal += Cnt;
-				NameInfo ni{}; ni.Name = aName; ni.Cnt = Cnt; ni.Accs = Accs; ni.Last[0] = '\0'; ni.AccName[0] = '\0';
-				if(aLastFull[0]) str_copy(ni.Last, aLastFull, 11);
-				if(aAccName[0]) str_copy(ni.AccName, aAccName, sizeof(ni.AccName));
+				NameInfo ni{};
+				ni.Name = aName;
+				ni.Cnt = Cnt;
+				ni.Accs = Accs;
+				ni.Last[0] = '\0';
+				ni.AccName[0] = '\0';
+				if(aLastFull[0])
+					str_copy(ni.Last, aLastFull, 11);
+				if(aAccName[0])
+					str_copy(ni.AccName, aAccName, sizeof(ni.AccName));
 				curNames.emplace_back(std::move(ni));
 			}
 			FlushCur();
@@ -305,12 +341,18 @@ bool CWhoIs::ThreadQuery(IDbConnection *pSql, const ISqlData *pData, char *pErro
 		str_format(aStmt, sizeof(aStmt),
 			"SELECT ip, COUNT(*) AS cnt, MAX(created_at) AS last_seen FROM %s WHERE name = ? GROUP BY ip ORDER BY cnt DESC",
 			TBL_WHOIS_CONNECTIONS);
-		if(pSql->PrepareStatement(aStmt, pError, ErrorSize)) return true;
+		if(pSql->PrepareStatement(aStmt, pError, ErrorSize))
+			return true;
 		pSql->BindString(1, pReq->m_aSearch);
 
 		bool End = false;
 		int Total = 0;
-		struct IPCnt { char Ip[64]; int Cnt; char Last[20]; };
+		struct IPCnt
+		{
+			char Ip[64];
+			int Cnt;
+			char Last[20];
+		};
 		std::vector<IPCnt> vEntries;
 		while(!pSql->Step(&End, pError, ErrorSize) && !End)
 		{
@@ -320,7 +362,8 @@ bool CWhoIs::ThreadQuery(IDbConnection *pSql, const ISqlData *pData, char *pErro
 			char aLastFull[32] = {0};
 			if(!pSql->IsNull(3))
 				pSql->GetString(3, aLastFull, sizeof(aLastFull));
-			if(aLastFull[0]) str_copy(e.Last, aLastFull, 11);
+			if(aLastFull[0])
+				str_copy(e.Last, aLastFull, 11);
 			vEntries.push_back(e);
 			Total += e.Cnt;
 		}
@@ -511,11 +554,15 @@ void CWhoIs::CmdWhoisStr(int RequesterId, int Mode, int Cutoff, const char *pSea
 
 void CWhoIs::DrainAndPrintResults()
 {
-	for(auto it = m_vInternalResults.begin(); it != m_vInternalResults.end();) {
-		if((*it)->m_Completed.load(std::memory_order_acquire)) {
+	for(auto it = m_vInternalResults.begin(); it != m_vInternalResults.end();)
+	{
+		if((*it)->m_Completed.load(std::memory_order_acquire))
+		{
 			PrintLines(GameServer(), (*it)->m_TargetClientId, (*it)->m_vLines, (*it)->m_aTag, (*it)->m_SendToChat);
 			it = m_vInternalResults.erase(it);
-		} else {
+		}
+		else
+		{
 			++it;
 		}
 	}

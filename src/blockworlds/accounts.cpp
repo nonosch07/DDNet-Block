@@ -244,7 +244,6 @@ std::vector<std::pair<std::string, int>> CAccounts::ListIpBans() const
 	return v;
 }
 
-
 void CAccounts::ExecAdminThread(
 	bool (*pFuncPtr)(IDbConnection *, const ISqlData *, char *pError, int ErrorSize),
 	const char *pThreadName,
@@ -419,14 +418,14 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 
 	char aBuf[2048];
 	str_format(aBuf, sizeof(aBuf),
-	"SELECT c.id, c.name, c.password, c.address, i.vip, i.pages, p.level, p.experience, i.weaponkits, p.ranking, "
-	"p.clanID, p.auth_level, p.blockpoints, i.knockouts, i.gundesign, i.skinmani, p.passive, c.registerdate, r.ranked_games, "
-	"r.ranked_kills, r.ranked_deaths, r.ranked_wins, p.kills, p.deaths, p.tourney_win, p.playtime, p.killstreak, "
-	"c.last_name, c.last_skin, c.last_body_color, c.last_feet_color FROM %s c "
-	"JOIN %s p ON c.id=p.account_id "
-	"JOIN %s i ON c.id=i.account_id "
-	"JOIN %s r ON c.id=r.account_id WHERE c.id = ?;",
-	TBL_ACCOUNTS_CORE, TBL_ACCOUNTS_PROGRESS, TBL_ACCOUNTS_INVENTORY, TBL_ACCOUNTS_RANKED);
+		"SELECT c.id, c.name, c.password, c.address, i.vip, i.pages, p.level, p.experience, i.weaponkits, p.ranking, "
+		"p.clanID, p.auth_level, p.blockpoints, i.knockouts, i.gundesign, i.skinmani, p.passive, c.registerdate, r.ranked_games, "
+		"r.ranked_kills, r.ranked_deaths, r.ranked_wins, p.kills, p.deaths, p.tourney_win, p.playtime, p.killstreak, "
+		"c.last_name, c.last_skin, c.last_body_color, c.last_feet_color FROM %s c "
+		"JOIN %s p ON c.id=p.account_id "
+		"JOIN %s i ON c.id=i.account_id "
+		"JOIN %s r ON c.id=r.account_id WHERE c.id = ?;",
+		TBL_ACCOUNTS_CORE, TBL_ACCOUNTS_PROGRESS, TBL_ACCOUNTS_INVENTORY, TBL_ACCOUNTS_RANKED);
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -1166,7 +1165,6 @@ void CAccounts::ShowTopKillStreak(int ClientId)
 	ExecUserThread(ShowTopKillStreaksThread, "show top killstreak thread", ClientId, "", "", "", 0, NULL);
 }
 
-
 bool CAccounts::ShowTopKillStreaksThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
 {
 	CAccountResult *pResult = dynamic_cast<CAccountResult *>(pGameData->m_pResult.get());
@@ -1236,5 +1234,3 @@ bool CAccounts::ShowTopKillStreaksThread(IDbConnection *pSqlServer, const ISqlDa
 
 	return false;
 }
-
-

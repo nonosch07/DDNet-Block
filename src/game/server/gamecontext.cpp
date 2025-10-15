@@ -1582,7 +1582,6 @@ void CGameContext::OnTick()
 			{
 				for(const auto &line : pRes->m_vLines)
 				{
-
 					Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, pRes->m_aTag, line.c_str());
 				}
 				it = m_vWhoisResults.erase(it);
@@ -2642,7 +2641,7 @@ void CGameContext::OnSayNetMessage(const CNetMsg_Cl_Say *pMsg, int ClientId, con
 			SendChatTarget(ClientId, "You must be logged in and in a clan to use clan chat");
 			return; // don't fall back to public
 		}
-	
+
 		char aCensored[256];
 		CensorMessage(aCensored, pMsg->m_pMessage, sizeof(aCensored));
 		char aFinal[300];

@@ -736,8 +736,8 @@ private:
 	static void ConContributors(IConsole::IResult *pResult, void *pUserData);
 
 	// Whois
-    static void ConWhois(IConsole::IResult *pResult, void *pUserData);
-    static void ConWhoisStr(IConsole::IResult *pResult, void *pUserData);
+	static void ConWhois(IConsole::IResult *pResult, void *pUserData);
+	static void ConWhoisStr(IConsole::IResult *pResult, void *pUserData);
 	static void ConWhoisPurge(IConsole::IResult *pResult, void *pUserData);
 
 	//Event commands

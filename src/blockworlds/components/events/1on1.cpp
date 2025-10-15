@@ -313,8 +313,16 @@ void COneOnOneEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 			GameServer()->Teleport(pChr1, tilePositions[0]);
 			GameServer()->Teleport(pChr2, tilePositions[0]);
 		}
-		if(pChr1) { pChr1->ResetVelocity(); pChr1->Freeze(3); }
-		if(pChr2) { pChr2->ResetVelocity(); pChr2->Freeze(3); }
+		if(pChr1)
+		{
+			pChr1->ResetVelocity();
+			pChr1->Freeze(3);
+		}
+		if(pChr2)
+		{
+			pChr2->ResetVelocity();
+			pChr2->Freeze(3);
+		}
 		return;
 	}
 

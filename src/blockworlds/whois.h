@@ -1,9 +1,9 @@
 #ifndef BLOCKWORLDS_WHOIS_H
 #define BLOCKWORLDS_WHOIS_H
 
+#include <base/system.h>
 #include <engine/server/databases/connection_pool.h>
 #include <engine/shared/protocol.h>
-#include <base/system.h>
 
 #include <atomic>
 #include <memory>
@@ -30,11 +30,12 @@ struct CWhoIsResult : ISqlResult
 
 struct CSqlWhoIsLog : ISqlData
 {
-	CSqlWhoIsLog(std::shared_ptr<CWhoIsResult> pResult) : ISqlData(std::move(pResult)) {}
+	CSqlWhoIsLog(std::shared_ptr<CWhoIsResult> pResult) :
+		ISqlData(std::move(pResult)) {}
 
-	char m_aIp[48]{};      // textual, no port
-	char m_aName[24]{};    // current player name
-	int m_AccountId{0};    // 0 if not logged in
+	char m_aIp[48]{}; // textual, no port
+	char m_aName[24]{}; // current player name
+	int m_AccountId{0}; // 0 if not logged in
 	char m_aAccountName[16]{}; // empty if not logged in
 	// source tag for event type: join|snapshot|leave (max 8 chars + NUL)
 	char m_aSource[16]{"join"};
@@ -43,7 +44,8 @@ struct CSqlWhoIsLog : ISqlData
 // Thread data for query
 struct CSqlWhoIsQuery : ISqlData
 {
-	CSqlWhoIsQuery(std::shared_ptr<CWhoIsResult> pResult) : ISqlData(std::move(pResult)) {}
+	CSqlWhoIsQuery(std::shared_ptr<CWhoIsResult> pResult) :
+		ISqlData(std::move(pResult)) {}
 
 	// mode 0=ip, 1=name
 	int m_Mode{0};
@@ -56,7 +58,8 @@ struct CSqlWhoIsQuery : ISqlData
 // Thread data for purge
 struct CSqlWhoIsPurge : ISqlData
 {
-	CSqlWhoIsPurge(std::shared_ptr<CWhoIsResult> pResult) : ISqlData(std::move(pResult)) {}
+	CSqlWhoIsPurge(std::shared_ptr<CWhoIsResult> pResult) :
+		ISqlData(std::move(pResult)) {}
 
 	int m_RetentionMonths{0};
 };
@@ -65,7 +68,6 @@ class CWhoIs
 {
 public:
 	CWhoIs(CGameContext *pGameServer, CDbConnectionPool *pPool);
-
 
 	// event logging
 	void LogJoin(int ClientId);

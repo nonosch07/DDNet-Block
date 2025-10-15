@@ -117,7 +117,6 @@ void CGameContext::ConRegister(IConsole::IResult *pResult, void *pUserData)
 		pReqPlayer->m_LastRegisterTick = pSelf->Server()->Tick();
 }
 
-
 void CGameContext::ConLogin(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
