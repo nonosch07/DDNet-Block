@@ -8,6 +8,7 @@
 
 #include "clans.h"
 #include "engine/shared/config.h"
+#include "sql_prefix.h"
 
 #define MAX_CLAN_NAME_LENGTH 32
 
@@ -216,7 +217,7 @@ void CClanManager::LoadAllClans()
 static bool CheckClanPermission(IDbConnection *pSqlServer, int AccountId, int ClanId, int RequiredAuthLevel, char *pError, int ErrorSize)
 {
 	char aBuf[256];
-	str_copy(aBuf, "SELECT clanID, auth_level FROM accounts_progress WHERE account_id = ?;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "SELECT clanID, auth_level FROM %s WHERE account_id = ?;", TBL_ACCOUNTS_PROGRESS);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		return false;
 	pSqlServer->BindInt(1, AccountId);
@@ -268,7 +269,7 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		}
 	}
 
-	str_copy(aBuf, "SELECT clanID FROM accounts_progress WHERE account_id = ? LIMIT 1;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "SELECT clanID FROM %s WHERE account_id = ? LIMIT 1;", TBL_ACCOUNTS_PROGRESS);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		str_copy(pResult->m_aaMessages[0], "Error 090: Failed to validate account state.", sizeof(pResult->m_aaMessages[0]));
@@ -294,7 +295,7 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	}
 
 	// Case-insensitive uniqueness check
-	str_copy(aBuf, "SELECT id FROM clans WHERE LOWER(name) = LOWER(?) LIMIT 1;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "SELECT id FROM %s WHERE LOWER(name) = LOWER(?) LIMIT 1;", TBL_CLANS);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		str_copy(pResult->m_aaMessages[0], "Error 100: Failed to validate clan name uniqueness.", sizeof(pResult->m_aaMessages[0]));
@@ -324,7 +325,7 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 
 	bool TxFailed = false;
 
-	str_copy(aBuf, "INSERT INTO clans (name) VALUES (?);", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "INSERT INTO %s (name) VALUES (?);", TBL_CLANS);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		if(pError && *pError)
@@ -378,7 +379,7 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		return true;
 	}
 
-	str_format(aBuf, sizeof(aBuf), "UPDATE accounts_progress SET clanID = ?, auth_level = %d WHERE account_id = ?;", (int)ClanAuthLevel::LEADER);
+	str_format(aBuf, sizeof(aBuf), "UPDATE %s SET clanID = ?, auth_level = %d WHERE account_id = ?;", TBL_ACCOUNTS_PROGRESS, (int)ClanAuthLevel::LEADER);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		if(pError && *pError)
@@ -480,7 +481,7 @@ bool CClanManager::DeleteClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	}
 	bool TxAbort = false;
 
-	str_copy(aBuf, "DELETE FROM clans WHERE id = ?;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "DELETE FROM %s WHERE id = ?;", TBL_CLANS);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		if(pError && *pError)
@@ -513,7 +514,7 @@ bool CClanManager::DeleteClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		return true;
 	}
 
-	str_format(aBuf, sizeof(aBuf), "UPDATE accounts_progress SET clanID = 0, auth_level = %d WHERE clanID = ?;", (int)ClanAuthLevel::NONE);
+	str_format(aBuf, sizeof(aBuf), "UPDATE %s SET clanID = 0, auth_level = %d WHERE clanID = ?;", TBL_ACCOUNTS_PROGRESS, (int)ClanAuthLevel::NONE);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		if(pError && *pError)
@@ -629,7 +630,7 @@ bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *p
 
 	if(pData->m_AccountId != 0)
 	{
-		str_copy(aBuf, "SELECT clanID FROM accounts_progress WHERE account_id = ? LIMIT 1;", sizeof(aBuf));
+		str_format(aBuf, sizeof(aBuf), "SELECT clanID FROM %s WHERE account_id = ? LIMIT 1;", TBL_ACCOUNTS_PROGRESS);
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		{
 			str_copy(pResult->m_aaMessages[0], "Error 210: Failed to validate target account.", sizeof(pResult->m_aaMessages[0]));
@@ -654,7 +655,7 @@ bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *p
 			return false;
 		}
 
-		str_format(aBuf, sizeof(aBuf), "UPDATE accounts_progress SET clanID = ?, auth_level = %d WHERE account_id = ?;", (int)ClanAuthLevel::MEMBER);
+		str_format(aBuf, sizeof(aBuf), "UPDATE %s SET clanID = ?, auth_level = %d WHERE account_id = ?;", TBL_ACCOUNTS_PROGRESS, (int)ClanAuthLevel::MEMBER);
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		{
 			if(pError && *pError)
@@ -671,7 +672,7 @@ bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	}
 	else
 	{
-		str_copy(aBuf, "SELECT p.clanID FROM accounts_core c JOIN accounts_progress p ON c.id=p.account_id WHERE c.name = ? LIMIT 1;", sizeof(aBuf));
+		str_format(aBuf, sizeof(aBuf), "SELECT p.clanID FROM %s c JOIN %s p ON c.id=p.account_id WHERE c.name = ? LIMIT 1;", TBL_ACCOUNTS_CORE, TBL_ACCOUNTS_PROGRESS);
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		{
 			str_copy(pResult->m_aaMessages[0], "Error 212: Failed to validate target username.", sizeof(pResult->m_aaMessages[0]));
@@ -696,7 +697,7 @@ bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *p
 			return false;
 		}
 
-		str_format(aBuf, sizeof(aBuf), "UPDATE accounts_progress p JOIN accounts_core c ON p.account_id=c.id SET p.clanID = ?, p.auth_level = %d WHERE c.name = ?;", (int)ClanAuthLevel::MEMBER);
+		str_format(aBuf, sizeof(aBuf), "UPDATE %s p JOIN %s c ON p.account_id=c.id SET p.clanID = ?, p.auth_level = %d WHERE c.name = ?;", TBL_ACCOUNTS_PROGRESS, TBL_ACCOUNTS_CORE, (int)ClanAuthLevel::MEMBER);
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		{
 			if(pError && *pError)
@@ -781,7 +782,7 @@ bool CClanManager::RemoveFromClanThread(IDbConnection *pSqlServer, const ISqlDat
 		return true;
 	bool TxErr = false;
 
-	str_copy(aBuf, "SELECT p.auth_level FROM accounts_core c JOIN accounts_progress p ON c.id=p.account_id WHERE c.name = ? AND p.clanID = ? LIMIT 1;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "SELECT p.auth_level FROM %s c JOIN %s p ON c.id=p.account_id WHERE c.name = ? AND p.clanID = ? LIMIT 1;", TBL_ACCOUNTS_CORE, TBL_ACCOUNTS_PROGRESS);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		str_copy(pResult->m_aaMessages[0], "Error 320: Failed to validate target rank.", sizeof(pResult->m_aaMessages[0]));
@@ -803,7 +804,7 @@ bool CClanManager::RemoveFromClanThread(IDbConnection *pSqlServer, const ISqlDat
 	int TargetAuth = pSqlServer->GetInt(1);
 	if(TargetAuth == (int)ClanAuthLevel::LEADER)
 	{
-		str_copy(aBuf, "SELECT COUNT(*) FROM accounts_progress WHERE clanID = ? AND auth_level = 3;", sizeof(aBuf));
+		str_format(aBuf, sizeof(aBuf), "SELECT COUNT(*) FROM %s WHERE clanID = ? AND auth_level = 3;", TBL_ACCOUNTS_PROGRESS);
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		{
 			str_copy(pResult->m_aaMessages[0], "Error 322: Failed to count leaders.", sizeof(pResult->m_aaMessages[0]));
@@ -827,7 +828,7 @@ bool CClanManager::RemoveFromClanThread(IDbConnection *pSqlServer, const ISqlDat
 		}
 	}
 
-	str_format(aBuf, sizeof(aBuf), "UPDATE accounts_progress p JOIN accounts_core c ON p.account_id=c.id SET p.clanID = 0, p.auth_level = %d WHERE c.name = ? AND p.clanID = ?;", (int)ClanAuthLevel::NONE);
+	str_format(aBuf, sizeof(aBuf), "UPDATE %s p JOIN %s c ON p.account_id=c.id SET p.clanID = 0, p.auth_level = %d WHERE c.name = ? AND p.clanID = ?;", TBL_ACCOUNTS_PROGRESS, TBL_ACCOUNTS_CORE, (int)ClanAuthLevel::NONE);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		if(pError && *pError)
@@ -923,7 +924,7 @@ bool CClanManager::ClanLeaveThread(IDbConnection *pSqlServer, const ISqlData *pG
 		return true;
 	bool TxErr = false;
 	// prevent sole leader from leaving to avoid orphaned clan
-	str_copy(aBuf, "SELECT clanID, auth_level FROM accounts_progress WHERE account_id = ? LIMIT 1;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "SELECT clanID, auth_level FROM %s WHERE account_id = ? LIMIT 1;", TBL_ACCOUNTS_PROGRESS);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		str_copy(pResult->m_aaMessages[0], "Error 560: Failed to validate leave state.", sizeof(pResult->m_aaMessages[0]));
@@ -950,7 +951,7 @@ bool CClanManager::ClanLeaveThread(IDbConnection *pSqlServer, const ISqlData *pG
 	}
 	if(DbAuth == (int)ClanAuthLevel::LEADER)
 	{
-		str_copy(aBuf, "SELECT COUNT(*) FROM accounts_progress WHERE clanID = ? AND auth_level = ?;", sizeof(aBuf));
+		str_format(aBuf, sizeof(aBuf), "SELECT COUNT(*) FROM %s WHERE clanID = ? AND auth_level = ?;", TBL_ACCOUNTS_PROGRESS);
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		{
 			str_copy(pResult->m_aaMessages[0], "Error 562: Failed to verify leader count.", sizeof(pResult->m_aaMessages[0]));
@@ -977,7 +978,7 @@ bool CClanManager::ClanLeaveThread(IDbConnection *pSqlServer, const ISqlData *pG
 		}
 	}
 
-	str_format(aBuf, sizeof(aBuf), "UPDATE accounts_progress SET clanID = 0, auth_level = %d WHERE account_id = ? AND clanID = ?;", (int)ClanAuthLevel::NONE);
+	str_format(aBuf, sizeof(aBuf), "UPDATE %s SET clanID = 0, auth_level = %d WHERE account_id = ? AND clanID = ?;", TBL_ACCOUNTS_PROGRESS, (int)ClanAuthLevel::NONE);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		if(pError && *pError)
@@ -1058,7 +1059,7 @@ bool CClanManager::SetAuthLevelThread(IDbConnection *pSqlServer, const ISqlData 
 	}
 	if(pData->m_NewAuthLevel < (int)ClanAuthLevel::LEADER)
 	{
-		str_copy(aBuf, "SELECT p.auth_level FROM accounts_core c JOIN accounts_progress p ON c.id=p.account_id WHERE c.name = ? AND p.clanID = ? LIMIT 1;", sizeof(aBuf));
+		str_format(aBuf, sizeof(aBuf), "SELECT p.auth_level FROM %s c JOIN %s p ON c.id=p.account_id WHERE c.name = ? AND p.clanID = ? LIMIT 1;", TBL_ACCOUNTS_CORE, TBL_ACCOUNTS_PROGRESS);
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		{
 			str_copy(pResult->m_aaMessages[0], "Error 550: Failed to read current auth.", sizeof(pResult->m_aaMessages[0]));
@@ -1080,7 +1081,7 @@ bool CClanManager::SetAuthLevelThread(IDbConnection *pSqlServer, const ISqlData 
 		int CurrentAuth = pSqlServer->GetInt(1);
 		if(CurrentAuth == (int)ClanAuthLevel::LEADER)
 		{
-			str_copy(aBuf, "SELECT COUNT(*) FROM accounts_progress WHERE clanID = ? AND auth_level = 3;", sizeof(aBuf));
+			str_format(aBuf, sizeof(aBuf), "SELECT COUNT(*) FROM %s WHERE clanID = ? AND auth_level = 3;", TBL_ACCOUNTS_PROGRESS);
 			if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 			{
 				str_copy(pResult->m_aaMessages[0], "Error 552: Failed to count leaders.", sizeof(pResult->m_aaMessages[0]));
@@ -1100,7 +1101,7 @@ bool CClanManager::SetAuthLevelThread(IDbConnection *pSqlServer, const ISqlData 
 			}
 		}
 	}
-	str_copy(aBuf, "UPDATE accounts_progress p JOIN accounts_core c ON p.account_id=c.id SET p.auth_level = ? WHERE c.name = ? AND p.clanID = ?;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "UPDATE %s p JOIN %s c ON p.account_id=c.id SET p.auth_level = ? WHERE c.name = ? AND p.clanID = ?;", TBL_ACCOUNTS_PROGRESS, TBL_ACCOUNTS_CORE);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		if(pError && *pError)
@@ -1206,7 +1207,7 @@ bool CClanManager::RenameClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		return true;
 	}
 
-	str_copy(aBuf, "SELECT id FROM clans WHERE LOWER(name) = LOWER(?) AND id <> ? LIMIT 1;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "SELECT id FROM %s WHERE LOWER(name) = LOWER(?) AND id <> ? LIMIT 1;", TBL_CLANS);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		str_copy(pResult->m_aaMessages[0], "Error 600: Failed to validate clan name uniqueness.", sizeof(pResult->m_aaMessages[0]));
@@ -1226,7 +1227,7 @@ bool CClanManager::RenameClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		return false;
 	}
 
-	str_copy(aBuf, "UPDATE clans SET name = ? WHERE id = ?;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "UPDATE %s SET name = ? WHERE id = ?;", TBL_CLANS);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		if(pError && *pError)
@@ -1303,7 +1304,8 @@ bool CClanManager::LoadClansThread(IDbConnection *pSqlServer, const ISqlData *pG
 {
 	const CSqlClanListRequest *pRequest = static_cast<const CSqlClanListRequest *>(pGameData);
 	char aBuf[1024];
-	str_copy(aBuf, "SELECT id, name, level, experience FROM clans;", sizeof(aBuf));
+	// Use prefixed Blockworlds clans table
+	str_format(aBuf, sizeof(aBuf), "SELECT id, name, level, experience FROM %s;", TBL_CLANS);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		if(pError && *pError)
@@ -1461,7 +1463,7 @@ bool CClanManager::SaveClanThread(IDbConnection *pSqlServer, const ISqlData *pGa
 			str_copy(pError, "Error: Couldn't retrieve clan ID!", ErrorSize);
 		return true;
 	}
-	str_copy(aBuf, "UPDATE clans SET level = ?, experience = ? WHERE id = ?;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "UPDATE %s SET level = ?, experience = ? WHERE id = ?;", TBL_CLANS);
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -1544,7 +1546,7 @@ bool CClanManager::ShowTopClansThread(IDbConnection *pSqlServer, const ISqlData 
 	CClanResult *pResult = dynamic_cast<CClanResult *>(pGameData->m_pResult.get());
 	pResult->SetVariant(CClanResult::DIRECT);
 	char aBuf[512];
-	str_copy(aBuf, "SELECT name, level, experience FROM clans ORDER BY level DESC, experience DESC LIMIT 10;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "SELECT name, level, experience FROM %s ORDER BY level DESC, experience DESC LIMIT 10;", TBL_CLANS);
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{

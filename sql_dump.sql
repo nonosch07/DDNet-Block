@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Hôte : localhost:3306
--- Généré le : jeu. 09 oct. 2025 à 15:14
+-- Généré le : mer. 15 oct. 2025 à 21:55
 -- Version du serveur : 11.8.3-MariaDB-0+deb13u1 from Debian
 -- Version de PHP : 8.4.11
 
@@ -24,10 +24,10 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
--- Structure de la table `accounts_busy`
+-- Structure de la table `Blockworlds_accounts_busy`
 --
 
-CREATE TABLE `accounts_busy` (
+CREATE TABLE `Blockworlds_accounts_busy` (
   `account_id` int(11) NOT NULL,
   `server_id` varchar(32) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -35,10 +35,10 @@ CREATE TABLE `accounts_busy` (
 -- --------------------------------------------------------
 
 --
--- Structure de la table `accounts_core`
+-- Structure de la table `Blockworlds_accounts_core`
 --
 
-CREATE TABLE `accounts_core` (
+CREATE TABLE `Blockworlds_accounts_core` (
   `id` int(11) NOT NULL,
   `name` varchar(11) NOT NULL,
   `password` varchar(256) NOT NULL,
@@ -53,10 +53,10 @@ CREATE TABLE `accounts_core` (
 -- --------------------------------------------------------
 
 --
--- Structure de la table `accounts_inventory`
+-- Structure de la table `Blockworlds_accounts_inventory`
 --
 
-CREATE TABLE `accounts_inventory` (
+CREATE TABLE `Blockworlds_accounts_inventory` (
   `account_id` int(11) NOT NULL,
   `vip` int(11) DEFAULT 0,
   `pages` int(11) DEFAULT 0,
@@ -69,10 +69,10 @@ CREATE TABLE `accounts_inventory` (
 -- --------------------------------------------------------
 
 --
--- Structure de la table `accounts_progress`
+-- Structure de la table `Blockworlds_accounts_progress`
 --
 
-CREATE TABLE `accounts_progress` (
+CREATE TABLE `Blockworlds_accounts_progress` (
   `account_id` int(11) NOT NULL,
   `level` int(11) DEFAULT 1,
   `experience` int(11) DEFAULT 0,
@@ -91,10 +91,10 @@ CREATE TABLE `accounts_progress` (
 -- --------------------------------------------------------
 
 --
--- Structure de la table `accounts_ranked`
+-- Structure de la table `Blockworlds_accounts_ranked`
 --
 
-CREATE TABLE `accounts_ranked` (
+CREATE TABLE `Blockworlds_accounts_ranked` (
   `account_id` int(11) NOT NULL,
   `ranked_games` int(11) DEFAULT 0,
   `ranked_kills` int(11) DEFAULT 0,
@@ -105,14 +105,29 @@ CREATE TABLE `accounts_ranked` (
 -- --------------------------------------------------------
 
 --
--- Structure de la table `clans`
+-- Structure de la table `Blockworlds_clans`
 --
 
-CREATE TABLE `clans` (
+CREATE TABLE `Blockworlds_clans` (
   `id` int(11) NOT NULL,
   `name` varchar(32) NOT NULL,
   `level` int(11) DEFAULT 1,
   `experience` int(11) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+-- --------------------------------------------------------
+
+--
+-- Structure de la table `Blockworlds_whois_connections`
+--
+
+CREATE TABLE `Blockworlds_whois_connections` (
+  `id` bigint(20) NOT NULL,
+  `ip` varchar(45) NOT NULL,
+  `name` varchar(16) NOT NULL,
+  `account_id` int(11) NOT NULL DEFAULT 0,
+  `source` enum('join','snapshot','leave') NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 --
@@ -120,28 +135,28 @@ CREATE TABLE `clans` (
 --
 
 --
--- Index pour la table `accounts_busy`
+-- Index pour la table `Blockworlds_accounts_busy`
 --
-ALTER TABLE `accounts_busy`
+ALTER TABLE `Blockworlds_accounts_busy`
   ADD UNIQUE KEY `ux_busy_account` (`account_id`);
 
 --
--- Index pour la table `accounts_core`
+-- Index pour la table `Blockworlds_accounts_core`
 --
-ALTER TABLE `accounts_core`
+ALTER TABLE `Blockworlds_accounts_core`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `ux_accounts_core_name` (`name`);
 
 --
--- Index pour la table `accounts_inventory`
+-- Index pour la table `Blockworlds_accounts_inventory`
 --
-ALTER TABLE `accounts_inventory`
+ALTER TABLE `Blockworlds_accounts_inventory`
   ADD PRIMARY KEY (`account_id`);
 
 --
--- Index pour la table `accounts_progress`
+-- Index pour la table `Blockworlds_accounts_progress`
 --
-ALTER TABLE `accounts_progress`
+ALTER TABLE `Blockworlds_accounts_progress`
   ADD PRIMARY KEY (`account_id`),
   ADD KEY `ix_progress_level` (`level`),
   ADD KEY `ix_progress_blockpoints` (`blockpoints`),
@@ -150,63 +165,81 @@ ALTER TABLE `accounts_progress`
   ADD KEY `ix_progress_clan_auth` (`clanID`,`auth_level`);
 
 --
--- Index pour la table `accounts_ranked`
+-- Index pour la table `Blockworlds_accounts_ranked`
 --
-ALTER TABLE `accounts_ranked`
+ALTER TABLE `Blockworlds_accounts_ranked`
   ADD PRIMARY KEY (`account_id`),
   ADD KEY `ix_ranked_wins` (`ranked_wins`),
   ADD KEY `ix_ranked_kills` (`ranked_kills`);
 
 --
--- Index pour la table `clans`
+-- Index pour la table `Blockworlds_clans`
 --
-ALTER TABLE `clans`
+ALTER TABLE `Blockworlds_clans`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `ux_clans_name` (`name`);
+
+--
+-- Index pour la table `Blockworlds_whois_connections`
+--
+ALTER TABLE `Blockworlds_whois_connections`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `whois_idx_ip` (`ip`),
+  ADD KEY `whois_idx_name` (`name`),
+  ADD KEY `whois_idx_ip_name` (`ip`,`name`),
+  ADD KEY `whois_idx_name_ip` (`name`,`ip`),
+  ADD KEY `whois_idx_accid` (`account_id`),
+  ADD KEY `whois_idx_created_at` (`created_at`);
 
 --
 -- AUTO_INCREMENT pour les tables déchargées
 --
 
 --
--- AUTO_INCREMENT pour la table `accounts_core`
+-- AUTO_INCREMENT pour la table `Blockworlds_accounts_core`
 --
-ALTER TABLE `accounts_core`
+ALTER TABLE `Blockworlds_accounts_core`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=630;
 
 --
--- AUTO_INCREMENT pour la table `clans`
+-- AUTO_INCREMENT pour la table `Blockworlds_clans`
 --
-ALTER TABLE `clans`
+ALTER TABLE `Blockworlds_clans`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+
+--
+-- AUTO_INCREMENT pour la table `Blockworlds_whois_connections`
+--
+ALTER TABLE `Blockworlds_whois_connections`
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
 
 --
 -- Contraintes pour les tables déchargées
 --
 
 --
--- Contraintes pour la table `accounts_busy`
+-- Contraintes pour la table `Blockworlds_accounts_busy`
 --
-ALTER TABLE `accounts_busy`
-  ADD CONSTRAINT `fk_busy_core` FOREIGN KEY (`account_id`) REFERENCES `accounts_core` (`id`) ON DELETE CASCADE;
+ALTER TABLE `Blockworlds_accounts_busy`
+  ADD CONSTRAINT `fk_busy_core` FOREIGN KEY (`account_id`) REFERENCES `Blockworlds_accounts_core` (`id`) ON DELETE CASCADE;
 
 --
--- Contraintes pour la table `accounts_inventory`
+-- Contraintes pour la table `Blockworlds_accounts_inventory`
 --
-ALTER TABLE `accounts_inventory`
-  ADD CONSTRAINT `fk_acc_inv_core` FOREIGN KEY (`account_id`) REFERENCES `accounts_core` (`id`) ON DELETE CASCADE;
+ALTER TABLE `Blockworlds_accounts_inventory`
+  ADD CONSTRAINT `fk_acc_inv_core` FOREIGN KEY (`account_id`) REFERENCES `Blockworlds_accounts_core` (`id`) ON DELETE CASCADE;
 
 --
--- Contraintes pour la table `accounts_progress`
+-- Contraintes pour la table `Blockworlds_accounts_progress`
 --
-ALTER TABLE `accounts_progress`
-  ADD CONSTRAINT `fk_acc_prog_core` FOREIGN KEY (`account_id`) REFERENCES `accounts_core` (`id`) ON DELETE CASCADE;
+ALTER TABLE `Blockworlds_accounts_progress`
+  ADD CONSTRAINT `fk_acc_prog_core` FOREIGN KEY (`account_id`) REFERENCES `Blockworlds_accounts_core` (`id`) ON DELETE CASCADE;
 
 --
--- Contraintes pour la table `accounts_ranked`
+-- Contraintes pour la table `Blockworlds_accounts_ranked`
 --
-ALTER TABLE `accounts_ranked`
-  ADD CONSTRAINT `fk_acc_ranked_core` FOREIGN KEY (`account_id`) REFERENCES `accounts_core` (`id`) ON DELETE CASCADE;
+ALTER TABLE `Blockworlds_accounts_ranked`
+  ADD CONSTRAINT `fk_acc_ranked_core` FOREIGN KEY (`account_id`) REFERENCES `Blockworlds_accounts_core` (`id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

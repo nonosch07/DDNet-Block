@@ -720,7 +720,6 @@ private:
 	static void ConDisplayTopBlockpoints(IConsole::IResult *pResult, void *pUserData);
 	static void ConDisplayTopKillStreak(IConsole::IResult *pResult, void *pUserData);
 	static void ConDisplayTopClans(IConsole::IResult *pResult, void *pUserData);
-	static void ConIntegrityCheck(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConClanCreate(IConsole::IResult *pResult, void *pUserData);
 	static void ConClanDelete(IConsole::IResult *pResult, void *pUserData);

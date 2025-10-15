@@ -1397,12 +1397,19 @@ int CServer::NumRconCommands(int ClientId)
 
 void CServer::UpdateClientRconCommands()
 {
-	int ClientId = Tick() % MAX_CLIENTS;
+	// process multiple clients per tick to drastically accelerate rcon command delivery - shouldn't cause any issues, revert if any
+	int ClientsPerTick = clamp(Config()->m_SvSendRconCmdsClientsPerTick, 1, (int)MAX_CLIENTS);
+	int PerClient = clamp(Config()->m_SvSendRconCmdsPerTick, 1, 256);
 
-	if(m_aClients[ClientId].m_State != CClient::STATE_EMPTY && m_aClients[ClientId].m_Authed)
+	int Start = (Tick() * ClientsPerTick) % MAX_CLIENTS;
+	for(int n = 0; n < ClientsPerTick; ++n)
 	{
+		int ClientId = (Start + n) % MAX_CLIENTS;
+		if(m_aClients[ClientId].m_State == CClient::STATE_EMPTY || !m_aClients[ClientId].m_Authed)
+			continue;
+
 		int ConsoleAccessLevel = GetConsoleAccessLevel(ClientId);
-		for(int i = 0; i < MAX_RCONCMD_SEND && m_aClients[ClientId].m_pRconCmdToSend; ++i)
+		for(int i = 0; i < PerClient && m_aClients[ClientId].m_pRconCmdToSend; ++i)
 		{
 			SendRconCmdAdd(m_aClients[ClientId].m_pRconCmdToSend, ClientId);
 			m_aClients[ClientId].m_pRconCmdToSend = m_aClients[ClientId].m_pRconCmdToSend->NextCommandInfo(ConsoleAccessLevel, CFGFLAG_SERVER);

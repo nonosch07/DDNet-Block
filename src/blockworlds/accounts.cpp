@@ -14,6 +14,7 @@
 
 #include "accounts.h"
 #include "password_hash.h"
+#include "sql_prefix.h"
 
 CAdminCommandResult::CAdminCommandResult()
 {
@@ -243,11 +244,6 @@ std::vector<std::pair<std::string, int>> CAccounts::ListIpBans() const
 	return v;
 }
 
-struct CSqlIntegrityRequest : ISqlData
-{
-	CSqlIntegrityRequest(std::shared_ptr<CAccountResult> pRes) :
-		ISqlData(std::move(pRes)) {}
-};
 
 void CAccounts::ExecAdminThread(
 	bool (*pFuncPtr)(IDbConnection *, const ISqlData *, char *pError, int ErrorSize),
@@ -335,8 +331,13 @@ void CAccounts::ExecUserThread(
 	m_pPool->Execute(pFuncPtr, std::move(Tmp), pThreadName);
 }
 
-static bool SqlWritePerRequestAdapter(IDbConnection *pSqlServer, const ISqlData *pGameData, Write /*w*/, char *pError, int ErrorSize)
+static bool SqlWritePerRequestAdapter(IDbConnection *pSqlServer, const ISqlData *pGameData, Write w, char *pError, int ErrorSize)
 {
+	// use MySQL only; skip backup phases (which are SQLite) safely
+	if(w == Write::BACKUP_FIRST || w == Write::NORMAL_SUCCEEDED)
+		return false; // treat backup phases as success (no-op)
+	if(w == Write::NORMAL_FAILED)
+		return true; // don't mask a primary failure
 	auto *pReq = dynamic_cast<const CSqlAccountRequest *>(pGameData);
 	if(!pReq || !pReq->m_pFunc)
 		return true; // fail
@@ -350,9 +351,7 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 
 	{ // wrong creds
 		char aBuf[2048];
-		str_copy(aBuf,
-			"SELECT id, password FROM accounts_core WHERE name = ?;",
-			sizeof(aBuf));
+		str_format(aBuf, sizeof(aBuf), "SELECT id, password FROM %s WHERE name = ?;", TBL_ACCOUNTS_CORE);
 
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		{
@@ -389,7 +388,7 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 
 	{ // is account busy
 		char aBusyBuf[512];
-		str_copy(aBusyBuf, "SELECT server_id FROM accounts_busy WHERE account_id = ?;", sizeof(aBusyBuf));
+		str_format(aBusyBuf, sizeof(aBusyBuf), "SELECT server_id FROM %s WHERE account_id = ?;", TBL_ACCOUNTS_BUSY);
 
 		if(pSqlServer->PrepareStatement(aBusyBuf, pError, ErrorSize))
 		{
@@ -419,15 +418,15 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 	}
 
 	char aBuf[2048];
-	str_copy(aBuf,
-		"SELECT c.id, c.name, c.password, c.address, i.vip, i.pages, p.level, p.experience, i.weaponkits, p.ranking, "
-		"p.clanID, p.auth_level, p.blockpoints, i.knockouts, i.gundesign, i.skinmani, p.passive, c.registerdate, r.ranked_games, "
-		"r.ranked_kills, r.ranked_deaths, r.ranked_wins, p.kills, p.deaths, p.tourney_win, p.playtime, p.killstreak, "
-		"c.last_name, c.last_skin, c.last_body_color, c.last_feet_color FROM accounts_core c "
-		"JOIN accounts_progress p ON c.id=p.account_id "
-		"JOIN accounts_inventory i ON c.id=i.account_id "
-		"JOIN accounts_ranked r ON c.id=r.account_id WHERE c.id = ?;",
-		sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf),
+	"SELECT c.id, c.name, c.password, c.address, i.vip, i.pages, p.level, p.experience, i.weaponkits, p.ranking, "
+	"p.clanID, p.auth_level, p.blockpoints, i.knockouts, i.gundesign, i.skinmani, p.passive, c.registerdate, r.ranked_games, "
+	"r.ranked_kills, r.ranked_deaths, r.ranked_wins, p.kills, p.deaths, p.tourney_win, p.playtime, p.killstreak, "
+	"c.last_name, c.last_skin, c.last_body_color, c.last_feet_color FROM %s c "
+	"JOIN %s p ON c.id=p.account_id "
+	"JOIN %s i ON c.id=i.account_id "
+	"JOIN %s r ON c.id=r.account_id WHERE c.id = ?;",
+	TBL_ACCOUNTS_CORE, TBL_ACCOUNTS_PROGRESS, TBL_ACCOUNTS_INVENTORY, TBL_ACCOUNTS_RANKED);
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -492,7 +491,7 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 
 	{ // set busy with race condition protection
 		char aBusyBuf[512];
-		str_copy(aBusyBuf, "INSERT INTO accounts_busy (server_id, account_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE server_id = VALUES(server_id);", sizeof(aBusyBuf));
+		str_format(aBusyBuf, sizeof(aBusyBuf), "INSERT INTO %s (server_id, account_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE server_id = VALUES(server_id);", TBL_ACCOUNTS_BUSY);
 
 		if(pSqlServer->PrepareStatement(aBusyBuf, pError, ErrorSize))
 		{
@@ -553,7 +552,7 @@ bool CAccounts::ChangePasswordAdminThread(IDbConnection *pSqlServer, const ISqlD
 	pw_hash_generate(pData->m_aPassword, aHashedNewPassword, sizeof(aHashedNewPassword), 0);
 
 	char aBuf[512];
-	str_copy(aBuf, "UPDATE accounts_core SET password = ? WHERE name = ?;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "UPDATE %s SET password = ? WHERE name = ?;", TBL_ACCOUNTS_CORE);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		str_copy(pResult->m_aaMessages[0], "Failed to prepare change password statement.", sizeof(pResult->m_aaMessages[0]));
@@ -586,11 +585,10 @@ bool CAccounts::ChangePasswordAdminThread(IDbConnection *pSqlServer, const ISqlD
 
 bool CAccounts::ExecuteSqlThread(IDbConnection *pSqlServer, const ISqlData *pGameData, Write w, char *pError, int ErrorSize)
 {
-	if(w != Write::NORMAL && w != Write::NORMAL_FAILED)
-	{
-		dbg_assert(false, "ExecuteSqlThread failed to write");
-		return true;
-	}
+	if(w == Write::BACKUP_FIRST || w == Write::NORMAL_SUCCEEDED)
+		return false; // no-op success on backup
+	if(w == Write::NORMAL_FAILED)
+		return true; // propagate failure
 
 	const CSqlStringData *pData = dynamic_cast<const CSqlStringData *>(pGameData);
 
@@ -659,7 +657,7 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 		return true;
 	}
 
-	str_copy(aBuf, "INSERT INTO accounts_core (name, password) VALUES (?, ?);", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "INSERT INTO %s (name, password) VALUES (?, ?);", TBL_ACCOUNTS_CORE);
 	dbg_msg("register", "Preparing core insert");
 	bool Failed = false; // track failure instead of goto to keep initialization order safe
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
@@ -697,7 +695,7 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 			dbg_msg("register", "Fetched new id = %d", NewId);
 
 			dbg_msg("register", "Creating dependent rows for id=%d", NewId);
-			str_copy(aBuf, "INSERT INTO accounts_progress (account_id) VALUES (?);", sizeof(aBuf));
+			str_format(aBuf, sizeof(aBuf), "INSERT INTO %s (account_id) VALUES (?);", TBL_ACCOUNTS_PROGRESS);
 			if(!Failed && pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 				Failed = true;
 			if(!Failed)
@@ -706,7 +704,7 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 				if(pSqlServer->ExecuteUpdate(&txAffected, pError, ErrorSize))
 					Failed = true;
 			}
-			str_copy(aBuf, "INSERT INTO accounts_inventory (account_id) VALUES (?);", sizeof(aBuf));
+			str_format(aBuf, sizeof(aBuf), "INSERT INTO %s (account_id) VALUES (?);", TBL_ACCOUNTS_INVENTORY);
 			if(!Failed && pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 				Failed = true;
 			if(!Failed)
@@ -715,7 +713,7 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 				if(pSqlServer->ExecuteUpdate(&txAffected, pError, ErrorSize))
 					Failed = true;
 			}
-			str_copy(aBuf, "INSERT INTO accounts_ranked (account_id) VALUES (?);", sizeof(aBuf));
+			str_format(aBuf, sizeof(aBuf), "INSERT INTO %s (account_id) VALUES (?);", TBL_ACCOUNTS_RANKED);
 			if(!Failed && pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 				Failed = true;
 			if(!Failed)
@@ -794,7 +792,7 @@ bool CAccounts::SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData,
 
 	if(DoCore)
 	{
-		str_copy(aBuf, "UPDATE accounts_core SET address = ?, last_name = ?, last_skin = ?, last_body_color = ?, last_feet_color = ? WHERE id = ?;", sizeof(aBuf));
+		str_format(aBuf, sizeof(aBuf), "UPDATE %s SET address = ?, last_name = ?, last_skin = ?, last_body_color = ?, last_feet_color = ? WHERE id = ?;", TBL_ACCOUNTS_CORE);
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 			goto fail;
 		pSqlServer->BindString(1, Acc.m_aAddress);
@@ -808,7 +806,7 @@ bool CAccounts::SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData,
 	}
 	if(DoProg)
 	{
-		str_copy(aBuf, "UPDATE accounts_progress SET level=?, experience=?, ranking=?, clanID=?, auth_level=?, blockpoints=?, passive=?, kills=?, deaths=?, tourney_win=?, playtime=?, killstreak=? WHERE account_id=?;", sizeof(aBuf));
+		str_format(aBuf, sizeof(aBuf), "UPDATE %s SET level=?, experience=?, ranking=?, clanID=?, auth_level=?, blockpoints=?, passive=?, kills=?, deaths=?, tourney_win=?, playtime=?, killstreak=? WHERE account_id=?;", TBL_ACCOUNTS_PROGRESS);
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 			goto fail;
 		pSqlServer->BindInt(1, Acc.m_Level);
@@ -829,7 +827,7 @@ bool CAccounts::SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData,
 	}
 	if(DoInv)
 	{
-		str_copy(aBuf, "UPDATE accounts_inventory SET vip=?, pages=?, weaponkits=?, knockouts=?, gundesign=?, skinmani=? WHERE account_id=?;", sizeof(aBuf));
+		str_format(aBuf, sizeof(aBuf), "UPDATE %s SET vip=?, pages=?, weaponkits=?, knockouts=?, gundesign=?, skinmani=? WHERE account_id=?;", TBL_ACCOUNTS_INVENTORY);
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 			goto fail;
 		pSqlServer->BindInt(1, Acc.m_Vip);
@@ -844,7 +842,7 @@ bool CAccounts::SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData,
 	}
 	if(DoRank)
 	{
-		str_copy(aBuf, "UPDATE accounts_ranked SET ranked_games=?, ranked_kills=?, ranked_deaths=?, ranked_wins=? WHERE account_id=?;", sizeof(aBuf));
+		str_format(aBuf, sizeof(aBuf), "UPDATE %s SET ranked_games=?, ranked_kills=?, ranked_deaths=?, ranked_wins=? WHERE account_id=?;", TBL_ACCOUNTS_RANKED);
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 			goto fail;
 		pSqlServer->BindInt(1, Acc.m_RankedGames);
@@ -875,7 +873,7 @@ bool CAccounts::LogoutThread(IDbConnection *pSqlServer, const ISqlData *pGameDat
 {
 	const CSqlAccountRequest *pData = dynamic_cast<const CSqlAccountRequest *>(pGameData);
 	char aBuf[512];
-	str_copy(aBuf, "DELETE FROM accounts_busy WHERE account_id = ? AND server_id = ?;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "DELETE FROM %s WHERE account_id = ? AND server_id = ?;", TBL_ACCOUNTS_BUSY);
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -910,7 +908,7 @@ void CAccounts::ClearLogins()
 bool CAccounts::ClearLoginsThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
 {
 	char aBuf[512];
-	str_copy(aBuf, "DELETE FROM accounts_busy WHERE server_id = ?;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "DELETE FROM %s WHERE server_id = ?;", TBL_ACCOUNTS_BUSY);
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -944,7 +942,7 @@ bool CAccounts::ChangePasswordThread(IDbConnection *pSqlServer, const ISqlData *
 	pResult->SetVariant(CAccountResult::DIRECT);
 
 	char aBuf[2048];
-	str_copy(aBuf, "SELECT password FROM accounts_core WHERE name = ?;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "SELECT password FROM %s WHERE name = ?;", TBL_ACCOUNTS_CORE);
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -978,7 +976,7 @@ bool CAccounts::ChangePasswordThread(IDbConnection *pSqlServer, const ISqlData *
 	char aHashedNewPassword[256];
 	pw_hash_generate(pData->m_aNewPassword, aHashedNewPassword, sizeof(aHashedNewPassword), 0);
 
-	str_copy(aBuf, "UPDATE accounts_core SET password = ? WHERE name = ?;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "UPDATE %s SET password = ? WHERE name = ?;", TBL_ACCOUNTS_CORE);
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -1020,7 +1018,7 @@ bool CAccounts::ShowTopLevelThread(IDbConnection *pSqlServer, const ISqlData *pG
 	CAccountResult *pResult = dynamic_cast<CAccountResult *>(pGameData->m_pResult.get());
 
 	char aBuf[512];
-	str_copy(aBuf, "SELECT c.last_name, p.level FROM accounts_core c JOIN accounts_progress p ON c.id=p.account_id ORDER BY p.level DESC LIMIT 10;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "SELECT c.last_name, p.level FROM %s c JOIN %s p ON c.id=p.account_id ORDER BY p.level DESC LIMIT 10;", TBL_ACCOUNTS_CORE, TBL_ACCOUNTS_PROGRESS);
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -1097,7 +1095,7 @@ bool CAccounts::ShowTopBlockpointsThread(IDbConnection *pSqlServer, const ISqlDa
 	pResult->SetVariant(CAccountResult::TOP_MESSAGES);
 
 	char aBuf[512];
-	str_copy(aBuf, "SELECT c.last_name, p.blockpoints FROM accounts_core c JOIN accounts_progress p ON c.id=p.account_id ORDER BY p.blockpoints DESC LIMIT 10;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "SELECT c.last_name, p.blockpoints FROM %s c JOIN %s p ON c.id=p.account_id ORDER BY p.blockpoints DESC LIMIT 10;", TBL_ACCOUNTS_CORE, TBL_ACCOUNTS_PROGRESS);
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -1168,12 +1166,6 @@ void CAccounts::ShowTopKillStreak(int ClientId)
 	ExecUserThread(ShowTopKillStreaksThread, "show top killstreak thread", ClientId, "", "", "", 0, NULL);
 }
 
-void CAccounts::IntegrityCheck(int ClientId)
-{
-	if(RateLimitPlayer(ClientId))
-		return;
-	ExecUserThread(IntegrityCheckThread, "integrity check", ClientId, "", "", "", 0, NULL);
-}
 
 bool CAccounts::ShowTopKillStreaksThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
 {
@@ -1181,7 +1173,7 @@ bool CAccounts::ShowTopKillStreaksThread(IDbConnection *pSqlServer, const ISqlDa
 	pResult->SetVariant(CAccountResult::TOP_MESSAGES);
 
 	char aBuf[512];
-	str_copy(aBuf, "SELECT c.last_name, p.killstreak FROM accounts_core c JOIN accounts_progress p ON c.id=p.account_id ORDER BY p.killstreak DESC LIMIT 10;", sizeof(aBuf));
+	str_format(aBuf, sizeof(aBuf), "SELECT c.last_name, p.killstreak FROM %s c JOIN %s p ON c.id=p.account_id ORDER BY p.killstreak DESC LIMIT 10;", TBL_ACCOUNTS_CORE, TBL_ACCOUNTS_PROGRESS);
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -1245,141 +1237,4 @@ bool CAccounts::ShowTopKillStreaksThread(IDbConnection *pSqlServer, const ISqlDa
 	return false;
 }
 
-bool CAccounts::IntegrityCheckThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
-{
-	CAccountResult *pResult = dynamic_cast<CAccountResult *>(pGameData->m_pResult.get());
-	if(!pResult)
-		return true;
-	pResult->SetVariant(CAccountResult::DIRECT);
 
-	// We'll gather up to MAX_MESSAGES-1 issues, final line is summary.
-	int Issues = 0;
-	auto AddIssue = [&](const char *pMsg) {
-		if(Issues < CAccountResult::MAX_MESSAGES - 1)
-		{
-			str_copy(pResult->m_aaMessages[Issues], pMsg, sizeof(pResult->m_aaMessages[Issues]));
-		}
-		Issues++;
-	};
-
-	char aBuf[512];
-
-	// 1 - orphan progress rows (progress without core) - should not happen (lets hope so :D)
-	str_copy(aBuf, "SELECT COUNT(*) FROM accounts_progress p LEFT JOIN accounts_core c ON p.account_id=c.id WHERE c.id IS NULL;", sizeof(aBuf));
-	{
-		bool End = false;
-		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(&End, pError, ErrorSize))
-			return true;
-	}
-	int OrphanProgress = pSqlServer->GetInt(1);
-	if(OrphanProgress > 0)
-	{
-		char aTmp[128];
-		str_format(aTmp, sizeof(aTmp), "Orphan accounts_progress rows: %d", OrphanProgress);
-		AddIssue(aTmp);
-	}
-
-	// 2 - orphan inventory rows
-	str_copy(aBuf, "SELECT COUNT(*) FROM accounts_inventory i LEFT JOIN accounts_core c ON i.account_id=c.id WHERE c.id IS NULL;", sizeof(aBuf));
-	{
-		bool End = false;
-		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(&End, pError, ErrorSize))
-			return true;
-	}
-	int OrphanInv = pSqlServer->GetInt(1);
-	if(OrphanInv > 0)
-	{
-		char aTmp[128];
-		str_format(aTmp, sizeof(aTmp), "Orphan accounts_inventory rows: %d", OrphanInv);
-		AddIssue(aTmp);
-	}
-
-	// 3 - orphan ranked rows
-	str_copy(aBuf, "SELECT COUNT(*) FROM accounts_ranked r LEFT JOIN accounts_core c ON r.account_id=c.id WHERE c.id IS NULL;", sizeof(aBuf));
-	{
-		bool End = false;
-		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(&End, pError, ErrorSize))
-			return true;
-	}
-	int OrphanRanked = pSqlServer->GetInt(1);
-	if(OrphanRanked > 0)
-	{
-		char aTmp[128];
-		str_format(aTmp, sizeof(aTmp), "Orphan accounts_ranked rows: %d", OrphanRanked);
-		AddIssue(aTmp);
-	}
-
-	// 4 - auth with no clan (auth_level>0 but clanID=0)
-	str_copy(aBuf, "SELECT COUNT(*) FROM accounts_progress WHERE auth_level>0 AND clanID=0;", sizeof(aBuf));
-	{
-		bool End = false;
-		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(&End, pError, ErrorSize))
-			return true;
-	}
-	int AuthNoClan = pSqlServer->GetInt(1);
-	if(AuthNoClan > 0)
-	{
-		char aTmp[128];
-		str_format(aTmp, sizeof(aTmp), "Auth level >0 with clanID=0 rows: %d", AuthNoClan);
-		AddIssue(aTmp);
-	}
-
-	// 5 - clan with nonexistent clan id (progress.clanID referencing missing clan)
-	str_copy(aBuf, "SELECT COUNT(*) FROM accounts_progress p LEFT JOIN clans c ON p.clanID=c.id WHERE p.clanID<>0 AND c.id IS NULL;", sizeof(aBuf));
-	{
-		bool End = false;
-		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(&End, pError, ErrorSize))
-			return true;
-	}
-	int BadClanRefs = pSqlServer->GetInt(1);
-	if(BadClanRefs > 0)
-	{
-		char aTmp[128];
-		str_format(aTmp, sizeof(aTmp), "accounts_progress rows referencing missing clan: %d", BadClanRefs);
-		AddIssue(aTmp);
-	}
-
-	// 6 - duplicate clan names case-insensitive (should be prevented by unique index but check)
-	str_copy(aBuf, "SELECT COUNT(*) FROM (SELECT LOWER(name) ln, COUNT(*) c FROM clans GROUP BY ln HAVING c>1) t;", sizeof(aBuf));
-	{
-		bool End = false;
-		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(&End, pError, ErrorSize))
-			return true;
-	}
-	int DuplicateClans = pSqlServer->GetInt(1);
-	if(DuplicateClans > 0)
-	{
-		char aTmp[128];
-		str_format(aTmp, sizeof(aTmp), "Duplicate clan names detected groups: %d", DuplicateClans);
-		AddIssue(aTmp);
-	}
-
-	// 7 - busy table orphan references
-	str_copy(aBuf, "SELECT COUNT(*) FROM accounts_busy b LEFT JOIN accounts_core c ON b.account_id=c.id WHERE c.id IS NULL;", sizeof(aBuf));
-	{
-		bool End = false;
-		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize) || pSqlServer->Step(&End, pError, ErrorSize))
-			return true;
-	}
-	int BusyOrphans = pSqlServer->GetInt(1);
-	if(BusyOrphans > 0)
-	{
-		char aTmp[128];
-		str_format(aTmp, sizeof(aTmp), "accounts_busy orphan rows: %d", BusyOrphans);
-		AddIssue(aTmp);
-	}
-
-	if(Issues == 0)
-	{
-		str_copy(pResult->m_aaMessages[0], "Integrity OK: no issues detected.", sizeof(pResult->m_aaMessages[0]));
-	}
-	else
-	{
-		char aSummary[128];
-		str_format(aSummary, sizeof(aSummary), "Integrity complete: %d issue%s (see above).", Issues, Issues == 1 ? "" : "s");
-		int Line = std::min(Issues, CAccountResult::MAX_MESSAGES - 1);
-		str_copy(pResult->m_aaMessages[Line], aSummary, sizeof(pResult->m_aaMessages[Line]));
-	}
-	pResult->m_Success = true;
-	return false;
-}

@@ -13,32 +13,31 @@
 
 class CGameContext;
 class IDbConnection;
+class IServer; // forward declaration for server interface
 
 // Result object passed from SQL worker thread to main thread for printing
 struct CWhoIsResult : ISqlResult
 {
 	CWhoIsResult() = default;
 
-	// Where to print the result (client id for chat, -1 to print to server console only)
 	int m_TargetClientId{-1};
-	// If true, also send to chat of m_TargetClientId, otherwise print to console only
-	bool m_SendToChat{true};
-	// Prefixed tag for printing (e.g. "whois")
+	bool m_SendToChat{false}; // disabled: whois outputs should only go to rcon/log via Console()->Print
+
 	char m_aTag[32]{"whois"};
 	// Lines to print
 	std::vector<std::string> m_vLines;
 };
 
-// Thread data for logging a connection event
 struct CSqlWhoIsLog : ISqlData
 {
 	CSqlWhoIsLog(std::shared_ptr<CWhoIsResult> pResult) : ISqlData(std::move(pResult)) {}
 
 	char m_aIp[48]{};      // textual, no port
-	char m_aName[24]{};    // current player name (utf8)
+	char m_aName[24]{};    // current player name
 	int m_AccountId{0};    // 0 if not logged in
 	char m_aAccountName[16]{}; // empty if not logged in
-	char m_aSource[8]{"join"}; // join|snapshot|leave
+	// source tag for event type: join|snapshot|leave (max 8 chars + NUL)
+	char m_aSource[16]{"join"};
 };
 
 // Thread data for query
@@ -48,7 +47,7 @@ struct CSqlWhoIsQuery : ISqlData
 
 	// mode 0=ip, 1=name
 	int m_Mode{0};
-	// cutoff 0=/32, 1=/24, 2=/16 (applies to ip mode)
+	// cutoff 0=/32, 1=/24, 2=/16, 3=/8 (applies to ip mode)
 	int m_Cutoff{0};
 	// search string (ip or name)
 	char m_aSearch[64]{};
@@ -67,8 +66,6 @@ class CWhoIs
 public:
 	CWhoIs(CGameContext *pGameServer, CDbConnectionPool *pPool);
 
-	// lifecycle
-	void EnsureSchema();
 
 	// event logging
 	void LogJoin(int ClientId);
@@ -92,7 +89,6 @@ private:
 	bool GetClientIdentity(int ClientId, char *pOutIp, int OutIpSize, char *pOutName, int OutNameSize, int &OutAccId, char *pOutAccName, int OutAccNameSize);
 	static void NormalizeIpNoPort(char *pIp);
 
-	static bool ThreadEnsureSchema(IDbConnection *pSql, const ISqlData *pData, char *pError, int ErrorSize);
 	static bool ThreadLog(IDbConnection *pSql, const ISqlData *pData, Write w, char *pError, int ErrorSize);
 	static bool ThreadQuery(IDbConnection *pSql, const ISqlData *pData, char *pError, int ErrorSize);
 	static bool ThreadPurge(IDbConnection *pSql, const ISqlData *pData, Write w, char *pError, int ErrorSize);

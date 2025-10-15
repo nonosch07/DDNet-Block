@@ -361,7 +361,6 @@ class CAccounts
 	static bool ShowTopLevelThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool ShowTopBlockpointsThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool ShowTopKillStreaksThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
-	static bool IntegrityCheckThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 
 	// non ratelimited server side queries
 	static bool ClearLoginsThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
@@ -418,7 +417,6 @@ public:
 	void ShowTopLevel(int ClientId);
 	void ShowTopBlockpoints(int ClientId);
 	void ShowTopKillStreak(int ClientId);
-	void IntegrityCheck(int ClientId);
 
 	bool IsIpBanned(const char *pIp, int &RemainingSeconds) const;
 	bool RegisterIpAttempt(const char *pIp);

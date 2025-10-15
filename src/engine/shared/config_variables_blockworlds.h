@@ -133,23 +133,28 @@ MACRO_CONFIG_INT(SvPasswordPbkdf2Iter, sv_password_pbkdf2_iter, 120000, 10000, 2
 
 // Discord integration
 MACRO_CONFIG_INT(SvDiscordEnabled, sv_discord_enabled, 1, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Enable Discord webhook sending")
-MACRO_CONFIG_STR(SvDiscordWebhookUrl, sv_discord_webhook_url, 512, "https://discord.com/api/webhooks/1351471976241303552/H2GEmS6zBwTI47C-bQ3qklU74YGh-3A8sTtErIf95kGay1Vsf8ePqw70Q8n86KtiPFPH", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL")
+MACRO_CONFIG_STR(SvDiscordWebhookUrl, sv_discord_webhook_url, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL")
 MACRO_CONFIG_STR(SvDiscordWebhookUsername, sv_discord_webhook_username, 127, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Override webhook username (optional)")
 MACRO_CONFIG_STR(SvDiscordWebhookAvatar, sv_discord_webhook_avatar, 255, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Override webhook avatar URL (optional)")
 MACRO_CONFIG_INT(SvDiscordTts, sv_discord_tts, 0, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Send messages as TTS")
 MACRO_CONFIG_STR(SvDiscordThreadId, sv_discord_thread_id, 127, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Thread ID to post under (optional)")
 
 MACRO_CONFIG_INT(SvDiscord1on1Enabled, sv_discord_1on1_enabled, 1, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Enable 1on1 Discord messages")
-MACRO_CONFIG_STR(SvDiscordWebhookUrl1on1, sv_discord_webhook_url_1on1, 512, "https://discord.com/api/webhooks/1351471976241303552/H2GEmS6zBwTI47C-bQ3qklU74YGh-3A8sTtErIf95kGay1Vsf8ePqw70Q8n86KtiPFPH", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for 1on1 events")
+MACRO_CONFIG_STR(SvDiscordWebhookUrl1on1, sv_discord_webhook_url_1on1, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for 1on1 events")
 
 MACRO_CONFIG_INT(SvDiscordLogsEnabled, sv_discord_bp_logs_enabled, 0, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Enable Discord logging for blockpoint transfer events")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlLogs, sv_discord_webhook_url_bp_logs, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL used for blockpoint transfer logs")
 
 MACRO_CONFIG_INT(SvDiscordLmbEnabled, sv_discord_lmb_enabled, 1, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Enable LMB Discord messages")
-MACRO_CONFIG_STR(SvDiscordWebhookUrlLmb, sv_discord_webhook_url_lmb, 512, "https://discord.com/api/webhooks/1351471976241303552/H2GEmS6zBwTI47C-bQ3qklU74YGh-3A8sTtErIf95kGay1Vsf8ePqw70Q8n86KtiPFPH", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for LMB events")
+MACRO_CONFIG_STR(SvDiscordWebhookUrlLmb, sv_discord_webhook_url_lmb, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for LMB events")
 
 MACRO_CONFIG_INT(SvDiscordChatEnabled, sv_discord_chat_enabled, 1, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Enable relaying in-game chat to Discord")
-MACRO_CONFIG_STR(SvDiscordWebhookUrlChat, sv_discord_webhook_url_chat, 512, "https://discord.com/api/webhooks/1351471976241303552/H2GEmS6zBwTI47C-bQ3qklU74YGh-3A8sTtErIf95kGay1Vsf8ePqw70Q8n86KtiPFPH", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for chat relay")
+MACRO_CONFIG_STR(SvDiscordWebhookUrlChat, sv_discord_webhook_url_chat, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for chat relay")
 
-// Whois retention (months); 0 disables purging
+// Whois admin tool
 MACRO_CONFIG_INT(SvWhoisRetentionMonths, sv_whois_retention_months, 6, 0, 120, CFGFLAG_SERVER, "Delete whois records older than this many months (0 = keep forever)")
+MACRO_CONFIG_INT(SvWhoisSnapshotMinutes, sv_whois_snapshot_minutes, 10, 0, 1440, CFGFLAG_SERVER, "Interval in minutes for whois snapshots (0 = disable)")
+
+// rcon command sending performance tuning
+MACRO_CONFIG_INT(SvSendRconCmdsPerTick, sv_send_rcon_cmds_per_tick, 32, 1, 256, CFGFLAG_SERVER, "Number of rcon commands to send per tick per client")
+MACRO_CONFIG_INT(SvSendRconCmdsClientsPerTick, sv_send_rcon_cmds_clients_per_tick, 4, 1, MAX_CLIENTS, CFGFLAG_SERVER, "Number of clients to update with rcon commands per tick")

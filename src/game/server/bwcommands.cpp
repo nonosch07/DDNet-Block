@@ -117,19 +117,6 @@ void CGameContext::ConRegister(IConsole::IResult *pResult, void *pUserData)
 		pReqPlayer->m_LastRegisterTick = pSelf->Server()->Tick();
 }
 
-void CGameContext::ConIntegrityCheck(IConsole::IResult *pResult, void *pUserData)
-{
-	CGameContext *pSelf = (CGameContext *)pUserData;
-	if(!CheckClientId(pResult->m_ClientId))
-		return;
-	if(pSelf->Server()->GetAuthedState(pResult->m_ClientId) <= 0)
-	{
-		pSelf->SendChatTarget(pResult->m_ClientId, "You are not authorized to run integrity checks.");
-		return;
-	}
-	pSelf->Accounts()->IntegrityCheck(pResult->m_ClientId);
-	pSelf->SendChatTarget(pResult->m_ClientId, "Integrity scan queued.");
-}
 
 void CGameContext::ConLogin(IConsole::IResult *pResult, void *pUserData)
 {
