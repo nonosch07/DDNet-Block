@@ -597,6 +597,34 @@ void CGameContext::Mute(const NETADDR *pAddr, int Secs, const char *pDisplayName
 	SendChat(-1, TEAM_ALL, aBuf);
 }
 
+void CGameContext::AddIpMuteSilent(const NETADDR *pAddr, int Secs, const char *pReason)
+{
+	if(Secs <= 0)
+		return;
+	TryMute(pAddr, Secs, pReason ? pReason : "", false);
+}
+
+int CGameContext::GetRemainingMuteSeconds(int ClientId) const
+{
+	if(ClientId < 0 || ClientId >= MAX_CLIENTS)
+		return 0;
+	if(!m_apPlayers[ClientId])
+		return 0;
+
+	NETADDR Addr;
+	Server()->GetClientAddr(ClientId, &Addr);
+	for(int i = 0; i < m_NumMutes; i++)
+	{
+		if(!net_addr_comp_noport(&Addr, &m_aMutes[i].m_Addr))
+		{
+			int Expires = (m_aMutes[i].m_Expire - Server()->Tick()) / Server()->TickSpeed();
+			if(Expires > 0)
+				return Expires;
+		}
+	}
+	return 0;
+}
+
 void CGameContext::ConVoteMute(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;

@@ -15,7 +15,7 @@ struct SPromise
 class CPromises final : public CComponent
 {
 public:
-	static constexpr const char *GetNameStatic() { return "Promises"; }
+	static constexpr const char *GetNameStatic() { return "promises"; }
 	[[nodiscard]] const char *GetName() const override { return GetNameStatic(); }
 
 protected:

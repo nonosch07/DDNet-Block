@@ -11,7 +11,7 @@
 class CEvents final : public CComponent
 {
 public:
-	static constexpr const char *GetNameStatic() { return "Events"; }
+	static constexpr const char *GetNameStatic() { return "events"; }
 	[[nodiscard]] const char *GetName() const override { return GetNameStatic(); };
 	[[nodiscard]] std::vector<ComponentAccessor<CComponent>> GetSubComponents() const override;
 

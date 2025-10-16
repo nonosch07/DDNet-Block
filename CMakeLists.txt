@@ -1012,6 +1012,7 @@ set(EXPECTED_DATA
   announcement.txt
   autoexec_server.cfg
   censorlist.txt
+  chatfilter_words.txt
   maps/blmapV3ROYAL.map
   maps/store.map
   maps7/readme.txt

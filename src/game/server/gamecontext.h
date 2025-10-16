@@ -601,6 +601,8 @@ private:
 	bool TryVoteMute(const NETADDR *pAddr, int Secs, const char *pReason);
 	void VoteMute(const NETADDR *pAddr, int Secs, const char *pReason, const char *pDisplayName, int AuthedId);
 	bool VoteUnmute(const NETADDR *pAddr, const char *pDisplayName, int AuthedId);
+
+	int GetRemainingMuteSeconds(int ClientId) const;
 	void Whisper(int ClientId, char *pStr);
 	void WhisperId(int ClientId, int VictimId, const char *pMessage);
 	void Converse(int ClientId, char *pStr);
@@ -646,6 +648,11 @@ public:
 
 	void SendRecord(int ClientId);
 	void OnSetAuthed(int ClientId, int Level) override;
+
+	// silent IP mute helper for components
+	void AddIpMuteSilent(const NETADDR *pAddr, int Secs, const char *pReason);
+	// public helper for components to query remaining mute time
+	int GetRemainingMuteSecondsPublic(int ClientId) const { return GetRemainingMuteSeconds(ClientId); }
 
 	void ResetTuning();
 

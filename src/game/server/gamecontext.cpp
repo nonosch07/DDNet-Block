@@ -32,6 +32,7 @@
 #include <game/version.h>
 
 #include <blockworlds/components/ai/ai_bot.h>
+#include <blockworlds/components/chatfilter/chat_filter.h>
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
 #include <blockworlds/components/promises.h>
@@ -158,6 +159,7 @@ void CGameContext::Construct(int Resetting)
 		g_ComponentRegistry.Register<CEvents>(CEvents::GetNameStatic());
 		g_ComponentRegistry.Register<CRequests>(CRequests::GetNameStatic());
 		g_ComponentRegistry.Register<CAiBotComponent>(CAiBotComponent::GetNameStatic());
+		g_ComponentRegistry.Register<CChatFilterComponent>(CChatFilterComponent::GetNameStatic());
 	}
 }
 
@@ -2628,7 +2630,6 @@ void CGameContext::OnSayNetMessage(const CNetMsg_Cl_Say *pMsg, int ClientId, con
 	}
 	if(pEnd != 0)
 		*(const_cast<char *>(pEnd)) = 0;
-
 	// drop empty and autocreated spam messages (more than 32 characters per second)
 	if(Length == 0 || (pMsg->m_pMessage[0] != '/' && (g_Config.m_SvSpamprotection && pPlayer->m_LastChat && pPlayer->m_LastChat + Server()->TickSpeed() * ((31 + Length) / 32) > Server()->Tick())))
 		return;
@@ -2745,6 +2746,13 @@ void CGameContext::OnSayNetMessage(const CNetMsg_Cl_Say *pMsg, int ClientId, con
 			return;
 		}
 		pPlayer->UpdatePlaytime();
+
+		if(auto chatfilter = g_ComponentRegistry.Get<CChatFilterComponent>())
+		{
+			if(chatfilter->CheckAndMaybeMute(ClientId, pMsg->m_pMessage))
+				return;
+		}
+
 		char aCensoredMessage[256];
 		CensorMessage(aCensoredMessage, pMsg->m_pMessage, sizeof(aCensoredMessage));
 		SendChat(ClientId, Team, aCensoredMessage, ClientId);
@@ -5390,11 +5398,34 @@ bool CGameContext::ProcessSpamProtection(int ClientId, bool RespectChatInitialDe
 
 	if(Expires > 0)
 	{
-		char aBuf[128];
-		if(Muted.m_InitialChatDelay)
-			str_format(aBuf, sizeof(aBuf), "This server has an initial chat delay, you will be able to talk in %d seconds.", Expires);
+		char aTime[64];
+		int Hours = Expires / 3600;
+		int Minutes = (Expires % 3600) / 60;
+		int Seconds = Expires % 60;
+		if(Hours > 0)
+		{
+			if(Minutes > 0)
+				str_format(aTime, sizeof(aTime), "%d hour%s %d minute%s", Hours, Hours == 1 ? "" : "s", Minutes, Minutes == 1 ? "" : "s");
+			else
+				str_format(aTime, sizeof(aTime), "%d hour%s", Hours, Hours == 1 ? "" : "s");
+		}
+		else if(Minutes > 0)
+		{
+			if(Seconds > 0)
+				str_format(aTime, sizeof(aTime), "%d minute%s %d second%s", Minutes, Minutes == 1 ? "" : "s", Seconds, Seconds == 1 ? "" : "s");
+			else
+				str_format(aTime, sizeof(aTime), "%d minute%s", Minutes, Minutes == 1 ? "" : "s");
+		}
 		else
-			str_format(aBuf, sizeof(aBuf), "You are not permitted to talk for the next %d seconds.", Expires);
+		{
+			str_format(aTime, sizeof(aTime), "%d second%s", Seconds, Seconds == 1 ? "" : "s");
+		}
+
+		char aBuf[160];
+		if(Muted.m_InitialChatDelay)
+			str_format(aBuf, sizeof(aBuf), "This server has an initial chat delay, you will be able to talk in %s.", aTime);
+		else
+			str_format(aBuf, sizeof(aBuf), "You are not permitted to talk for the next %s.", aTime);
 		SendChatTarget(ClientId, aBuf);
 		return true;
 	}
@@ -5546,6 +5577,12 @@ void CGameContext::WhisperId(int ClientId, int VictimId, const char *pMessage)
 
 	if(m_apPlayers[ClientId])
 		m_apPlayers[ClientId]->m_LastWhisperTo = VictimId;
+
+	if(auto chatfilter = g_ComponentRegistry.Get<CChatFilterComponent>())
+	{
+		if(chatfilter->CheckAndMaybeMute(ClientId, pMessage))
+			return;
+	}
 
 	char aCensoredMessage[256];
 	CensorMessage(aCensoredMessage, pMessage, sizeof(aCensoredMessage));

@@ -158,3 +158,7 @@ MACRO_CONFIG_INT(SvWhoisSnapshotMinutes, sv_whois_snapshot_minutes, 10, 0, 1440,
 // rcon command sending performance tuning
 MACRO_CONFIG_INT(SvSendRconCmdsPerTick, sv_send_rcon_cmds_per_tick, 32, 1, 256, CFGFLAG_SERVER, "Number of rcon commands to send per tick per client")
 MACRO_CONFIG_INT(SvSendRconCmdsClientsPerTick, sv_send_rcon_cmds_clients_per_tick, 4, 1, MAX_CLIENTS, CFGFLAG_SERVER, "Number of clients to update with rcon commands per tick")
+
+// chat filter settings
+MACRO_CONFIG_INT(SvChatfilterMuteHours, sv_chatfilter_mute_hours, 12, 0, 168, CFGFLAG_SERVER, "Hours to mute a player when a filtered word is used (0 = disable muting)")
+MACRO_CONFIG_STR(SvChatfilterWordsFile, sv_chatfilter_words_file, 255, "data/chatfilter_words.txt", CFGFLAG_SERVER, "Path or filename of the chat filter word list (resolved relative to the executable directory)")

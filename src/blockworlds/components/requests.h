@@ -12,7 +12,7 @@
 class CRequests : public CComponent
 {
 public:
-	static constexpr const char *GetNameStatic() { return "Requests"; }
+	static constexpr const char *GetNameStatic() { return "requests"; }
 	[[nodiscard]] const char *GetName() const override { return GetNameStatic(); };
 
 	struct SRequest
