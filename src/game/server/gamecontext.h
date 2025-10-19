@@ -709,6 +709,9 @@ private:
 	static void ConChangePassword(IConsole::IResult *pResult, void *pUserData);
 	static void ConExp(IConsole::IResult *pResult, void *pUserData);
 	static void ConClanExp(IConsole::IResult *pResult, void *pUserData);
+	static void ConClanList(IConsole::IResult *pResult, void *pUserData);
+	static void ConClanHelp(IConsole::IResult *pResult, void *pUserData);
+	static void ConAccountHelp(IConsole::IResult *pResult, void *pUserData);
 	static void ConBuy(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConShopPurchase(IConsole::IResult *pResult, void *pUserData);

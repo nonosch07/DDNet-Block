@@ -5989,6 +5989,7 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("clan_leave", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanLeave, this, "Leave your current clan.");
 	Console()->Register("clan_kick", "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanRemove, this, "Remove the specified user from your clan.");
 	Console()->Register("clan_setlevel", "s[username] i[level]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanSetAuth, this, "Assign a clan access level to a member (1: member, 2: co-leader).");
+	Console()->Register("clan_rename", "s[newname]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanRename, this, "Rename your clan (leader only).");
 
 	Console()->Register("clan_invite", "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanInvite, this, "Invite a user to join your clan.");
 	Console()->Register("clan_accept", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanAccept, this, "Accept a pending clan invitation.");
@@ -5999,6 +6000,10 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("clan_no", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanNo, this, "Cancel the last pending clan action (delete/kick).");
 
 	Console()->Register("clan_exp", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanExp, this, "Display the current experience progress of your clan.");
+
+	Console()->Register("clan", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanHelp, this, "Show clan system information and commands.");
+	Console()->Register("account", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConAccountHelp, this, "Show account system information and commands.");
+	Console()->Register("clan_list", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanList, this, "List members of your clan (up to 25).");
 
 	// events
 	Console()->Register("1on1", "s[player name] ?i[wager]", CFGFLAG_CHAT, Con1on1, this, "Fight against another player");

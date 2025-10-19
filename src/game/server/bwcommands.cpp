@@ -1209,6 +1209,62 @@ void CGameContext::ConClanExp(IConsole::IResult *pResult, void *pUserData)
 	pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
 }
 
+void CGameContext::ConClanList(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+	if(!pPlayer || !pPlayer->IsLoggedIn())
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You must be logged in.");
+	if(pPlayer->GetClanId() <= 0)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You are not in a clan.");
+
+	pSelf->Clans()->ShowClanMembers(pResult->m_ClientId, pPlayer->GetClanId());
+}
+
+void CGameContext::ConClanHelp(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+	pSelf->SendChatTarget(pResult->m_ClientId, "Clan system commands:");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_create <name> — Create a new clan");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_delete — Delete your clan (leader only)");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_leave — Leave your clan");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_invite <player> — Invite a player");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_accept | /clan_decline — Respond to invite");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_kick <player> — Kick a member (leader/co-leader)");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_setlevel <player> <1|2> — Set rank (leader only)");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_rename <newname> — Rename clan (leader only)");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_exp — Show clan EXP progress");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_list — List clan members");
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "Max members per clan: %d", g_Config.m_SvClanMaxMembers);
+	pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+	str_format(aBuf, sizeof(aBuf), "Rename price: %d BP", g_Config.m_SvClanRenamePrice);
+	pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+	str_format(aBuf, sizeof(aBuf), "Create price: %d BP", g_Config.m_SvClanCreatePrice);
+	pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+}
+
+void CGameContext::ConAccountHelp(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+	pSelf->SendChatTarget(pResult->m_ClientId, "Account system commands:");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/register <name> <pass> — Create an account");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/login <name> <pass> — Log in");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/logout_account — Log out");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/password <old> <new> — Change password");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/exp — Show your EXP");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/profile [name] — View a profile");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/bp — Show your blockpoints");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/give_bp <player> <amount> — Offer BP transfer");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/accept_bp [player] | /decline_bp [player] — Respond to BP transfer");
+}
+
 void CGameContext::ConBuy(IConsole::IResult *pResult, void *pUserData)
 {
 	// // test command - replace that with tiles
@@ -1332,7 +1388,7 @@ void CGameContext::ConClanInvite(IConsole::IResult *pResult, void *pUserData)
 		return;
 	}
 
-	const int CooldownSeconds = 60;
+	const int CooldownSeconds = g_Config.m_SvClanInviteCooldown; // configured cooldown
 	if(pPlayer->m_LastClanInviteTick != 0 && pSelf->Server()->Tick() - pPlayer->m_LastClanInviteTick < CooldownSeconds * pSelf->Server()->TickSpeed())
 	{
 		int Rem = (int)((CooldownSeconds * pSelf->Server()->TickSpeed() - (pSelf->Server()->Tick() - pPlayer->m_LastClanInviteTick)) / pSelf->Server()->TickSpeed());
@@ -1405,7 +1461,7 @@ void CGameContext::ConClanInvite(IConsole::IResult *pResult, void *pUserData)
 			return;
 		}
 
-		int id = requests->CreateClanInvite(pPlayer->GetCid(), Target, pPlayer->GetClanId(), 15);
+		int id = requests->CreateClanInvite(pPlayer->GetCid(), Target, pPlayer->GetClanId(), g_Config.m_SvClanInviteExpiry);
 		if(id < 0)
 		{
 			pSelf->SendChatTarget(pResult->m_ClientId, "Failed to send clan invitation.");
@@ -1523,6 +1579,17 @@ void CGameContext::ConClanCreate(IConsole::IResult *pResult, void *pUserData)
 	if(pPlayer->m_Account.m_ClanId > 0)
 		return pSelf->SendChatTarget(ClientId, "You are already in a clan!");
 
+	if(g_Config.m_SvClanCreatePrice > 0)
+	{
+		int cost = g_Config.m_SvClanCreatePrice;
+		if(pPlayer->GetPlayerBlockpoints() < cost)
+		{
+			char aBuf[128];
+			str_format(aBuf, sizeof(aBuf), "You need %d blockpoints to create a clan.", cost);
+			return pSelf->SendChatTarget(ClientId, aBuf);
+		}
+	}
+
 	const char *pClanName = pResult->GetString(0);
 	int ClanNameLength = str_length(pClanName);
 
@@ -1534,7 +1601,13 @@ void CGameContext::ConClanCreate(IConsole::IResult *pResult, void *pUserData)
 	if(pSelf->Clans()->GetClanIdByName(pClanName) != -1)
 		return pSelf->SendChatTarget(ClientId, "This clan name is already taken!");
 
-	pSelf->Clans()->CreateClan(ClientId, pClanName, pPlayer->GetAccId());
+	if(auto requests = g_ComponentRegistry.Get<CRequests>())
+	{
+		requests->CreateClanCreateConfirm(ClientId, pClanName, g_Config.m_SvClanConfirmExpiry);
+		return; // request system will notify
+	}
+
+	return pSelf->SendChatTarget(ClientId, "Clan creation failed: request system unavailable.");
 }
 
 void CGameContext::ConClanDelete(IConsole::IResult *pResult, void *pUserData)
@@ -1559,7 +1632,7 @@ void CGameContext::ConClanDelete(IConsole::IResult *pResult, void *pUserData)
 
 	if(auto requests = g_ComponentRegistry.Get<CRequests>())
 	{
-		requests->CreateClanDeleteConfirm(ClientId, pPlayer->GetClanId(), 15);
+		requests->CreateClanDeleteConfirm(ClientId, pPlayer->GetClanId(), g_Config.m_SvClanConfirmExpiry);
 		return; // message sent by requests
 	}
 }
@@ -1626,7 +1699,7 @@ void CGameContext::ConClanRemove(IConsole::IResult *pResult, void *pUserData)
 	// confirmation
 	if(auto requests = g_ComponentRegistry.Get<CRequests>())
 	{
-		requests->CreateClanKickConfirm(ClientId, pPlayer->m_Account.m_ClanId, pTargetPlayer->m_Account.m_aName, 15);
+		requests->CreateClanKickConfirm(ClientId, pPlayer->m_Account.m_ClanId, pTargetPlayer->m_Account.m_aName, g_Config.m_SvClanConfirmExpiry);
 		return; // message sent by requests
 	}
 }
@@ -1653,7 +1726,7 @@ void CGameContext::ConClanYes(IConsole::IResult *pResult, void *pUserData)
 			continue;
 		if(info.m_To != pResult->m_ClientId || info.m_From != pResult->m_ClientId)
 			continue;
-		if(info.m_Type == CRequests::SRequest::EType::ClanDeleteConfirm || info.m_Type == CRequests::SRequest::EType::ClanKickConfirm)
+		if(info.m_Type == CRequests::SRequest::EType::ClanDeleteConfirm || info.m_Type == CRequests::SRequest::EType::ClanKickConfirm || info.m_Type == CRequests::SRequest::EType::ClanRenameConfirm || info.m_Type == CRequests::SRequest::EType::ClanCreateConfirm)
 		{
 			if(info.m_ExpireTick > pSelf->Server()->Tick())
 				chosen = std::max(chosen, id);
@@ -1689,7 +1762,7 @@ void CGameContext::ConClanNo(IConsole::IResult *pResult, void *pUserData)
 			continue;
 		if(info.m_To != pResult->m_ClientId || info.m_From != pResult->m_ClientId)
 			continue;
-		if(info.m_Type == CRequests::SRequest::EType::ClanDeleteConfirm || info.m_Type == CRequests::SRequest::EType::ClanKickConfirm)
+		if(info.m_Type == CRequests::SRequest::EType::ClanDeleteConfirm || info.m_Type == CRequests::SRequest::EType::ClanKickConfirm || info.m_Type == CRequests::SRequest::EType::ClanRenameConfirm || info.m_Type == CRequests::SRequest::EType::ClanCreateConfirm)
 		{
 			if(info.m_ExpireTick > pSelf->Server()->Tick())
 				chosen = std::max(chosen, id);
@@ -1824,7 +1897,25 @@ void CGameContext::ConClanRename(IConsole::IResult *pResult, void *pUserData)
 	if(pSelf->Clans()->GetClanIdByName(pNewClanName) != -1)
 		return pSelf->SendChatTarget(ClientId, "This clan name is already taken!");
 
-	pSelf->Clans()->RenameClan(ClientId, pPlayer->m_Account.m_ClanId, pNewClanName);
+	if(g_Config.m_SvClanRenamePrice > 0)
+	{
+		int cost = g_Config.m_SvClanRenamePrice;
+		if(pPlayer->GetPlayerBlockpoints() < cost)
+		{
+			char aBuf[128];
+			str_format(aBuf, sizeof(aBuf), "You need %d blockpoints to rename your clan.", cost);
+			return pSelf->SendChatTarget(ClientId, aBuf);
+		}
+	}
+
+	if(auto requests = g_ComponentRegistry.Get<CRequests>())
+	{
+		std::string oldName = pSelf->Clans()->GetClanNameCopy(pPlayer->m_Account.m_ClanId);
+		requests->CreateClanRenameConfirm(ClientId, pPlayer->m_Account.m_ClanId, oldName.c_str(), pNewClanName, g_Config.m_SvClanConfirmExpiry);
+		return; // request system will notify hopefully ;(
+	}
+
+	return pSelf->SendChatTarget(ClientId, "Clan rename failed: request system unavailable.");
 }
 
 void CGameContext::ConDisplayTopClans(IConsole::IResult *pResult, void *pUserData)
@@ -1907,7 +1998,7 @@ void CGameContext::Con1on1(IConsole::IResult *pResult, void *pUserData)
 	if(auto requests = g_ComponentRegistry.Get<CRequests>())
 	{
 		{
-			int id = requests->Create1on1Invite(pPlayer->GetCid(), pTarget->GetCid(), Wager, 30);
+			int id = requests->Create1on1Invite(pPlayer->GetCid(), pTarget->GetCid(), Wager, g_Config.m_Sv1on1InviteExpiry);
 			if(id == -1)
 				return; // Create1on1Invite already informed the sender about the duplicate
 			pPlayer->sent1on1InviteTo = pTarget->GetCid();

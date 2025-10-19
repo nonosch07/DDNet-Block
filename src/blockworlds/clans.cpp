@@ -157,6 +157,13 @@ void CClanManager::ShowTopClans(int ClientId)
 	ExecClanThread(ShowTopClansThread, "show top clans thread", ClientId, "", "", 0, 0);
 }
 
+void CClanManager::ShowClanMembers(int ClientId, int ClanId)
+{
+	if(RateLimitPlayer(ClientId))
+		return;
+	ExecClanThread(ShowClanMembersThread, "show clan members thread", ClientId, "", "", 0, ClanId);
+}
+
 void CClanManager::SetAuthLevel(int ClientId, const char *AccountName, int NewAuthLevel, int ClanId)
 {
 	if(RateLimitPlayer(ClientId))
@@ -455,6 +462,11 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		return true;
 	}
 
+	if(g_Config.m_SvClanCreatePrice > 0)
+	{
+		pResult->m_ActionChargeClientId = pData->m_ClientId;
+		pResult->m_ActionChargeAmount = g_Config.m_SvClanCreatePrice;
+	}
 	str_copy(pResult->m_aaMessages[0], "Clan created successfully!", sizeof(pResult->m_aaMessages[0]));
 	pResult->m_Success = true;
 	return false;
@@ -555,7 +567,7 @@ bool CClanManager::DeleteClanThread(IDbConnection *pSqlServer, const ISqlData *p
 			CPlayer *pPlayer = pGameServer->m_apPlayers[i];
 			if(pPlayer && pPlayer->m_Account.m_ClanId == pData->m_ClanId)
 			{
-				pGameServer->SendChatTarget(i, "Your clan has been deleted.");
+				pGameServer->SendChatTarget(i, "Your clan has been deleted by the owner.");
 			}
 		}
 		// request main thread to reset players' clan
@@ -627,6 +639,31 @@ bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	if(pSqlServer->PrepareStatement("BEGIN;", pError, ErrorSize) || pSqlServer->ExecuteUpdate(nullptr, pError, ErrorSize))
 		return true;
 	bool TxFail = false;
+
+	str_format(aBuf, sizeof(aBuf), "SELECT COUNT(*) FROM %s WHERE clanID = ?;", TBL_ACCOUNTS_PROGRESS);
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Error 209: Failed to check clan size.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	pSqlServer->BindInt(1, pData->m_ClanId);
+	bool EndCountMembers = false;
+	if(pSqlServer->Step(&EndCountMembers, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Error 209: Failed to check clan size (step).", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	if(!EndCountMembers)
+	{
+		int MemberCount = pSqlServer->GetInt(1);
+		if(MemberCount >= g_Config.m_SvClanMaxMembers)
+		{
+			char aMsg[128];
+			str_format(aMsg, sizeof(aMsg), "Clan is full (max %d members).", g_Config.m_SvClanMaxMembers);
+			str_copy(pResult->m_aaMessages[0], aMsg, sizeof(pResult->m_aaMessages[0]));
+			return false;
+		}
+	}
 
 	if(pData->m_AccountId != 0)
 	{
@@ -893,7 +930,24 @@ bool CClanManager::RemoveFromClanThread(IDbConnection *pSqlServer, const ISqlDat
 	{
 		char aBroadcast[256];
 		str_format(aBroadcast, sizeof(aBroadcast), "'%s' has been kicked from the clan!", pData->m_aUsername);
-		pGameServer->SendChatClan(pData->m_ClanId, aBroadcast);
+		if(KickedClientId != -1)
+		{
+			for(int i = 0; i < MAX_CLIENTS; i++)
+			{
+				if(i == KickedClientId)
+					continue;
+				CPlayer *pPl = pGameServer->m_apPlayers[i];
+				if(!pPl || !pPl->IsLoggedIn())
+					continue;
+				if(pPl->GetClanId() != pData->m_ClanId)
+					continue;
+				pGameServer->SendChatTarget(i, aBroadcast);
+			}
+		}
+		else
+		{
+			pGameServer->SendChatClan(pData->m_ClanId, aBroadcast);
+		}
 	}
 
 	if(!TxErr)
@@ -1265,6 +1319,7 @@ bool CClanManager::RenameClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	if(pData->m_pClanManager)
 	{
 		std::string oldNameLower;
+		char aOldName[sizeof(((CClansData *)nullptr)->m_ClanName)] = {0};
 		{
 			std::lock_guard<std::mutex> lock(g_ClansDataMutex);
 			auto &vec = pData->m_pClanManager->m_vClansData;
@@ -1273,6 +1328,7 @@ bool CClanManager::RenameClanThread(IDbConnection *pSqlServer, const ISqlData *p
 				if(Clan.m_Id == pData->m_ClanId)
 				{
 					oldNameLower = Clan.m_ClanName;
+					str_copy(aOldName, Clan.m_ClanName, sizeof(aOldName));
 					str_copy(Clan.m_ClanName, aNormalizedName, sizeof(Clan.m_ClanName));
 					break;
 				}
@@ -1293,9 +1349,18 @@ bool CClanManager::RenameClanThread(IDbConnection *pSqlServer, const ISqlData *p
 				g_ClanNameToId[newLower] = pData->m_ClanId;
 			}
 		}
+
+		// request main-thread notification to clan members about rename
+		pResult->m_Action = CClanResult::ACTION_NOTIFY_CLAN_RENAME;
+		str_copy(pResult->m_ActionOldClanName, aOldName, sizeof(pResult->m_ActionOldClanName));
+		str_copy(pResult->m_ActionNewClanName, aNormalizedName, sizeof(pResult->m_ActionNewClanName));
 	}
 	str_copy(pResult->m_aaMessages[0], "Clan renamed successfully!", sizeof(pResult->m_aaMessages[0]));
 	pResult->m_Success = true;
+
+	// set charge instruction for main thread to apply BP deduction safely
+	pResult->m_ActionChargeClientId = pData->m_ClientId;
+	pResult->m_ActionChargeAmount = g_Config.m_SvClanRenamePrice;
 	return false;
 }
 
@@ -1605,6 +1670,78 @@ bool CClanManager::ShowTopClansThread(IDbConnection *pSqlServer, const ISqlData 
 		return true;
 	}
 
+	return false;
+}
+
+bool CClanManager::ShowClanMembersThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
+{
+	const CSqlClanRequest *pData = static_cast<const CSqlClanRequest *>(pGameData);
+	CClanResult *pResult = static_cast<CClanResult *>(pGameData->m_pResult.get());
+	pResult->SetVariant(CClanResult::DIRECT);
+
+	if(pData->m_ClanId <= 0)
+	{
+		str_copy(pResult->m_aaMessages[0], "You are not in a clan.", sizeof(pResult->m_aaMessages[0]));
+		return false;
+	}
+
+	char aClanName[33] = {0};
+	if(pData->m_pClanManager)
+	{
+		auto nameStr = pData->m_pClanManager->GetClanNameCopy(pData->m_ClanId);
+		str_copy(aClanName, nameStr.c_str(), sizeof(aClanName));
+	}
+
+	char aBuf[256];
+	int Line = 0;
+
+	str_format(aBuf, sizeof(aBuf), "SELECT COUNT(*) FROM %s WHERE clanID = ?;", TBL_ACCOUNTS_PROGRESS);
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Failed to read clan member count.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	pSqlServer->BindInt(1, pData->m_ClanId);
+	bool End = false;
+	int MemberCount = 0;
+	if(pSqlServer->Step(&End, pError, ErrorSize) || End)
+	{
+		str_copy(pResult->m_aaMessages[0], "Failed to read clan member count (step).", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	MemberCount = pSqlServer->GetInt(1);
+
+	if(aClanName[0])
+		str_format(aBuf, sizeof(aBuf), "Clan '%s' members (%d/%d):", aClanName, MemberCount, g_Config.m_SvClanMaxMembers);
+	else
+		str_format(aBuf, sizeof(aBuf), "Clan members (%d/%d):", MemberCount, g_Config.m_SvClanMaxMembers);
+	str_copy(pResult->m_aaMessages[Line++], aBuf, sizeof(pResult->m_aaMessages[0]));
+
+	str_format(aBuf, sizeof(aBuf),
+		"SELECT c.name, p.auth_level FROM %s p JOIN %s c ON p.account_id=c.id WHERE p.clanID = ? ORDER BY p.auth_level DESC, c.name ASC;",
+		TBL_ACCOUNTS_PROGRESS, TBL_ACCOUNTS_CORE);
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Failed to list clan members.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	pSqlServer->BindInt(1, pData->m_ClanId);
+	End = false;
+	while(!pSqlServer->Step(&End, pError, ErrorSize) && !End)
+	{
+		char aName[32];
+		pSqlServer->GetString(1, aName, sizeof(aName));
+		int Auth = pSqlServer->GetInt(2);
+		const char *pRank = (Auth == (int)ClanAuthLevel::LEADER) ? "Leader" : (Auth == (int)ClanAuthLevel::COLEADER ? "Co-Leader" : "Member");
+
+		char aLine[96];
+		str_format(aLine, sizeof(aLine), "- %s [%s]", aName, pRank);
+		if(Line < CClanResult::MAX_MESSAGES)
+			str_copy(pResult->m_aaMessages[Line++], aLine, sizeof(pResult->m_aaMessages[0]));
+		else
+			break;
+	}
+	pResult->m_Success = true;
 	return false;
 }
 

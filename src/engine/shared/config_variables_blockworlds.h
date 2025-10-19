@@ -89,6 +89,10 @@ MACRO_CONFIG_INT(SvShopServer, sv_shop_server, 0, 0, 1, CFGFLAG_SERVER, "Set to 
 // Clans settings:
 MACRO_CONFIG_INT(SvClanMinLevel, sv_clan_min_level, 25, 0, 100, CFGFLAG_SERVER, "Minimum player level required to create a clan.")
 MACRO_CONFIG_INT(SvClanSaveInterval, sv_clan_save_interval, 600, 1, 3600, CFGFLAG_SERVER, "Time delay (in seconds) between successive clan saves.")
+MACRO_CONFIG_INT(SvClanMaxMembers, sv_clan_max_members, 25, 1, 1000, CFGFLAG_SERVER, "Maximum number of members per clan (including leaders & co-leaders).")
+MACRO_CONFIG_INT(SvClanConfirmExpiry, sv_clan_confirm_expiry, 15, 5, 600, CFGFLAG_SERVER, "Expiry time (in seconds) for clan confirmations like delete/kick/rename.")
+MACRO_CONFIG_INT(SvClanCreatePrice, sv_clan_create_price, 500, 0, 1000000, CFGFLAG_SERVER, "Blockpoints cost to create a clan (0 = free).")
+MACRO_CONFIG_INT(SvClanRenamePrice, sv_clan_rename_price, 5000, 0, 1000000, CFGFLAG_SERVER, "Blockpoints cost to rename a clan (0 = free).")
 
 // events:
 // LMB (last man blocking)

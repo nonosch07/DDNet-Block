@@ -327,7 +327,10 @@ int CRequests::CreateClanDeleteConfirm(int ClientId, int ClanId, int ExpireSecon
 	r.m_From = ClientId;
 	r.m_To = ClientId; // self-confirmation
 	r.m_ClanId = ClanId;
-	r.m_ExpireTick = Server()->Tick() + (ExpireSeconds > 0 ? ExpireSeconds : 15) * Server()->TickSpeed();
+	{
+		int expiry = ExpireSeconds > 0 ? ExpireSeconds : g_Config.m_SvClanConfirmExpiry;
+		r.m_ExpireTick = Server()->Tick() + expiry * Server()->TickSpeed();
+	}
 	m_Requests.push_back(r);
 
 	// notify
@@ -353,7 +356,10 @@ int CRequests::CreateClanKickConfirm(int ClientId, int ClanId, const char *pTarg
 	r.m_From = ClientId;
 	r.m_To = ClientId; // self-confirmation
 	r.m_ClanId = ClanId;
-	r.m_ExpireTick = Server()->Tick() + (ExpireSeconds > 0 ? ExpireSeconds : 15) * Server()->TickSpeed();
+	{
+		int expiry = ExpireSeconds > 0 ? ExpireSeconds : g_Config.m_SvClanConfirmExpiry;
+		r.m_ExpireTick = Server()->Tick() + expiry * Server()->TickSpeed();
+	}
 	r.m_aUsername[0] = '\0';
 	if(pTargetAccountName)
 		str_copy(r.m_aUsername, pTargetAccountName, sizeof(r.m_aUsername));
@@ -370,6 +376,93 @@ int CRequests::CreateClanKickConfirm(int ClientId, int ClanId, const char *pTarg
 	str_format(aBuf, sizeof(aBuf), "Are you sure you want to kick '%s' from clan '%s'? Type /clan_yes or /clan_no.", r.m_aUsername[0] ? r.m_aUsername : "<unknown>", pClanName);
 	if(CheckClientId(ClientId) && GameServer()->m_apPlayers[ClientId])
 		GameServer()->SendChatTarget(ClientId, aBuf);
+	return r.m_Id;
+}
+
+int CRequests::CreateClanRenameConfirm(int ClientId, int ClanId, const char *pOldName, const char *pNewName, int ExpireSeconds)
+{
+	SRequest r;
+	r.m_Id = NextId();
+	r.m_Type = SRequest::EType::ClanRenameConfirm;
+	r.m_From = ClientId;
+	r.m_To = ClientId;
+	r.m_ClanId = ClanId;
+	{
+		int expiry = ExpireSeconds > 0 ? ExpireSeconds : g_Config.m_SvClanConfirmExpiry;
+		r.m_ExpireTick = Server()->Tick() + expiry * Server()->TickSpeed();
+	}
+	r.m_aOldClanName[0] = '\0';
+	r.m_aNewClanName[0] = '\0';
+	if(pOldName)
+		str_copy(r.m_aOldClanName, pOldName, sizeof(r.m_aOldClanName));
+	if(pNewName)
+		str_copy(r.m_aNewClanName, pNewName, sizeof(r.m_aNewClanName));
+	m_Requests.push_back(r);
+
+	char aBuf[256];
+	str_format(aBuf, sizeof(aBuf), "Are you sure you want to rename '%s' to '%s' (%d BP)? Type /clan_yes or /clan_no.", r.m_aOldClanName[0] ? r.m_aOldClanName : "<old>", r.m_aNewClanName[0] ? r.m_aNewClanName : "<new>", g_Config.m_SvClanRenamePrice);
+	if(CheckClientId(ClientId) && GameServer()->m_apPlayers[ClientId])
+		GameServer()->SendChatTarget(ClientId, aBuf);
+	return r.m_Id;
+}
+
+int CRequests::CreateClanCreateConfirm(int ClientId, const char *pNewClanName, int ExpireSeconds)
+{
+	SRequest r;
+	r.m_Id = NextId();
+	r.m_Type = SRequest::EType::ClanCreateConfirm;
+	r.m_From = ClientId;
+	r.m_To = ClientId; // self-confirmation
+	r.m_ClanId = 0; // not created yet
+	{
+		int expiry = ExpireSeconds > 0 ? ExpireSeconds : g_Config.m_SvClanConfirmExpiry;
+		r.m_ExpireTick = Server()->Tick() + expiry * Server()->TickSpeed();
+	}
+	r.m_aNewClanName[0] = '\0';
+	if(pNewClanName)
+		str_copy(r.m_aNewClanName, pNewClanName, sizeof(r.m_aNewClanName));
+	m_Requests.push_back(r);
+
+	char aBuf[256];
+	const int price = g_Config.m_SvClanCreatePrice;
+	if(price > 0)
+		str_format(aBuf, sizeof(aBuf), "Are you sure you want to create clan '%s' for %d BP? Type /clan_yes or /clan_no.", r.m_aNewClanName[0] ? r.m_aNewClanName : "<name>", price);
+	else
+		str_format(aBuf, sizeof(aBuf), "Are you sure you want to create clan '%s'? Type /clan_yes or /clan_no.", r.m_aNewClanName[0] ? r.m_aNewClanName : "<name>");
+	if(CheckClientId(ClientId) && GameServer()->m_apPlayers[ClientId])
+		GameServer()->SendChatTarget(ClientId, aBuf);
+	return r.m_Id;
+}
+
+int CRequests::CreateClanRenameNotice(int FromClient, int ToClient, int ClanId, const char *pOldName, const char *pNewName, int ExpireSeconds)
+{
+	SRequest r;
+	r.m_Id = NextId();
+	r.m_Type = SRequest::EType::ClanRenameNotice;
+	r.m_From = ToClient;
+	r.m_To = ToClient;
+	r.m_ClanId = ClanId;
+	{
+		int expiry = ExpireSeconds > 0 ? ExpireSeconds : g_Config.m_SvClanConfirmExpiry;
+		r.m_ExpireTick = Server()->Tick() + expiry * Server()->TickSpeed();
+	}
+	r.m_aOldClanName[0] = '\0';
+	r.m_aNewClanName[0] = '\0';
+	if(pOldName)
+		str_copy(r.m_aOldClanName, pOldName, sizeof(r.m_aOldClanName));
+	if(pNewName)
+		str_copy(r.m_aNewClanName, pNewName, sizeof(r.m_aNewClanName));
+	m_Requests.push_back(r);
+
+	// immediate notify if online
+	if(CheckClientId(ToClient) && GameServer()->m_apPlayers[ToClient])
+	{
+		char aBuf[192];
+		const char *pOld = r.m_aOldClanName[0] ? r.m_aOldClanName : "<old>";
+		const char *pNew = r.m_aNewClanName[0] ? r.m_aNewClanName : "<new>";
+		str_format(aBuf, sizeof(aBuf), "Clan renamed: '%s' -> '%s'", pOld, pNew);
+		GameServer()->SendChatClan(ClanId, aBuf);
+	}
 	return r.m_Id;
 }
 
@@ -568,6 +661,76 @@ bool CRequests::AcceptRequest(int RequestId)
 		return true;
 	}
 
+	if(it->m_Type == SRequest::EType::ClanRenameConfirm)
+	{
+		int clientId = it->m_From;
+		int clanId = it->m_ClanId;
+		CPlayer *pPl = CheckClientId(clientId) ? GameServer()->m_apPlayers[clientId] : nullptr;
+		if(!pPl || !pPl->IsLoggedIn())
+		{
+			if(CheckClientId(clientId) && GameServer()->m_apPlayers[clientId])
+				GameServer()->SendChatTarget(clientId, "You must be logged in to confirm clan rename.");
+			m_Requests.erase(it);
+			return false;
+		}
+		if(pPl->GetClanId() != clanId || pPl->GetAuthLevel() != ClanAuthLevel::LEADER)
+		{
+			GameServer()->SendChatTarget(clientId, "You are no longer the leader of this clan.");
+			m_Requests.erase(it);
+			return false;
+		}
+		// re-validate price at accept time
+		if(g_Config.m_SvClanRenamePrice > 0 && pPl->GetPlayerBlockpoints() < g_Config.m_SvClanRenamePrice)
+		{
+			GameServer()->SendChatTarget(clientId, "Insufficient blockpoints to complete rename.");
+			m_Requests.erase(it);
+			return false;
+		}
+
+		if(GameServer()->Clans())
+		{
+			GameServer()->Clans()->RenameClan(clientId, clanId, it->m_aNewClanName[0] ? it->m_aNewClanName : "");
+			GameServer()->SendChatTarget(clientId, "Clan rename confirmed.");
+		}
+		m_Requests.erase(it);
+		return true;
+	}
+
+	if(it->m_Type == SRequest::EType::ClanCreateConfirm)
+	{
+		int clientId = it->m_From;
+		CPlayer *pPl = CheckClientId(clientId) ? GameServer()->m_apPlayers[clientId] : nullptr;
+		if(!pPl || !pPl->IsLoggedIn())
+		{
+			if(CheckClientId(clientId) && GameServer()->m_apPlayers[clientId])
+				GameServer()->SendChatTarget(clientId, "You must be logged in to create a clan.");
+			m_Requests.erase(it);
+			return false;
+		}
+		// re-validate level requirement and BP price
+		if(pPl->GetPlayerLevel() < g_Config.m_SvClanMinLevel)
+		{
+			char aBuf[128];
+			str_format(aBuf, sizeof(aBuf), "You must be at least level %d to create a clan!", g_Config.m_SvClanMinLevel);
+			GameServer()->SendChatTarget(clientId, aBuf);
+			m_Requests.erase(it);
+			return false;
+		}
+		if(g_Config.m_SvClanCreatePrice > 0 && pPl->GetPlayerBlockpoints() < g_Config.m_SvClanCreatePrice)
+		{
+			GameServer()->SendChatTarget(clientId, "Insufficient blockpoints to create a clan.");
+			m_Requests.erase(it);
+			return false;
+		}
+		if(GameServer()->Clans())
+		{
+			GameServer()->Clans()->CreateClan(clientId, it->m_aNewClanName[0] ? it->m_aNewClanName : "", pPl->GetAccId());
+			GameServer()->SendChatTarget(clientId, "Clan creation confirmed.");
+		}
+		m_Requests.erase(it);
+		return true;
+	}
+
 	if(it->m_Type == SRequest::EType::Clan)
 	{
 		// clan invite accept flow
@@ -656,6 +819,16 @@ bool CRequests::AcceptRequest(int RequestId)
 		if(eraseIt != m_Requests.end())
 			m_Requests.erase(eraseIt);
 
+		return true;
+	}
+
+	if(it->m_Type == SRequest::EType::ClanRenameNotice)
+	{
+		// simple notification request; no accept flow needed. Remove it if accepted generically.
+		int id = it->m_Id;
+		auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
+		if(eraseIt != m_Requests.end())
+			m_Requests.erase(eraseIt);
 		return true;
 	}
 
@@ -894,6 +1067,21 @@ bool CRequests::DeclineRequest(int RequestId)
 		return true;
 	}
 
+	if(it->m_Type == SRequest::EType::ClanRenameNotice)
+	{
+		int to = it->m_To;
+		if(CheckClientId(to) && GameServer()->m_apPlayers[to])
+		{
+			char aBuf[192];
+			const char *pOld = it->m_aOldClanName[0] ? it->m_aOldClanName : "<old>";
+			const char *pNew = it->m_aNewClanName[0] ? it->m_aNewClanName : "<new>";
+			str_format(aBuf, sizeof(aBuf), "Dismissed: Clan renamed '%s' -> '%s'", pOld, pNew);
+			GameServer()->SendChatTarget(to, aBuf);
+		}
+		m_Requests.erase(it);
+		return true;
+	}
+
 	char aBuf[256];
 	str_copy(aBuf, "Your invite has been declined.", sizeof(aBuf));
 	if(CheckClientId(it->m_From) && GameServer()->m_apPlayers[it->m_From])
@@ -1022,6 +1210,20 @@ void CRequests::OnTick()
 			char aTmp[64];
 			str_format(aTmp, sizeof(aTmp), "%s", req.m_aUsername[0] ? req.m_aUsername : "target");
 			str_format(aBufFrom, sizeof(aBufFrom), "Your confirmation to kick '%s' expired.", aTmp);
+		}
+		else if(req.m_Type == SRequest::EType::ClanRenameConfirm)
+		{
+			str_format(aBufFrom, sizeof(aBufFrom), "Clan rename confirmation expired.");
+		}
+		else if(req.m_Type == SRequest::EType::ClanCreateConfirm)
+		{
+			str_copy(aBufFrom, "Clan creation confirmation expired.", sizeof(aBufFrom));
+		}
+		else if(req.m_Type == SRequest::EType::ClanRenameNotice)
+		{
+			const char *pOld = req.m_aOldClanName[0] ? req.m_aOldClanName : "<old>";
+			const char *pNew = req.m_aNewClanName[0] ? req.m_aNewClanName : "<new>";
+			str_format(aBufFrom, sizeof(aBufFrom), "Clan rename notice expired: '%s' -> '%s'", pOld, pNew);
 		}
 		else
 		{

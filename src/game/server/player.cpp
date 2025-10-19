@@ -27,6 +27,8 @@
 #include <blockworlds/cosmetics/cosmetics.h>
 // include specific event header to query 1on1 scores
 #include <blockworlds/components/events/1on1.h>
+// (no direct dependency on requests here; rename notice is broadcast directly)
+#include <blockworlds/components/requests.h>
 
 // specials
 #include <blockworlds/cosmetics/specials/ball.h>
@@ -1372,8 +1374,60 @@ void CPlayer::BWProcessClansResult(CClanResult &Result)
 				}
 			}
 			break;
+		case CClanResult::ACTION_NOTIFY_CLAN_RENAME:
+			if(GetClanId() > 0)
+			{
+				char aBuf[192];
+				const char *pOld = Result.m_ActionOldClanName[0] ? Result.m_ActionOldClanName : "<old>";
+				const char *pNew = Result.m_ActionNewClanName[0] ? Result.m_ActionNewClanName : "<new>";
+				str_format(aBuf, sizeof(aBuf), "Clan renamed: '%s' -> '%s'", pOld, pNew);
+				for(int i = 0; i < MAX_CLIENTS; ++i)
+				{
+					CPlayer *pMember = GameServer()->m_apPlayers[i];
+					if(pMember && pMember->IsLoggedIn() && pMember->GetClanId() == GetClanId())
+					{
+						GameServer()->SendChatTarget(i, aBuf);
+					}
+				}
+			}
+			break;
 		default:
 			break;
+		}
+
+		if(Result.m_Success && Result.m_ActionChargeClientId >= 0 && Result.m_ActionChargeAmount > 0)
+		{
+			int cid = Result.m_ActionChargeClientId;
+			if(cid >= 0 && cid < MAX_CLIENTS)
+			{
+				CPlayer *pCharger = GameServer()->m_apPlayers[cid];
+				if(pCharger && pCharger->IsLoggedIn())
+				{
+					int cost = Result.m_ActionChargeAmount;
+					if(pCharger->GetPlayerBlockpoints() >= cost)
+					{
+						pCharger->SetPlayerBlockpoints(pCharger->GetPlayerBlockpoints() - cost);
+						GameServer()->Accounts()->Save(cid, &pCharger->m_Account);
+						char aBuf[128];
+						if(cost == g_Config.m_SvClanRenamePrice)
+							str_format(aBuf, sizeof(aBuf), "You paid %d blockpoints to rename the clan.", cost);
+						else if(cost == g_Config.m_SvClanCreatePrice)
+							str_format(aBuf, sizeof(aBuf), "You paid %d blockpoints to create the clan.", cost);
+						else
+							str_format(aBuf, sizeof(aBuf), "You paid %d blockpoints.", cost);
+						GameServer()->SendChatTarget(cid, aBuf);
+					}
+					else
+					{
+						if(Result.m_ActionChargeAmount == g_Config.m_SvClanRenamePrice)
+							GameServer()->SendChatTarget(cid, "Rename fee could not be charged due to insufficient blockpoints after rename.");
+						else if(Result.m_ActionChargeAmount == g_Config.m_SvClanCreatePrice)
+							GameServer()->SendChatTarget(cid, "Creation fee could not be charged due to insufficient blockpoints after creation.");
+						else
+							GameServer()->SendChatTarget(cid, "Fee could not be charged due to insufficient blockpoints.");
+					}
+				}
+			}
 		}
 
 		switch(Result.m_MessageKind)

@@ -22,6 +22,9 @@ struct CClansData
 	bool m_Dirty; // true if EXP/level changed since last successful save
 };
 
+// Maximum number of members in a clan (including leaders & co-leaders)
+static constexpr int MAX_CLAN_MEMBERS = 25;
+
 struct CClanListResult : ISqlResult
 {
 	std::vector<CClansData> m_vClans;
@@ -79,7 +82,8 @@ struct CClanResult : ISqlResult
 		ACTION_NONE = 0,
 		ACTION_UPDATE_PLAYER_BY_CLIENT, // update a specific client id's in-memory clan/auth
 		ACTION_UPDATE_PLAYER_BY_NAME, // update a player found by name
-		ACTION_RESET_CLAN_PLAYERS // reset all players of a clan (set clan id to 0)
+		ACTION_RESET_CLAN_PLAYERS, // reset all players of a clan (set clan id to 0)
+		ACTION_NOTIFY_CLAN_RENAME // notify members of a clan rename (provide old/new names)
 	} m_Action = ACTION_NONE;
 
 	int m_ActionClientId = -1; // for ACTION_UPDATE_PLAYER_BY_CLIENT
@@ -87,6 +91,10 @@ struct CClanResult : ISqlResult
 	int m_ActionNewAuthLevel = 0; // auth level for update actions
 	char m_ActionPlayerName[64]; // for ACTION_UPDATE_PLAYER_BY_NAME
 	int m_ActionResetClanId = 0; // for ACTION_RESET_CLAN_PLAYERS
+	char m_ActionOldClanName[33]{}; // for ACTION_NOTIFY_CLAN_RENAME
+	char m_ActionNewClanName[33]{}; // for ACTION_NOTIFY_CLAN_RENAME
+	int m_ActionChargeClientId = -1; // client to charge on success
+	int m_ActionChargeAmount = 0; // blockpoints to deduct on success
 };
 
 struct CSqlClanRequest : ISqlData
@@ -141,6 +149,7 @@ class CClanManager
 	static bool RenameClanThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool SaveClanThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool ShowTopClansThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
+	static bool ShowClanMembersThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 
 	static bool LoadClansThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 
@@ -159,6 +168,7 @@ public:
 	void RenameClan(int ClientId, int ClanId, const char *pNewClanName);
 	void SaveClan(int ClientId, int ClanId);
 	void ShowTopClans(int ClientId);
+	void ShowClanMembers(int ClientId, int ClanId);
 
 	void QueueBackgroundSave(int ClanId);
 

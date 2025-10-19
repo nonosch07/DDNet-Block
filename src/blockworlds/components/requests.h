@@ -25,6 +25,9 @@ public:
 			BlockpointTransfer = 3,
 			ClanDeleteConfirm = 4,
 			ClanKickConfirm = 5,
+			ClanRenameNotice = 6,
+			ClanRenameConfirm = 7,
+			ClanCreateConfirm = 8,
 		};
 		int m_Id{};
 		EType m_Type{EType::OneOnOne};
@@ -36,6 +39,8 @@ public:
 		int m_Item{}; // shop item id
 		int m_ExpireTick{};
 		char m_aUsername[12]{}; //for ClanKickConfirm: target account name (varchar(11) + null)
+		char m_aOldClanName[33]{}; // for ClanRenameNotice
+		char m_aNewClanName[33]{}; // for ClanRenameNotice
 		// NOTE: for BlockpointTransfer we reuse m_Wager to store transfer amount to avoiding expanding struct size.
 	};
 
@@ -45,12 +50,15 @@ public:
 	explicit CRequests(class CGameContext *pGameServer);
 
 	// create requests
-	int Create1on1Invite(int FromClient, int ToClient, int Wager, int ExpireSeconds = 15);
-	int CreateClanInvite(int FromClient, int ToClient, int ClanId, int ExpireSeconds = 15);
-	int CreateShopRequest(int OwnerClient, int Category, int ItemId, int Price, int ExpireSeconds = 15);
-	int CreateBlockpointTransfer(int FromClient, int ToClient, int Amount, int ExpireSeconds = 15);
-	int CreateClanDeleteConfirm(int ClientId, int ClanId, int ExpireSeconds = 15);
-	int CreateClanKickConfirm(int ClientId, int ClanId, const char *pTargetAccountName, int ExpireSeconds = 15);
+	int Create1on1Invite(int FromClient, int ToClient, int Wager, int ExpireSeconds);
+	int CreateClanInvite(int FromClient, int ToClient, int ClanId, int ExpireSeconds);
+	int CreateShopRequest(int OwnerClient, int Category, int ItemId, int Price, int ExpireSeconds);
+	int CreateBlockpointTransfer(int FromClient, int ToClient, int Amount, int ExpireSeconds);
+	int CreateClanDeleteConfirm(int ClientId, int ClanId, int ExpireSeconds);
+	int CreateClanKickConfirm(int ClientId, int ClanId, const char *pTargetAccountName, int ExpireSeconds);
+	int CreateClanRenameNotice(int FromClient, int ToClient, int ClanId, const char *pOldName, const char *pNewName, int ExpireSeconds);
+	int CreateClanRenameConfirm(int ClientId, int ClanId, const char *pOldName, const char *pNewName, int ExpireSeconds);
+	int CreateClanCreateConfirm(int ClientId, const char *pNewClanName, int ExpireSeconds);
 
 	// cancel all requests involving a client (either as sender or receiver). Optional type filter.
 	// returns number of cancelled requests.
