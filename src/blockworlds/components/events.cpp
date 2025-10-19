@@ -12,13 +12,24 @@
 #include <blockworlds/components/events/event.h>
 #include <blockworlds/components/events/lmb.h>
 #include <blockworlds/components/events/tdm.h>
+#include <blockworlds/components/events/zcatch.h>
+#include <blockworlds/components/events/colorsoldiers.h>
+#include <blockworlds/components/events/priv_tdm.h>
+#include <blockworlds/components/events/clanwar.h>
 
 CEvents::CEvents(CGameContext *pGameServer) :
 	CComponent(pGameServer), m_pActiveEvent(nullptr), m_pEventToDelete(nullptr)
 {
-	m_EventsFactory.emplace("lmb", [](class CGameContext *pGS) { return std::make_shared<CLastManBlockingEvent>(pGS); });
-	m_EventsFactory.emplace("tdm", [](class CGameContext *pGS) { return std::make_shared<CTeamDeathmatchEvent>(pGS); });
-	m_EventsFactory.emplace("1on1", [](class CGameContext *pGS) { return std::make_shared<COneOnOneEvent>(pGS); });
+	// Public events
+	m_EventsFactory.emplace("lmb", SFactoryRec{EEventCategory::Public, [](class CGameContext *pGS) { return std::make_shared<CLastManBlockingEvent>(pGS); }});
+	m_EventsFactory.emplace("tdm", SFactoryRec{EEventCategory::Public, [](class CGameContext *pGS) { return std::make_shared<CTeamDeathmatchEvent>(pGS); }});
+	m_EventsFactory.emplace("zcatch", SFactoryRec{EEventCategory::Public, [](class CGameContext *pGS) { return std::make_shared<CZCatchEvent>(pGS); }});
+	m_EventsFactory.emplace("colorsoldiers", SFactoryRec{EEventCategory::Public, [](class CGameContext *pGS) { return std::make_shared<CColorSoldiersEvent>(pGS); }});
+
+	// Private events
+	m_EventsFactory.emplace("1on1", SFactoryRec{EEventCategory::Private, [](class CGameContext *pGS) { return std::make_shared<COneOnOneEvent>(pGS); }});
+	m_EventsFactory.emplace("priv_tdm", SFactoryRec{EEventCategory::Private, [](class CGameContext *pGS) { return std::make_shared<CPrivateTdmEvent>(pGS); }});
+	m_EventsFactory.emplace("clanwar", SFactoryRec{EEventCategory::Private, [](class CGameContext *pGS) { return std::make_shared<CClanwarEvent>(pGS); }});
 }
 
 CEvents::~CEvents()
@@ -50,7 +61,9 @@ void CEvents::OnDisable()
 
 #define LIST_OF_ALL_COMMANDS(DEF) \
 	DEF("events_status", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsStatus, this, "Status of current event") \
-	DEF("events_list", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsList, this, "List of available to start events") \
+	DEF("events_list", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsList, this, "List all events (public and private)") \
+	DEF("events_list_public", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsListPublic, this, "List public events") \
+	DEF("events_list_private", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsListPrivate, this, "List private events") \
 	DEF("events_start", "r[name]", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsStart, this, "Start specified event") \
 	DEF("events_next_stage", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsForceNextState, this, "Force current event to next stage") \
 	DEF("events_end", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsForceEnd, this, "Forcefully end current event") \
@@ -75,7 +88,7 @@ std::shared_ptr<CEventComponent> CEvents::CreateEventByName(const char *pName)
 	auto it = m_EventsFactory.find(aClearName);
 	if(it == m_EventsFactory.end())
 		return nullptr;
-	return it->second(GameServer());
+	return it->second.m_Factory(GameServer());
 }
 
 void CEvents::SetActiveEvent(std::shared_ptr<CEventComponent> pEvent)
@@ -134,9 +147,31 @@ void CEvents::ConEventsList(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pThis = (CEvents *)pUserData;
 
-	pThis->Log("Available Events:");
-	for(const auto &[Name, Factory] : pThis->m_EventsFactory)
-		pThis->Log(" - %s", Name.c_str());
+	pThis->Log("Available Events (Public):");
+	for(const auto &[Name, Rec] : pThis->m_EventsFactory)
+		if(Rec.m_Category == EEventCategory::Public)
+			pThis->Log(" - %s", Name.c_str());
+	pThis->Log("Available Events (Private):");
+	for(const auto &[Name, Rec] : pThis->m_EventsFactory)
+		if(Rec.m_Category == EEventCategory::Private)
+			pThis->Log(" - %s", Name.c_str());
+}
+
+void CEvents::ConEventsListPublic(IConsole::IResult *pResult, void *pUserData)
+{
+	auto *pThis = (CEvents *)pUserData;
+	pThis->Log("Public Events:");
+	for(const auto &[Name, Rec] : pThis->m_EventsFactory)
+		if(Rec.m_Category == EEventCategory::Public)
+			pThis->Log(" - %s", Name.c_str());
+}
+void CEvents::ConEventsListPrivate(IConsole::IResult *pResult, void *pUserData)
+{
+	auto *pThis = (CEvents *)pUserData;
+	pThis->Log("Private Events:");
+	for(const auto &[Name, Rec] : pThis->m_EventsFactory)
+		if(Rec.m_Category == EEventCategory::Private)
+			pThis->Log(" - %s", Name.c_str());
 }
 void CEvents::ConEventsStart(IConsole::IResult *pResult, void *pUserData)
 {
@@ -162,7 +197,7 @@ void CEvents::ConEventsStart(IConsole::IResult *pResult, void *pUserData)
 
 	// Don't ask, just believe
 	auto pThisShared = ((CEvents *)pUserData)->Registry()->Get<CEvents>();
-	pThis->m_pActiveEvent = it->second(pThis->GameServer());
+	pThis->m_pActiveEvent = it->second.m_Factory(pThis->GameServer());
 	pThis->m_pActiveEvent->SetStateChangeCallback(MakeSafeCallback(&CEvents::OnEventStateChange, pThisShared.Store()));
 	pThis->m_pActiveEvent->SetStateChangeCallback([pThis](auto OldState, auto NewState) { pThis->OnEventStateChange(OldState, NewState); });
 	if(!pThis->m_pActiveEvent->EmergencyShutdown())
@@ -247,4 +282,27 @@ void CEvents::OnEventStateChange(CEventComponent::EEventState OldState, CEventCo
 			GameServer()->SendBroadcast(" ", ClientId, false);
 		}
 	}
+}
+
+std::vector<std::string> CEvents::GetEventsByCategory(EEventCategory Category) const
+{
+	std::vector<std::string> out;
+	out.reserve(m_EventsFactory.size());
+	for(const auto &kv : m_EventsFactory)
+		if(kv.second.m_Category == Category)
+			out.push_back(kv.first);
+	return out;
+}
+
+std::optional<CEvents::EEventCategory> CEvents::GetCategoryOf(const char *pName) const
+{
+	if(!pName)
+		return std::nullopt;
+	char aName[64];
+	str_copy(aName, pName);
+	str_clean_whitespaces(aName);
+	auto it = m_EventsFactory.find(aName);
+	if(it == m_EventsFactory.end())
+		return std::nullopt;
+	return it->second.m_Category;
 }

@@ -7,6 +7,9 @@
 #include <engine/console.h>
 
 #include <map>
+#include <vector>
+#include <string>
+#include <optional>
 
 class CEvents final : public CComponent
 {
@@ -14,6 +17,14 @@ public:
 	static constexpr const char *GetNameStatic() { return "events"; }
 	[[nodiscard]] const char *GetName() const override { return GetNameStatic(); };
 	[[nodiscard]] std::vector<ComponentAccessor<CComponent>> GetSubComponents() const override;
+
+public:
+	// high-level category for events
+	enum class EEventCategory
+	{
+		Public,
+		Private
+	};
 
 protected:
 	void OnDisable() override;
@@ -26,6 +37,8 @@ protected:
 
 	static void ConEventsStatus(IConsole::IResult *pResult, void *pUserData);
 	static void ConEventsList(IConsole::IResult *pResult, void *pUserData);
+	static void ConEventsListPublic(IConsole::IResult *pResult, void *pUserData);
+	static void ConEventsListPrivate(IConsole::IResult *pResult, void *pUserData);
 	static void ConEventsStart(IConsole::IResult *pResult, void *pUserData);
 	static void ConEventsForceNextState(IConsole::IResult *pResult, void *pUserData);
 	static void ConEventsForceEnd(IConsole::IResult *pResult, void *pUserData);
@@ -42,12 +55,20 @@ public:
 	// Returns currently active event or nullptr if none
 	std::shared_ptr<CEventComponent> GetActiveEvent() const;
 
+	std::vector<std::string> GetEventsByCategory(EEventCategory Category) const;
+	std::optional<EEventCategory> GetCategoryOf(const char *pName) const; // just an helper cause i'm retarded
+
 private:
 	std::shared_ptr<CEventComponent> m_pActiveEvent;
 	std::shared_ptr<CEventComponent> m_pEventToDelete;
 
 	using FnFactory = std::function<std::shared_ptr<CEventComponent>(class CGameContext *)>;
-	std::map<std::string, FnFactory> m_EventsFactory;
+	struct SFactoryRec
+	{
+		EEventCategory m_Category;
+		FnFactory m_Factory;
+	};
+	std::map<std::string, SFactoryRec> m_EventsFactory; // key: internal event name
 
 	void OnEventStateChange(CEventComponent::EEventState OldState, CEventComponent::EEventState NewState);
 };
