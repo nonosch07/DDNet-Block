@@ -21,7 +21,7 @@ build_cmake:
       valgrind -y
   script:
     - mkdir build && cd build
-    - cmake -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON ..
+    - cmake -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=ON ..
     - make game-server
   artifacts:
     paths:
