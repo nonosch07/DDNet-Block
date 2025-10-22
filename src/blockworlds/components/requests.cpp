@@ -50,7 +50,9 @@ static const char *SafeClientName(CGameContext *pGameServer, int ClientId)
 static int CurrentUtcYyyymmdd()
 {
 	time_t now = time(nullptr);
-	struct tm utc{};
+	struct tm utc
+	{
+	};
 #if defined(__unix__) || defined(__APPLE__)
 	gmtime_r(&now, &utc);
 #else
@@ -1257,14 +1259,10 @@ int CRequests::CancelRequestsInvolving(int ClientId, std::optional<SRequest::ETy
 		{
 			char aBuf[256];
 			if(pReason)
-				str_format(aBuf, sizeof(aBuf), "A pending %s request was cancelled: %s", it->m_Type == SRequest::EType::BlockpointTransfer ? "blockpoint transfer" : it->m_Type == SRequest::EType::OneOnOne ? "1on1" :
-																					     it->m_Type == SRequest::EType::Clan             ? "clan" :
-																											       "request",
+				str_format(aBuf, sizeof(aBuf), "A pending %s request was cancelled: %s", it->m_Type == SRequest::EType::BlockpointTransfer ? "blockpoint transfer" : it->m_Type == SRequest::EType::OneOnOne ? "1on1" : it->m_Type == SRequest::EType::Clan ? "clan" : "request",
 					pReason);
 			else
-				str_format(aBuf, sizeof(aBuf), "A pending %s request was cancelled.", it->m_Type == SRequest::EType::BlockpointTransfer ? "blockpoint transfer" : it->m_Type == SRequest::EType::OneOnOne ? "1on1" :
-																					  it->m_Type == SRequest::EType::Clan             ? "clan" :
-																											    "request");
+				str_format(aBuf, sizeof(aBuf), "A pending %s request was cancelled.", it->m_Type == SRequest::EType::BlockpointTransfer ? "blockpoint transfer" : it->m_Type == SRequest::EType::OneOnOne ? "1on1" : it->m_Type == SRequest::EType::Clan ? "clan" : "request");
 			GameServer()->SendChatTarget(other, aBuf);
 		}
 		m_Requests.erase(it);
