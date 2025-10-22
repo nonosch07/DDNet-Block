@@ -13,7 +13,6 @@
 //
 // Configuration (in server cfg):
 //   sv_discord_enabled 1
-//   sv_discord_webhook_url "https://discord.com/api/webhooks/ID/TOKEN"
 // Optional:
 //   sv_discord_webhook_username "Blockworlds Bot"
 //   sv_discord_webhook_avatar   "https://.../avatar.png"
@@ -28,13 +27,13 @@ class CDiscordWebhook
 public:
 	struct SSendOptions
 	{
-		// Overrides; if nullptr or empty, falls back to config values.
+		// Overrides for payload; if nullptr or empty, falls back to config values.
 		const char *m_pUsername = nullptr;
 		const char *m_pAvatarUrl = nullptr;
 		// If set to -1, use config; otherwise force.
 		int m_Tts = -1; // 0/1
 		const char *m_pThreadId = nullptr;
-		// Optional explicit webhook URL to send to; if null/empty, use config default
+		// Required: explicit webhook URL to send to (no global fallback)
 		const char *m_pWebhookUrl = nullptr;
 	};
 
@@ -47,7 +46,6 @@ private:
 public:
 	CDiscordWebhook(IEngine *pEngine, IHttp *pHttp);
 
-	bool IsConfigured() const;
 	bool IsConfigured(const char *pUrlOverride) const;
 
 	// Queue a message send (non-blocking). Returns immediately.

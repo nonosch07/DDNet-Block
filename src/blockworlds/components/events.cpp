@@ -9,13 +9,13 @@
 
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events/1on1.h>
+#include <blockworlds/components/events/clanwar.h>
+#include <blockworlds/components/events/colorsoldiers.h>
 #include <blockworlds/components/events/event.h>
 #include <blockworlds/components/events/lmb.h>
+#include <blockworlds/components/events/priv_tdm.h>
 #include <blockworlds/components/events/tdm.h>
 #include <blockworlds/components/events/zcatch.h>
-#include <blockworlds/components/events/colorsoldiers.h>
-#include <blockworlds/components/events/priv_tdm.h>
-#include <blockworlds/components/events/clanwar.h>
 
 CEvents::CEvents(CGameContext *pGameServer) :
 	CComponent(pGameServer), m_pActiveEvent(nullptr), m_pEventToDelete(nullptr)

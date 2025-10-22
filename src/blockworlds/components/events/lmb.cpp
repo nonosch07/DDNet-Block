@@ -182,7 +182,7 @@ void CLastManBlockingEvent::FinishEvent()
 			GameServer()->SendBroadcast(-1, aBuf, false);
 
 			CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
-			if(g_Config.m_SvDiscordLmbEnabled && Discord.IsConfigured(g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr))
+			if(Discord.IsConfigured(g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr))
 			{
 				char aMsg[512];
 				const char *pMap = Server()->GetMapName();
@@ -193,11 +193,14 @@ void CLastManBlockingEvent::FinishEvent()
 			}
 
 			int BlockpointsReward = Config()->m_SvLMBBlockpointsReward;
+			int PagesReward = Config()->m_SvLMBPagesReward;
 			CPlayer *pWinner = GameServer()->GetPlayer(m_Winner);
 			if(pWinner)
 			{
 				pWinner->SetPlayerBlockpoints(pWinner->GetPlayerBlockpoints() + BlockpointsReward);
-				str_format(aBuf, sizeof(aBuf), "You've received %d blockpoints for winning!", BlockpointsReward);
+				pWinner->SetPlayerPages(pWinner->GetPlayerPages() + PagesReward);
+				pWinner->SetPlayerTourneyWins(pWinner->GetPlayerTourneyWin() + 1);
+				str_format(aBuf, sizeof(aBuf), "You've received %d blockpoints and %d pages for winning!", BlockpointsReward, PagesReward);
 				GameServer()->SendChatTarget(m_Winner, aBuf);
 			}
 
@@ -215,7 +218,7 @@ void CLastManBlockingEvent::FinishEvent()
 			GameServer()->SendBroadcast(-1, aBuf, false);
 
 			CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
-			if(g_Config.m_SvDiscordLmbEnabled && Discord.IsConfigured(g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr))
+			if(Discord.IsConfigured(g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr))
 			{
 				char aMsg[256];
 				str_format(aMsg, sizeof(aMsg), "LMB finished: No winner (%s)", pReason);
@@ -233,7 +236,7 @@ void CLastManBlockingEvent::FinishEvent()
 		GameServer()->SendBroadcast(-1, aBuf, false);
 
 		CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
-		if(g_Config.m_SvDiscordLmbEnabled && Discord.IsConfigured(g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr))
+		if(Discord.IsConfigured(g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr))
 		{
 			CDiscordWebhook::SSendOptions Opt;
 			Opt.m_pWebhookUrl = g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr;
@@ -248,7 +251,7 @@ void CLastManBlockingEvent::FinishEvent()
 		GameServer()->SendBroadcast(-1, aBuf, false);
 
 		CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
-		if(g_Config.m_SvDiscordLmbEnabled && Discord.IsConfigured(g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr))
+		if(Discord.IsConfigured(g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr))
 		{
 			CDiscordWebhook::SSendOptions Opt;
 			Opt.m_pWebhookUrl = g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr;

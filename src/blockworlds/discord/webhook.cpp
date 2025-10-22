@@ -132,18 +132,11 @@ CDiscordWebhook::CDiscordWebhook(IEngine *pEngine, IHttp *pHttp) :
 {
 }
 
-bool CDiscordWebhook::IsConfigured() const
-{
-	return g_Config.m_SvDiscordEnabled != 0 && g_Config.m_SvDiscordWebhookUrl[0] != '\0';
-}
-
 bool CDiscordWebhook::IsConfigured(const char *pUrlOverride) const
 {
 	if(!g_Config.m_SvDiscordEnabled)
 		return false;
-	if(pUrlOverride && pUrlOverride[0] != '\0')
-		return true;
-	return g_Config.m_SvDiscordWebhookUrl[0] != '\0';
+	return pUrlOverride && pUrlOverride[0] != '\0';
 }
 
 void CDiscordWebhook::Send(const char *pContent, const SSendOptions *pOpt)
@@ -153,10 +146,10 @@ void CDiscordWebhook::Send(const char *pContent, const SSendOptions *pOpt)
 		log_warn("discord", "missing engine/http interfaces");
 		return;
 	}
-	const char *pUrl = (pOpt && pOpt->m_pWebhookUrl && pOpt->m_pWebhookUrl[0]) ? pOpt->m_pWebhookUrl : g_Config.m_SvDiscordWebhookUrl;
+	const char *pUrl = (pOpt && pOpt->m_pWebhookUrl && pOpt->m_pWebhookUrl[0]) ? pOpt->m_pWebhookUrl : nullptr;
 	if(!IsConfigured(pUrl))
 	{
-		log_debug("discord", "webhook not configured (sv_discord_enabled=1 and webhook url required)");
+		log_debug("discord", "webhook not configured (sv_discord_enabled=1 and per-feature webhook url required)");
 		return;
 	}
 	auto vChunks = ChunkMessage(pContent);

@@ -388,6 +388,11 @@ public:
 		m_Account.m_Killstreak = Killstreak;
 		m_Account.m_DirtyProgress = true;
 	}
+	void SetPlayerTourneyWins(int TourneyWins)
+	{
+		m_Account.m_TourneyWin = TourneyWins;
+		m_Account.m_DirtyProgress = true;
+	}
 	void SetPlayerLastName(const char *LastName)
 	{
 		str_copy(m_Account.m_aLastName, LastName, sizeof(m_Account.m_aLastName));
@@ -473,9 +478,6 @@ public:
 	int64_t m_LastDeathnote;
 	int64_t m_LastExpAccountAlert;
 	int64_t m_ClanSaveCooldown;
-
-	/* last time this player called the weaponkits server vote */
-	int64_t m_LastWeaponkitsVoteCall;
 
 private:
 	std::map<int /* modifier (percent) */, int /* end tick */> m_ExpModifiers;

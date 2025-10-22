@@ -280,6 +280,9 @@ public:
 
 	bool m_WeaponkitsAllowed;
 
+	int64_t m_LastGlobalWeaponkitsVoteCall = 0;
+	int64_t m_LastGlobalLMBVoteCall = 0;
+
 	// helper functions
 	void CreateDamageInd(vec2 Pos, float AngleMod, int Amount, CClientMask Mask = CClientMask().set());
 	void CreateExplosion(vec2 Pos, int Owner, int Weapon, bool NoDamage, int ActivatedTeam, CClientMask Mask = CClientMask().set());
@@ -722,6 +725,7 @@ private:
 	static void ConAcceptBlockpointsRequest(IConsole::IResult *pResult, void *pUserData); // /accept_bp
 	static void ConDeclineBlockpointsRequest(IConsole::IResult *pResult, void *pUserData); // /decline_bp
 	static void ConDisplayProfile(IConsole::IResult *pResult, void *pUserData);
+	static void ConGetCid(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConDeathnote(IConsole::IResult *pResult, void *pUserData);
 	static void ConWeaponKit(IConsole::IResult *pResult, void *pUserData);

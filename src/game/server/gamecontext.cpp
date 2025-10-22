@@ -143,6 +143,9 @@ void CGameContext::Construct(int Resetting)
 		// default: weaponkits allowed (persisted via config)
 		m_WeaponkitsAllowed = g_Config.m_SvWeaponkitsAllowed;
 
+		m_LastGlobalWeaponkitsVoteCall = 0;
+		m_LastGlobalLMBVoteCall = 0;
+
 		// default: LMB enabled (persisted via config)
 		// LMB enable/disable toggle removed; votes will only start events via "events_start lmb"
 	}
@@ -627,20 +630,17 @@ void CGameContext::CallVote(int ClientId, const char *pDesc, const char *pCmd, c
 	if(!pPlayer)
 		return;
 
-	SendChat(-1, TEAM_ALL, pChatmsg, -1, FLAG_SIX);
 	if(!pSixupDesc)
 		pSixupDesc = pDesc;
-
-	m_VoteCreator = ClientId;
 
 	if(pPlayer)
 	{
 		if(pCmd && str_find(pCmd, "set_weaponkits_allowed") != nullptr)
 		{
-			int64_t Cooldown = Server()->TickSpeed() * 60 * g_Config.m_SvWeaponkitsVoteCoolDown; // 15 minutes
-			if(pPlayer->m_LastWeaponkitsVoteCall && Now < pPlayer->m_LastWeaponkitsVoteCall + Cooldown)
+			int64_t Cooldown = Server()->TickSpeed() * 60 * g_Config.m_SvWeaponkitsVoteCoolDown; // global cooldown
+			if(m_LastGlobalWeaponkitsVoteCall && Now < m_LastGlobalWeaponkitsVoteCall + Cooldown)
 			{
-				int64_t Remaining = (pPlayer->m_LastWeaponkitsVoteCall + Cooldown - Now + Server()->TickSpeed() - 1) / Server()->TickSpeed();
+				int64_t Remaining = (m_LastGlobalWeaponkitsVoteCall + Cooldown - Now + Server()->TickSpeed() - 1) / Server()->TickSpeed();
 				char aBuf[128];
 				int Minutes = (int)(Remaining / 60);
 				int Seconds = (int)(Remaining % 60);
@@ -651,15 +651,15 @@ void CGameContext::CallVote(int ClientId, const char *pDesc, const char *pCmd, c
 				SendChatTarget(ClientId, aBuf);
 				return;
 			}
-			pPlayer->m_LastWeaponkitsVoteCall = Now;
+			m_LastGlobalWeaponkitsVoteCall = Now;
 		}
 
 		if(pCmd && str_find(pCmd, "events_start lmb") != nullptr)
 		{
-			int64_t Cooldown = Server()->TickSpeed() * 60 * g_Config.m_SvLmbVoteCoolDown;
-			if(pPlayer->m_LastLMBVoteCall && Now < pPlayer->m_LastLMBVoteCall + Cooldown)
+			int64_t Cooldown = Server()->TickSpeed() * 60 * g_Config.m_SvLmbVoteCoolDown; // global cooldown
+			if(m_LastGlobalLMBVoteCall && Now < m_LastGlobalLMBVoteCall + Cooldown)
 			{
-				int64_t Remaining = (pPlayer->m_LastLMBVoteCall + Cooldown - Now + Server()->TickSpeed() - 1) / Server()->TickSpeed();
+				int64_t Remaining = (m_LastGlobalLMBVoteCall + Cooldown - Now + Server()->TickSpeed() - 1) / Server()->TickSpeed();
 				char aBuf[128];
 				int Minutes = (int)(Remaining / 60);
 				int Seconds = (int)(Remaining % 60);
@@ -670,10 +670,14 @@ void CGameContext::CallVote(int ClientId, const char *pDesc, const char *pCmd, c
 				SendChatTarget(ClientId, aBuf);
 				return;
 			}
-			pPlayer->m_LastLMBVoteCall = Now;
+			m_LastGlobalLMBVoteCall = Now;
 		}
 	}
+
+	// passed all cooldown checks: start the vote and only then announce it
+	m_VoteCreator = ClientId;
 	StartVote(pDesc, pCmd, pReason, pSixupDesc);
+	SendChat(-1, TEAM_ALL, pChatmsg, -1, FLAG_SIX);
 	pPlayer->m_Vote = 1;
 	pPlayer->m_VotePos = m_VotePos = 1;
 	pPlayer->m_LastVoteCall = Now;
@@ -2757,8 +2761,7 @@ void CGameContext::OnSayNetMessage(const CNetMsg_Cl_Say *pMsg, int ClientId, con
 		CensorMessage(aCensoredMessage, pMsg->m_pMessage, sizeof(aCensoredMessage));
 		SendChat(ClientId, Team, aCensoredMessage, ClientId);
 
-		// relay chat to Discord if enabled (public chat only)
-		if(g_Config.m_SvDiscordEnabled && g_Config.m_SvDiscordChatEnabled)
+		// relay chat to Discord (public chat only)
 		{
 			CDiscordWebhook Discord(Engine(), Http());
 			const char *pChatUrl = g_Config.m_SvDiscordWebhookUrlChat[0] ? g_Config.m_SvDiscordWebhookUrlChat : nullptr;
@@ -5968,6 +5971,7 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("accept_bp", "?s[player name]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConAcceptBlockpointsRequest, this, "Accept a pending blockpoints transfer.");
 	Console()->Register("decline_bp", "?s[player name]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDeclineBlockpointsRequest, this, "Decline a pending blockpoints transfer.");
 	Console()->Register("profile", "?s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayProfile, this, "Display your own or another player's profile.");
+	Console()->Register("getcid", "s[player name]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConGetCid, this, "Get a player's client id by name.");
 
 	Console()->Register("deathnote", "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDeathnote, this, "Use one of your deathnote pages.");
 	Console()->Register("weapons", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConWeaponKit, this, "Display how many weapon kits you have.");

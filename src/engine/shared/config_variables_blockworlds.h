@@ -60,7 +60,7 @@ MACRO_CONFIG_INT(SvBlockInterval, sv_block_interval, 0, 0, 1, CFGFLAG_SERVER, "I
 
 // Anti-farming / PvP EXP integrity settings
 MACRO_CONFIG_INT(SvMinActivePlayersForExp, sv_min_active_players_for_exp, 8, 0, MAX_CLIENTS, CFGFLAG_SERVER, "Minimum number of active (non-afk, non-spec, playing) players required to award PvP/block EXP")
-MACRO_CONFIG_INT(SvExpTargetFullPlayers, sv_exp_target_full_players, 10, 0, MAX_CLIENTS, CFGFLAG_SERVER, "Player count at which population scaling reaches 100% EXP")
+MACRO_CONFIG_INT(SvExpTargetFullPlayers, sv_exp_target_full_players, 8, 0, MAX_CLIENTS, CFGFLAG_SERVER, "Player count at which population scaling reaches 100% EXP")
 MACRO_CONFIG_INT(SvExpVictimRecentActionSec, sv_exp_victim_recent_action_sec, 6, 0, 120, CFGFLAG_SERVER, "Victim must have acted within this many seconds to grant EXP")
 MACRO_CONFIG_INT(SvExpKillerRecentActionSec, sv_exp_killer_recent_action_sec, 4, 0, 120, CFGFLAG_SERVER, "Killer must have acted within this many seconds to receive EXP")
 MACRO_CONFIG_INT(SvExpMinSpawnMoveDist, sv_exp_min_spawn_move_dist, 0, 0, 10000, CFGFLAG_SERVER, "Minimum distance (game units) a victim must have moved since spawn to grant EXP (0=disabled)")
@@ -105,6 +105,7 @@ MACRO_CONFIG_INT(SvLMBFreezeTimeout, sv_lmb_freeze_timeout, 150, 1, 50000, CFGFL
 MACRO_CONFIG_INT(SvLMBBroadcastRate, sv_lmb_broadcast_rate, 50, 1, 500, CFGFLAG_SERVER, "Rate at which information broadcasts will be sent (ticks, 50 ticks = 1 second)") // not related to lmb?
 MACRO_CONFIG_INT(SvLMBMinimumCandidates, sv_lmb_minimum_candidates, 8, 2, MAX_CLIENTS, CFGFLAG_SERVER, "Minimum amount of candidates to start the active phase")
 MACRO_CONFIG_INT(SvLMBBlockpointsReward, sv_lmb_blockpoints_reward, 250, 1, 10000, CFGFLAG_SERVER, "Blockpoints reward for winning the LMB event")
+MACRO_CONFIG_INT(SvLMBPagesReward, sv_lmb_pages_reward, 3, 1, 15, CFGFLAG_SERVER, "Pages reward for winning the LMB event")
 
 // Weaponkits setting: persist whether weaponkits are allowed on this server
 MACRO_CONFIG_INT(SvWeaponkitsAllowed, sv_weaponkits_allowed, 1, 0, 1, CFGFLAG_SERVER, "Allow (1) or disable (0) weaponkits on the server.")
@@ -137,27 +138,22 @@ MACRO_CONFIG_INT(SvPasswordPbkdf2Iter, sv_password_pbkdf2_iter, 120000, 10000, 2
 
 // Discord integration
 MACRO_CONFIG_INT(SvDiscordEnabled, sv_discord_enabled, 1, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Enable Discord webhook sending")
-MACRO_CONFIG_STR(SvDiscordWebhookUrl, sv_discord_webhook_url, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL")
 MACRO_CONFIG_STR(SvDiscordWebhookUsername, sv_discord_webhook_username, 127, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Override webhook username (optional)")
 MACRO_CONFIG_STR(SvDiscordWebhookAvatar, sv_discord_webhook_avatar, 255, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Override webhook avatar URL (optional)")
 MACRO_CONFIG_INT(SvDiscordTts, sv_discord_tts, 0, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Send messages as TTS")
 MACRO_CONFIG_STR(SvDiscordThreadId, sv_discord_thread_id, 127, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Thread ID to post under (optional)")
 
-MACRO_CONFIG_INT(SvDiscord1on1Enabled, sv_discord_1on1_enabled, 1, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Enable 1on1 Discord messages")
 MACRO_CONFIG_STR(SvDiscordWebhookUrl1on1, sv_discord_webhook_url_1on1, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for 1on1 events")
-
-MACRO_CONFIG_INT(SvDiscordLogsEnabled, sv_discord_bp_logs_enabled, 0, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Enable Discord logging for blockpoint transfer events")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlLogs, sv_discord_webhook_url_bp_logs, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL used for blockpoint transfer logs")
-
-MACRO_CONFIG_INT(SvDiscordLmbEnabled, sv_discord_lmb_enabled, 1, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Enable LMB Discord messages")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlLmb, sv_discord_webhook_url_lmb, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for LMB events")
-
-MACRO_CONFIG_INT(SvDiscordChatEnabled, sv_discord_chat_enabled, 1, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Enable relaying in-game chat to Discord")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlChat, sv_discord_webhook_url_chat, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for chat relay")
+MACRO_CONFIG_STR(SvDiscordWebhookUrlChatFilter, sv_discord_webhook_url_chatfilter, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for chat filter mutes")
 
 // Whois admin tool
 MACRO_CONFIG_INT(SvWhoisRetentionMonths, sv_whois_retention_months, 6, 0, 120, CFGFLAG_SERVER, "Delete whois records older than this many months (0 = keep forever)")
 MACRO_CONFIG_INT(SvWhoisSnapshotMinutes, sv_whois_snapshot_minutes, 10, 0, 1440, CFGFLAG_SERVER, "Interval in minutes for whois snapshots (0 = disable)")
+
+MACRO_CONFIG_INT(SvShowAuthedUsers, sv_show_authed_users, 0, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Show authed users (admin/mod) as green in the scoreboard")
 
 // rcon command sending performance tuning
 MACRO_CONFIG_INT(SvSendRconCmdsPerTick, sv_send_rcon_cmds_per_tick, 32, 1, 256, CFGFLAG_SERVER, "Number of rcon commands to send per tick per client")

@@ -7,9 +7,9 @@
 #include <engine/console.h>
 
 #include <map>
-#include <vector>
-#include <string>
 #include <optional>
+#include <string>
+#include <vector>
 
 class CEvents final : public CComponent
 {

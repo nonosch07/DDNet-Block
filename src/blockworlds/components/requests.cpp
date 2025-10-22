@@ -956,7 +956,6 @@ bool CRequests::AcceptRequest(int RequestId)
 		}
 
 		// discord log for accepted transfer
-		if(g_Config.m_SvDiscordEnabled && g_Config.m_SvDiscordLogsEnabled)
 		{
 			CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
 			const char *pUrl = g_Config.m_SvDiscordWebhookUrlLogs[0] ? g_Config.m_SvDiscordWebhookUrlLogs : nullptr;
@@ -1027,7 +1026,6 @@ bool CRequests::DeclineRequest(int RequestId)
 			GameServer()->SendChatTarget(from, "Your blockpoint transfer was declined.");
 
 		// discord log for decline
-		if(g_Config.m_SvDiscordEnabled && g_Config.m_SvDiscordLogsEnabled)
 		{
 			CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
 			const char *pUrl = g_Config.m_SvDiscordWebhookUrlLogs[0] ? g_Config.m_SvDiscordWebhookUrlLogs : nullptr;
@@ -1178,7 +1176,6 @@ void CRequests::OnTick()
 			notifyTo = true;
 
 			// discord log for expiry
-			if(g_Config.m_SvDiscordEnabled && g_Config.m_SvDiscordLogsEnabled)
 			{
 				CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
 				const char *pUrl = g_Config.m_SvDiscordWebhookUrlLogs[0] ? g_Config.m_SvDiscordWebhookUrlLogs : nullptr;

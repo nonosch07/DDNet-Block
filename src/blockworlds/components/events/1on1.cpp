@@ -546,7 +546,7 @@ void COneOnOneEvent::FinishEvent()
 		// post to Discord webhook
 		CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
 		const char *p1on1Url = g_Config.m_SvDiscordWebhookUrl1on1[0] ? g_Config.m_SvDiscordWebhookUrl1on1 : nullptr;
-		if(g_Config.m_SvDiscord1on1Enabled && Discord.IsConfigured(p1on1Url))
+		if(Discord.IsConfigured(p1on1Url))
 		{
 			char aMsg[512];
 			const char *pMap = Server()->GetMapName();
@@ -615,7 +615,7 @@ bool COneOnOneEvent::Leave(int ClientId)
 		// notify Discord about ragequit
 		CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
 		const char *p1on1Url = g_Config.m_SvDiscordWebhookUrl1on1[0] ? g_Config.m_SvDiscordWebhookUrl1on1 : nullptr;
-		if(g_Config.m_SvDiscord1on1Enabled && Discord.IsConfigured(p1on1Url))
+		if(Discord.IsConfigured(p1on1Url))
 		{
 			char aMsg[256];
 			str_format(aMsg, sizeof(aMsg), "1on1 ragequit: %s left vs %s (score so far %d-%d)", pLeaverName, pOpponentName, m_Score1, m_Score2);

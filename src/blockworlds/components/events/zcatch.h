@@ -7,13 +7,18 @@
 class CZCatchEvent final : public CEventComponent
 {
 public:
-	explicit CZCatchEvent(CGameContext *pGameServer) : CEventComponent(pGameServer) {}
+	explicit CZCatchEvent(CGameContext *pGameServer) :
+		CEventComponent(pGameServer) {}
 
 	[[nodiscard]] const char *GetName() const override { return "zcatch"; }
 	[[nodiscard]] const char *GetEventName() const override { return "zCatch"; }
 
 	void OpenRegistration() override { SetState(EEventState::Registration); }
-	void CloseRegistration() override { SetState(EEventState::Preparation); StartEvent(); }
+	void CloseRegistration() override
+	{
+		SetState(EEventState::Preparation);
+		StartEvent();
+	}
 	void StartEvent() override { SetState(EEventState::Active); }
 	void FinishEvent() override { SetState(EEventState::Finished); }
 	void ForceNextStage() override { FinishEvent(); }

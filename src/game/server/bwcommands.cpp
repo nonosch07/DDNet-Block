@@ -443,12 +443,12 @@ void CGameContext::ConDisplayProfile(IConsole::IResult *pResult, void *pUserData
 	str_format(aBuf, sizeof(aBuf), "*** Deaths: %d", pTargetPlayer->m_Account.m_Deaths);
 	pSelf->SendChatTarget(ClientId, aBuf);
 
-	str_format(aBuf, sizeof(aBuf), "*** Max Kill Streak: %d", pTargetPlayer->m_Account.m_Killstreak);
-	pSelf->SendChatTarget(ClientId, aBuf);
-
 	// global K/D ratio
 	float KD = pTargetPlayer->m_Account.m_Deaths > 0 ? (float)pTargetPlayer->m_Account.m_Kills / pTargetPlayer->m_Account.m_Deaths : (float)pTargetPlayer->m_Account.m_Kills;
 	str_format(aBuf, sizeof(aBuf), "*** K/D: %.2f", KD);
+	pSelf->SendChatTarget(ClientId, aBuf);
+
+	str_format(aBuf, sizeof(aBuf), "*** Max Kill Streak: %d", pTargetPlayer->m_Account.m_Killstreak);
 	pSelf->SendChatTarget(ClientId, aBuf);
 
 	// LMB Wins
@@ -461,33 +461,86 @@ void CGameContext::ConDisplayProfile(IConsole::IResult *pResult, void *pUserData
 	str_format(aBuf, sizeof(aBuf), "*** PlayTime: %d hours %d minutes", Hours, Minutes);
 	pSelf->SendChatTarget(ClientId, aBuf);
 
-	pSelf->SendChatTarget(ClientId, "*** ------Ranked------");
+	pSelf->SendChatTarget(ClientId, "*** ------Cosmetics------");
 
-	// ranked stats: Games, Kills, Deaths, Wins
-	str_format(aBuf, sizeof(aBuf), "*** Games: %d", pTargetPlayer->m_Account.m_RankedGames);
+	int OwnedSkinmani = 0;
+	for(int i = 0; i < CCosmeticsHandler::NUM_SKINMANIS; i++)
+	{
+		if(pSelf->Cosmetics()->HasSkinmani(pTargetPlayer->GetCid(), i))
+			OwnedSkinmani++;
+	}
+	str_format(aBuf, sizeof(aBuf), "*** Skin Manipulations: %d/%d", OwnedSkinmani, CCosmeticsHandler::NUM_SKINMANIS);
 	pSelf->SendChatTarget(ClientId, aBuf);
 
-	str_format(aBuf, sizeof(aBuf), "*** Rating: %d", pTargetPlayer->m_Account.m_Ranking);
+	int OwnedGundesign = 0;
+	for(int i = 0; i < CCosmeticsHandler::NUM_GUNDESIGNS; i++)
+	{
+		if(pSelf->Cosmetics()->HasGundesign(pTargetPlayer->GetCid(), i))
+			OwnedGundesign++;
+	}
+	str_format(aBuf, sizeof(aBuf), "*** Gun Designs: %d/%d", OwnedGundesign, CCosmeticsHandler::NUM_GUNDESIGNS);
 	pSelf->SendChatTarget(ClientId, aBuf);
 
-	str_format(aBuf, sizeof(aBuf), "*** Kills: %d", pTargetPlayer->m_Account.m_RankedKills);
+	int OwnedKnockouts = 0;
+	for(int i = 0; i < CCosmeticsHandler::NUM_KNOCKOUTS; i++)
+	{
+		if(pSelf->Cosmetics()->HasKnockoutEffect(pTargetPlayer->GetCid(), i))
+			OwnedKnockouts++;
+	}
+	str_format(aBuf, sizeof(aBuf), "*** Knockout Effects: %d/%d", OwnedKnockouts, CCosmeticsHandler::NUM_KNOCKOUTS);
 	pSelf->SendChatTarget(ClientId, aBuf);
 
-	str_format(aBuf, sizeof(aBuf), "*** Deaths: %d", pTargetPlayer->m_Account.m_RankedDeaths);
-	pSelf->SendChatTarget(ClientId, aBuf);
+	// pSelf->SendChatTarget(ClientId, "*** ------Ranked------");
 
-	// ranked K/D ratio
-	float RankedKD = pTargetPlayer->m_Account.m_RankedDeaths > 0 ? (float)pTargetPlayer->m_Account.m_RankedKills / pTargetPlayer->m_Account.m_RankedDeaths : (float)pTargetPlayer->m_Account.m_RankedKills;
-	str_format(aBuf, sizeof(aBuf), "*** K/D: %.2f", RankedKD);
-	pSelf->SendChatTarget(ClientId, aBuf);
+	// // ranked stats: Games, Kills, Deaths, Wins
+	// str_format(aBuf, sizeof(aBuf), "*** Games: %d", pTargetPlayer->m_Account.m_RankedGames);
+	// pSelf->SendChatTarget(ClientId, aBuf);
 
-	// ranked Wins and Win Rate
-	str_format(aBuf, sizeof(aBuf), "*** Wins: %d", pTargetPlayer->m_Account.m_RankedWins);
-	pSelf->SendChatTarget(ClientId, aBuf);
+	// str_format(aBuf, sizeof(aBuf), "*** Rating: %d", pTargetPlayer->m_Account.m_Ranking);
+	// pSelf->SendChatTarget(ClientId, aBuf);
 
-	float WinRate = pTargetPlayer->m_Account.m_RankedGames > 0 ? (float)pTargetPlayer->m_Account.m_RankedWins / pTargetPlayer->m_Account.m_RankedGames * 100.0f : 0.0f;
-	str_format(aBuf, sizeof(aBuf), "*** Win Rate: %.2f%%", WinRate);
-	pSelf->SendChatTarget(ClientId, aBuf);
+	// str_format(aBuf, sizeof(aBuf), "*** Kills: %d", pTargetPlayer->m_Account.m_RankedKills);
+	// pSelf->SendChatTarget(ClientId, aBuf);
+
+	// str_format(aBuf, sizeof(aBuf), "*** Deaths: %d", pTargetPlayer->m_Account.m_RankedDeaths);
+	// pSelf->SendChatTarget(ClientId, aBuf);
+
+	// // ranked K/D ratio
+	// float RankedKD = pTargetPlayer->m_Account.m_RankedDeaths > 0 ? (float)pTargetPlayer->m_Account.m_RankedKills / pTargetPlayer->m_Account.m_RankedDeaths : (float)pTargetPlayer->m_Account.m_RankedKills;
+	// str_format(aBuf, sizeof(aBuf), "*** K/D: %.2f", RankedKD);
+	// pSelf->SendChatTarget(ClientId, aBuf);
+
+	// // ranked Wins and Win Rate
+	// str_format(aBuf, sizeof(aBuf), "*** Wins: %d", pTargetPlayer->m_Account.m_RankedWins);
+	// pSelf->SendChatTarget(ClientId, aBuf);
+
+	// float WinRate = pTargetPlayer->m_Account.m_RankedGames > 0 ? (float)pTargetPlayer->m_Account.m_RankedWins / pTargetPlayer->m_Account.m_RankedGames * 100.0f : 0.0f;
+	// str_format(aBuf, sizeof(aBuf), "*** Win Rate: %.2f%%", WinRate);
+	// pSelf->SendChatTarget(ClientId, aBuf);
+}
+
+void CGameContext::ConGetCid(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+
+	if(pResult->NumArguments() != 1)
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "Usage: /getcid <player name>");
+		return;
+	}
+
+	const char *pTargetName = pResult->GetString(0);
+	CPlayer *pTarget = pSelf->GetPlayerByName(pTargetName);
+	if(!pTarget)
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "Player not found");
+		return;
+	}
+
+	pSelf->SendChatTarget(pResult->m_ClientId, "%s -> cid %d", pSelf->Server()->ClientName(pTarget->GetCid()), pTarget->GetCid());
 }
 
 void CGameContext::ConStatusAccounts(IConsole::IResult *pResult, void *pUserData)
@@ -972,7 +1025,7 @@ void CGameContext::ConWeaponKit(IConsole::IResult *pResult, void *pUserData)
 	if(!pPlayer->IsLoggedIn())
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You are not logged in.");
 
-	if(pPlayer->GetPlayerWeaponkits() < 1)
+	if(pPlayer->GetPlayerWeaponkits() < 1 && !pPlayer->GetPlayerVip())
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You don't have any weapon kits, make a trip to the store and purchase some!");
 
 	// check if the player has all weapons
@@ -997,11 +1050,17 @@ void CGameContext::ConWeaponKit(IConsole::IResult *pResult, void *pUserData)
 			return pSelf->SendChatTarget(pResult->m_ClientId, "You can only use weapon kits while in the spawn zone.");
 	}
 
-	pPlayer->SetPlayerWeaponkits(pPlayer->GetPlayerWeaponkits() - 1);
 	pSelf->ModifyWeapons(pResult, pUserData, -1, false);
 
 	char aBuf[128];
-	str_format(aBuf, sizeof(aBuf), "You have successfuly used one of your weapon kits! you now have %d kits left.", pPlayer->GetPlayerWeaponkits());
+
+	if(pPlayer->GetPlayerVip())
+		str_format(aBuf, sizeof(aBuf), "You have successfuly used a weaponkit!");
+	else
+	{
+		str_format(aBuf, sizeof(aBuf), "You have successfuly used a weaponkit! %d kits left.", pPlayer->GetPlayerWeaponkits());
+		pPlayer->SetPlayerWeaponkits(pPlayer->GetPlayerWeaponkits() - 1);
+	}
 	return pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
 }
 

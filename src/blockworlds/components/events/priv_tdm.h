@@ -7,13 +7,18 @@
 class CPrivateTdmEvent final : public CEventComponent
 {
 public:
-	explicit CPrivateTdmEvent(CGameContext *pGameServer) : CEventComponent(pGameServer) {}
+	explicit CPrivateTdmEvent(CGameContext *pGameServer) :
+		CEventComponent(pGameServer) {}
 
 	[[nodiscard]] const char *GetName() const override { return "priv_tdm"; }
 	[[nodiscard]] const char *GetEventName() const override { return "Private TDM"; }
 
 	void OpenRegistration() override { SetState(EEventState::Registration); }
-	void CloseRegistration() override { SetState(EEventState::Preparation); StartEvent(); }
+	void CloseRegistration() override
+	{
+		SetState(EEventState::Preparation);
+		StartEvent();
+	}
 	void StartEvent() override { SetState(EEventState::Active); }
 	void FinishEvent() override { SetState(EEventState::Finished); }
 	void ForceNextStage() override { FinishEvent(); }

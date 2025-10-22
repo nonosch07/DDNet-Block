@@ -7,13 +7,18 @@
 class CClanwarEvent final : public CEventComponent
 {
 public:
-	explicit CClanwarEvent(CGameContext *pGameServer) : CEventComponent(pGameServer) {}
+	explicit CClanwarEvent(CGameContext *pGameServer) :
+		CEventComponent(pGameServer) {}
 
 	[[nodiscard]] const char *GetName() const override { return "clanwar"; }
 	[[nodiscard]] const char *GetEventName() const override { return "Clanwar"; }
 
 	void OpenRegistration() override { SetState(EEventState::Registration); }
-	void CloseRegistration() override { SetState(EEventState::Preparation); StartEvent(); }
+	void CloseRegistration() override
+	{
+		SetState(EEventState::Preparation);
+		StartEvent();
+	}
 	void StartEvent() override { SetState(EEventState::Active); }
 	void FinishEvent() override { SetState(EEventState::Finished); }
 	void ForceNextStage() override { FinishEvent(); }

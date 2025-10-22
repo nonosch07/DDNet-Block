@@ -11,6 +11,7 @@
 #include <engine/shared/linereader.h>
 #include <engine/storage.h>
 
+#include <blockworlds/discord/webhook.h>
 #include <game/server/gamecontext.h>
 
 static const char *DEFAULT_CHATFILTER_FILENAME = "data/chatfilter_words.txt";
@@ -105,6 +106,18 @@ bool CChatFilterComponent::CheckAndMaybeMute(int ClientId, const char *pMessage)
 				int Remaining = GameServer()->GetRemainingMuteSecondsPublic(ClientId);
 
 				GameServer()->AddIpMuteSilent(&Addr, Secs, "Chat filter violation");
+
+				CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
+				const char *pUrl = g_Config.m_SvDiscordWebhookUrlChatFilter[0] ? g_Config.m_SvDiscordWebhookUrlChatFilter : nullptr;
+				if(Discord.IsConfigured(pUrl))
+				{
+					char aMsg[1024];
+					const char *pName = GameServer()->Server()->ClientName(ClientId);
+					str_format(aMsg, sizeof(aMsg), "[chat-filter] '%s' (id=%d) was muted for %d hours, Message: '%s'", pName, ClientId, Hours, pMessage);
+					CDiscordWebhook::SSendOptions Opt;
+					Opt.m_pWebhookUrl = pUrl;
+					Discord.Send(aMsg, Opt);
+				}
 
 				if(Remaining > 0)
 				{

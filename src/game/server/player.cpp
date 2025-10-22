@@ -136,7 +136,6 @@ void CPlayer::Reset()
 
 	m_Last_KickVote = 0;
 	m_Last_Team = 0;
-	m_LastWeaponkitsVoteCall = 0;
 	m_LastLMBVoteCall = 0;
 	m_ShowOthers = g_Config.m_SvShowOthersDefault;
 	m_ShowAll = g_Config.m_SvShowAllDefault;
@@ -641,7 +640,7 @@ void CPlayer::Snap(int SnappingClient)
 		pPlayerInfo->m_PlayerFlags = PlayerFlags_SixToSeven(m_PlayerFlags);
 		if(SnappingClientVersion >= VERSION_DDRACE && (m_PlayerFlags & PLAYERFLAG_AIM))
 			pPlayerInfo->m_PlayerFlags |= protocol7::PLAYERFLAG_AIM;
-		if(Server()->ClientAuthed(m_ClientId))
+		if(g_Config.m_SvShowAuthedUsers && Server()->ClientAuthed(m_ClientId))
 			pPlayerInfo->m_PlayerFlags |= protocol7::PLAYERFLAG_ADMIN;
 
 		// Times are in milliseconds for 0.7
@@ -678,7 +677,12 @@ void CPlayer::Snap(int SnappingClient)
 	if(!pDDNetPlayer)
 		return;
 
-	pDDNetPlayer->m_AuthLevel = Server()->GetAuthedState(m_ClientId);
+	// for 0.6 clients expose auth level only when explicitly allowed - requested by painn
+	// when disabled, force AUTHED_NO so clients won't highlight names so we hidden
+	if(g_Config.m_SvShowAuthedUsers)
+		pDDNetPlayer->m_AuthLevel = Server()->GetAuthedState(m_ClientId);
+	else
+		pDDNetPlayer->m_AuthLevel = AUTHED_NO;
 	pDDNetPlayer->m_Flags = 0;
 	if(m_Afk && !m_IsNpc)
 		pDDNetPlayer->m_Flags |= EXPLAYERFLAG_AFK;
