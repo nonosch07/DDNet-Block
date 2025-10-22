@@ -5,12 +5,12 @@
 
 enum
 {
-	ANTIBOT_ABI_VERSION = 9,
+	ANTIBOT_ABI_VERSION = 11,
 
 	ANTIBOT_MSGFLAG_NONVITAL = 1,
 	ANTIBOT_MSGFLAG_FLUSH = 2,
 
-	ANTIBOT_MAX_CLIENTS = 64,
+	ANTIBOT_MAX_CLIENTS = 128,
 };
 
 struct CAntibotMapData
@@ -23,16 +23,29 @@ struct CAntibotMapData
 struct CAntibotPlayerData
 {
 	char m_aAddress[64];
+	bool m_Sixup;
+	bool m_DnsblNone;
+	bool m_DnsblPending;
+	bool m_DnsblBlacklisted;
+	bool m_Authed;
 };
 
 struct CAntibotInputData
 {
+	int m_Direction;
 	int m_TargetX;
 	int m_TargetY;
+	int m_Jump;
+	int m_Fire;
+	int m_Hook;
+	int m_PlayerFlags;
+	int m_WantedWeapon;
+	int m_NextWeapon;
+	int m_PrevWeapon;
 };
 
 // Defined by the network protocol, unlikely to change.
-//enum
+// enum
 //{
 //	TEAM_SPECTATORS=-1,
 //	TEAM_RED=0,
@@ -72,13 +85,13 @@ struct CAntibotVersion
 #define ANTIBOT_VERSION \
 	{ \
 		ANTIBOT_ABI_VERSION, \
-			sizeof(CAntibotVersion), \
-			sizeof(CAntibotData), \
-			sizeof(CAntibotPlayerData), \
-			sizeof(CAntibotCharacterData), \
-			sizeof(CAntibotInputData), \
-			sizeof(CAntibotMapData), \
-			sizeof(CAntibotRoundData), \
+		sizeof(CAntibotVersion), \
+		sizeof(CAntibotData), \
+		sizeof(CAntibotPlayerData), \
+		sizeof(CAntibotCharacterData), \
+		sizeof(CAntibotInputData), \
+		sizeof(CAntibotMapData), \
+		sizeof(CAntibotRoundData), \
 	}
 
 struct CAntibotData

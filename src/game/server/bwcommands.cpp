@@ -1,3 +1,4 @@
+#include "base/system.h"
 #include "gamecontext.h"
 
 #include <engine/antibot.h>
@@ -1055,7 +1056,7 @@ void CGameContext::ConWeaponKit(IConsole::IResult *pResult, void *pUserData)
 	char aBuf[128];
 
 	if(pPlayer->GetPlayerVip())
-		str_format(aBuf, sizeof(aBuf), "You have successfuly used a weaponkit!");
+		str_copy(aBuf, "You ahve successfuly used a weaponkit!", sizeof(aBuf));
 	else
 	{
 		str_format(aBuf, sizeof(aBuf), "You have successfuly used a weaponkit! %d kits left.", pPlayer->GetPlayerWeaponkits());
