@@ -337,8 +337,8 @@ void COneOnOneEvent::OnTick()
 
 			// broadcast updated score with padding
 			static constexpr const char *s_padding = "                                                                                     "
-									 "                                                                                     "
-									 "                                                                                     ";
+								 "                                                                                     "
+								 "                                                                                     ";
 
 			char aBuf[256];
 			str_format(aBuf, sizeof(aBuf), "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);

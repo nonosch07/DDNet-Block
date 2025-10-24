@@ -2147,9 +2147,12 @@ void CGameContext::ConWhoisIp(IConsole::IResult *pResult, void *pUserData)
 			return;
 		}
 		int Bits = str_toint(pMask + 1);
-		if(Bits == 32) Cutoff = 0;
-		else if(Bits == 24) Cutoff = 1;
-		else if(Bits == 16) Cutoff = 2;
+		if(Bits == 32)
+			Cutoff = 0;
+		else if(Bits == 24)
+			Cutoff = 1;
+		else if(Bits == 16)
+			Cutoff = 2;
 		else
 		{
 			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "[Error] Unsupported CIDR mask. Allowed: /32, /24, /16");

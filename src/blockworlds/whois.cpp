@@ -1,11 +1,11 @@
 #include "whois.h"
 
+#include <base/system.h>
 #include <engine/server.h>
 #include <engine/server/databases/connection.h>
 #include <engine/server/databases/connection_pool.h>
 #include <engine/shared/config.h>
 #include <engine/storage.h>
-#include <base/system.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
@@ -165,20 +165,27 @@ static bool EnsureWhoisSchema(IDbConnection *pSql, char *pError, int ErrorSize)
 		"  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"
 		")",
 		TBL_WHOIS_CONNECTIONS);
-	if(ExecRaw(pSql, aStmt, pError, ErrorSize)) return true;
+	if(ExecRaw(pSql, aStmt, pError, ErrorSize))
+		return true;
 
 	str_format(aStmt, sizeof(aStmt), "CREATE INDEX IF NOT EXISTS whois_idx_ip ON %s(ip)", TBL_WHOIS_CONNECTIONS);
-	if(ExecRaw(pSql, aStmt, pError, ErrorSize)) return true;
+	if(ExecRaw(pSql, aStmt, pError, ErrorSize))
+		return true;
 	str_format(aStmt, sizeof(aStmt), "CREATE INDEX IF NOT EXISTS whois_idx_name ON %s(name)", TBL_WHOIS_CONNECTIONS);
-	if(ExecRaw(pSql, aStmt, pError, ErrorSize)) return true;
+	if(ExecRaw(pSql, aStmt, pError, ErrorSize))
+		return true;
 	str_format(aStmt, sizeof(aStmt), "CREATE INDEX IF NOT EXISTS whois_idx_ip_name ON %s(ip,name)", TBL_WHOIS_CONNECTIONS);
-	if(ExecRaw(pSql, aStmt, pError, ErrorSize)) return true;
+	if(ExecRaw(pSql, aStmt, pError, ErrorSize))
+		return true;
 	str_format(aStmt, sizeof(aStmt), "CREATE INDEX IF NOT EXISTS whois_idx_name_ip ON %s(name,ip)", TBL_WHOIS_CONNECTIONS);
-	if(ExecRaw(pSql, aStmt, pError, ErrorSize)) return true;
+	if(ExecRaw(pSql, aStmt, pError, ErrorSize))
+		return true;
 	str_format(aStmt, sizeof(aStmt), "CREATE INDEX IF NOT EXISTS whois_idx_accid ON %s(account_id)", TBL_WHOIS_CONNECTIONS);
-	if(ExecRaw(pSql, aStmt, pError, ErrorSize)) return true;
+	if(ExecRaw(pSql, aStmt, pError, ErrorSize))
+		return true;
 	str_format(aStmt, sizeof(aStmt), "CREATE INDEX IF NOT EXISTS whois_idx_created_at ON %s(created_at)", TBL_WHOIS_CONNECTIONS);
-	if(ExecRaw(pSql, aStmt, pError, ErrorSize)) return true;
+	if(ExecRaw(pSql, aStmt, pError, ErrorSize))
+		return true;
 
 	// aggregates: names by IP
 	str_format(aStmt, sizeof(aStmt),
@@ -193,9 +200,11 @@ static bool EnsureWhoisSchema(IDbConnection *pSql, char *pError, int ErrorSize)
 		"  PRIMARY KEY(ip, name)"
 		")",
 		TBL_WHOIS_AGG_NAMES_BY_IP);
-	if(ExecRaw(pSql, aStmt, pError, ErrorSize)) return true;
+	if(ExecRaw(pSql, aStmt, pError, ErrorSize))
+		return true;
 	str_format(aStmt, sizeof(aStmt), "CREATE INDEX IF NOT EXISTS whois_names_by_ip_idx_ip ON %s(ip)", TBL_WHOIS_AGG_NAMES_BY_IP);
-	if(ExecRaw(pSql, aStmt, pError, ErrorSize)) return true;
+	if(ExecRaw(pSql, aStmt, pError, ErrorSize))
+		return true;
 
 	str_format(aStmt, sizeof(aStmt),
 		"CREATE TABLE IF NOT EXISTS %s ("
@@ -207,9 +216,11 @@ static bool EnsureWhoisSchema(IDbConnection *pSql, char *pError, int ErrorSize)
 		"  PRIMARY KEY(name, ip)"
 		")",
 		TBL_WHOIS_AGG_IPS_BY_NAME);
-	if(ExecRaw(pSql, aStmt, pError, ErrorSize)) return true;
+	if(ExecRaw(pSql, aStmt, pError, ErrorSize))
+		return true;
 	str_format(aStmt, sizeof(aStmt), "CREATE INDEX IF NOT EXISTS whois_ips_by_name_idx_name ON %s(name)", TBL_WHOIS_AGG_IPS_BY_NAME);
-	if(ExecRaw(pSql, aStmt, pError, ErrorSize)) return true;
+	if(ExecRaw(pSql, aStmt, pError, ErrorSize))
+		return true;
 
 	return false;
 }
@@ -225,12 +236,11 @@ CWhoIs::CWhoIs(CGameContext *pGameServer, CDbConnectionPool *pPool) :
 		m_SnapshotIntervalTicks = (int64_t)pGameServer->Server()->TickSpeed() * 60 * Minutes; // minutes
 	m_NextPurgeTick = 0;
 
-
 	ResolveWhoisDbPath(GameServer()->Storage(), m_aDbPath, sizeof(m_aDbPath));
 	EnsureParentDirs(m_aDbPath);
 	m_pWorker = std::make_unique<CWhoisWorker>(m_aDbPath);
 	m_pWorker->Start();
-    dbg_msg("sql", "whois sqlite path: %s", m_aDbPath);
+	dbg_msg("sql", "whois sqlite path: %s", m_aDbPath);
 }
 
 IServer *CWhoIs::Server() const { return GameServer()->Server(); }
@@ -415,9 +425,12 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 			if(pSlash)
 			{
 				int bits = str_toint(pSlash + 1);
-				if(bits == 24) Cut = 1;
-				else if(bits == 16) Cut = 2;
-				else if(bits == 8) Cut = 3;
+				if(bits == 24)
+					Cut = 1;
+				else if(bits == 16)
+					Cut = 2;
+				else if(bits == 8)
+					Cut = 3;
 				// terminate IP before slash or optional preceding space
 				size_t cutPos = (pSlash > aIp && pSlash[-1] == ' ') ? (size_t)(pSlash - aIp - 1) : (size_t)(pSlash - aIp);
 				aIp[cutPos] = '\0';
@@ -440,7 +453,15 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 			bool End = false;
 			int Total = 0;
 			int Distinct = 0;
-			struct Entry { char Name[32]; int Cnt; char First[20]; char Last[20]; int HasLogins; char AccName[32]; };
+			struct Entry
+			{
+				char Name[32];
+				int Cnt;
+				char First[20];
+				char Last[20];
+				int HasLogins;
+				char AccName[32];
+			};
 			std::vector<Entry> vEntries;
 			char aGlobalFirst[20] = {0};
 			char aGlobalLast[20] = {0};
@@ -450,9 +471,11 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 				pSql->GetString(1, e.Name, sizeof(e.Name));
 				e.Cnt = pSql->GetInt(2);
 				mem_zero(e.First, sizeof(e.First));
-				if(!pSql->IsNull(3)) pSql->GetString(3, e.First, sizeof(e.First));
+				if(!pSql->IsNull(3))
+					pSql->GetString(3, e.First, sizeof(e.First));
 				mem_zero(e.Last, sizeof(e.Last));
-				if(!pSql->IsNull(4)) pSql->GetString(4, e.Last, sizeof(e.Last));
+				if(!pSql->IsNull(4))
+					pSql->GetString(4, e.Last, sizeof(e.Last));
 				e.HasLogins = pSql->GetInt(5);
 				e.AccName[0] = '\0'; // no account name in raw table
 				vEntries.push_back(e);
@@ -566,8 +589,10 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 				char aLast[20] = {0};
 				for(const auto &nn : curNames)
 				{
-					if(nn.First[0] && (!aFirst[0] || str_comp(nn.First, aFirst) < 0)) str_copy(aFirst, nn.First, sizeof(aFirst));
-					if(nn.Last[0] && (!aLast[0] || str_comp(nn.Last, aLast) > 0)) str_copy(aLast, nn.Last, sizeof(aLast));
+					if(nn.First[0] && (!aFirst[0] || str_comp(nn.First, aFirst) < 0))
+						str_copy(aFirst, nn.First, sizeof(aFirst));
+					if(nn.Last[0] && (!aLast[0] || str_comp(nn.Last, aLast) > 0))
+						str_copy(aLast, nn.Last, sizeof(aLast));
 				}
 				if(aFirst[0] || aLast[0])
 					str_format(aHead, sizeof(aHead), "%s connected %d times with %d names (first: %s, last: %s):", curIp.c_str(), curTotal, (int)curNames.size(), aFirst[0] ? aFirst : "-", aLast[0] ? aLast : "-");
@@ -594,7 +619,11 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 					else
 						str_format(aTmp, sizeof(aTmp), " - %s (%d)%s", nn.Name.c_str(), nn.Cnt, aAccPart);
 					pRes->m_vLines.emplace_back(aTmp);
-					if(++shown >= MaxNamesPerIp) { TruncatedNames = true; break; }
+					if(++shown >= MaxNamesPerIp)
+					{
+						TruncatedNames = true;
+						break;
+					}
 				}
 				curIp.clear();
 				curTotal = 0;
@@ -622,7 +651,11 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 				{
 					FlushCur();
 					curIp = aResIp;
-					if(++IpGroups >= MaxIps) { TruncatedIps = true; break; }
+					if(++IpGroups >= MaxIps)
+					{
+						TruncatedIps = true;
+						break;
+					}
 				}
 				curTotal += Cnt;
 				NameInfo ni{};
@@ -665,14 +698,15 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 		int MaxRows3 = clamp(g_Config.m_SvWhoisMaxRows, 10, 100000);
 		bool Wildcard = (str_find(pReq->m_aSearch, "*") != nullptr) || (str_find(pReq->m_aSearch, "%") != nullptr);
 		char aPattern[32];
-	if(Wildcard)
+		if(Wildcard)
 		{
 			// translate '*' -> '%'
 			int k = 0;
 			for(int i = 0; pReq->m_aSearch[i] && k < (int)sizeof(aPattern) - 1; ++i)
 			{
 				char c = pReq->m_aSearch[i];
-				if(c == '*') c = '%';
+				if(c == '*')
+					c = '%';
 				aPattern[k++] = c;
 			}
 			aPattern[k] = '\0';
@@ -697,7 +731,13 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 
 		bool End = false;
 		int Total = 0;
-		struct IPCnt { char Ip[64]; int Cnt; char First[20]; char Last[20]; };
+		struct IPCnt
+		{
+			char Ip[64];
+			int Cnt;
+			char First[20];
+			char Last[20];
+		};
 		std::vector<IPCnt> vEntries;
 		char aGlobalFirst[20] = {0};
 		char aGlobalLast[20] = {0};
@@ -707,9 +747,11 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 			pSql->GetString(1, e.Ip, sizeof(e.Ip));
 			e.Cnt = pSql->GetInt(2);
 			mem_zero(e.First, sizeof(e.First));
-			if(!pSql->IsNull(3)) pSql->GetString(3, e.First, sizeof(e.First));
+			if(!pSql->IsNull(3))
+				pSql->GetString(3, e.First, sizeof(e.First));
 			mem_zero(e.Last, sizeof(e.Last));
-			if(!pSql->IsNull(4)) pSql->GetString(4, e.Last, sizeof(e.Last));
+			if(!pSql->IsNull(4))
+				pSql->GetString(4, e.Last, sizeof(e.Last));
 			vEntries.push_back(e);
 			Total += e.Cnt;
 			if(e.First[0] && (!aGlobalFirst[0] || str_comp(e.First, aGlobalFirst) < 0))
@@ -754,7 +796,6 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 	pRes->m_Success = true;
 	return false;
 }
-
 
 void CWhoIs::LogJoin(int ClientId)
 {
@@ -830,7 +871,8 @@ void CWhoIs::SnapshotTick()
 				if(!g_WhoisSchemaInit.load(std::memory_order_acquire))
 				{
 					Failed = EnsureWhoisSchema(pSql, aErr, sizeof(aErr));
-					if(!Failed) g_WhoisSchemaInit.store(true, std::memory_order_release);
+					if(!Failed)
+						g_WhoisSchemaInit.store(true, std::memory_order_release);
 				}
 				int64_t Seconds = (int64_t)Months * 30 * 24 * 60 * 60;
 				int Rows = 0;
@@ -953,7 +995,8 @@ void CWhoIs::PurgeNow(int RetentionMonths, bool Silent)
 		if(!g_WhoisSchemaInit.load(std::memory_order_acquire))
 		{
 			Failed = EnsureWhoisSchema(pSql, aErr, sizeof(aErr));
-			if(!Failed) g_WhoisSchemaInit.store(true, std::memory_order_release);
+			if(!Failed)
+				g_WhoisSchemaInit.store(true, std::memory_order_release);
 		}
 		int64_t Seconds = (int64_t)Months * 30 * 24 * 60 * 60;
 		int Rows = 0;
