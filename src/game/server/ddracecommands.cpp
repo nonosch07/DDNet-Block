@@ -10,6 +10,8 @@
 #include <game/server/save.h>
 #include <game/server/teams.h>
 
+#include <blockworlds/discord/webhook.h>
+
 bool CheckClientId(int ClientId);
 
 void CGameContext::ConGoLeft(IConsole::IResult *pResult, void *pUserData)
@@ -719,9 +721,36 @@ void CGameContext::ConMuteId(IConsole::IResult *pResult, void *pUserData)
 	pSelf->Server()->GetClientAddr(Victim, &Addr);
 
 	const char *pReason = pResult->NumArguments() > 2 ? pResult->GetString(2) : "";
+	int Seconds = clamp(pResult->GetInteger(1), 1, 86400);
+	const char *pVictimName = pSelf->Server()->ClientName(Victim);
 
-	pSelf->Mute(&Addr, clamp(pResult->GetInteger(1), 1, 86400),
-		pSelf->Server()->ClientName(Victim), pReason);
+	pSelf->Mute(&Addr, Seconds, pVictimName, pReason);
+
+	{
+		CDiscordWebhook Discord(pSelf->Engine(), pSelf->Http());
+		const char *pUrl = g_Config.m_SvDiscordWebhookUrlCmd[0] ? g_Config.m_SvDiscordWebhookUrlCmd : nullptr;
+		if(Discord.IsConfigured(pUrl))
+		{
+			char aMsg[256];
+			const char *pExecutorName = "Console";
+
+			if(pResult->m_ClientId >= 0 && pResult->m_ClientId < MAX_CLIENTS)
+			{
+				const char *pName = pSelf->Server()->ClientName(pResult->m_ClientId);
+				if(pName && pName[0])
+					pExecutorName = pName;
+			}
+
+			str_format(aMsg, sizeof(aMsg), "**%s** muted player **%s** for %d seconds - Reason: %s",
+				pExecutorName, pVictimName ? pVictimName : "<unknown>", Seconds, pReason[0] ? pReason : "No reason given");
+
+			CDiscordWebhook::SSendOptions Opt;
+			Opt.m_pWebhookUrl = pUrl;
+			Opt.m_pUsername = g_Config.m_SvDiscordWebhookUsername;
+			Opt.m_Tts = 0;
+			Discord.Send(aMsg, Opt);
+		}
+	}
 }
 
 // mute through ip, arguments reversed to workaround parsing
@@ -753,6 +782,31 @@ void CGameContext::ConUnmute(IConsole::IResult *pResult, void *pUserData)
 	str_format(aBuf, sizeof(aBuf), "Unmuted %s", aIpBuf);
 	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "mutes", aBuf);
 
+	{
+		CDiscordWebhook Discord(pSelf->Engine(), pSelf->Http());
+		const char *pUrl = g_Config.m_SvDiscordWebhookUrlCmd[0] ? g_Config.m_SvDiscordWebhookUrlCmd : nullptr;
+		if(Discord.IsConfigured(pUrl))
+		{
+			char aMsg[256];
+			const char *pExecutorName = "Console";
+
+			if(pResult->m_ClientId >= 0 && pResult->m_ClientId < MAX_CLIENTS)
+			{
+				const char *pName = pSelf->Server()->ClientName(pResult->m_ClientId);
+				if(pName && pName[0])
+					pExecutorName = pName;
+			}
+
+			str_format(aMsg, sizeof(aMsg), "**%s** unmuted IP **%s** ", pExecutorName, aIpBuf);
+
+			CDiscordWebhook::SSendOptions Opt;
+			Opt.m_pWebhookUrl = pUrl;
+			Opt.m_pUsername = g_Config.m_SvDiscordWebhookUsername;
+			Opt.m_Tts = 0;
+			Discord.Send(aMsg, Opt);
+		}
+	}
+
 	pSelf->m_NumMutes--;
 	pSelf->m_aMutes[Index] = pSelf->m_aMutes[pSelf->m_NumMutes];
 }
@@ -768,6 +822,7 @@ void CGameContext::ConUnmuteId(IConsole::IResult *pResult, void *pUserData)
 
 	NETADDR Addr;
 	pSelf->Server()->GetClientAddr(Victim, &Addr);
+	const char *pVictim = pSelf->Server()->ClientName(Victim);
 
 	for(int i = 0; i < pSelf->m_NumMutes; i++)
 	{
@@ -780,6 +835,32 @@ void CGameContext::ConUnmuteId(IConsole::IResult *pResult, void *pUserData)
 			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "mutes", aBuf);
 			pSelf->m_NumMutes--;
 			pSelf->m_aMutes[i] = pSelf->m_aMutes[pSelf->m_NumMutes];
+
+			{
+				CDiscordWebhook Discord(pSelf->Engine(), pSelf->Http());
+				const char *pUrl = g_Config.m_SvDiscordWebhookUrlCmd[0] ? g_Config.m_SvDiscordWebhookUrlCmd : nullptr;
+				if(Discord.IsConfigured(pUrl))
+				{
+					char aMsg[256];
+					const char *pExec = "idk who did it (consult melon)";
+
+					if(pResult->m_ClientId >= 0 && pResult->m_ClientId < MAX_CLIENTS)
+					{
+						const char *pName = pSelf->Server()->ClientName(pResult->m_ClientId);
+						if(pName && pName[0])
+							pExec = pName;
+					}
+
+					str_format(aMsg, sizeof(aMsg), "**%s** unmuted player **%s**",
+						pExec, pVictim ? pVictim : "<unknown>");
+
+					CDiscordWebhook::SSendOptions Opt;
+					Opt.m_pWebhookUrl = pUrl;
+					Opt.m_pUsername = g_Config.m_SvDiscordWebhookUsername;
+					Opt.m_Tts = 0;
+					Discord.Send(aMsg, Opt);
+				}
+			}
 			return;
 		}
 	}

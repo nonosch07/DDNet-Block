@@ -1,8 +1,10 @@
 #ifndef ENGINE_SHARED_NETBAN_H
 #define ENGINE_SHARED_NETBAN_H
 
+#include "blockworlds/discord/webhook.h"
 #include <base/system.h>
 #include <engine/console.h>
+#include <memory>
 
 inline int NetComp(const NETADDR *pAddr1, const NETADDR *pAddr2)
 {
@@ -25,6 +27,9 @@ inline int NetComp(const CNetRange *pRange1, const CNetRange *pRange2)
 
 class CNetBan
 {
+private:
+	std::unique_ptr<CDiscordWebhook> m_pDiscordWebhook;
+
 protected:
 	bool NetMatch(const NETADDR *pAddr1, const NETADDR *pAddr2) const
 	{

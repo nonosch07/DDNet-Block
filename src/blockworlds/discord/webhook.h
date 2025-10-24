@@ -51,6 +51,8 @@ public:
 	// Queue a message send (non-blocking). Returns immediately.
 	void Send(const char *pContent, const SSendOptions *pOpt = nullptr);
 	void Send(const char *pContent, SSendOptions Opt) { Send(pContent, &Opt); }
+
+	void BroadcastCmd(const char *pCmd, const char *pExec, const char *pArgs);
 };
 
 #endif // BLOCKWORLDS_DISCORD_WEBHOOK_H

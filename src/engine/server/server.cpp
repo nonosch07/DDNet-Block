@@ -2,6 +2,7 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 
 #include "server.h"
+#include "blockworlds/discord/webhook.h"
 
 #include <base/logger.h>
 #include <base/math.h>
@@ -33,6 +34,7 @@
 #include <engine/shared/protocol7.h>
 #include <engine/shared/protocol_ex.h>
 #include <engine/shared/snapshot.h>
+#include <memory>
 
 #ifdef CONF_RUST_BRIDGE
 #include <engine/shared/rust_version.h>
@@ -148,8 +150,19 @@ void CServerBan::ConBanExt(IConsole::IResult *pResult, void *pUser)
 	CServerBan *pThis = static_cast<CServerBan *>(pUser);
 
 	const char *pStr = pResult->GetString(0);
+
+	dbg_msg("ban", "defoikghnfeg");
+	if(pThis->m_pServer->m_pDiscordWebhook)
+	{
+		dbg_msg("ban", "odelfjkgnmjedrfolikjgftnmertoljkin rteljkgtn k");
+		pThis->m_pServer->m_pDiscordWebhook->BroadcastCmd("ban", "Console", pStr);
+	}
+	else
+	{
+		dbg_msg("ban", "Discord webhook not init");
+	}
 	int Minutes = pResult->NumArguments() > 1 ? clamp(pResult->GetInteger(1), 0, 525600) : 10;
-	const char *pReason = pResult->NumArguments() > 2 ? pResult->GetString(2) : "Follow the server rules. Type /rules into the chat.";
+	const char *pReason = pResult->NumArguments() > 2 ? pResult->GetString(2) : "No reason given";
 
 	if(str_isallnum(pStr))
 	{
@@ -3172,14 +3185,45 @@ int CServer::Run()
 
 void CServer::ConKick(IConsole::IResult *pResult, void *pUser)
 {
+	CServer *pSelf = (CServer *)pUser;
+	int ClientId = pResult->GetInteger(0);
+	const char *pReason = pResult->NumArguments() > 1 ? pResult->GetString(1) : "Kicked by console";
+
 	if(pResult->NumArguments() > 1)
 	{
 		char aBuf[128];
 		str_format(aBuf, sizeof(aBuf), "Kicked (%s)", pResult->GetString(1));
-		((CServer *)pUser)->Kick(pResult->GetInteger(0), aBuf);
+		pSelf->Kick(ClientId, aBuf);
 	}
 	else
-		((CServer *)pUser)->Kick(pResult->GetInteger(0), "Kicked by console");
+		pSelf->Kick(ClientId, "Kicked by console");
+
+	{
+		CDiscordWebhook Discord(pSelf->Engine(), &pSelf->m_Http);
+		const char *pUrl = g_Config.m_SvDiscordWebhookUrlCmd[0] ? g_Config.m_SvDiscordWebhookUrlCmd : nullptr;
+		if(Discord.IsConfigured(pUrl))
+		{
+			char aMsg[256];
+			const char *pClientName = pSelf->ClientName(ClientId);
+			const char *pExecutorName = "Console";
+
+			if(pResult->m_ClientId >= 0 && pResult->m_ClientId < MAX_CLIENTS)
+			{
+				const char *pName = pSelf->ClientName(pResult->m_ClientId);
+				if(pName && pName[0])
+					pExecutorName = pName;
+			}
+
+			str_format(aMsg, sizeof(aMsg), "**%s** kicked player **%s** - Reason: %s",
+				pExecutorName, pClientName ? pClientName : "<unknown>", pReason);
+
+			CDiscordWebhook::SSendOptions Opt;
+			Opt.m_pWebhookUrl = pUrl;
+			Opt.m_pUsername = g_Config.m_SvDiscordWebhookUsername;
+			Opt.m_Tts = 0;
+			Discord.Send(aMsg, Opt);
+		}
+	}
 }
 
 void CServer::ConStatus(IConsole::IResult *pResult, void *pUser)

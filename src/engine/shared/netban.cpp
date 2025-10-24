@@ -5,6 +5,9 @@
 #include <engine/storage.h>
 
 #include "netban.h"
+#include <blockworlds/discord/webhook.h>
+#include <engine/server/server.h>
+#include <memory>
 
 CNetBan::CNetHash::CNetHash(const NETADDR *pAddr)
 {
@@ -276,7 +279,6 @@ void CNetBan::Init(IConsole *pConsole, IStorage *pStorage)
 	m_pStorage = pStorage;
 	m_BanAddrPool.Reset();
 	m_BanRangePool.Reset();
-
 	net_host_lookup("localhost", &m_LocalhostIpV4, NETTYPE_IPV4);
 	net_host_lookup("localhost", &m_LocalhostIpV6, NETTYPE_IPV6);
 
@@ -415,7 +417,41 @@ void CNetBan::ConBan(IConsole::IResult *pResult, void *pUser)
 
 	NETADDR Addr;
 	if(net_addr_from_str(&Addr, pStr) == 0)
+	{
 		pThis->BanAddr(&Addr, Minutes * 60, pReason, false);
+
+		{
+			class CServerBan *pServerBan = static_cast<class CServerBan *>(pThis);
+			if(pServerBan && pServerBan->Server())
+			{
+				CDiscordWebhook Discord(pServerBan->Server()->Engine(), &pServerBan->Server()->m_Http);
+				const char *pUrl = g_Config.m_SvDiscordWebhookUrlCmd[0] ? g_Config.m_SvDiscordWebhookUrlCmd : nullptr;
+				if(Discord.IsConfigured(pUrl))
+				{
+					char aMsg[256];
+					char aAddrStr[NETADDR_MAXSTRSIZE];
+					net_addr_str(&Addr, aAddrStr, sizeof(aAddrStr), false);
+					const char *pExecutorName = "Console";
+
+					if(pResult->m_ClientId >= 0 && pResult->m_ClientId < MAX_CLIENTS)
+					{
+						const char *pName = pServerBan->Server()->ClientName(pResult->m_ClientId);
+						if(pName && pName[0])
+							pExecutorName = pName;
+					}
+
+					str_format(aMsg, sizeof(aMsg), "**%s** banned IP **%s** for %d minutes - Reason: %s",
+						pExecutorName, aAddrStr, Minutes, pReason);
+
+					CDiscordWebhook::SSendOptions Opt;
+					Opt.m_pWebhookUrl = pUrl;
+					Opt.m_pUsername = g_Config.m_SvDiscordWebhookUsername;
+					Opt.m_Tts = 0;
+					Discord.Send(aMsg, Opt);
+				}
+			}
+		}
+	}
 	else
 		pThis->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "net_ban", "ban error (invalid network address)");
 }
@@ -441,15 +477,58 @@ void CNetBan::ConUnban(IConsole::IResult *pResult, void *pUser)
 	CNetBan *pThis = static_cast<CNetBan *>(pUser);
 
 	const char *pStr = pResult->GetString(0);
+	bool bSuccess = false;
+	char aAddrStr[NETADDR_MAXSTRSIZE] = {0};
+
 	if(str_isallnum(pStr))
+	{
 		pThis->UnbanByIndex(str_toint(pStr));
+		bSuccess = true;
+	}
 	else
 	{
 		NETADDR Addr;
 		if(net_addr_from_str(&Addr, pStr) == 0)
+		{
 			pThis->UnbanByAddr(&Addr);
+			net_addr_str(&Addr, aAddrStr, sizeof(aAddrStr), false);
+			bSuccess = true;
+		}
 		else
 			pThis->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "net_ban", "unban error (invalid network address)");
+	}
+
+	if(bSuccess)
+	{
+		class CServerBan *pServerBan = static_cast<class CServerBan *>(pThis);
+		if(pServerBan && pServerBan->Server())
+		{
+			CDiscordWebhook Discord(pServerBan->Server()->Engine(), &pServerBan->Server()->m_Http);
+			const char *pUrl = g_Config.m_SvDiscordWebhookUrlCmd[0] ? g_Config.m_SvDiscordWebhookUrlCmd : nullptr;
+			if(Discord.IsConfigured(pUrl))
+			{
+				char aMsg[256];
+				const char *pExecutorName = "Console";
+
+				if(pResult->m_ClientId >= 0 && pResult->m_ClientId < MAX_CLIENTS)
+				{
+					const char *pName = pServerBan->Server()->ClientName(pResult->m_ClientId);
+					if(pName && pName[0])
+						pExecutorName = pName;
+				}
+
+				if(str_isallnum(pStr))
+					str_format(aMsg, sizeof(aMsg), "**%s** unbanned ban entry **%s**", pExecutorName, pStr);
+				else
+					str_format(aMsg, sizeof(aMsg), "**%s** unbanned IP **%s**", pExecutorName, aAddrStr);
+
+				CDiscordWebhook::SSendOptions Opt;
+				Opt.m_pWebhookUrl = pUrl;
+				Opt.m_pUsername = g_Config.m_SvDiscordWebhookUsername;
+				Opt.m_Tts = 0;
+				Discord.Send(aMsg, Opt);
+			}
+		}
 	}
 }
 

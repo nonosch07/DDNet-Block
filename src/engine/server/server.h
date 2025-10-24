@@ -25,6 +25,7 @@
 
 #include "antibot.h"
 #include "authmanager.h"
+#include "blockworlds/discord/webhook.h"
 #include "name_ban.h"
 #include "snap_id_pool.h"
 
@@ -496,6 +497,7 @@ public:
 
 	//Blockworlds
 
+	std::unique_ptr<CDiscordWebhook> m_pDiscordWebhook;
 	virtual bool IsClientsSameAddr(int FirstClientID, int SecondClientID) override;
 	void BotJoin(int BotID, const char *pName) override;
 	void BotLeave(int BotID, bool Silent = false) override;

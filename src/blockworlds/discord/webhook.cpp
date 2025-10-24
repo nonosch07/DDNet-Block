@@ -156,3 +156,35 @@ void CDiscordWebhook::Send(const char *pContent, const SSendOptions *pOpt)
 	auto pJob = std::make_shared<CSendJob>(m_pHttp, pUrl, vChunks, pOpt);
 	m_pEngine->AddJob(pJob);
 }
+
+void CDiscordWebhook::BroadcastCmd(const char *pCmd, const char *pExecutor, const char *pArgs)
+{
+	if(!m_pEngine || !m_pHttp)
+	{
+		return;
+	}
+	const char *pUrl = g_Config.m_SvDiscordWebhookUrlCmd;
+
+	if(pUrl == nullptr)
+	{
+		return;
+	}
+
+	char aMsg[128];
+	if(pExecutor && pExecutor[0])
+	{
+		if(pArgs && pArgs[0])
+			str_format(aMsg, sizeof(aMsg), "**%s** executed command: **%s**", pExecutor, pArgs);
+	}
+	else
+	{
+		str_format(aMsg, sizeof(aMsg), "command executed: **%s**", pCmd);
+	}
+
+	SSendOptions Opt;
+	Opt.m_pWebhookUrl = pUrl;
+	Opt.m_pUsername = g_Config.m_SvDiscordWebhookUsername;
+	Opt.m_Tts = 0;
+
+	Send(aMsg, &Opt);
+}
