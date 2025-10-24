@@ -80,6 +80,12 @@ void CLastManBlockingEvent::OnTick()
 			CheckFreezeTime();
 		}
 
+		for (int participant : Participants()) {
+			if (PlayerHookedGroundFor(participant) > Config()->m_SvGroundHookPenaltyDelay) {
+				GameServer()->GetPlayerChar(participant)->Freeze(Config()->m_SvGroundHookPenalty);
+			}
+		}
+
 		if(CheckEndCondition())
 			FinishEvent(NATURAL);
 	}
@@ -157,6 +163,7 @@ void CLastManBlockingEvent::StartEvent()
 
 	m_SpawnOffset = 0;
 	m_pSavedPlayers.clear();
+	m_SavedWeapons.clear();
 	m_FrozenSince.clear();
 	for(const auto &ClientId : m_Participants)
 	{
@@ -355,6 +362,7 @@ bool CLastManBlockingEvent::DeRegister(int ClientId)
 
 bool CLastManBlockingEvent::Join(int ClientId)
 {
+	SaveWeapons(ClientId);
 	SavePosition(ClientId);
 
 	m_FrozenSince.emplace(ClientId, 0);
@@ -385,6 +393,7 @@ bool CLastManBlockingEvent::Leave(int ClientId)
 		return false;
 	m_Participants.erase(ClientIdIt);
 	LoadPosition(ClientId);
+	LoadWeapons(ClientId);
 
 	// restore specials state is intentionally left unchanged; players may re-enable after event
 	// communicate ragequit/leave to server

@@ -21,6 +21,7 @@ public:
 public: // CComponent
 	const char *GetName() const override { return GetNameStatic(); }
 	void OnConsoleInit() override;
+	void OnConsoleTerminate() override;
 
 public:
 	bool CheckAndMaybeMute(int ClientId, const char *pMessage);
