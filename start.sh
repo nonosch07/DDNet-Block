@@ -4,8 +4,8 @@ commands=$(env | grep '^TW_'|sed 's/=/ /g; s/^TW_//')
 
 echo "${commands}" | tee env_generated.cfg
 
-if ! grep -qFx "exec env_generated.cfg" data/autoexec_server.cfg; then
-    echo "exec env_generated.cfg" >> data/autoexec_server.cfg
+if ! grep -qFx "exec env_generated.cfg" autoexec_server.cfg; then
+    echo "exec env_generated.cfg" >> autoexec_server.cfg
 fi
 
 sleep 2
