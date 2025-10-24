@@ -22,13 +22,25 @@ CChatFilterComponent::CChatFilterComponent(CGameContext *pGameServer) :
 	Load();
 }
 
+#define LIST_OF_ALL_COMMANDS(DEF) \
+	DEF("chatfilter_add", "r[word]", CFGFLAG_SERVER, ConChatFilterAdd, this, "Add a word to the chat filter and persist") \
+	DEF("chatfilter_remove", "r[word]", CFGFLAG_SERVER, ConChatFilterRemove, this, "Remove a word from the chat filter and persist") \
+	DEF("chatfilter_list", "", CFGFLAG_SERVER, ConChatFilterList, this, "List filtered words") \
+	DEF("chatfilter_reload", "", CFGFLAG_SERVER, ConChatFilterReload, this, "Reload chat filter words from disk") \
+	DEF("chatfilter_save", "", CFGFLAG_SERVER, ConChatFilterSave, this, "Force-save chat filter words to disk")
+
 void CChatFilterComponent::OnConsoleInit()
 {
-	Console()->Register("chatfilter_add", "r[word]", CFGFLAG_SERVER, ConChatFilterAdd, this, "Add a word to the chat filter and persist");
-	Console()->Register("chatfilter_remove", "r[word]", CFGFLAG_SERVER, ConChatFilterRemove, this, "Remove a word from the chat filter and persist");
-	Console()->Register("chatfilter_list", "", CFGFLAG_SERVER, ConChatFilterList, this, "List filtered words");
-	Console()->Register("chatfilter_reload", "", CFGFLAG_SERVER, ConChatFilterReload, this, "Reload chat filter words from disk");
-	Console()->Register("chatfilter_save", "", CFGFLAG_SERVER, ConChatFilterSave, this, "Force-save chat filter words to disk");
+#define CommandRegister(name, args, flags, callback, user, help) Console()->Register(name, args, flags, callback, user, help);
+	LIST_OF_ALL_COMMANDS(CommandRegister)
+#undef CommandRegister
+}
+
+void CChatFilterComponent::OnConsoleTerminate()
+{
+#define CommandDeregister(name, ...) Console()->Deregister(name);
+	LIST_OF_ALL_COMMANDS(CommandDeregister)
+#undef CommandDeregister
 }
 
 bool CChatFilterComponent::Load()

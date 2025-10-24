@@ -42,16 +42,28 @@ CAiBotComponent::CAiBotComponent(CGameContext *pGameServer) :
 	LoadModel();
 }
 
+#define LIST_OF_ALL_COMMANDS(DEF) \
+	DEF("ai_enable", "i[0|1]", CFGFLAG_SERVER | CFGFLAG_STORE, ConAiEnable, this, "") \
+	DEF("ai_stats", "", CFGFLAG_SERVER, ConAiStats, this, "") \
+	DEF("ai_spawn", "", CFGFLAG_SERVER, ConAiSpawn, this, "") \
+	DEF("ai_despawn", "", CFGFLAG_SERVER, ConAiDespawn, this, "") \
+	DEF("ai_reset", "", CFGFLAG_SERVER, ConAiReset, this, "") \
+	DEF("ai_set_min_samples", "i[value]", CFGFLAG_SERVER, ConAiSetMinSamples, this, "") \
+	DEF("ai_save", "", CFGFLAG_SERVER, ConAiSave, this, "") \
+	DEF("ai_learn_all", "i[0|1]", CFGFLAG_SERVER, ConAiLearnAll, this, "")
+
 void CAiBotComponent::OnConsoleInit()
 {
-	Console()->Register("ai_enable", "i[0|1]", CFGFLAG_SERVER | CFGFLAG_STORE, ConAiEnable, this, "");
-	Console()->Register("ai_stats", "", CFGFLAG_SERVER, ConAiStats, this, "");
-	Console()->Register("ai_spawn", "", CFGFLAG_SERVER, ConAiSpawn, this, "");
-	Console()->Register("ai_despawn", "", CFGFLAG_SERVER, ConAiDespawn, this, "");
-	Console()->Register("ai_reset", "", CFGFLAG_SERVER, ConAiReset, this, "");
-	Console()->Register("ai_set_min_samples", "i[value]", CFGFLAG_SERVER, ConAiSetMinSamples, this, "");
-	Console()->Register("ai_save", "", CFGFLAG_SERVER, ConAiSave, this, "");
-	Console()->Register("ai_learn_all", "i[0|1]", CFGFLAG_SERVER, ConAiLearnAll, this, "");
+#define CommandRegister(name, args, flags, callback, user, help) Console()->Register(name, args, flags, callback, user, help);
+	LIST_OF_ALL_COMMANDS(CommandRegister)
+#undef CommandRegister
+}
+
+void CAiBotComponent::OnConsoleTerminate()
+{
+#define CommandDeregister(name, ...) Console()->Deregister(name);
+	LIST_OF_ALL_COMMANDS(CommandDeregister)
+#undef CommandDeregister
 }
 
 void CAiBotComponent::OnShutdown()

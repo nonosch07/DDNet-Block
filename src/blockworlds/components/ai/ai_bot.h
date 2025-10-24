@@ -25,6 +25,7 @@ public:
 	~CAiBotComponent() override = default;
 
 	void OnConsoleInit() override;
+	void OnConsoleTerminate() override;
 	void OnTick() override;
 	void OnShutdown() override;
 
