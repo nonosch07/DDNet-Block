@@ -295,6 +295,15 @@ void COneOnOneEvent::OnTick()
 		m_BothFrozenSinceTick = -1; // reset if condition breaks
 	}
 
+	if (GetState() == CEventComponent::EEventState::Active) {
+		if (PlayerHookedGroundFor(m_Player1ID) > Config()->m_SvGroundHookPenaltyDelay) {
+			GameServer()->GetPlayerChar(m_Player1ID)->Freeze(Config()->m_SvGroundHookPenalty);
+		}
+		if (PlayerHookedGroundFor(m_Player2ID) > Config()->m_SvGroundHookPenaltyDelay) {
+			GameServer()->GetPlayerChar(m_Player2ID)->Freeze(Config()->m_SvGroundHookPenalty);
+		}
+	}
+
 	// resolve any pending award after waiting out the draw window
 	if(GetState() == CEventComponent::EEventState::Active && m_PendingAwardTo != 0)
 	{

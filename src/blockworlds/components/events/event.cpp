@@ -110,6 +110,18 @@ void CEventComponent::LoadWeapons(int ClientId) {
 	m_SavedWeapons.erase(it);
 }
 
+int CEventComponent::PlayerHookedGroundFor(bool ClientId) const {
+	auto pChar = GameServer()->GetPlayerChar(ClientId);
+	if (!pChar)
+		return 0;
+
+	bool HookingGround = pChar->Core()->m_HookState == HOOK_GRABBED && pChar->Core()->HookedPlayer() == -1;
+
+	if (HookingGround)
+		return pChar->Core()->m_HookTick;
+	return 0;
+}
+
 const char *CEventComponent::GetStateName() const
 {
 	return GetStateName(m_State);

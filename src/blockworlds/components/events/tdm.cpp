@@ -64,6 +64,12 @@ void CTeamDeathmatchEvent::OnTick()
 	}
 	else if(GetState() == CEventComponent::EEventState::Active)
 	{
+		for (int participant : Participants()) {
+			if (PlayerHookedGroundFor(participant) > Config()->m_SvGroundHookPenaltyDelay) {
+				GameServer()->GetPlayerChar(participant)->Freeze(Config()->m_SvGroundHookPenalty);
+			}
+		}
+
 		if(Server()->Tick() % Config()->m_SvTDMBroadcastRate == 0)
 		{
 			int timeLeftSeconds = (int)((m_ActiveEndTick - Server()->Tick()) / Server()->TickSpeed());
