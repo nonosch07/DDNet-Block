@@ -2319,7 +2319,7 @@ void CGameContext::ConTimeCP(IConsole::IResult *pResult, void *pUserData)
 	pSelf->Score()->LoadPlayerTimeCp(pResult->m_ClientId, pName);
 }
 
-//Blockworlds
+// Blockworlds
 
 int CGameContext::GetTilePositions(int TileID, CGameContext *pSelf, std::vector<vec2> &result)
 { // use a vector reference as a parameter
