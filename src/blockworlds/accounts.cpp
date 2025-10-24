@@ -376,7 +376,7 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 	int AccountId = pSqlServer->GetInt(1);
 	char aStored[256];
 	pSqlServer->GetString(2, aStored, sizeof(aStored));
-	dbg_msg("login", "Fetched stored hash len=%d sample='%.32s...'", (int)str_length(aStored), aStored);
+	//	dbg_msg("login", "Fetched stored hash len=%d sample='%.32s...'", (int)str_length(aStored), aStored);
 	if(!pw_hash_verify(pRequestData->m_aPassword, aStored))
 	{
 		pResult->SetVariant(CAccountResult::LOGIN_WRONG_PASS);
@@ -508,7 +508,7 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 			pResult->m_Success = false;
 			return true;
 		}
-		dbg_msg("set_account_busy", "Successfully set busy for account %d on server %s", AccountId, g_Config.m_SvServerId);
+		// dbg_msg("set_account_busy", "Successfully set busy for account %d on server %s", AccountId, g_Config.m_SvServerId);
 	}
 
 	return false;
@@ -646,25 +646,25 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 		str_copy(pResult->m_aaMessages[0], "Internal password hashing error.", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
-	dbg_msg("register", "Generated hash length=%d sample='%.32s...'", (int)str_length(aHashedPassword), aHashedPassword);
+	// dbg_msg("register", "Generated hash length=%d sample='%.32s...'", (int)str_length(aHashedPassword), aHashedPassword);
 
-	dbg_msg("register", "BEGIN transaction");
+	// dbg_msg("register", "BEGIN transaction");
 	int txAffected = 0;
 	if(pSqlServer->PrepareStatement("BEGIN;", pError, ErrorSize) || pSqlServer->ExecuteUpdate(&txAffected, pError, ErrorSize))
 	{
-		dbg_msg("register", "BEGIN failed: %s", pError);
+		//	dbg_msg("register", "BEGIN failed: %s", pError);
 		return true;
 	}
 
 	str_format(aBuf, sizeof(aBuf), "INSERT INTO %s (name, password) VALUES (?, ?);", TBL_ACCOUNTS_CORE);
-	dbg_msg("register", "Preparing core insert");
+	// dbg_msg("register", "Preparing core insert");
 	bool Failed = false; // track failure instead of goto to keep initialization order safe
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		Failed = true;
 	pSqlServer->BindString(1, pData->m_aUsername);
 	pSqlServer->BindString(2, aHashedPassword);
 
-	dbg_msg("register", "Executing core insert for '%s'", pData->m_aUsername);
+	// dbg_msg("register", "Executing core insert for '%s'", pData->m_aUsername);
 	if(!Failed && pSqlServer->ExecuteUpdate(&txAffected, pError, ErrorSize))
 	{
 		if(pError && str_find_nocase(pError, "duplicate"))
@@ -681,7 +681,7 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 	int NewId = 0;
 	if(!Failed)
 	{
-		dbg_msg("register", "Inserted core row");
+		// dbg_msg("register", "Inserted core row");
 
 		if(pSqlServer->PrepareStatement("SELECT LAST_INSERT_ID();", pError, ErrorSize))
 			Failed = true;
@@ -691,9 +691,9 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 		if(!Failed)
 		{
 			NewId = pSqlServer->GetInt(1);
-			dbg_msg("register", "Fetched new id = %d", NewId);
+			//	dbg_msg("register", "Fetched new id = %d", NewId);
 
-			dbg_msg("register", "Creating dependent rows for id=%d", NewId);
+			//	dbg_msg("register", "Creating dependent rows for id=%d", NewId);
 			str_format(aBuf, sizeof(aBuf), "INSERT INTO %s (account_id) VALUES (?);", TBL_ACCOUNTS_PROGRESS);
 			if(!Failed && pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 				Failed = true;
@@ -724,7 +724,7 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 		}
 		if(!Failed && (pSqlServer->PrepareStatement("COMMIT;", pError, ErrorSize) || pSqlServer->ExecuteUpdate(&txAffected, pError, ErrorSize)))
 		{
-			dbg_msg("register", "COMMIT failed: %s", pError);
+			//	dbg_msg("register", "COMMIT failed: %s", pError);
 			Failed = true;
 		}
 	}
@@ -1053,7 +1053,7 @@ bool CAccounts::ShowTopLevelThread(IDbConnection *pSqlServer, const ISqlData *pG
 
 		str_format(aBuf, sizeof(aBuf), "[%d] %s : %d", Line, aLastName, Level);
 		str_copy(pResult->m_aaMessages[Line], aBuf, sizeof(pResult->m_aaMessages[Line]));
-		dbg_msg("top_level", "Retrieved: %s", aBuf);
+		// dbg_msg("top_level", "Retrieved: %s", aBuf);
 		Line++;
 
 		if(Line >= CAccountResult::MAX_MESSAGES)
@@ -1130,7 +1130,7 @@ bool CAccounts::ShowTopBlockpointsThread(IDbConnection *pSqlServer, const ISqlDa
 
 		str_format(aBuf, sizeof(aBuf), "[%d] %s - %d", Line, aLastName, Blockpoints);
 		str_copy(pResult->m_aaMessages[Line], aBuf, sizeof(pResult->m_aaMessages[Line]));
-		dbg_msg("top_blockpoints", "Retrieved: %s", aBuf);
+		//	dbg_msg("top_blockpoints", "Retrieved: %s", aBuf);
 		Line++;
 
 		if(Line >= CAccountResult::MAX_MESSAGES)
@@ -1207,7 +1207,7 @@ bool CAccounts::ShowTopKillStreaksThread(IDbConnection *pSqlServer, const ISqlDa
 
 		str_format(aBuf, sizeof(aBuf), "[%d] %s : %d", Line, aLastName, Blockpoints);
 		str_copy(pResult->m_aaMessages[Line], aBuf, sizeof(pResult->m_aaMessages[Line]));
-		dbg_msg("top_killstreak", "Retrieved: %s", aBuf);
+		//	dbg_msg("top_killstreak", "Retrieved: %s", aBuf);
 		Line++;
 
 		if(Line >= CAccountResult::MAX_MESSAGES)

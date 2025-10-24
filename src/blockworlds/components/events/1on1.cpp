@@ -369,7 +369,7 @@ void COneOnOneEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 	if(ClientId < 0)
 		return;
 
-	if (ClientId != m_Player1ID && ClientId != m_Player2ID)
+	if(ClientId != m_Player1ID && ClientId != m_Player2ID)
 		return;
 	// don't award points on spawn; scoring is handled on death
 
@@ -445,7 +445,7 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 	if(GetState() != CEventComponent::EEventState::Active)
 		return;
 
-	if (ClientId != m_Player1ID && ClientId != m_Player2ID)
+	if(ClientId != m_Player1ID && ClientId != m_Player2ID)
 		return;
 
 	if(m_DrawRestartInProgress)
