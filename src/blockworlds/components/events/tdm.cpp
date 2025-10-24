@@ -215,6 +215,7 @@ void CTeamDeathmatchEvent::StartEvent()
 
 	for(const auto &ClientId : m_Participants)
 	{
+		SaveWeapons(ClientId);
 		SavePosition(ClientId);
 	}
 
@@ -425,6 +426,7 @@ void CTeamDeathmatchEvent::FinishEvent()
 	for(const auto ClientId : SavedClientIds)
 	{
 		LoadPosition(ClientId);
+		LoadWeapons(ClientId);
 	}
 
 	m_Participants.clear();

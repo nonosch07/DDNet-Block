@@ -3,11 +3,14 @@
 
 #include <engine/shared/protocol.h>
 
+#include <game/gamecore.h>
+
 #include <blockworlds/components/core/component.h>
 
 #include <functional>
 #include <map>
 #include <optional>
+
 
 class CEventComponent : public CComponent
 {
@@ -31,6 +34,7 @@ protected:
 	void SetState(EEventState NewState);
 
 	std::map<int, class CSaveTee *> m_pSavedPlayers;
+	std::map<int, CCharacterCore::WeaponStat> m_SavedWeapons;
 
 	std::vector<int> m_Candidates;
 	std::vector<int> m_Participants;
@@ -78,6 +82,9 @@ public:
 protected:
 	void SavePosition(int ClientId);
 	void LoadPosition(int ClientId);
+
+	void SaveWeapons(int ClientId);
+	void LoadWeapons(int ClientId);
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_EVENT_H

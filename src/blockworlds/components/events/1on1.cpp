@@ -91,6 +91,8 @@ void COneOnOneEvent::StartEvent()
 	}
 
 	// save positions & teeinfos
+	SaveWeapons(m_Player1ID);
+	SaveWeapons(m_Player2ID);
 	SavePosition(m_Player1ID);
 	SavePosition(m_Player2ID);
 
@@ -200,6 +202,7 @@ void COneOnOneEvent::OnTick()
 		{
 			pController->Teams().SetForceCharacterTeam(Cid, TEAM_FLOCK);
 			LoadPosition(Cid);
+			LoadWeapons(Cid);
 			if(auto p = GameServer()->GetPlayer(Cid))
 				p->m_allowDeath = true;
 		}
