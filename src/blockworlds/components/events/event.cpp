@@ -45,8 +45,15 @@ void CEventComponent::LoadPosition(int ClientId)
 
 	if(it != m_pSavedPlayers.end())
 	{
+		if(!pPlayer)
+		{
+			delete it->second;
+			m_pSavedPlayers.erase(it);
+			return;
+		}
+
 		CCharacter *pChar = GameServer()->GetPlayerChar(ClientId);
-		if(!pChar && pPlayer)
+		if(!pChar)
 		{
 			pChar = pPlayer->ForceSpawn(vec2(0, 0), false);
 		}
@@ -55,17 +62,21 @@ void CEventComponent::LoadPosition(int ClientId)
 		{
 			it->second->Load(pChar, TEAM_FLOCK, false);
 			pChar->ResetVelocity();
-			// free saved tee and erase entry
-			delete it->second;
-			m_pSavedPlayers.erase(it);
 		}
+
+		// free saved tee and erase entry regardless of success to avoid leaks
+		delete it->second;
+		m_pSavedPlayers.erase(it);
 		return;
 	}
 
-	CCharacter *pChar = GameServer()->GetPlayerChar(ClientId);
-	if(pChar && pChar->IsAlive())
+	if(pPlayer)
 	{
-		pChar->Die(-1, WEAPON_WORLD);
+		CCharacter *pChar = GameServer()->GetPlayerChar(ClientId);
+		if(pChar && pChar->IsAlive())
+		{
+			pChar->Die(-1, WEAPON_WORLD);
+		}
 	}
 }
 const char *CEventComponent::GetStateName() const

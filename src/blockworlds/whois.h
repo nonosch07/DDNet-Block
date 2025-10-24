@@ -64,6 +64,8 @@ struct CSqlWhoIsPurge : ISqlData
 	int m_RetentionMonths{0};
 };
 
+class CWhoisWorker; // internal worker forward
+
 class CWhoIs
 {
 public:
@@ -75,7 +77,6 @@ public:
 	void SnapshotTick(); // periodically snapshot all connected players
 
 	// commands
-	void CmdWhois(int RequesterId, int Mode, int Cutoff, int TargetClientId, std::shared_ptr<CWhoIsResult> pRes = nullptr);
 	void CmdWhoisStr(int RequesterId, int Mode, int Cutoff, const char *pSearch, std::shared_ptr<CWhoIsResult> pRes = nullptr);
 
 	// manual purge
@@ -91,13 +92,11 @@ private:
 	bool GetClientIdentity(int ClientId, char *pOutIp, int OutIpSize, char *pOutName, int OutNameSize, int &OutAccId, char *pOutAccName, int OutAccNameSize);
 	static void NormalizeIpNoPort(char *pIp);
 
-	static bool ThreadLog(IDbConnection *pSql, const ISqlData *pData, Write w, char *pError, int ErrorSize);
-	static bool ThreadQuery(IDbConnection *pSql, const ISqlData *pData, char *pError, int ErrorSize);
-	static bool ThreadPurge(IDbConnection *pSql, const ISqlData *pData, Write w, char *pError, int ErrorSize);
-
 private:
 	CGameContext *m_pGameServer{};
-	CDbConnectionPool *m_pPool{};
+	CDbConnectionPool *m_pPool{}; // unused for whois, kept for ctor compatibility
+	std::unique_ptr<CWhoisWorker> m_pWorker; // dedicated SQLite worker
+	char m_aDbPath[IO_MAX_PATH_LENGTH]{}; // absolute path to whois.sqlite near binary
 
 	// last snapshot tick per client
 	int64_t m_aLastSnapshotTick[MAX_CLIENTS]{};

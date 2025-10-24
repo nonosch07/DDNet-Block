@@ -1539,7 +1539,7 @@ void CPlayer::BWProcessAdminCommandResult(CAdminCommandResult &Result)
 
 void CPlayer::OnPlayerLogin()
 {
-	KillCharacter();
+	// KillCharacter(); - no need to kill since we allow using /login only at spawn
 	GameServer()->SendChatTarget(m_ClientId, "Login successfully");
 
 	GameServer()->ClearVotes(GetCid());

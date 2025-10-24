@@ -67,11 +67,6 @@ bool CBlockTracker::Blocked(int ClientID, int BlockerID)
 		DebugMsg(BlockerID, "No EXP: you were inactive (no recent input)");
 		return false;
 	}
-	if(!PassedMovementCheck(ClientID))
-	{
-		DebugMsg(BlockerID, "No EXP: victim hasn't moved far from spawn");
-		return false;
-	}
 	if(!PassedSameVictimLimit(ClientID, BlockerID, NowTick))
 	{
 		DebugMsg(BlockerID, "No EXP: repeated kills on same victim (limit)");
@@ -284,18 +279,6 @@ bool CBlockTracker::PassedRecentActionChecks(int VictimID, int KillerID) const
 	if(g_Config.m_SvExpKillerRecentActionSec > 0 && (Tick - pKiller->m_LastActionTick) > g_Config.m_SvExpKillerRecentActionSec * TickSpeed)
 		return false;
 	return true;
-}
-
-bool CBlockTracker::PassedMovementCheck(int VictimID) const
-{
-	if(g_Config.m_SvExpMinSpawnMoveDist <= 0)
-		return true;
-	const STrackedPlayer &TP = m_aTrackedPlayers[VictimID];
-	CCharacter *pChr = m_pGameContext->GetPlayerChar(VictimID);
-	if(!pChr)
-		return false;
-	float Dist = distance(TP.m_SpawnPos, pChr->m_Pos);
-	return Dist >= g_Config.m_SvExpMinSpawnMoveDist;
 }
 
 bool CBlockTracker::PassedSameVictimLimit(int VictimID, int KillerID, int64_t NowTick)

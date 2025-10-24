@@ -151,7 +151,7 @@ void CosmeticsVoteManager::EnsureCategoriesInitialized()
 		AddCategory({"Knockout Effects", CCosmeticsHandler::NUM_KNOCKOUTS, CCosmeticsHandler::ms_KnockoutNames, &CPlayer::GetEffectiveKnockouts, &CPlayer::GetKnockout});
 
 		static const char *s_VipSpecialNames[] = {"Ball", "Crown", "Epic Circle", "Halo"};
-		AddCategory({"VIP Features", 5, s_VipSpecialNames, &CPlayer::GetPlayerSpecials, &CPlayer::GetCurrentSpecial});
+		AddCategory({"VIP Items", 4, s_VipSpecialNames, &CPlayer::GetPlayerSpecials, &CPlayer::GetCurrentSpecial});
 		m_CategoriesInitialized = true;
 	}
 }
@@ -227,7 +227,7 @@ void CosmeticsVoteManager::SendOptions(CPlayer *pPlayer, int ClientID, IServer *
 					if(pGameContext->Cosmetics()->HasKnockoutEffect(pPlayer->GetCid(), i))
 						isOwned = true;
 				}
-				else if(header == "VIP Features")
+				else if(header == "VIP Items")
 				{
 					if(pGameContext->Cosmetics()->HasSpecial(pPlayer->GetCid(), i))
 						isOwned = true;
@@ -373,7 +373,7 @@ bool CosmeticsVoteManager::HandleVote(CPlayer *pPlayer, const std::string &voteI
 				toggled = pGameContext->Cosmetics()->ToggleGundesign(ClientId, Name.c_str());
 			else if(headerStr == "Knockout Effects")
 				toggled = pGameContext->Cosmetics()->ToggleKnockout(ClientId, Name.c_str());
-			else if(headerStr == "VIP Features")
+			else if(headerStr == "VIP Items")
 				toggled = pGameContext->Cosmetics()->ToggleSpecial(ClientId, Name.c_str());
 			else
 				toggled = pGameContext->Cosmetics()->ToggleGundesign(ClientId, Name.c_str()) || pGameContext->Cosmetics()->ToggleKnockout(ClientId, Name.c_str()) || pGameContext->Cosmetics()->ToggleSkinmani(ClientId, Name.c_str());

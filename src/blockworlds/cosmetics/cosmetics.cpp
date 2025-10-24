@@ -714,16 +714,16 @@ void CCosmeticsHandler::SnapSkinmaniRaw(int64_t Tick, CNetObj_ClientInfo *pClien
 	}
 	else if(Effect == SKINMANI_VIP_HOOK_RAINBOW)
 	{
-		float base = 150.0f;
-		if(ClientID >= 0 && ClientID < MAX_CLIENTS && GameServer()->GetPlayerChar(ClientID) && GameServer()->GetPlayerChar(ClientID)->IsHookRainbowActive())
-			base *= GameServer()->GetPlayerChar(ClientID)->GetHookRainbowDivider();
+		// float base = 150.0f;
+		// if(ClientID >= 0 && ClientID < MAX_CLIENTS && GameServer()->GetPlayerChar(ClientID) && GameServer()->GetPlayerChar(ClientID)->IsHookRainbowActive())
+		// 	base *= GameServer()->GetPlayerChar(ClientID)->GetHookRainbowDivider();
 
-		HSLBody.h = (sinf(TickDef / base + (float)ClientID * 0.1f) + 1.0f) / 2.0f;
-		HSLBody.s = 1.0f;
-		HSLBody.l = 0.5f;
-		pClientInfo->m_ColorBody = HslToCc(HSLBody);
-		pClientInfo->m_ColorFeet = HslToCc(HSLBody);
-		pClientInfo->m_UseCustomColor = 1;
+		// HSLBody.h = (sinf(TickDef / base + (float)ClientID * 0.1f) + 1.0f) / 2.0f;
+		// HSLBody.s = 1.0f;
+		// HSLBody.l = 0.5f;
+		// pClientInfo->m_ColorBody = HslToCc(HSLBody);
+		// pClientInfo->m_ColorFeet = HslToCc(HSLBody);
+		// pClientInfo->m_UseCustomColor = 1;
 	}
 	else if(Effect == SKINMANI_VIP_ELECTRIC)
 	{

@@ -49,13 +49,17 @@ private:
 	// draw handling helpers
 	int m_Player1DeathTick = -1;
 	int m_Player2DeathTick = -1;
-	int m_LastAwardedPlayer = 0; // 1 or 2 (who received the last point due to a death), 0 = none
+	int m_LastAwardedPlayer = 0; // kept for telemetry; no longer used for draw reverts
 	int m_LastAwardedTick = -1;
 	bool m_DrawRestartInProgress = false; // guard to skip scoring during forced deaths
 	bool m_DrawRestartPending = false; // (future use if we defer restarts)
 	int m_RoundStartTick = -1; // tick when curent round (initial or after draw) started
 	int m_BothFrozenSinceTick = -1; // tick when both players became frozen simultanoeusly
 	void RestartRoundAfterDraw();
+
+	// deferred scoring to avoid wrong awards on same-tick or near-tick dual deaths
+	int m_PendingAwardTo = 0; // 0 none, 1 award to P1, 2 award to P2
+	int m_PendingAwardTick = -1; // tick when pending award was set
 
 	// perma-freeze tracking (in-freeze tiles) to evaluate draw-at-death consistently
 	bool m_P1InFreezeTile = false;
@@ -66,6 +70,9 @@ private:
 	// finish handling
 	bool m_DeferFinishRestore = false;
 	int m_RestoreAtTick = -1;
+
+	// force winner handling (e.g., ragequit): if set, FinishEvent picks this winner
+	int m_ForcedWinnerCid = -1;
 
 	// helpers
 	bool CollectEscrow();

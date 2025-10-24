@@ -60,7 +60,6 @@ class CBlockTracker
 	int GetActiveNonAfkPlayers() const;
 	bool IsPlayerActive(int ClientID) const;
 	bool PassedRecentActionChecks(int VictimID, int KillerID) const;
-	bool PassedMovementCheck(int VictimID) const;
 	bool PassedSameVictimLimit(int VictimID, int KillerID, int64_t NowTick);
 	float PopulationScale() const;
 	float UniqueVictimRatio(int KillerID) const;

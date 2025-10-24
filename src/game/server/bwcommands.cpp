@@ -2136,7 +2136,7 @@ void CGameContext::Con1on1Accept(IConsole::IResult *pResult, void *pUserData)
 			return;
 		}
 
-		pSelf->SendChatTarget(pResult->m_ClientId, "No invitation to accept was found (or use /accept <playerName>). Try checking your messages.");
+		pSelf->SendChatTarget(pResult->m_ClientId, "No invitation to accept was found (try to use /accept <playerName>).");
 		return;
 	}
 	pSelf->SendChatTarget(pResult->m_ClientId, "Request subsystem is not available.");

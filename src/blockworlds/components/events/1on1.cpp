@@ -56,6 +56,9 @@ void COneOnOneEvent::StartEvent()
 	m_Player2DeathTick = -1;
 	m_LastAwardedPlayer = 0;
 	m_LastAwardedTick = -1;
+	m_ForcedWinnerCid = -1;
+	m_PendingAwardTo = 0;
+	m_PendingAwardTick = -1;
 	m_RoundStartTick = Server()->Tick();
 	m_BothFrozenSinceTick = -1;
 	m_P1InFreezeTile = false;
@@ -184,9 +187,22 @@ void COneOnOneEvent::OnTick()
 			pController->Teams().SetTeamLock(m_Team, false);
 		}
 
-		// restore positions
-		LoadPosition(m_Player1ID);
-		LoadPosition(m_Player2ID);
+		// clear forced event team for both participants so reconnect uses normal team
+		pController->Teams().SetForceCharacterTeam(m_Player1ID, TEAM_FLOCK);
+		pController->Teams().SetForceCharacterTeam(m_Player2ID, TEAM_FLOCK);
+
+		// restore positions for all players we saved (avoid fallback kill for non-saved)
+		std::vector<int> aSaved;
+		aSaved.reserve(m_pSavedPlayers.size());
+		for(const auto &kv : m_pSavedPlayers)
+			aSaved.push_back(kv.first);
+		for(const int Cid : aSaved)
+		{
+			pController->Teams().SetForceCharacterTeam(Cid, TEAM_FLOCK);
+			LoadPosition(Cid);
+			if(auto p = GameServer()->GetPlayer(Cid))
+				p->m_allowDeath = true;
+		}
 
 		m_DeferFinishRestore = false;
 		SetState(EEventState::Finished);
@@ -274,6 +290,73 @@ void COneOnOneEvent::OnTick()
 	else
 	{
 		m_BothFrozenSinceTick = -1; // reset if condition breaks
+	}
+
+	// resolve any pending award after waiting out the draw window
+	if(GetState() == CEventComponent::EEventState::Active && m_PendingAwardTo != 0)
+	{
+		int tickTolerance = Config()->m_Sv1on1DrawDeathTickTolerance;
+		int extendedWindow = Config()->m_Sv1on1DrawDeathExtendedWindow;
+		int window = extendedWindow > tickTolerance ? extendedWindow : tickTolerance;
+
+		bool haveBothDeaths = (m_Player1DeathTick != -1 && m_Player2DeathTick != -1);
+		if(haveBothDeaths && absolute(m_Player1DeathTick - m_Player2DeathTick) <= extendedWindow)
+		{
+			// dual-death draw: clear pending and restart round
+			GameServer()->SendChatTarget(m_Player1ID, "[1on1] Draw! Round restarting...");
+			GameServer()->SendChatTarget(m_Player2ID, "[1on1] Draw! Round restarting...");
+			char aDrawBuf[256];
+			str_format(aDrawBuf, sizeof(aDrawBuf), "%s: %d\n%s: %d\nRound draw! restarting...", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2);
+			GameServer()->SendBroadcast(aDrawBuf, m_Player1ID, false);
+			GameServer()->SendBroadcast(aDrawBuf, m_Player2ID, false);
+			m_PendingAwardTo = 0;
+			m_PendingAwardTick = -1;
+			RestartRoundAfterDraw();
+			return;
+		}
+
+		if(m_CurrentTick - m_PendingAwardTick > window)
+		{
+			// no draw within window; finalize the award now
+			if(m_PendingAwardTo == 1)
+			{
+				m_Score1 += 1;
+				m_LastAwardedPlayer = 1;
+				m_LastAwardedTick = m_CurrentTick;
+				if(auto p = GameServer()->GetPlayer(m_Player1ID))
+					p->m_Score = m_Score1;
+			}
+			else if(m_PendingAwardTo == 2)
+			{
+				m_Score2 += 1;
+				m_LastAwardedPlayer = 2;
+				m_LastAwardedTick = m_CurrentTick;
+				if(auto p = GameServer()->GetPlayer(m_Player2ID))
+					p->m_Score = m_Score2;
+			}
+
+			// broadcast updated score with padding
+			static constexpr const char *s_padding = "                                                                                     "
+									 "                                                                                     "
+									 "                                                                                     ";
+
+			char aBuf[256];
+			str_format(aBuf, sizeof(aBuf), "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);
+			GameServer()->SendBroadcast(aBuf, m_Player1ID, false);
+			GameServer()->SendBroadcast(aBuf, m_Player2ID, false);
+
+			// reset per-round markers
+			m_Player1DeathTick = -1;
+			m_Player2DeathTick = -1;
+			m_PendingAwardTo = 0;
+			m_PendingAwardTick = -1;
+			m_RoundStartTick = m_CurrentTick;
+		}
+	}
+
+	if(GetState() == CEventComponent::EEventState::Active && CheckEndCondition())
+	{
+		FinishEvent();
 	}
 }
 
@@ -377,10 +460,10 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 	bool p2InFreezeTileNow = pChr2 ? pChr2->Core()->m_IsInFreeze : m_P2InFreezeTile;
 	if(p1InFreezeTileNow && p2InFreezeTileNow)
 	{
-		// undo any implicit scoring and restart round as draw
-		if(m_Score1 > 0 || m_Score2 > 0)
-		{
-		}
+		// Draw: no scoring, ensure no pending award remains
+		m_PendingAwardTo = 0;
+		m_PendingAwardTick = -1;
+
 		GameServer()->SendChatTarget(m_Player1ID, "[1on1] Draw! (both in freeze) Round restarting...");
 		GameServer()->SendChatTarget(m_Player2ID, "[1on1] Draw! (both in freeze) Round restarting...");
 		char aDrawBuf[256];
@@ -388,35 +471,6 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 		GameServer()->SendBroadcast(aDrawBuf, m_Player1ID, false);
 		GameServer()->SendBroadcast(aDrawBuf, m_Player2ID, false);
 		RestartRoundAfterDraw();
-		return;
-	}
-
-	if(ClientId == m_Player1ID)
-	{
-		m_Score2 += 1;
-		m_LastAwardedPlayer = 2;
-		m_LastAwardedTick = Server()->Tick();
-		dbg_msg("1on1", "CharacterDeath: %s died -> %s awarded 1 point. Scores now %d-%d", pVictimName, Server()->ClientName(m_Player2ID), m_Score1, m_Score2);
-
-		if(auto p = GameServer()->GetPlayer(m_Player2ID))
-		{
-			p->m_Score = m_Score2;
-		}
-	}
-	else if(ClientId == m_Player2ID)
-	{
-		m_Score1 += 1;
-		m_LastAwardedPlayer = 1;
-		m_LastAwardedTick = Server()->Tick();
-		dbg_msg("1on1", "CharacterDeath: %s died -> %s awarded 1 point. Scores now %d-%d", pVictimName, Server()->ClientName(m_Player1ID), m_Score1, m_Score2);
-
-		if(auto p = GameServer()->GetPlayer(m_Player1ID))
-		{
-			p->m_Score = m_Score1;
-		}
-	}
-	else
-	{
 		return;
 	}
 
@@ -440,18 +494,9 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 
 	if(DrawDetected)
 	{
-		if(m_Score1 > 0)
-		{
-			m_Score1 -= 1;
-			if(auto p = GameServer()->GetPlayer(m_Player1ID))
-				p->m_Score = m_Score1;
-		}
-		if(m_Score2 > 0)
-		{
-			m_Score2 -= 1;
-			if(auto p = GameServer()->GetPlayer(m_Player2ID))
-				p->m_Score = m_Score2;
-		}
+		// Draw: clear any pending award; do not change scores
+		m_PendingAwardTo = 0;
+		m_PendingAwardTick = -1;
 
 		GameServer()->SendChatTarget(m_Player1ID, "[1on1] Draw! Round restarting...");
 		GameServer()->SendChatTarget(m_Player2ID, "[1on1] Draw! Round restarting...");
@@ -463,19 +508,19 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 		RestartRoundAfterDraw();
 		return;
 	}
-
-	// broadcast updated score with padding
-	static constexpr const char *s_padding = "                                                                                     "
-						 "                                                                                     "
-						 "                                                                                     ";
-
-	char aBuf[256];
-	str_format(aBuf, sizeof(aBuf), "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);
-	GameServer()->SendBroadcast(aBuf, m_Player1ID, false);
-	GameServer()->SendBroadcast(aBuf, m_Player2ID, false);
-
-	if(CheckEndCondition())
-		FinishEvent();
+	// no draw detected: set pending award to the opponent, to be finalized in OnTick
+	if(ClientId == m_Player1ID)
+	{
+		m_PendingAwardTo = 2;
+		m_PendingAwardTick = Server()->Tick();
+		dbg_msg("1on1", "CharacterDeath: %s died -> pending award to %s", pVictimName, Server()->ClientName(m_Player2ID));
+	}
+	else if(ClientId == m_Player2ID)
+	{
+		m_PendingAwardTo = 1;
+		m_PendingAwardTick = Server()->Tick();
+		dbg_msg("1on1", "CharacterDeath: %s died -> pending award to %s", pVictimName, Server()->ClientName(m_Player1ID));
+	}
 }
 
 bool COneOnOneEvent::CheckEndCondition()
@@ -490,6 +535,9 @@ void COneOnOneEvent::RestartRoundAfterDraw()
 	m_Player2DeathTick = -1;
 	m_LastAwardedPlayer = 0;
 	m_LastAwardedTick = -1;
+	m_PendingAwardTo = 0;
+	m_PendingAwardTick = -1;
+	m_ForcedWinnerCid = -1;
 	m_RoundStartTick = Server()->Tick();
 	m_BothFrozenSinceTick = -1;
 	m_P1InFreezeTile = false;
@@ -503,14 +551,22 @@ void COneOnOneEvent::RestartRoundAfterDraw()
 	CPlayer *p2 = GameServer()->GetPlayer(m_Player2ID);
 	if(p1)
 	{
-		p1->KillCharacter(WEAPON_WORLD, false);
-		p1->ForceSpawn(vec2(0, 0), false);
-		// restore event team
 		auto pController = (CGameControllerDDRace *)GameServer()->m_pController;
+
+		// clear forced event team for participants so they can spawn normally again
+		pController->Teams().SetForceCharacterTeam(m_Player1ID, TEAM_FLOCK);
+		pController->Teams().SetForceCharacterTeam(m_Player2ID, TEAM_FLOCK);
 		pController->Teams().SetForceCharacterTeam(m_Player1ID, m_Team);
 	}
 	if(p2)
 	{
+		// clear participants to avoid lingering "InEvent" behavior in global hooks
+		m_Participants.clear();
+		m_Player1ID = -1;
+		m_Player2ID = -1;
+		m_Team = -1;
+		m_PendingAwardTo = 0;
+		m_PendingAwardTick = -1;
 		p2->KillCharacter(WEAPON_WORLD, false);
 		p2->ForceSpawn(vec2(0, 0), false);
 		auto pController = (CGameControllerDDRace *)GameServer()->m_pController;
@@ -524,21 +580,30 @@ void COneOnOneEvent::FinishEvent()
 	// announce winner and restore players
 	CPlayer *pWinner = nullptr;
 	CPlayer *pLoser = nullptr;
-	if(m_Score1 > m_Score2)
+	int winnerCid = -1;
+	int loserCid = -1;
+	if(m_ForcedWinnerCid >= 0)
 	{
-		pWinner = GameServer()->GetPlayer(m_Player1ID);
-		pLoser = GameServer()->GetPlayer(m_Player2ID);
+		winnerCid = m_ForcedWinnerCid;
+		loserCid = (winnerCid == m_Player1ID) ? m_Player2ID : m_Player1ID;
+	}
+	else if(m_Score1 > m_Score2)
+	{
+		winnerCid = m_Player1ID;
+		loserCid = m_Player2ID;
 	}
 	else
 	{
-		pWinner = GameServer()->GetPlayer(m_Player2ID);
-		pLoser = GameServer()->GetPlayer(m_Player1ID);
+		winnerCid = m_Player2ID;
+		loserCid = m_Player1ID;
 	}
+	pWinner = GameServer()->GetPlayer(winnerCid);
+	pLoser = GameServer()->GetPlayer(loserCid);
 	if(!m_SuppressFinishBroadcast && pWinner && pLoser)
 	{
 		const char *pName1 = m_Player1ID >= 0 ? Server()->ClientName(m_Player1ID) : "<none>";
 		const char *pName2 = m_Player2ID >= 0 ? Server()->ClientName(m_Player2ID) : "<none>";
-		const char *pWinnerName = pWinner->GetCid() == m_Player1ID ? pName1 : pName2;
+		const char *pWinnerName = (winnerCid == m_Player1ID) ? pName1 : pName2;
 		char aBuf[256];
 		str_format(aBuf, sizeof(aBuf), "[1on1] - %s vs %s — %s won! (Result: %d - %d)", pName1, pName2, pWinnerName, m_Score1, m_Score2);
 		GameServer()->SendChatTarget(-1, aBuf);
@@ -558,7 +623,7 @@ void COneOnOneEvent::FinishEvent()
 	}
 
 	// safe payout via escrow
-	if(m_Wager > 0 && pWinner && pLoser)
+	if(m_Wager > 0 && pWinner)
 	{
 		PayoutWinner(pWinner, pLoser);
 	}
@@ -583,33 +648,30 @@ bool COneOnOneEvent::Leave(int ClientId)
 		const char *pLeaverName = leaver >= 0 ? Server()->ClientName(leaver) : "<unknown>";
 		const char *pOpponentName = opponent >= 0 ? Server()->ClientName(opponent) : "<unknown>";
 
-		// ifs core is tied (e.g., 0-0), consider leaver the loser: give opponent a point so FinishEvent picks them
-		if(m_Score1 == m_Score2)
-		{
-			if(opponent == m_Player1ID)
-				m_Score1 += 1;
-			else
-				m_Score2 += 1;
-		}
+		// cancel any in-flight scoring resolution; we're ending the match now
+		m_PendingAwardTo = 0;
+		m_PendingAwardTick = -1;
+		m_ForcedWinnerCid = opponent; // force winner without changing scores
 
-		static const char *s_RagequitMsgs[] = {
-			"[1on1] - %s ragequited the match vs %s! What a dramatic exit.",
-			"[1on1] - %s has abandoned the duel against %s — coward move!",
-			"[1on1] - %s disconnected mid-fight vs %s. GG, we saw nothing...",
-			"[1on1] - %s choked under pressure and fled from %s. Shame.",
-			"[1on1] - %s decided running was the best strategy against %s. Classic."};
-		const int NumMsgs = sizeof(s_RagequitMsgs) / sizeof(s_RagequitMsgs[0]);
-		int idx = (int)((Server()->Tick() + leaver) % NumMsgs);
-		char aBuf[256];
-		str_format(aBuf, sizeof(aBuf), s_RagequitMsgs[idx], pLeaverName, pOpponentName);
-		GameServer()->SendChatTarget(-1, aBuf);
+		// static const char *s_RagequitMsgs[] = {
+		// 	"[1on1] - %s ragequited the match vs %s! What a dramatic exit.",
+		// 	"[1on1] - %s has abandoned the duel against %s — coward move!",
+		// 	"[1on1] - %s disconnected mid-fight vs %s. GG, we saw nothing...",
+		// 	"[1on1] - %s choked under pressure and fled from %s. Shame.",
+		// 	"[1on1] - %s decided running was the best strategy against %s. Classic."};
+		// const int NumMsgs = sizeof(s_RagequitMsgs) / sizeof(s_RagequitMsgs[0]);
+		// int idx = (int)((Server()->Tick() + leaver) % NumMsgs);
+		// char aBuf[256];
+		// str_format(aBuf, sizeof(aBuf), s_RagequitMsgs[idx], pLeaverName, pOpponentName);
+		// GameServer()->SendChatTarget(-1, aBuf);
 
-		// make the opponent the winner immediately
+		// force the opponent as winner, but do not change the scoreline
 		m_SuppressFinishBroadcast = false;
-		if(opponent == m_Player1ID)
-			m_Score1 = std::max(m_Score2 + 1, m_Score1 + 1);
-		else
-			m_Score2 = std::max(m_Score1 + 1, m_Score2 + 1);
+
+		// proactively clear forced team to avoid spawn issues when finishing
+		auto pController = (CGameControllerDDRace *)GameServer()->m_pController;
+		pController->Teams().SetForceCharacterTeam(m_Player1ID, 0);
+		pController->Teams().SetForceCharacterTeam(m_Player2ID, 0);
 		FinishEvent();
 
 		// notify Discord about ragequit
@@ -702,9 +764,9 @@ void COneOnOneEvent::RefundEscrow()
 	m_EscrowBalance = 0;
 	m_EscrowCollected = false;
 	if(p1)
-		GameServer()->SendChatTarget(m_Player1ID, "[1on1] Escrow refunded.");
+		GameServer()->SendChatTarget(m_Player1ID, "[1on1] Pot refunded.");
 	if(p2)
-		GameServer()->SendChatTarget(m_Player2ID, "[1on1] Escrow refunded.");
+		GameServer()->SendChatTarget(m_Player2ID, "[1on1] Pot refunded.");
 }
 
 void COneOnOneEvent::PayoutWinner(CPlayer *pWinner, CPlayer *pLoser)

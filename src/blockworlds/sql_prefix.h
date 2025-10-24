@@ -13,6 +13,9 @@
 #define TBL_ACCOUNTS_BUSY BW_TBL("accounts_busy")
 #define TBL_CLANS BW_TBL("clans")
 #define TBL_WHOIS_CONNECTIONS BW_TBL("whois_connections")
+// aggregated whois tables (SQLite-local)
+#define TBL_WHOIS_AGG_NAMES_BY_IP BW_TBL("whois_names_by_ip")
+#define TBL_WHOIS_AGG_IPS_BY_NAME BW_TBL("whois_ips_by_name")
 
 #define BW_ENGINE_COLLATE " ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin"
 

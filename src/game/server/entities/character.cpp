@@ -1098,7 +1098,9 @@ void CCharacter::Die(int Killer, int Weapon, bool SendKillMsg)
 		pData->m_RecordStopTick = -1;
 	}
 
-	int ModeSpecial = GameServer()->m_pController->OnCharacterDeath(this, GameServer()->m_apPlayers[Killer], Weapon);
+	// safely resolve killer player pointer; Killer may be -1 or out of bounds (e.g., server/world/deferred deaths)
+	CPlayer *pKiller = (Killer >= 0 && Killer < MAX_CLIENTS) ? GameServer()->m_apPlayers[Killer] : nullptr;
+	int ModeSpecial = GameServer()->m_pController->OnCharacterDeath(this, pKiller, Weapon);
 
 	CPassiveZone *pPassiveZone = dynamic_cast<CPassiveZone *>(GameServer()->ZoneManager()->GetZone(ZONE_PASSIVE));
 	if(pPassiveZone)
@@ -1113,7 +1115,7 @@ void CCharacter::Die(int Killer, int Weapon, bool SendKillMsg)
 	if(!Blocked)
 	{
 		bool InEvent = false;
-		CPlayer *pKiller = GameServer()->m_apPlayers[Killer];
+		// pKiller resolved above; keep using it safely
 		CPlayer *pVictim = m_pPlayer;
 		if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
 		{

@@ -749,9 +749,8 @@ private:
 	static void ConClanNo(IConsole::IResult *pResult, void *pUserData);
 	static void ConContributors(IConsole::IResult *pResult, void *pUserData);
 
-	// Whois
-	static void ConWhois(IConsole::IResult *pResult, void *pUserData);
-	static void ConWhoisStr(IConsole::IResult *pResult, void *pUserData);
+	static void ConWhoisIp(IConsole::IResult *pResult, void *pUserData);
+	static void ConWhoisName(IConsole::IResult *pResult, void *pUserData);
 	static void ConWhoisPurge(IConsole::IResult *pResult, void *pUserData);
 
 	//Event commands

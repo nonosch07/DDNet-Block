@@ -63,6 +63,14 @@ static int CurrentUtcYyyymmdd()
 
 int CRequests::Create1on1Invite(int FromClient, int ToClient, int Wager, int ExpireSeconds)
 {
+	// disallow inviting players on the same IP address
+	if(GameServer()->Server()->IsClientsSameAddr(FromClient, ToClient))
+	{
+		if(CheckClientId(FromClient) && GameServer()->m_apPlayers[FromClient])
+			GameServer()->SendChatTarget(FromClient, "You cannot invite your dummy.");
+		return -1;
+	}
+
 	for(const auto &existing : m_Requests)
 	{
 		if(existing.m_Type == SRequest::EType::OneOnOne && existing.m_From == FromClient && existing.m_To == ToClient)
@@ -103,7 +111,7 @@ int CRequests::Create1on1Invite(int FromClient, int ToClient, int Wager, int Exp
 		if(outstanding >= MaxOutstanding)
 		{
 			char aBuf[256];
-			str_format(aBuf, sizeof(aBuf), "You already have %d outstanding 1on1 invite%s. Please wait for them to be accepted, declined or expire.", outstanding, outstanding != 1 ? "s" : "");
+			str_format(aBuf, sizeof(aBuf), "You already have %d outstanding 1on1 invite%s. Please wait.", outstanding, outstanding != 1 ? "s" : "");
 			if(CheckClientId(FromClient) && GameServer()->m_apPlayers[FromClient])
 				GameServer()->SendChatTarget(FromClient, aBuf);
 			return -1;

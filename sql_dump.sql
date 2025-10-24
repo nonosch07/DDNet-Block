@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Hôte : localhost:3306
--- Généré le : mer. 15 oct. 2025 à 21:55
+-- Généré le : ven. 24 oct. 2025 à 15:41
 -- Version du serveur : 11.8.3-MariaDB-0+deb13u1 from Debian
 -- Version de PHP : 8.4.11
 
@@ -115,21 +115,6 @@ CREATE TABLE `Blockworlds_clans` (
   `experience` int(11) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
--- --------------------------------------------------------
-
---
--- Structure de la table `Blockworlds_whois_connections`
---
-
-CREATE TABLE `Blockworlds_whois_connections` (
-  `id` bigint(20) NOT NULL,
-  `ip` varchar(45) NOT NULL,
-  `name` varchar(16) NOT NULL,
-  `account_id` int(11) NOT NULL DEFAULT 0,
-  `source` enum('join','snapshot','leave') NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
 --
 -- Index pour les tables déchargées
 --
@@ -180,18 +165,6 @@ ALTER TABLE `Blockworlds_clans`
   ADD UNIQUE KEY `ux_clans_name` (`name`);
 
 --
--- Index pour la table `Blockworlds_whois_connections`
---
-ALTER TABLE `Blockworlds_whois_connections`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `whois_idx_ip` (`ip`),
-  ADD KEY `whois_idx_name` (`name`),
-  ADD KEY `whois_idx_ip_name` (`ip`,`name`),
-  ADD KEY `whois_idx_name_ip` (`name`,`ip`),
-  ADD KEY `whois_idx_accid` (`account_id`),
-  ADD KEY `whois_idx_created_at` (`created_at`);
-
---
 -- AUTO_INCREMENT pour les tables déchargées
 --
 
@@ -199,19 +172,13 @@ ALTER TABLE `Blockworlds_whois_connections`
 -- AUTO_INCREMENT pour la table `Blockworlds_accounts_core`
 --
 ALTER TABLE `Blockworlds_accounts_core`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=630;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT pour la table `Blockworlds_clans`
 --
 ALTER TABLE `Blockworlds_clans`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
-
---
--- AUTO_INCREMENT pour la table `Blockworlds_whois_connections`
---
-ALTER TABLE `Blockworlds_whois_connections`
-  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- Contraintes pour les tables déchargées
