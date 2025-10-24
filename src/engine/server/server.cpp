@@ -1326,8 +1326,6 @@ void CServer::SendConnectionReady(int ClientId)
 
 void CServer::SendRconLine(int ClientId, const char *pLine)
 {
-	if(str_startswith(pLine, "/") || str_startswith(pLine, "Say ") || str_startswith(pLine, "say ") || str_startswith(pLine, "chat ") || str_startswith(pLine, "Chat "))
-		return;
 	CMsgPacker Msg(NETMSG_RCON_LINE, true);
 	Msg.AddString(pLine, 512);
 	SendMsg(&Msg, MSGFLAG_VITAL, ClientId);

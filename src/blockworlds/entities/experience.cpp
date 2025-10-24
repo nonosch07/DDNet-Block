@@ -44,7 +44,13 @@ void CExperience::Tick()
 		GameServer()->CreateSound(m_Pos, SOUND_PICKUP_HEALTH, -1);
 		CPlayer *pPlayer = pChr->GetPlayer();
 
-		if(pPlayer->IsLoggedIn())
+		IZone *pNoExpZone = nullptr;
+		if(GameServer()->ZoneManager())
+			pNoExpZone = GameServer()->ZoneManager()->GetZone(ZONE_NOEXP);
+		bool InNoExpZone = pNoExpZone && pNoExpZone->IsInZone(pChr->m_Pos);
+
+
+		if(pPlayer->IsLoggedIn() && !InNoExpZone)
 		{
 			int Amount = m_Amount; // dynamic amount
 			pPlayer->AddPlayerExp(Amount);

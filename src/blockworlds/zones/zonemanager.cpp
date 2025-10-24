@@ -8,6 +8,7 @@
 
 #include "nocollisionzone.h"
 #include "passivezone.h"
+#include "noexpzone.h"
 #include "shoppointzone.h"
 #include "shopzone.h"
 #include "spawnzone.h"
@@ -115,57 +116,59 @@ void CZoneManager::Init(CGameContext *pGameServer)
 					else if(!m_aZones[ZONE_SPAWN] && str_comp_nocase(aName, "spawn") == 0)
 					{
 						CSpawnZone *pSpawnZone = new CSpawnZone(GameServer());
-						pSpawnZone->Init(pQuads);
-
-						m_aZones[ZONE_SPAWN] = static_cast<IZone *>(pSpawnZone);
-
-						dbg_msg("zones", "loaded spawn zone with %d quads", pQuads->m_NumQuads);
-					}
-					else if(str_comp_nocase_num(aName, "shop", 4) == 0)
-					{
-						// aName formats supported:
-						// shop
-						// shop_<category_number>[_<item_number>]
-						// shop_<category_name>[_<item_number>]
-						int Category = CShop::CATEGORY_SKINMANI;
-						int Item = 0;
-						char aBuf[64];
-						str_copy(aBuf, aName, sizeof(aBuf));
-						// tokenize by '_'
-						char *tokens[4] = {0};
-						int t = 0;
-						char *tok = strtok(aBuf, "_");
-						while(tok && t < 4)
+						else if(str_comp_nocase_num(aName, "shop", 4) == 0)
 						{
-							tokens[t++] = tok;
-							tok = strtok(nullptr, "_");
-						}
-						// tokens[0] == "shop"
-						if(t >= 2 && tokens[1])
-						{
-							if(isdigit(tokens[1][0]))
+							int Category = CShop::CATEGORY_SKINMANI;
+							int Item = 0;
+							char aBuf[64];
+							str_copy(aBuf, aName, sizeof(aBuf));
+							char *tokens[4] = {0};
+							int t = 0;
+							char *tok = strtok(aBuf, "_");
+							while(tok && t < 4)
 							{
-								Category = atoi(tokens[1]);
+								tokens[t++] = tok;
+								tok = strtok(nullptr, "_");
 							}
-							else
+
+							// tokens[0] == "shop"
+							if(t >= 2 && tokens[1])
 							{
-								if(str_comp_nocase(tokens[1], "skin") == 0 || str_comp_nocase(tokens[1], "skinmani") == 0)
-									Category = CShop::CATEGORY_SKINMANI;
-								else if(str_comp_nocase(tokens[1], "gundesign") == 0 || str_comp_nocase(tokens[1], "gun") == 0)
-									Category = CShop::CATEGORY_GUNDESIGN;
-								else if(str_comp_nocase(tokens[1], "knockout") == 0 || str_comp_nocase(tokens[1], "ko") == 0)
-									Category = CShop::CATEGORY_KNOCKOUT;
-								else
+								if(isdigit(tokens[1][0]))
 								{
 									Category = atoi(tokens[1]);
 								}
+								else
+								{
+									if(str_comp_nocase(tokens[1], "skin") == 0 || str_comp_nocase(tokens[1], "skinmani") == 0)
+										Category = CShop::CATEGORY_SKINMANI;
+									else if(str_comp_nocase(tokens[1], "gundesign") == 0 || str_comp_nocase(tokens[1], "gun") == 0)
+										Category = CShop::CATEGORY_GUNDESIGN;
+									else if(str_comp_nocase(tokens[1], "knockout") == 0 || str_comp_nocase(tokens[1], "ko") == 0)
+										Category = CShop::CATEGORY_KNOCKOUT;
+									else if(str_comp_nocase(tokens[1], "weaponkit") == 0)
+									{
+										Category = CShop::CATEGORY_UTILITY;
+										Item = 0; // weaponkit item
+									}
+									else if(str_comp_nocase(tokens[1], "page") == 0)
+									{
+										Category = CShop::CATEGORY_UTILITY;
+										Item = 1; // deathnote page item
+									}
+									else
+									{
+										Category = atoi(tokens[1]);
+									}
+								}
 							}
+							if(t >= 3 && tokens[2] && isdigit(tokens[2][0]))
+								Item = atoi(tokens[2]);
+							CShopZone *pShopZone = new CShopZone(GameServer(), Category, Item);
+							pShopZone->Init(pQuads);
+							m_vExtraZones.push_back(pShopZone);
+							// dbg_msg("zones", "loaded shop zone '%s' cat=%d item=%d with %d quads", aName, Category, Item, pQuads->m_NumQuads);
 						}
-						if(t >= 3 && tokens[2] && isdigit(tokens[2][0]))
-							Item = atoi(tokens[2]);
-						CShopZone *pShopZone = new CShopZone(GameServer(), Category, Item);
-						pShopZone->Init(pQuads);
-						m_vExtraZones.push_back(pShopZone);
 						// mark covered
 						if(GameServer()->Cosmetics())
 						{
