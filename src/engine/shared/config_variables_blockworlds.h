@@ -95,7 +95,7 @@ MACRO_CONFIG_INT(SvClanRenamePrice, sv_clan_rename_price, 5000, 0, 1000000, CFGF
 
 // events:
 MACRO_CONFIG_INT(SvGroundHookPenaltyDelay, sv_ground_hook_penalty_delay, 150, 1, 999999, CFGFLAG_SERVER, "Amount of ticks allowed to hook ground before freeze tick will be applied")
-MACRO_CONFIG_INT(SvGroundHookPenalty, sv_ground_hook_penalty, 150, 1, 999999, CFGFLAG_SERVER, "Amount of ticks will be applied to player")
+MACRO_CONFIG_INT(SvGroundHookPenalty, sv_ground_hook_penalty, 150, 1, 999999, CFGFLAG_SERVER, "Amount of freeze ticks will be applied to player")
 
 // LMB (last man blocking)
 MACRO_CONFIG_INT(SvLMBInitialFreezeTime, sv_lmb_initial_freeze_time, 3, 0, 1000, CFGFLAG_SERVER, " Duration of character freeze after teleportation to the arena (seconds)")
