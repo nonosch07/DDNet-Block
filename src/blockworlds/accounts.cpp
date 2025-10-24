@@ -1191,21 +1191,21 @@ bool CAccounts::ShowTopKillStreaksThread(IDbConnection *pSqlServer, const ISqlDa
 		*pError = '\0';
 
 		char aLastName[MAX_NAME_LENGTH];
-		int Blockpoints;
+		int Killstreak;
 
 		pSqlServer->GetString(1, aLastName, sizeof(aLastName));
 
 		if(*pError != '\0')
 		{
-			dbg_msg("top_killstreak", "Failed to retrieve Last Name: %s", pError);
+			// dbg_msg("top_killstreak", "Failed to retrieve Last Name: %s", pError);
 			str_copy(pResult->m_aaMessages[0], "Failed to retrieve account last name.", sizeof(pResult->m_aaMessages[0]));
 			pResult->m_Success = false;
 			return true;
 		}
 
-		Blockpoints = pSqlServer->GetInt(2);
+		Killstreak = pSqlServer->GetInt(2);
 
-		str_format(aBuf, sizeof(aBuf), "[%d] %s : %d", Line, aLastName, Blockpoints);
+		str_format(aBuf, sizeof(aBuf), "[%d] %s : %d", Line, aLastName, Killstreak);
 		str_copy(pResult->m_aaMessages[Line], aBuf, sizeof(pResult->m_aaMessages[Line]));
 		//	dbg_msg("top_killstreak", "Retrieved: %s", aBuf);
 		Line++;

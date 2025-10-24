@@ -155,7 +155,7 @@ MACRO_CONFIG_STR(SvWhoisDbPath, sv_whois_db_path, 64, "whois.sqlite", CFGFLAG_SE
 MACRO_CONFIG_INT(SvWhoisMaxRows, sv_whois_max_rows, 100, 10, 100000, CFGFLAG_SERVER, "Max rows returned for whois queries (exact IP or name)")
 MACRO_CONFIG_INT(SvWhoisPrefixMaxIps, sv_whois_prefix_max_ips, 50, 1, 100000, CFGFLAG_SERVER, "Max number of IPs to show in whois prefix mode")
 MACRO_CONFIG_INT(SvWhoisPrefixNamesPerIp, sv_whois_prefix_names_per_ip, 10, 1, 100000, CFGFLAG_SERVER, "Max number of names to show per IP in whois prefix mode")
-MACRO_CONFIG_INT(SvWhoisCooldownSec, sv_whois_cooldown_sec, 3, 0, 300, CFGFLAG_SERVER, "Cooldown in seconds between whois commands per admin (0 = no cooldown)")
+MACRO_CONFIG_INT(SvWhoisCooldownSec, sv_whois_cooldown_sec, 0, 0, 300, CFGFLAG_SERVER, "Cooldown in seconds between whois commands per admin (0 = no cooldown)")
 
 MACRO_CONFIG_INT(SvShowAuthedUsers, sv_show_authed_users, 0, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Show authed users (admin/mod) as green in the scoreboard")
 
