@@ -87,7 +87,11 @@ void CVoting::CallvoteOption(int OptionId, const char *pReason, bool ForceVote)
 	{
 		if(OptionId == 0)
 		{
-			if(ForceVote)
+			// Check if this is a cosmetic option
+			bool isCosmeticOption = (pOption->m_aDescription[0] == '\u2610' || pOption->m_aDescription[0] == '\u2612' ||
+						 pOption->m_aDescription[0] == '\u2611' || pOption->m_aDescription[0] == '\u2613');
+
+			if(ForceVote && !isCosmeticOption)
 			{
 				char aBuf[128];
 				str_copy(aBuf, "force_vote option \"");
