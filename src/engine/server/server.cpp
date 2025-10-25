@@ -151,10 +151,8 @@ void CServerBan::ConBanExt(IConsole::IResult *pResult, void *pUser)
 
 	const char *pStr = pResult->GetString(0);
 
-	dbg_msg("ban", "defoikghnfeg");
 	if(pThis->m_pServer->m_pDiscordWebhook)
 	{
-		dbg_msg("ban", "odelfjkgnmjedrfolikjgftnmertoljkin rteljkgtn k");
 		pThis->m_pServer->m_pDiscordWebhook->BroadcastCmd("ban", "Console", pStr);
 	}
 	else
