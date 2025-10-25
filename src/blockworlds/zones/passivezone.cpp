@@ -26,14 +26,14 @@ void CPassiveZone::Tick()
 		if(!pChar)
 			continue;
 
+		bool InZone = IsInZone(pChar->m_Pos);
+		bool WasInZone = m_aWasInZone[i];
+
 		// track how many ticks you've been frozen for (in a row)
-		if(pChar->m_FreezeTime)
+		if(InZone && pChar->m_FreezeTime)
 			m_aFreezedTicks[i]++;
 		else
 			m_aFreezedTicks[i] = 0;
-
-		bool InZone = IsInZone(pChar->m_Pos);
-		bool WasInZone = m_aWasInZone[i];
 
 		// if the grace timer's running, tick it down
 		// this is how many grace ticks you got left after leaving the zone while frozen
@@ -74,7 +74,7 @@ void CPassiveZone::HandleProtection(int ClientID, CPlayer *pPlayer, CCharacter *
 	const int TickSpeed = GameServer()->Server()->TickSpeed();
 
 	const int GraceTicks = 3 * TickSpeed;
-	const int MaxFreezeInsideTicks = 3 * TickSpeed;
+	const int MaxFreezeInsideTicks = 4 * TickSpeed;
 
 	bool Eligible = (pPlayer->m_LocalPassiveDuration > 0) || (pPlayer->IsLoggedIn() && pPlayer->GetPlayerPassive() > 0 && pPlayer->IsUsingPassiveProtection());
 
