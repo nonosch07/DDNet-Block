@@ -66,7 +66,8 @@ void CExperience::Tick()
 		}
 		else
 		{
-			if(pPlayer->m_LastExpAccountAlert + Server()->TickSpeed() * 300 < Server()->Tick())
+			if(Server()->Tick() <= Server()->TickSpeed() * 300 || // server is very young
+				pPlayer->m_LastExpAccountAlert + Server()->TickSpeed() * 300 < Server()->Tick())
 			{
 				if(!pPlayer->IsLoggedIn())
 					GameServer()->SendChatTarget(m_TargetID, "Login/Register an account to receive your experience points");
