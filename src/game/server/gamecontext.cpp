@@ -4384,6 +4384,13 @@ void CGameContext::RegisterDDRaceCommands()
 	Console()->Register("give_passive", "v[id] i[seconds]", CFGFLAG_SERVER, ConGivePassive, this, "Give passive seconds to player id");
 	Console()->Register("set_acc_password", "s[name] s[newpass]", CFGFLAG_SERVER, ConAdminSetPassword, this, "Set an account password by account name");
 	Console()->Register("vip_player", "v[id] i[0|1]", CFGFLAG_SERVER, ConSetVip, this, "Set or remove VIP for player id (1=set, 0=remove)");
+
+	Console()->Register("set_pages", "v[id] i[amount]", CFGFLAG_SERVER, ConSetPages, this, "Set pages for player id");
+	Console()->Register("set_level", "v[id] i[amount]", CFGFLAG_SERVER, ConSetLevel, this, "Set level for player id");
+	Console()->Register("set_experience", "v[id] i[amount]", CFGFLAG_SERVER, ConSetExperience, this, "Set experience for player id");
+	Console()->Register("set_weaponkits", "v[id] i[amount]", CFGFLAG_SERVER, ConSetWeaponkitsAdmin, this, "Set weaponkits for player id");
+	Console()->Register("set_blockpoints", "v[id] i[amount]", CFGFLAG_SERVER, ConSetBlockpoints, this, "Set blockpoints for player id");
+	Console()->Register("set_passive", "v[id] i[seconds]", CFGFLAG_SERVER, ConSetPassive, this, "Set passive seconds for player id");
 }
 
 void CGameContext::RegisterChatCommands()

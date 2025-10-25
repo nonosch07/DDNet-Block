@@ -36,10 +36,10 @@ MACRO_CONFIG_INT(SvClanInviteMaxOutstandingPerSender, sv_clan_invite_max_outstan
 MACRO_CONFIG_INT(SvShopRequestExpiry, sv_shop_request_expiry, 10, 5, 600, CFGFLAG_SERVER, "Expiry time (in seconds) for shop purchase requests.")
 
 // Register/IP throttling configuration
-MACRO_CONFIG_INT(SvRegisterCooldownPerIp, sv_register_cooldown_per_ip, 30, 0, 3600, CFGFLAG_SERVER, "Cooldown time (seconds) per IP between register attempts.")
+MACRO_CONFIG_INT(SvRegisterCooldownPerIp, sv_register_cooldown_per_ip, 10, 0, 3600, CFGFLAG_SERVER, "Cooldown time (seconds) per IP between register attempts.")
 MACRO_CONFIG_INT(SvRegisterIpAttemptWindow, sv_register_ip_attempt_window, 60, 1, 3600, CFGFLAG_SERVER, "Time window (seconds) in which register attempts per IP are counted.")
 MACRO_CONFIG_INT(SvRegisterIpMaxAttempts, sv_register_ip_max_attempts, 5, 1, 100, CFGFLAG_SERVER, "Number of register attempts allowed per IP in the attempt window before temporary ban.")
-MACRO_CONFIG_INT(SvRegisterIpBanSeconds, sv_register_ip_ban_seconds, 30, 0, 86400, CFGFLAG_SERVER, "Duration (seconds) to ban an IP after exceeding register attempts.")
+MACRO_CONFIG_INT(SvRegisterIpBanSeconds, sv_register_ip_ban_seconds, 0, 0, 86400, CFGFLAG_SERVER, "Duration (seconds) to ban an IP after exceeding register attempts.")
 
 // Experience and block-related settings:
 MACRO_CONFIG_INT(SvBlockExperienceMultiplierStacking, sv_block_expirience_multiplier_stacking, 1, 0, NUM_EXP_CALC_METHODS - 1, CFGFLAG_SERVER, "0-highest, 1-additive, 2-logarithmic, 3-multiplicative")

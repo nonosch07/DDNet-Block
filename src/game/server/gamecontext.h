@@ -771,6 +771,14 @@ private:
 	static void ConComponentPlug(IConsole::IResult *pResult, void *pUserData);
 	static void ConComponentUnPlug(IConsole::IResult *pResult, void *pUserData);
 
+	// Setter RCON commands for direct admin modification
+	static void ConSetPages(IConsole::IResult *pResult, void *pUserData);
+	static void ConSetLevel(IConsole::IResult *pResult, void *pUserData);
+	static void ConSetExperience(IConsole::IResult *pResult, void *pUserData);
+	static void ConSetWeaponkitsAdmin(IConsole::IResult *pResult, void *pUserData);
+	static void ConSetBlockpoints(IConsole::IResult *pResult, void *pUserData);
+	static void ConSetPassive(IConsole::IResult *pResult, void *pUserData);
+
 public:
 	template<typename... TArgs>
 	void SendChatTarget(int To, const char *pFmt, TArgs &&... Args) const

@@ -728,6 +728,182 @@ void CGameContext::ConGivePages(IConsole::IResult *pResult, void *pUserData)
 	pSelf->SendChatTarget(Target, aBuf);
 }
 
+void CGameContext::ConSetPages(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int Target = pResult->GetInteger(0);
+	int Amount = pResult->GetInteger(1);
+	if(!CheckClientId(Target))
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Invalid target client id");
+		return;
+	}
+	CPlayer *pTarget = pSelf->m_apPlayers[Target];
+	if(!pTarget)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player not online");
+		return;
+	}
+	if(!pTarget->IsLoggedIn())
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player is not logged in");
+		return;
+	}
+	pTarget->SetPlayerPages(Amount);
+	pSelf->Accounts()->Save(Target, &pTarget->m_Account);
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "Set pages for %s to %d", pTarget->GetPlayerName(), Amount);
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+	pSelf->SendChatTarget(Target, aBuf);
+}
+
+void CGameContext::ConSetLevel(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int Target = pResult->GetInteger(0);
+	int Amount = pResult->GetInteger(1);
+	if(!CheckClientId(Target))
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Invalid target client id");
+		return;
+	}
+	CPlayer *pTarget = pSelf->m_apPlayers[Target];
+	if(!pTarget)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player not online");
+		return;
+	}
+	if(!pTarget->IsLoggedIn())
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player is not logged in");
+		return;
+	}
+	pTarget->SetPlayerLevel(Amount);
+	pSelf->Accounts()->Save(Target, &pTarget->m_Account);
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "Set level for %s to %d", pTarget->GetPlayerName(), Amount);
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+	pSelf->SendChatTarget(Target, aBuf);
+}
+
+void CGameContext::ConSetExperience(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int Target = pResult->GetInteger(0);
+	int Amount = pResult->GetInteger(1);
+	if(!CheckClientId(Target))
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Invalid target client id");
+		return;
+	}
+	CPlayer *pTarget = pSelf->m_apPlayers[Target];
+	if(!pTarget)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player not online");
+		return;
+	}
+	if(!pTarget->IsLoggedIn())
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player is not logged in");
+		return;
+	}
+	pTarget->SetPlayerExperience(Amount);
+	pSelf->Accounts()->Save(Target, &pTarget->m_Account);
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "Set experience for %s to %d", pTarget->GetPlayerName(), Amount);
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+	pSelf->SendChatTarget(Target, aBuf);
+}
+
+void CGameContext::ConSetWeaponkitsAdmin(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int Target = pResult->GetInteger(0);
+	int Amount = pResult->GetInteger(1);
+	if(!CheckClientId(Target))
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Invalid target client id");
+		return;
+	}
+	CPlayer *pTarget = pSelf->m_apPlayers[Target];
+	if(!pTarget)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player not online");
+		return;
+	}
+	if(!pTarget->IsLoggedIn())
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player is not logged in");
+		return;
+	}
+	pTarget->SetPlayerWeaponkits(Amount);
+	pSelf->Accounts()->Save(Target, &pTarget->m_Account);
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "Set weaponkits for %s to %d", pTarget->GetPlayerName(), Amount);
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+	pSelf->SendChatTarget(Target, aBuf);
+}
+
+void CGameContext::ConSetBlockpoints(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int Target = pResult->GetInteger(0);
+	int Amount = pResult->GetInteger(1);
+	if(!CheckClientId(Target))
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Invalid target client id");
+		return;
+	}
+	CPlayer *pTarget = pSelf->m_apPlayers[Target];
+	if(!pTarget)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player not online");
+		return;
+	}
+	if(!pTarget->IsLoggedIn())
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player is not logged in");
+		return;
+	}
+	pTarget->SetPlayerBlockpoints(Amount);
+	pSelf->Accounts()->Save(Target, &pTarget->m_Account);
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "Set blockpoints for %s to %d", pTarget->GetPlayerName(), Amount);
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+	pSelf->SendChatTarget(Target, aBuf);
+}
+
+void CGameContext::ConSetPassive(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int Target = pResult->GetInteger(0);
+	int Seconds = pResult->GetInteger(1);
+	if(!CheckClientId(Target))
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Invalid target client id");
+		return;
+	}
+	CPlayer *pTarget = pSelf->m_apPlayers[Target];
+	if(!pTarget)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player not online");
+		return;
+	}
+	if(!pTarget->IsLoggedIn())
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Target player is not logged in");
+		return;
+	}
+	pTarget->SetPlayerPassive(Seconds);
+	if(pTarget->GetCharacter())
+		pTarget->GetCharacter()->Core()->m_Passive = true;
+	pSelf->Accounts()->Save(Target, &pTarget->m_Account);
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "Set passive seconds for %s to %d", pTarget->GetPlayerName(), Seconds);
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+	pSelf->SendChatTarget(Target, aBuf);
+}
+
 void CGameContext::ConGiveLevel(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
