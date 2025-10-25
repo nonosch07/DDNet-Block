@@ -581,18 +581,19 @@ void COneOnOneEvent::RestartRoundAfterDraw()
 	}
 	if(p2)
 	{
-		// clear participants to avoid lingering "InEvent" behavior in global hooks
-		m_Participants.clear();
-		m_Player1ID = -1;
-		m_Player2ID = -1;
-		m_Team = -1;
-		m_PendingAwardTo = 0;
-		m_PendingAwardTick = -1;
 		p2->KillCharacter(WEAPON_WORLD, false);
 		p2->ForceSpawn(vec2(0, 0), false);
 		auto pController = (CGameControllerDDRace *)GameServer()->m_pController;
 		pController->Teams().SetForceCharacterTeam(m_Player2ID, m_Team);
 	}
+
+	// clear participants to avoid lingering "InEvent" behavior in global hooks
+	m_Participants.clear();
+	m_Player1ID = -1;
+	m_Player2ID = -1;
+	m_Team = -1;
+	m_PendingAwardTo = 0;
+	m_PendingAwardTick = -1;
 	m_DrawRestartInProgress = false;
 }
 

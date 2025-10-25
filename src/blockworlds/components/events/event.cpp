@@ -114,7 +114,8 @@ void CEventComponent::LoadWeapons(int ClientId)
 	m_SavedWeapons.erase(it);
 }
 
-int CEventComponent::PlayerHookedGroundFor(bool ClientId) const {
+int CEventComponent::PlayerHookedGroundFor(bool ClientId) const
+{
 	auto pChar = GameServer()->GetPlayerChar(ClientId);
 	if(!pChar)
 		return 0;
