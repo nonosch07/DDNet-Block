@@ -260,6 +260,17 @@ void COneOnOneEvent::OnTick()
 		{
 			m_P1InFreezeTile = false;
 		}
+
+		if(inFreeze)
+		{
+			if(!m_P1Frozen)
+				m_P1FrozenTick = m_CurrentTick;
+			m_P1Frozen = true;
+		}
+		else
+		{
+			m_P1Frozen = false;
+		}
 	}
 	if(pChr2)
 	{
@@ -273,6 +284,17 @@ void COneOnOneEvent::OnTick()
 		else
 		{
 			m_P2InFreezeTile = false;
+		}
+
+		if(inFreeze)
+		{
+			if(!m_P2Frozen)
+				m_P2FrozenTick = m_CurrentTick;
+			m_P2Frozen = true;
+		}
+		else
+		{
+			m_P2Frozen = false;
 		}
 	}
 	if(bothInFreezeTile)
@@ -313,6 +335,8 @@ void COneOnOneEvent::OnTick()
 		{
 			GameServer()->GetPlayerChar(m_Player2ID)->FreezeForce(Config()->m_SvGroundHookPenalty);
 		}
+		// adds the check so people can't hold 1on1's hostage.
+		CheckFreezePenalties();
 	}
 
 	if(GetState() == CEventComponent::EEventState::Active && CheckEndCondition())
@@ -540,6 +564,47 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 bool COneOnOneEvent::CheckEndCondition()
 {
 	return m_Score1 >= 10 || m_Score2 >= 10;
+}
+
+void COneOnOneEvent::CheckFreezePenalties()
+{
+	CCharacter *pChr1 = GameServer()->GetPlayerChar(m_Player1ID);
+	CCharacter *pChr2 = GameServer()->GetPlayerChar(m_Player2ID);
+
+	if(!pChr1 || !pChr2)
+		return;
+
+	if(pChr1->Core()->m_IsInFreeze && pChr1->Core()->m_Vel.x != 0)
+	{
+		if(m_P1FrozenTick != -1 && m_CurrentTick - m_P1FrozenTick > 10 * Server()->TickSpeed())
+		{
+			pChr1->Die(m_Player2ID, WEAPON_WORLD);
+		}
+	}
+
+	if(pChr2->Core()->m_IsInFreeze && pChr2->Core()->m_Vel.x != 0)
+	{
+		if(m_P2FrozenTick != -1 && m_CurrentTick - m_P2FrozenTick > 10 * Server()->TickSpeed())
+		{
+			pChr2->Die(m_Player1ID, WEAPON_WORLD);
+		}
+	}
+
+	if(pChr1->Core()->m_IsInFreeze && pChr1->Core()->m_Vel.x == 0 && pChr1->Core()->m_Vel.y == 0)
+	{
+		if(m_P1FrozenTick != -1 && m_CurrentTick - m_P1FrozenTick > 6 * Server()->TickSpeed())
+		{
+			pChr1->Die(m_Player2ID, WEAPON_WORLD);
+		}
+	}
+
+	if(pChr2->Core()->m_IsInFreeze && pChr2->Core()->m_Vel.x == 0 && pChr2->Core()->m_Vel.y == 0)
+	{
+		if(m_P2FrozenTick != -1 && m_CurrentTick - m_P2FrozenTick > 6 * Server()->TickSpeed())
+		{
+			pChr2->Die(m_Player1ID, WEAPON_WORLD);
+		}
+	}
 }
 
 void COneOnOneEvent::RestartRoundAfterDraw()

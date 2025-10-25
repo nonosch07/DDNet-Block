@@ -67,6 +67,12 @@ private:
 	int m_P1InFreezeTileTick = -1;
 	int m_P2InFreezeTileTick = -1;
 
+	// general freeze tracking for penalties
+	bool m_P1Frozen = false;
+	bool m_P2Frozen = false;
+	int m_P1FrozenTick = -1;
+	int m_P2FrozenTick = -1;
+
 	// finish handling
 	bool m_DeferFinishRestore = false;
 	int m_RestoreAtTick = -1;
@@ -79,6 +85,7 @@ private:
 	void RefundEscrow();
 	void PayoutWinner(class CPlayer *pWinner, class CPlayer *pLoser);
 	void AbortAndRefund(const char *pReason);
+	void CheckFreezePenalties();
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_1ON1_H
