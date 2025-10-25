@@ -7,6 +7,7 @@
 #include <engine/console.h>
 #include <engine/kernel.h>
 #include <engine/server.h>
+#include <game/server/gamecontext.h>
 
 class IEngineAntibot;
 
@@ -35,9 +36,24 @@ void CAntibot::Log(const char *pMessage, void *pUser)
 }
 void CAntibot::Report(int ClientId, const char *pMessage, void *pUser)
 {
+	CAntibot *pAntibot = (CAntibot *)pUser;
 	char aBuf[256];
 	str_format(aBuf, sizeof(aBuf), "%d: %s", ClientId, pMessage);
 	Log(aBuf, pUser);
+
+	if(pAntibot->GameServer())
+	{
+		class CGameContext *pGameContext = static_cast<class CGameContext *>(pAntibot->GameServer());
+		for(int i = 0; i < pAntibot->Server()->MaxClients(); i++)
+		{
+			if(pAntibot->Server()->GetAuthedState(i) >= AUTHED_MOD)
+			{
+				char aChatMsg[256];
+				str_format(aChatMsg, sizeof(aChatMsg), "[ANTIBOT] %s", pMessage);
+				pGameContext->SendChatTarget(i, aChatMsg);
+			}
+		}
+	}
 }
 void CAntibot::Send(int ClientId, const void *pData, int Size, int Flags, void *pUser)
 {

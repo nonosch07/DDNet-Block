@@ -2425,7 +2425,8 @@ bool CCharacter::Freeze(int Seconds)
 	return false;
 }
 
-void CCharacter::FreezeForce(int Seconds) {
+void CCharacter::FreezeForce(int Seconds)
+{
 	if(Seconds <= 0 || m_Core.m_Super || m_Core.m_Invincible)
 		return;
 
