@@ -121,7 +121,7 @@ public:
 		Returns:
 			Returns a pointer to the closest hit or NULL of there is no intersection.
 	*/
-	CCharacter *IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos, const std::function<bool(CCharacter*)>& pNotThisPred = {}, int CollideWith = -1, const CCharacter *pThisOnly = nullptr);
+	CCharacter *IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos, const std::function<bool(CCharacter *)> &pNotThisPred = {}, int CollideWith = -1, const CCharacter *pThisOnly = nullptr);
 
 	/*
 		Function: ClosestCharacter

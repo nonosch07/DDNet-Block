@@ -398,10 +398,18 @@ bool CLastManBlockingEvent::Leave(int ClientId)
 	LoadWeapons(ClientId);
 
 	// restore specials state is intentionally left unchanged; players may re-enable after event
-	// communicate ragequit/leave to server
-	char aBuf[256];
-	str_format(aBuf, sizeof(aBuf), "[LMB] - %s left the event.", Server()->ClientName(ClientId));
-	GameServer()->SendChatTarget(-1, aBuf);
+	static const char *s_randomStrings[] = {
+		"noob!",
+		"you're out!",
+		"not even ReiTW sux that hard!",
+		"better luck next time",
+		"i died help",
+		"RQ",
+		"RIP",
+	};
+	const int NumMessages = sizeof(s_randomStrings) / sizeof(s_randomStrings[0]);
+	int Index = (Server()->Tick() + ClientId) % NumMessages;
+	GameServer()->SendChatTarget(ClientId, s_randomStrings[Index]);
 	return true;
 }
 

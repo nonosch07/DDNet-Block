@@ -336,7 +336,7 @@ CCharacter *CGameWorld::IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, v
 	return pClosest;
 }
 
-CCharacter * CGameWorld::IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos,
+CCharacter *CGameWorld::IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos,
 	std::vector<const CCharacter *> pNotThis, int CollideWith, const CCharacter *pThisOnly)
 {
 	// Find other players
@@ -374,8 +374,8 @@ CCharacter * CGameWorld::IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, 
 	return pClosest;
 }
 
-CCharacter * CGameWorld::IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos,
-	const std::function<bool(CCharacter *)>& pNotThisPred, int CollideWith, const CCharacter *pThisOnly)
+CCharacter *CGameWorld::IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos,
+	const std::function<bool(CCharacter *)> &pNotThisPred, int CollideWith, const CCharacter *pThisOnly)
 {
 	// Find other players
 	float ClosestLen = distance(Pos0, Pos1) * 100.0f;
