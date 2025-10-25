@@ -84,7 +84,7 @@ void CLastManBlockingEvent::OnTick()
 		{
 			if(PlayerHookedGroundFor(participant) > Config()->m_SvGroundHookPenaltyDelay)
 			{
-				GameServer()->GetPlayerChar(participant)->Freeze(Config()->m_SvGroundHookPenalty);
+				GameServer()->GetPlayerChar(participant)->FreezeForce(Config()->m_SvGroundHookPenalty);
 			}
 		}
 
@@ -371,7 +371,7 @@ bool CLastManBlockingEvent::Join(int ClientId)
 	auto *pChar = GameServer()->GetPlayerChar(ClientId);
 	GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, m_DDRaceTeam);
 	pChar->ResetVelocity();
-	pChar->Freeze(Config()->m_SvLMBInitialFreezeTime);
+	pChar->FreezeForce(Config()->m_SvLMBInitialFreezeTime);
 	GameServer()->Teleport(pChar, m_SpawnPositions[m_SpawnOffset % m_SpawnPositions.size()]);
 
 	if(auto pPlayer = GameServer()->GetPlayer(ClientId))

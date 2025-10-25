@@ -193,6 +193,7 @@ public:
 	void FillAntibot(CAntibotCharacterData *pData);
 	void Pause(bool Pause);
 	bool Freeze(int Seconds);
+	void FreezeForce(int Seconds);
 	bool Freeze();
 	bool UnFreeze();
 	void GiveAllWeapons();

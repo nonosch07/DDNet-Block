@@ -2425,6 +2425,16 @@ bool CCharacter::Freeze(int Seconds)
 	return false;
 }
 
+void CCharacter::FreezeForce(int Seconds) {
+	if(Seconds <= 0 || m_Core.m_Super || m_Core.m_Invincible)
+		return;
+
+	m_Armor = 0;
+	m_FreezeTime = Seconds * Server()->TickSpeed();
+	m_Core.m_FreezeStart = Server()->Tick();
+	GameServer()->m_pController->m_BlockTracker.OnPlayerFreeze(m_pPlayer->GetCid());
+}
+
 bool CCharacter::Freeze()
 {
 	return Freeze(g_Config.m_SvFreezeDelay);

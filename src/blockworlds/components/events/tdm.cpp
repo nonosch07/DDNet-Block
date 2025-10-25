@@ -68,7 +68,7 @@ void CTeamDeathmatchEvent::OnTick()
 		{
 			if(PlayerHookedGroundFor(participant) > Config()->m_SvGroundHookPenaltyDelay)
 			{
-				GameServer()->GetPlayerChar(participant)->Freeze(Config()->m_SvGroundHookPenalty);
+				GameServer()->GetPlayerChar(participant)->FreezeForce(Config()->m_SvGroundHookPenalty);
 			}
 		}
 
@@ -158,7 +158,7 @@ void CTeamDeathmatchEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 		pChar->ResetVelocity();
 		if(m_ActiveStartTick != -1 && Server()->Tick() < m_ActiveStartTick + Config()->m_SvTDMFreezeTime * Server()->TickSpeed())
 		{
-			pChar->Freeze(Config()->m_SvTDMFreezeTime);
+			pChar->FreezeForce(Config()->m_SvTDMFreezeTime);
 		}
 	}
 }
@@ -315,7 +315,7 @@ void CTeamDeathmatchEvent::StartEvent()
 		int idx = (m_SpawnOffsetTeam[side]++) % spawns.size();
 		GameServer()->Teleport(pChar, spawns[idx]);
 		// freeze player for initial TDM freeze time
-		pChar->Freeze(Config()->m_SvTDMFreezeTime);
+		pChar->FreezeForce(Config()->m_SvTDMFreezeTime);
 	}
 }
 

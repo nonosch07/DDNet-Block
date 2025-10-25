@@ -144,7 +144,7 @@ void COneOnOneEvent::StartEvent()
 			GameServer()->Teleport(chr1, startPositions[0]);
 		chr1->ResetVelocity();
 		int freezeSec = 3;
-		chr1->Freeze(freezeSec);
+		chr1->FreezeForce(freezeSec);
 	}
 	if(chr2)
 	{
@@ -154,7 +154,7 @@ void COneOnOneEvent::StartEvent()
 			GameServer()->Teleport(chr2, startPositions[0]);
 		chr2->ResetVelocity();
 		int freezeSec = 3;
-		chr2->Freeze(freezeSec);
+		chr2->FreezeForce(freezeSec);
 	}
 
 	if(p1)
@@ -299,11 +299,11 @@ void COneOnOneEvent::OnTick()
 	{
 		if(PlayerHookedGroundFor(m_Player1ID) > Config()->m_SvGroundHookPenaltyDelay)
 		{
-			GameServer()->GetPlayerChar(m_Player1ID)->Freeze(Config()->m_SvGroundHookPenalty);
+			GameServer()->GetPlayerChar(m_Player1ID)->FreezeForce(Config()->m_SvGroundHookPenalty);
 		}
 		if(PlayerHookedGroundFor(m_Player2ID) > Config()->m_SvGroundHookPenaltyDelay)
 		{
-			GameServer()->GetPlayerChar(m_Player2ID)->Freeze(Config()->m_SvGroundHookPenalty);
+			GameServer()->GetPlayerChar(m_Player2ID)->FreezeForce(Config()->m_SvGroundHookPenalty);
 		}
 	}
 
@@ -417,12 +417,12 @@ void COneOnOneEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 		if(pChr1)
 		{
 			pChr1->ResetVelocity();
-			pChr1->Freeze(3);
+			pChr1->FreezeForce(3);
 		}
 		if(pChr2)
 		{
 			pChr2->ResetVelocity();
-			pChr2->Freeze(3);
+			pChr2->FreezeForce(3);
 		}
 		return;
 	}
@@ -435,7 +435,7 @@ void COneOnOneEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 			GameServer()->Teleport(pChr1, tilePositions[0]);
 		}
 		pChr1->ResetVelocity();
-		pChr1->Freeze(3);
+		pChr1->FreezeForce(3);
 	}
 	else if(ClientId == m_Player2ID && pChr2)
 	{
@@ -448,7 +448,7 @@ void COneOnOneEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 			GameServer()->Teleport(pChr2, tilePositions[0]);
 		}
 		pChr2->ResetVelocity();
-		pChr2->Freeze(3);
+		pChr2->FreezeForce(3);
 	}
 }
 
