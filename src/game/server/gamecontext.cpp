@@ -5929,6 +5929,8 @@ int CGameContext::isInEvent(int pPlayerID)
 					return 1; // EVENT_1on1
 				if(str_comp(name, "tdm") == 0)
 					return 2; // EVENT_TDM
+				if(str_comp(name, "LMB") == 0)
+					return 3; // EVENT_LMB
 				return 0;
 			}
 		}

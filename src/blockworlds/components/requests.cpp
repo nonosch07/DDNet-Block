@@ -85,6 +85,13 @@ int CRequests::Create1on1Invite(int FromClient, int ToClient, int Wager, int Exp
 		}
 	}
 
+	if(GameServer()->isInEvent(FromClient) || GameServer()->isInEvent(ToClient))
+	{
+		if(CheckClientId(FromClient) && GameServer()->m_apPlayers[FromClient])
+			GameServer()->SendChatTarget(FromClient, "Cannot send 1on1 request: one of the players is in an event.");
+		return -1;
+	}
+
 	// Anti-spam: limit how often a player can send any 1on1 invite and how many are outstanding.
 	CPlayer *pFrom = GameServer()->m_apPlayers[FromClient];
 	if(pFrom)

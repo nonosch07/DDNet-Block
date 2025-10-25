@@ -2228,7 +2228,7 @@ void CGameContext::Con1on1(IConsole::IResult *pResult, void *pUserData)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "Player doesn't have enough blockpoints.");
 
 	if(pSelf->isInEvent(pResult->m_ClientId))
-		return pSelf->SendChatTarget(pResult->m_ClientId, "You must finish your 1on1 first (or use '/leave' to leave).");
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You must finish the ongoing event (or use '/leave' to leave).");
 
 	if(pSelf->isInEvent(pTarget->GetCid()))
 		return pSelf->SendChatTarget(pResult->m_ClientId, "This player is already in an event.");
@@ -2435,7 +2435,7 @@ void CGameContext::ConCreateTDM(IConsole::IResult *pResult, void *pUserData)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
 
 	if(pSelf->isInEvent(pResult->m_ClientId))
-		return pSelf->SendChatTarget(pResult->m_ClientId, "You must finish your current event first (Or use '/leave' to leave).");
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You must finish the ongoing event (or use '/leave' to leave).");
 
 	if(auto events = g_ComponentRegistry.Get<CEvents>())
 	{
