@@ -1872,11 +1872,10 @@ void CGameContext::ConTeleCursor(IConsole::IResult *pResult, void *pUserData)
 	if(!pChr)
 		return;
 
-	CGameTeams &Teams = pSelf->m_pController->Teams();
-	int Team = pSelf->GetDDRaceTeam(pResult->m_ClientId);
-	if(!Teams.IsPractice(Team))
+	int Authed = pSelf->Server()->GetAuthedState(pResult->m_ClientId);
+	if(Authed < AUTHED_MOD)
 	{
-		pSelf->SendChatTarget(pPlayer->GetCid(), "You're not in a team with /practice turned on. Note that you can't earn a rank with practice enabled.");
+		pSelf->SendChatTarget(pPlayer->GetCid(), "You need moderator access or higher to use this command.");
 		return;
 	}
 
