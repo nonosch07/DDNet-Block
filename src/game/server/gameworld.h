@@ -3,6 +3,7 @@
 #ifndef GAME_SERVER_GAMEWORLD_H
 #define GAME_SERVER_GAMEWORLD_H
 
+#include <functional>
 #include <game/gamecore.h>
 
 #include "save.h"
@@ -89,6 +90,39 @@ public:
 			Returns a pointer to the closest hit or NULL of there is no intersection.
 	*/
 	CCharacter *IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos, const CCharacter *pNotThis = nullptr, int CollideWith = -1, const CCharacter *pThisOnly = nullptr);
+
+	/*
+		Function: IntersectCharacters
+			Finds the CCharacters that intersects the line. // made for types lasers=1 and doors=0
+
+		Arguments:
+			Pos0 - Start position
+			Pos1 - End position
+			Radius - How for from the line the CCharacter is allowed to be.
+			NewPos - Intersection position
+			pNotThis - Vector if entities to ignore intersecting with
+
+		Returns:
+			Returns a pointer to the closest hit or NULL of there is no intersection.
+	*/
+	CCharacter *IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos, std::vector<const CCharacter *> pNotThis = {}, int CollideWith = -1, const CCharacter *pThisOnly = nullptr);
+
+	/*
+		Function: IntersectCharacters
+			Finds the CCharacters that intersects the line. // made for types lasers=1 and doors=0
+
+		Arguments:
+			Pos0 - Start position
+			Pos1 - End position
+			Radius - How for from the line the CCharacter is allowed to be.
+			NewPos - Intersection position
+			pNotThisPred - Prediction function to ignore intersecting
+
+		Returns:
+			Returns a pointer to the closest hit or NULL of there is no intersection.
+	*/
+	CCharacter *IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos, const std::function<bool(CCharacter*)>& pNotThisPred = {}, int CollideWith = -1, const CCharacter *pThisOnly = nullptr);
+
 	/*
 		Function: ClosestCharacter
 			Finds the closest CCharacter to a specific point.

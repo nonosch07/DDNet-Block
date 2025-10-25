@@ -41,15 +41,22 @@ bool CLaser::HitCharacter(vec2 From, vec2 To)
 	vec2 At;
 	CCharacter *pOwnerChar = GameServer()->GetPlayerChar(m_Owner);
 	CCharacter *pHit;
-	bool pDontHitSelf = g_Config.m_SvOldLaser || (m_Bounces == 0 && !m_WasTele);
+	bool DontHitSelf = g_Config.m_SvOldLaser || (m_Bounces == 0 && !m_WasTele);
+	bool SelfPassive = pOwnerChar && (pOwnerChar->Core()->m_Protected || pOwnerChar->Core()->m_Passive);
 
-	if(pOwnerChar ? (!pOwnerChar->LaserHitDisabled() && m_Type == WEAPON_LASER) || (!pOwnerChar->ShotgunHitDisabled() && m_Type == WEAPON_SHOTGUN) : g_Config.m_SvHit)
-		pHit = GameWorld()->IntersectCharacter(m_Pos, To, 0.f, At, pDontHitSelf ? pOwnerChar : 0, m_Owner);
+	if(pOwnerChar ? (!pOwnerChar->LaserHitDisabled() && m_Type == WEAPON_LASER) || (!pOwnerChar->ShotgunHitDisabled() && m_Type == WEAPON_SHOTGUN) : g_Config.m_SvHit) {
+		pHit = GameWorld()->IntersectCharacter(m_Pos, To, 0.f, At, [SelfPassive, DontHitSelf, pOwnerChar](CCharacter *pChar) -> bool {
+			if (SelfPassive) {
+				return DontHitSelf ? true : pChar != pOwnerChar;
+			}
+			bool TargetPassive = pChar && (pChar->Core()->m_Protected || pChar->Core()->m_Passive);
+			if (pOwnerChar && DontHitSelf)
+				return TargetPassive || pChar == pOwnerChar;
+			return TargetPassive;
+		}, m_Owner);
+	}
 	else
-		pHit = GameWorld()->IntersectCharacter(m_Pos, To, 0.f, At, pDontHitSelf ? pOwnerChar : 0, m_Owner, pOwnerChar);
-
-	if((pOwnerChar && pOwnerChar->Core()->m_Protected) || (pHit && pHit->Core()->m_Protected) || (pOwnerChar && pOwnerChar->Core()->m_Passive) || (pHit && pHit->Core()->m_Passive))
-		pHit = GameServer()->m_World.IntersectCharacter(m_Pos, To, 0.f, At, pDontHitSelf ? pOwnerChar : 0, m_Owner, pOwnerChar);
+		pHit = GameWorld()->IntersectCharacter(m_Pos, To, 0.f, At, DontHitSelf ? pOwnerChar : nullptr, m_Owner, pOwnerChar);
 
 	if(!pHit || (pHit == pOwnerChar && g_Config.m_SvOldLaser) || (pHit != pOwnerChar && pOwnerChar ? (pOwnerChar->LaserHitDisabled() && m_Type == WEAPON_LASER) || (pOwnerChar->ShotgunHitDisabled() && m_Type == WEAPON_SHOTGUN) : !g_Config.m_SvHit))
 		return false;

@@ -336,6 +336,82 @@ CCharacter *CGameWorld::IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, v
 	return pClosest;
 }
 
+CCharacter * CGameWorld::IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos,
+	std::vector<const CCharacter *> pNotThis, int CollideWith, const CCharacter *pThisOnly)
+{
+	// Find other players
+	float ClosestLen = distance(Pos0, Pos1) * 100.0f;
+	CCharacter *pClosest = nullptr;
+
+	for(auto *p = (CCharacter *)FindFirst(ENTTYPE_CHARACTER); p; p = (CCharacter *)p->TypeNext())
+	{
+		if(std::find(pNotThis.begin(), pNotThis.end(), p) != pNotThis.end())
+			continue;
+
+		if(pThisOnly && p != pThisOnly)
+			continue;
+
+		if(CollideWith != -1 && !p->CanCollide(CollideWith))
+			continue;
+
+		vec2 IntersectPos;
+		if(closest_point_on_line(Pos0, Pos1, p->m_Pos, IntersectPos))
+		{
+			float Len = distance(p->m_Pos, IntersectPos);
+			if(Len < p->m_ProximityRadius + Radius)
+			{
+				Len = distance(Pos0, IntersectPos);
+				if(Len < ClosestLen)
+				{
+					NewPos = IntersectPos;
+					ClosestLen = Len;
+					pClosest = p;
+				}
+			}
+		}
+	}
+
+	return pClosest;
+}
+
+CCharacter * CGameWorld::IntersectCharacter(vec2 Pos0, vec2 Pos1, float Radius, vec2 &NewPos,
+	const std::function<bool(CCharacter *)>& pNotThisPred, int CollideWith, const CCharacter *pThisOnly)
+{
+	// Find other players
+	float ClosestLen = distance(Pos0, Pos1) * 100.0f;
+	CCharacter *pClosest = nullptr;
+
+	for(auto *p = (CCharacter *)FindFirst(ENTTYPE_CHARACTER); p; p = (CCharacter *)p->TypeNext())
+	{
+		if(pNotThisPred(p))
+			continue;
+
+		if(pThisOnly && p != pThisOnly)
+			continue;
+
+		if(CollideWith != -1 && !p->CanCollide(CollideWith))
+			continue;
+
+		vec2 IntersectPos;
+		if(closest_point_on_line(Pos0, Pos1, p->m_Pos, IntersectPos))
+		{
+			float Len = distance(p->m_Pos, IntersectPos);
+			if(Len < p->m_ProximityRadius + Radius)
+			{
+				Len = distance(Pos0, IntersectPos);
+				if(Len < ClosestLen)
+				{
+					NewPos = IntersectPos;
+					ClosestLen = Len;
+					pClosest = p;
+				}
+			}
+		}
+	}
+
+	return pClosest;
+}
+
 CCharacter *CGameWorld::ClosestCharacter(vec2 Pos, float Radius, const CEntity *pNotThis)
 {
 	// Find other players
