@@ -91,7 +91,9 @@ void CEventComponent::SaveWeapons(int ClientId)
 	if(!Character)
 		return;
 
-	m_SavedWeapons.emplace(ClientId, *Character->Core()->m_aWeapons);
+	std::array<CCharacterCore::WeaponStat, NUM_WEAPONS> savedWeapons;
+	mem_copy(savedWeapons.data(), Character->Core()->m_aWeapons, sizeof(CCharacterCore::WeaponStat) * NUM_WEAPONS);
+	m_SavedWeapons.emplace(ClientId, savedWeapons);
 
 	mem_zero(&Character->Core()->m_aWeapons, sizeof(CCharacterCore::WeaponStat) * NUM_WEAPONS);
 	Character->GiveWeapon(WEAPON_HAMMER);

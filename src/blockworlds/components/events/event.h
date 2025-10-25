@@ -7,6 +7,7 @@
 
 #include <blockworlds/components/core/component.h>
 
+#include <array>
 #include <functional>
 #include <map>
 #include <optional>
@@ -33,7 +34,7 @@ protected:
 	void SetState(EEventState NewState);
 
 	std::map<int, class CSaveTee *> m_pSavedPlayers;
-	std::map<int, CCharacterCore::WeaponStat> m_SavedWeapons;
+	std::map<int, std::array<CCharacterCore::WeaponStat, NUM_WEAPONS>> m_SavedWeapons;
 
 	std::vector<int> m_Candidates;
 	std::vector<int> m_Participants;
