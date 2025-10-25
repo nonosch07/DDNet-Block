@@ -46,6 +46,9 @@ CShop::CShop(CGameContext *pGameContext, CPlayer *pOwner, int pCategory, int pCo
 	case CATEGORY_SKINMANI:
 		validIndex = (pCosmetics >= 0 && pCosmetics < CCosmeticsHandler::NUM_SKINMANIS);
 		break;
+	case CATEGORY_UTILITY:
+		validIndex = (pCosmetics >= 0 && pCosmetics < CCosmeticsHandler::NUM_UTILITY_ITEMS);
+		break;
 	default:
 		break;
 	}
@@ -68,6 +71,8 @@ CShop::CShop(CGameContext *pGameContext, CPlayer *pOwner, int pCategory, int pCo
 		break;
 	case CATEGORY_SKINMANI:
 		HasCosmetic = (pOwner->GetPlayerSkinmani()[pCosmetics] == '1');
+		break;
+	case CATEGORY_UTILITY:
 		break;
 	default:
 		if(m_pGameContext)

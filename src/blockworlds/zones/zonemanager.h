@@ -1,7 +1,10 @@
 #ifndef BLOCKWORLDS_ZONES_ZONEMANAGER_H
 #define BLOCKWORLDS_ZONES_ZONEMANAGER_H
 
-class IZone;
+#include "zone.h"
+#include <base/vmath.h>
+#include <vector>
+
 class CGameContext;
 
 enum

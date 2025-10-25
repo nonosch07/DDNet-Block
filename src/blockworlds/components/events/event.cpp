@@ -80,44 +80,48 @@ void CEventComponent::LoadPosition(int ClientId)
 	}
 }
 
-void CEventComponent::SaveWeapons(int ClientId) {
-	if (const auto it = m_SavedWeapons.find(ClientId); it != m_SavedWeapons.end()) {
+void CEventComponent::SaveWeapons(int ClientId)
+{
+	if(const auto it = m_SavedWeapons.find(ClientId); it != m_SavedWeapons.end())
+	{
 		m_SavedWeapons.erase(it);
 	}
 
 	const auto Character = GameServer()->GetPlayerChar(ClientId);
-	if (!Character)
+	if(!Character)
 		return;
 
 	m_SavedWeapons.emplace(ClientId, *Character->Core()->m_aWeapons);
 
-	mem_zero(&Character->Core()->m_aWeapons, sizeof(CCharacterCore::WeaponStat)*NUM_WEAPONS);
+	mem_zero(&Character->Core()->m_aWeapons, sizeof(CCharacterCore::WeaponStat) * NUM_WEAPONS);
 	Character->GiveWeapon(WEAPON_HAMMER);
 	Character->GiveWeapon(WEAPON_GUN);
 }
 
-void CEventComponent::LoadWeapons(int ClientId) {
+void CEventComponent::LoadWeapons(int ClientId)
+{
 	const auto it = m_SavedWeapons.find(ClientId);
-	if (it == m_SavedWeapons.end()) {
+	if(it == m_SavedWeapons.end())
+	{
 		return;
 	}
 
 	auto Character = GameServer()->GetPlayerChar(ClientId);
-	if (!Character)
+	if(!Character)
 		return;
 
-	mem_copy(&Character->Core()->m_aWeapons, &it->second, sizeof(CCharacterCore::WeaponStat)*NUM_WEAPONS);
+	mem_copy(&Character->Core()->m_aWeapons, &it->second, sizeof(CCharacterCore::WeaponStat) * NUM_WEAPONS);
 	m_SavedWeapons.erase(it);
 }
 
 int CEventComponent::PlayerHookedGroundFor(bool ClientId) const {
 	auto pChar = GameServer()->GetPlayerChar(ClientId);
-	if (!pChar)
+	if(!pChar)
 		return 0;
 
 	bool HookingGround = pChar->Core()->m_HookState == HOOK_GRABBED && pChar->Core()->HookedPlayer() == -1;
 
-	if (HookingGround)
+	if(HookingGround)
 		return pChar->Core()->m_HookTick;
 	return 0;
 }

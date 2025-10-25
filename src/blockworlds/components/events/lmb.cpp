@@ -80,8 +80,10 @@ void CLastManBlockingEvent::OnTick()
 			CheckFreezeTime();
 		}
 
-		for (int participant : Participants()) {
-			if (PlayerHookedGroundFor(participant) > Config()->m_SvGroundHookPenaltyDelay) {
+		for(int participant : Participants())
+		{
+			if(PlayerHookedGroundFor(participant) > Config()->m_SvGroundHookPenaltyDelay)
+			{
 				GameServer()->GetPlayerChar(participant)->Freeze(Config()->m_SvGroundHookPenalty);
 			}
 		}

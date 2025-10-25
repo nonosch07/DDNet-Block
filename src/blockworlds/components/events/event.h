@@ -11,7 +11,6 @@
 #include <map>
 #include <optional>
 
-
 class CEventComponent : public CComponent
 {
 public:

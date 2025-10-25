@@ -45,12 +45,16 @@ void CExperience::Tick()
 		CPlayer *pPlayer = pChr->GetPlayer();
 
 		IZone *pNoExpZone = nullptr;
+		IZone *pSpawnZone = nullptr;
 		if(GameServer()->ZoneManager())
+		{
 			pNoExpZone = GameServer()->ZoneManager()->GetZone(ZONE_NOEXP);
+			pSpawnZone = GameServer()->ZoneManager()->GetZone(ZONE_SPAWN);
+		}
 		bool InNoExpZone = pNoExpZone && pNoExpZone->IsInZone(pChr->m_Pos);
+		bool InSpawnZone = pSpawnZone && pSpawnZone->IsInZone(pChr->m_Pos);
 
-
-		if(pPlayer->IsLoggedIn() && !InNoExpZone)
+		if(pPlayer->IsLoggedIn() && !InNoExpZone && !InSpawnZone)
 		{
 			int Amount = m_Amount; // dynamic amount
 			pPlayer->AddPlayerExp(Amount);
@@ -64,7 +68,12 @@ void CExperience::Tick()
 		{
 			if(pPlayer->m_LastExpAccountAlert + Server()->TickSpeed() * 300 < Server()->Tick())
 			{
-				GameServer()->SendChatTarget(m_TargetID, "Login/Register an account to receive your experience points");
+				if(!pPlayer->IsLoggedIn())
+					GameServer()->SendChatTarget(m_TargetID, "Login/Register an account to receive your experience points");
+				else if(InSpawnZone)
+					GameServer()->SendChatTarget(m_TargetID, "You don't receive EXP in spawn zone");
+				else if(InNoExpZone)
+					GameServer()->SendChatTarget(m_TargetID, "You don't receive EXP in this area");
 				pPlayer->m_LastExpAccountAlert = Server()->Tick();
 			}
 		}

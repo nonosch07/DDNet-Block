@@ -729,6 +729,8 @@ private:
 
 	static void ConDeathnote(IConsole::IResult *pResult, void *pUserData);
 	static void ConWeaponKit(IConsole::IResult *pResult, void *pUserData);
+	static void ConDisplayPages(IConsole::IResult *pResult, void *pUserData);
+
 
 	static void ConDisplayTopLevel(IConsole::IResult *pResult, void *pUserData);
 	static void ConDisplayTopBlockpoints(IConsole::IResult *pResult, void *pUserData);

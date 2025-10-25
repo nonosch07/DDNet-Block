@@ -56,8 +56,12 @@ void CGameContext::ConRegister(IConsole::IResult *pResult, void *pUserData)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You can't register while participating in an event. Use /leave first.");
 	IZone *pSpawnZone = pSelf->ZoneManager()->GetZone(ZONE_SPAWN);
 	CPlayer *pReqPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
-	if(pSpawnZone && pReqPlayer && pReqPlayer->GetCharacter() && !pSpawnZone->IsInZone(pReqPlayer->GetCharacter()->m_Pos))
-		return pSelf->SendChatTarget(pResult->m_ClientId, "You can only register an account while in the spawn zone.");
+
+	if(g_Config.m_SvShopServer != 1)
+	{
+		if(pSpawnZone && pReqPlayer && pReqPlayer->GetCharacter() && !pSpawnZone->IsInZone(pReqPlayer->GetCharacter()->m_Pos))
+			return pSelf->SendChatTarget(pResult->m_ClientId, "You can only login while in the spawn zone.");
+	}
 
 	const char *pUsername = pResult->GetString(0);
 	const char *pPassword = pResult->GetString(1);
@@ -136,8 +140,11 @@ void CGameContext::ConLogin(IConsole::IResult *pResult, void *pUserData)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You must finish the ongoing event (or use '/leave' to leave).");
 	IZone *pSpawnZone = pSelf->ZoneManager()->GetZone(ZONE_SPAWN);
 	CPlayer *pReqPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
-	if(pSpawnZone && pReqPlayer && pReqPlayer->GetCharacter() && !pSpawnZone->IsInZone(pReqPlayer->GetCharacter()->m_Pos))
-		return pSelf->SendChatTarget(pResult->m_ClientId, "You can only login while in the spawn zone.");
+	if(g_Config.m_SvShopServer != 1)
+	{
+		if(pSpawnZone && pReqPlayer && pReqPlayer->GetCharacter() && !pSpawnZone->IsInZone(pReqPlayer->GetCharacter()->m_Pos))
+			return pSelf->SendChatTarget(pResult->m_ClientId, "You can only login while in the spawn zone.");
+	}
 
 	const char *pUsername = pResult->GetString(0);
 	const char *pPassword = pResult->GetString(1);
@@ -2366,4 +2373,20 @@ void CGameContext::ConComponentUnPlug(IConsole::IResult *pResult, void *pUserDat
 		return;
 	}
 	dbg_msg("Components", "Component removal failed");
+}
+
+void CGameContext::ConDisplayPages(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int ClientId = pResult->m_ClientId;
+	CPlayer *pPlayer = pSelf->m_apPlayers[ClientId];
+	if(!pPlayer || !pPlayer->IsLoggedIn())
+	{
+		pSelf->SendChatTarget(ClientId, "You must be logged in to use /pages.");
+		return;
+	}
+	int Pages = pPlayer->GetPlayerPages();
+	char aBuf[64];
+	str_format(aBuf, sizeof(aBuf), "You have %d deathnote page%s.", Pages, Pages == 1 ? "" : "s");
+	pSelf->SendChatTarget(ClientId, aBuf);
 }

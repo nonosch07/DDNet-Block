@@ -5995,6 +5995,8 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("decline", "?r[player name]", CFGFLAG_CHAT, Con1on1Decline, this, "Decline the 1vs1 request from player r");
 	Console()->Register("sub", "", CFGFLAG_CHAT, ConJoinEvent, this, "Join the current ongoing event");
 	Console()->Register("leave", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConLeaveEvent, this, "Leave current event");
+
+	Console()->Register("pages", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayPages, this, "Show how many deathnote pages you have.");
 }
 
 CPlayer *CGameContext::GetPlayerByName(const char *pName)
