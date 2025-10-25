@@ -66,7 +66,7 @@ void CExperience::Tick()
 		}
 		else
 		{
-			if(Server()->Tick() <= Server()->TickSpeed() * 300 || // server is very young
+			if((pPlayer->m_LastExpAccountAlert == 0 && Server()->Tick() <= Server()->TickSpeed() * 300) || // server is very young
 				pPlayer->m_LastExpAccountAlert + Server()->TickSpeed() * 300 < Server()->Tick())
 			{
 				if(!pPlayer->IsLoggedIn())
