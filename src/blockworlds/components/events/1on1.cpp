@@ -574,7 +574,7 @@ void COneOnOneEvent::CheckFreezePenalties()
 	if(!pChr1 || !pChr2)
 		return;
 
-	if(pChr1->Core()->m_IsInFreeze && pChr1->Core()->m_Vel.x != 0)
+	if(m_P1Frozen && pChr1->Core()->m_Vel.x != 0)
 	{
 		if(m_P1FrozenTick != -1 && m_CurrentTick - m_P1FrozenTick > 10 * Server()->TickSpeed())
 		{
@@ -582,7 +582,7 @@ void COneOnOneEvent::CheckFreezePenalties()
 		}
 	}
 
-	if(pChr2->Core()->m_IsInFreeze && pChr2->Core()->m_Vel.x != 0)
+	if(m_P2Frozen && pChr2->Core()->m_Vel.x != 0)
 	{
 		if(m_P2FrozenTick != -1 && m_CurrentTick - m_P2FrozenTick > 10 * Server()->TickSpeed())
 		{
@@ -590,7 +590,7 @@ void COneOnOneEvent::CheckFreezePenalties()
 		}
 	}
 
-	if(pChr1->Core()->m_IsInFreeze && pChr1->Core()->m_Vel.x == 0 && pChr1->Core()->m_Vel.y == 0)
+	if(m_P1Frozen && pChr1->Core()->m_Vel.x == 0 && pChr1->Core()->m_Vel.y == 0)
 	{
 		if(m_P1FrozenTick != -1 && m_CurrentTick - m_P1FrozenTick > 6 * Server()->TickSpeed())
 		{
@@ -598,7 +598,7 @@ void COneOnOneEvent::CheckFreezePenalties()
 		}
 	}
 
-	if(pChr2->Core()->m_IsInFreeze && pChr2->Core()->m_Vel.x == 0 && pChr2->Core()->m_Vel.y == 0)
+	if(m_P2Frozen && pChr2->Core()->m_Vel.x == 0 && pChr2->Core()->m_Vel.y == 0)
 	{
 		if(m_P2FrozenTick != -1 && m_CurrentTick - m_P2FrozenTick > 6 * Server()->TickSpeed())
 		{

@@ -4062,6 +4062,12 @@ void CGameContext::ConForceVote(IConsole::IResult *pResult, void *pUserData)
 		str_format(aBuf, sizeof(aBuf), "set_team %d -1 %d", SpectateId, g_Config.m_SvVoteSpectateRejoindelay);
 		pSelf->Console()->ExecuteLine(aBuf);
 	}
+	else if(str_comp_nocase(pType, "lmb") == 0)
+	{
+		str_format(aBuf, sizeof(aBuf), "authorized player forced LMB event start (%s)", pReason);
+		pSelf->SendChatTarget(-1, aBuf, FLAG_SIX);
+		pSelf->Console()->ExecuteLine("events_start lmb");
+	}
 }
 
 void CGameContext::ConClearVotes(IConsole::IResult *pResult, void *pUserData)
