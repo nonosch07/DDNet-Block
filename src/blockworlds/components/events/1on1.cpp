@@ -9,7 +9,6 @@
 
 #include <blockworlds/discord/webhook.h>
 
-
 COneOnOneEvent::COneOnOneEvent(CGameContext *pGameServer) :
 	CEventComponent(pGameServer), m_Player1ID(-1), m_Player2ID(-1), m_Score1(0), m_Score2(0), m_Wager(0), m_Team(-1), m_StartTimer(0), m_CurrentTick(0), m_SuppressFinishBroadcast(false)
 {
@@ -22,7 +21,6 @@ void COneOnOneEvent::Initialize(int Player1ID, int Player2ID, int Wager)
 	m_Wager = Wager;
 	StartEvent();
 }
-
 
 void COneOnOneEvent::StartEvent()
 {
@@ -109,20 +107,20 @@ void COneOnOneEvent::StartEvent()
 		return;
 	}
 
-
 	std::vector<vec2> spawnPosition;
 	int spawncount = GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), spawnPosition);
 
 	m_SpawnReservation.pos1Idx = (spawncount > 0) ? 0 : -1;
 	m_SpawnReservation.pos2Idx = (spawncount > 1) ? 1 : (spawncount > 0 ? 0 : -1);
 
-	if (p1 && p1->GetCharacter())
+	if(p1 && p1->GetCharacter())
 		p1->KillCharacter(WEAPON_WORLD, false);
-	if (p2 && p2->GetCharacter())
+	if(p2 && p2->GetCharacter())
 		p2->KillCharacter(WEAPON_WORLD, false);
 
 	// directly spawn players at their reserved 1on1 positions
-	if (p1 && m_SpawnReservation.pos1Idx >= 0 && m_SpawnReservation.pos1Idx < (int)spawnPosition.size()) {
+	if(p1 && m_SpawnReservation.pos1Idx >= 0 && m_SpawnReservation.pos1Idx < (int)spawnPosition.size())
+	{
 		p1->ForceSpawn(spawnPosition[m_SpawnReservation.pos1Idx], false);
 		p1->SetSkinMani(-1);
 		if(p1->GetCurrentSpecial() != -1)
@@ -130,7 +128,8 @@ void COneOnOneEvent::StartEvent()
 		if(p1->GetCharacter())
 			p1->GetCharacter()->FreezeForce(3);
 	}
-	if (p2 && m_SpawnReservation.pos2Idx >= 0 && m_SpawnReservation.pos2Idx < (int)spawnPosition.size()) {
+	if(p2 && m_SpawnReservation.pos2Idx >= 0 && m_SpawnReservation.pos2Idx < (int)spawnPosition.size())
+	{
 		p2->ForceSpawn(spawnPosition[m_SpawnReservation.pos2Idx], false);
 		p2->SetSkinMani(-1);
 		if(p2->GetCurrentSpecial() != -1)
@@ -347,15 +346,20 @@ void COneOnOneEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 		p2->m_allowDeath = false;
 
 	// directly spawn at reserved position for each player, with null checks ;(
-	if(ClientId == m_Player1ID) {
+	if(ClientId == m_Player1ID)
+	{
 		CCharacter *pChr1 = GameServer()->GetPlayerChar(m_Player1ID);
-		if(pChr1) {
+		if(pChr1)
+		{
 			pChr1->ResetVelocity();
 			pChr1->FreezeForce(3);
 		}
-	} else if(ClientId == m_Player2ID) {
+	}
+	else if(ClientId == m_Player2ID)
+	{
 		CCharacter *pChr2 = GameServer()->GetPlayerChar(m_Player2ID);
-		if(pChr2) {
+		if(pChr2)
+		{
 			pChr2->ResetVelocity();
 			pChr2->FreezeForce(3);
 		}

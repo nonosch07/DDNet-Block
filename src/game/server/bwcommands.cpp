@@ -2566,3 +2566,34 @@ void CGameContext::ConDisplayPages(IConsole::IResult *pResult, void *pUserData)
 	str_format(aBuf, sizeof(aBuf), "You have %d deathnote page%s.", Pages, Pages == 1 ? "" : "s");
 	pSelf->SendChatTarget(ClientId, aBuf);
 }
+
+void CGameContext::ConPassive(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int ClientId = pResult->m_ClientId;
+	CPlayer *pPlayer = pSelf->m_apPlayers[ClientId];
+	if(!pPlayer)
+		return;
+	int secondsLeft = 0;
+	if(!pPlayer->IsLoggedIn())
+		secondsLeft = pPlayer->m_LocalPassiveDuration;
+	else
+		secondsLeft = pPlayer->GetPlayerPassive();
+
+	char aBuf[128];
+	if(secondsLeft > 0)
+	{
+		int hours = secondsLeft / 3600;
+		int minutes = (secondsLeft % 3600) / 60;
+		int seconds = secondsLeft % 60;
+		if(hours > 0)
+			str_format(aBuf, sizeof(aBuf), "You have %dh %dm %ds of passive protection left.", hours, minutes, seconds);
+		else if(minutes > 0)
+			str_format(aBuf, sizeof(aBuf), "You have %dm %ds of passive protection left.", minutes, seconds);
+		else
+			str_format(aBuf, sizeof(aBuf), "You have %d seconds of passive protection left.", seconds);
+	}
+	else
+		str_copy(aBuf, "You have no passive protection left.", sizeof(aBuf));
+	pSelf->SendChatTarget(ClientId, aBuf);
+}

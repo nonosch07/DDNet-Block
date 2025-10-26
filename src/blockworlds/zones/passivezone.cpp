@@ -89,23 +89,15 @@ void CPassiveZone::HandleProtection(int ClientID, CPlayer *pPlayer, CCharacter *
 	// leaving the zone (was in, now out)
 	if(WasInZone && !InZone)
 	{
-		if(pChar->Core()->m_Passive)
+		// if still frozen, start grace period, do not unprotect instantly
+		if(pChar->Core()->m_Passive && m_aFreezedTicks[ClientID] > 0)
 		{
-			if(m_aFreezedTicks[ClientID] > 0)
-			{
-				if(m_aProtectionTicks[ClientID] == 0)
-				{
-					m_aProtectionTicks[ClientID] = GraceTicks;
-				}
-				return;
-			}
-			else
-			{
-				m_aProtectionTicks[ClientID] = 0;
-				pChar->Core()->m_Passive = false;
-				return;
-			}
+			if(m_aProtectionTicks[ClientID] == 0)
+				m_aProtectionTicks[ClientID] = GraceTicks;
+			// dont unprotect yet
+			return;
 		}
+		return;
 	}
 
 	// in the zone and eligible
@@ -145,8 +137,8 @@ void CPassiveZone::HandleProtection(int ClientID, CPlayer *pPlayer, CCharacter *
 	}
 	else
 	{
-		// not in zone:
-		if(m_aFreezedTicks[ClientID] == 0 && m_aProtectionTicks[ClientID] == 0)
+		bool fullyUnfrozen = pChar->m_FreezeTime == 0 && !pChar->Core()->m_DeepFrozen && !pChar->Core()->m_LiveFrozen;
+		if(fullyUnfrozen && m_aProtectionTicks[ClientID] == 0)
 		{
 			m_aProtectionTicks[ClientID] = 0;
 			pChar->Core()->m_Passive = false;

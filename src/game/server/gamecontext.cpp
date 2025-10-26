@@ -6012,6 +6012,8 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("leave", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConLeaveEvent, this, "Leave current event");
 
 	Console()->Register("pages", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConDisplayPages, this, "Show how many deathnote pages you have.");
+
+	Console()->Register("passive", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConPassive, this, "Shows how many seconds of passive protection you have left");
 }
 
 CPlayer *CGameContext::GetPlayerByName(const char *pName)

@@ -11,8 +11,6 @@
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
-
-
 CRequests::CRequests(CGameContext *pGameServer) :
 	CComponent(pGameServer) {}
 

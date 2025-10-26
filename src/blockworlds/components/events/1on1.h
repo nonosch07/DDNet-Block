@@ -2,10 +2,9 @@
 #ifndef BLOCKWORLDS_COMPONENTS_EVENTS_1ON1_H
 #define BLOCKWORLDS_COMPONENTS_EVENTS_1ON1_H
 
-#include <vector>
 #include <base/vmath.h>
 #include <game/server/gamecontext.h>
-
+#include <vector>
 
 #include "1on1_utils.h"
 
@@ -40,7 +39,7 @@ public:
 	[[nodiscard]] std::optional<int> GetScoreOf(int ClientId) const override;
 	const S1on1SpawnReservation &GetSpawnReservation() const { return m_SpawnReservation; }
 
-	private:
+private:
 	S1on1SpawnReservation m_SpawnReservation;
 	int m_Player1ID;
 	int m_Player2ID;

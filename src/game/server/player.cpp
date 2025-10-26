@@ -890,7 +890,6 @@ void CPlayer::Respawn(bool WeakHook)
 
 CCharacter *CPlayer::ForceSpawn(vec2 Pos, bool doEvent)
 {
-
 	// check for active 1on1 event and override spawn position
 	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
 	{
