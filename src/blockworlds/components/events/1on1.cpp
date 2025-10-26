@@ -1,4 +1,5 @@
 #include "1on1.h"
+#include "1on1_utils.h"
 #include <base/system.h>
 #include <game/mapitems.h>
 #include <game/server/entities/character.h>
@@ -8,24 +9,6 @@
 
 #include <blockworlds/discord/webhook.h>
 
-static int GetTilePositions(int TileID, CGameContext *pSelf, std::vector<vec2> &result)
-{
-	if(TileID < 0 || TileID > 255)
-		return 0;
-	int Length = pSelf->Collision()->GetWidth() * pSelf->Collision()->GetHeight();
-	int foundIndex = 0;
-	for(int i = 0; i < Length; i++)
-	{
-		if(pSelf->Collision()->GetTileIndex(i) == TileID)
-		{
-			int X = pSelf->Collision()->GetPos(i).x;
-			int Y = pSelf->Collision()->GetPos(i).y;
-			result.push_back(vec2(X, Y));
-			foundIndex++;
-		}
-	}
-	return foundIndex;
-}
 
 COneOnOneEvent::COneOnOneEvent(CGameContext *pGameServer) :
 	CEventComponent(pGameServer), m_Player1ID(-1), m_Player2ID(-1), m_Score1(0), m_Score2(0), m_Wager(0), m_Team(-1), m_StartTimer(0), m_CurrentTick(0), m_SuppressFinishBroadcast(false)
@@ -39,6 +22,7 @@ void COneOnOneEvent::Initialize(int Player1ID, int Player2ID, int Wager)
 	m_Wager = Wager;
 	StartEvent();
 }
+
 
 void COneOnOneEvent::StartEvent()
 {
@@ -88,6 +72,20 @@ void COneOnOneEvent::StartEvent()
 			AbortAndRefund("[1on1] Failed to collect wager from both players. Event aborted.");
 			return;
 		}
+		CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
+		const char *pLogsUrl = g_Config.m_SvDiscordWebhookUrlLogs[0] ? g_Config.m_SvDiscordWebhookUrlLogs : nullptr;
+		if(Discord.IsConfigured(pLogsUrl))
+		{
+			char aMsg[256];
+			const char *pMap = Server()->GetMapName();
+			str_format(aMsg, sizeof(aMsg), "1on1 wager collected on %s: %s vs %s | Wager: %d BP", pMap ? pMap : "<map>", Server()->ClientName(m_Player1ID), Server()->ClientName(m_Player2ID), m_Wager);
+			CDiscordWebhook::SSendOptions Opt;
+			Opt.m_pWebhookUrl = pLogsUrl;
+			Discord.Send(aMsg, Opt);
+
+			str_format(aMsg, sizeof(aMsg), "1on1 wager locked for transfer on %s: %s <-> %s | Amount: %d BP", pMap ? pMap : "<map>", Server()->ClientName(m_Player1ID), Server()->ClientName(m_Player2ID), m_Wager);
+			Discord.Send(aMsg, Opt);
+		}
 	}
 
 	// save positions & teeinfos
@@ -111,59 +109,34 @@ void COneOnOneEvent::StartEvent()
 		return;
 	}
 
+
 	std::vector<vec2> spawnPosition;
 	int spawncount = GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), spawnPosition);
 
-	CCharacter *c1 = p1->GetCharacter();
-	CCharacter *c2 = p2->GetCharacter();
+	m_SpawnReservation.pos1Idx = (spawncount > 0) ? 0 : -1;
+	m_SpawnReservation.pos2Idx = (spawncount > 1) ? 1 : (spawncount > 0 ? 0 : -1);
 
-	if(!c1)
-	{
-		if(spawncount > 0)
-			p1->ForceSpawn(spawnPosition[0], false);
-		else
-		{
-			p1->ForceSpawn(vec2(0, 0), false);
-		}
-	}
-	if(!c2)
-	{
-		if(spawncount > 1)
-			p2->ForceSpawn(spawnPosition[1], false);
-		else if(spawncount > 0)
-			p2->ForceSpawn(spawnPosition[0], false);
-		else
-		{
-			p2->ForceSpawn(vec2(0, 0), false);
-		}
-	}
+	if (p1 && p1->GetCharacter())
+		p1->KillCharacter(WEAPON_WORLD, false);
+	if (p2 && p2->GetCharacter())
+		p2->KillCharacter(WEAPON_WORLD, false);
 
-	std::vector<vec2> startPositions;
-	GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), startPositions);
-	CCharacter *chr1 = GameServer()->GetPlayerChar(m_Player1ID);
-	CCharacter *chr2 = GameServer()->GetPlayerChar(m_Player2ID);
-
-	if(chr1)
-	{
-		if(!startPositions.empty())
-		{
-			GameServer()->Teleport(chr1, startPositions[0]);
-		}
-		chr1->ResetVelocity();
-		chr1->FreezeForce(3);
+	// directly spawn players at their reserved 1on1 positions
+	if (p1 && m_SpawnReservation.pos1Idx >= 0 && m_SpawnReservation.pos1Idx < (int)spawnPosition.size()) {
+		p1->ForceSpawn(spawnPosition[m_SpawnReservation.pos1Idx], false);
+		p1->SetSkinMani(-1);
+		if(p1->GetCurrentSpecial() != -1)
+			p1->ToggleSpecial(p1->GetCurrentSpecial());
+		if(p1->GetCharacter())
+			p1->GetCharacter()->FreezeForce(3);
 	}
-	if(chr2)
-	{
-		if(startPositions.size() > 1)
-		{
-			GameServer()->Teleport(chr2, startPositions[1]);
-		}
-		else if(!startPositions.empty())
-		{
-			GameServer()->Teleport(chr2, startPositions[0]);
-		}
-		chr2->ResetVelocity();
-		chr2->FreezeForce(3);
+	if (p2 && m_SpawnReservation.pos2Idx >= 0 && m_SpawnReservation.pos2Idx < (int)spawnPosition.size()) {
+		p2->ForceSpawn(spawnPosition[m_SpawnReservation.pos2Idx], false);
+		p2->SetSkinMani(-1);
+		if(p2->GetCurrentSpecial() != -1)
+			p2->ToggleSpecial(p2->GetCurrentSpecial());
+		if(p2->GetCharacter())
+			p2->GetCharacter()->FreezeForce(3);
 	}
 
 	if(p1)
@@ -373,60 +346,19 @@ void COneOnOneEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 	if(p2)
 		p2->m_allowDeath = false;
 
-	CCharacter *pChr1 = GameServer()->GetPlayerChar(m_Player1ID);
-	CCharacter *pChr2 = GameServer()->GetPlayerChar(m_Player2ID);
-
-	std::vector<vec2> tilePositions;
-	GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), tilePositions);
-
-	// if both are present, position/freeze both together for a clean round start
-	if(pChr1 && pChr2)
-	{
-		if(tilePositions.size() >= 2)
-		{
-			GameServer()->Teleport(pChr1, tilePositions[0]);
-			GameServer()->Teleport(pChr2, tilePositions[1]);
-		}
-		else if(!tilePositions.empty())
-		{
-			GameServer()->Teleport(pChr1, tilePositions[0]);
-			GameServer()->Teleport(pChr2, tilePositions[0]);
-		}
-		if(pChr1)
-		{
+	// directly spawn at reserved position for each player, with null checks ;(
+	if(ClientId == m_Player1ID) {
+		CCharacter *pChr1 = GameServer()->GetPlayerChar(m_Player1ID);
+		if(pChr1) {
 			pChr1->ResetVelocity();
 			pChr1->FreezeForce(3);
 		}
-		if(pChr2)
-		{
+	} else if(ClientId == m_Player2ID) {
+		CCharacter *pChr2 = GameServer()->GetPlayerChar(m_Player2ID);
+		if(pChr2) {
 			pChr2->ResetVelocity();
 			pChr2->FreezeForce(3);
 		}
-		return;
-	}
-
-	// If only one is present (spawns first), still reset and freeze that player immediately
-	if(ClientId == m_Player1ID && pChr1)
-	{
-		if(tilePositions.size() >= 1)
-		{
-			GameServer()->Teleport(pChr1, tilePositions[0]);
-		}
-		pChr1->ResetVelocity();
-		pChr1->FreezeForce(3);
-	}
-	else if(ClientId == m_Player2ID && pChr2)
-	{
-		if(tilePositions.size() >= 2)
-		{
-			GameServer()->Teleport(pChr2, tilePositions[1]);
-		}
-		else if(!tilePositions.empty())
-		{
-			GameServer()->Teleport(pChr2, tilePositions[0]);
-		}
-		pChr2->ResetVelocity();
-		pChr2->FreezeForce(3);
 	}
 }
 
@@ -531,6 +463,8 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 		m_PendingAwardTo = 0;
 		m_PendingAwardTick = -1;
 		m_RoundStartTick = Server()->Tick();
+
+		RestartRoundAfterDraw();
 	}
 	else if(ClientId == m_Player2ID)
 	{
@@ -558,6 +492,8 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 		m_PendingAwardTo = 0;
 		m_PendingAwardTick = -1;
 		m_RoundStartTick = Server()->Tick();
+
+		RestartRoundAfterDraw();
 	}
 }
 
@@ -634,12 +570,23 @@ void COneOnOneEvent::RestartRoundAfterDraw()
 	if(p1)
 	{
 		pController->Teams().SetForceCharacterTeam(m_Player1ID, m_Team);
-		pController->Teams().SetForceCharacterTeam(m_Player2ID, m_Team);
+		p1->KillCharacter(WEAPON_WORLD, false);
+		int idx1 = m_SpawnReservation.pos1Idx;
+		if(idx1 >= 0 && idx1 < (int)startPositions.size())
+			p1->ForceSpawn(startPositions[idx1], false);
+		else if(!startPositions.empty())
+			p1->ForceSpawn(startPositions[0], false);
+		else
+			p1->ForceSpawn(vec2(0, 0), false);
 	}
 	if(p2)
 	{
+		pController->Teams().SetForceCharacterTeam(m_Player2ID, m_Team);
 		p2->KillCharacter(WEAPON_WORLD, false);
-		if(!startPositions.empty())
+		int idx2 = m_SpawnReservation.pos2Idx;
+		if(idx2 >= 0 && idx2 < (int)startPositions.size())
+			p2->ForceSpawn(startPositions[idx2], false);
+		else if(!startPositions.empty())
 			p2->ForceSpawn(startPositions[0], false);
 		else
 			p2->ForceSpawn(vec2(0, 0), false);
@@ -688,7 +635,14 @@ void COneOnOneEvent::FinishEvent()
 		{
 			char aMsg[512];
 			const char *pMap = Server()->GetMapName();
-			str_format(aMsg, sizeof(aMsg), "1on1 finished on %s: %s (%d) vs %s (%d) → Winner: %s | Score %d-%d", pMap ? pMap : "<map>", pName1, m_Score1, pName2, m_Score2, pWinnerName, m_Score1, m_Score2);
+			if(m_Wager > 0)
+			{
+				str_format(aMsg, sizeof(aMsg), "1on1 finished on %s: %s (%d) vs %s (%d) → Winner: %s | Score %d-%d | Wager: %d", pMap ? pMap : "<map>", pName1, m_Score1, pName2, m_Score2, pWinnerName, m_Score1, m_Score2, m_Wager);
+			}
+			else
+			{
+				str_format(aMsg, sizeof(aMsg), "1on1 finished on %s: %s (%d) vs %s (%d) → Winner: %s | Score %d-%d", pMap ? pMap : "<map>", pName1, m_Score1, pName2, m_Score2, pWinnerName, m_Score1, m_Score2);
+			}
 			CDiscordWebhook::SSendOptions Opt;
 			Opt.m_pWebhookUrl = p1on1Url;
 			Discord.Send(aMsg, Opt);
@@ -699,6 +653,19 @@ void COneOnOneEvent::FinishEvent()
 	if(m_Wager > 0 && pWinner)
 	{
 		PayoutWinner(pWinner, pLoser);
+		CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
+		const char *pLogsUrl = g_Config.m_SvDiscordWebhookUrlLogs[0] ? g_Config.m_SvDiscordWebhookUrlLogs : nullptr;
+		if(Discord.IsConfigured(pLogsUrl))
+		{
+			char aMsg[256];
+			const char *pMap = Server()->GetMapName();
+			int loserId = (m_ForcedWinnerCid == m_Player1ID) ? m_Player2ID : m_Player1ID;
+			int winnerId = m_ForcedWinnerCid >= 0 ? m_ForcedWinnerCid : (m_Score1 > m_Score2 ? m_Player1ID : m_Player2ID);
+			str_format(aMsg, sizeof(aMsg), "1on1 wager transferred on %s: %s → %s | Amount: %d BP", pMap ? pMap : "<map>", Server()->ClientName(loserId), Server()->ClientName(winnerId), m_Wager);
+			CDiscordWebhook::SSendOptions Opt;
+			Opt.m_pWebhookUrl = pLogsUrl;
+			Discord.Send(aMsg, Opt);
+		}
 	}
 
 	// clear per-player broadcasts using non-format overload

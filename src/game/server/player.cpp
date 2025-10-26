@@ -27,6 +27,7 @@
 #include <blockworlds/cosmetics/cosmetics.h>
 // include specific event header to query 1on1 scores
 #include <blockworlds/components/events/1on1.h>
+#include <game/mapitems.h>
 // (no direct dependency on requests here; rename notice is broadcast directly)
 #include <blockworlds/components/requests.h>
 
@@ -889,6 +890,28 @@ void CPlayer::Respawn(bool WeakHook)
 
 CCharacter *CPlayer::ForceSpawn(vec2 Pos, bool doEvent)
 {
+
+	// check for active 1on1 event and override spawn position
+	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
+	{
+		auto active = events->GetActiveEvent();
+		COneOnOneEvent *oneOnOne = nullptr;
+		if(active && std::string(active->GetEventName()) == "1on1")
+			oneOnOne = static_cast<COneOnOneEvent *>(active.get());
+		if(oneOnOne && oneOnOne->GetState() == CEventComponent::EEventState::Active)
+		{
+			const auto &parts = oneOnOne->Participants();
+			if(std::find(parts.begin(), parts.end(), GetCid()) != parts.end())
+			{
+				const auto &reservation = oneOnOne->GetSpawnReservation();
+				std::vector<vec2> spawnPositions;
+				GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), spawnPositions);
+				int idx = (GetCid() == parts[0]) ? reservation.pos1Idx : reservation.pos2Idx;
+				if(idx >= 0 && idx < (int)spawnPositions.size())
+					Pos = spawnPositions[idx];
+			}
+		}
+	}
 	m_Spawning = false;
 	m_pCharacter = new(m_ClientId) CCharacter(&GameServer()->m_World, GameServer()->GetLastPlayerInput(m_ClientId));
 	m_pCharacter->Spawn(this, Pos, doEvent);
@@ -975,8 +998,36 @@ void CPlayer::TryRespawn()
 {
 	vec2 SpawnPos;
 
-	if(!GameServer()->m_pController->CanSpawn(m_Team, &SpawnPos, GameServer()->GetDDRaceTeam(m_ClientId)))
-		return;
+	bool used1on1 = false;
+	// check for active 1on1 event and override spawn position if needed
+	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
+	{
+		auto active = events->GetActiveEvent();
+		COneOnOneEvent *oneOnOne = nullptr;
+		if(active && std::string(active->GetEventName()) == "1on1")
+			oneOnOne = static_cast<COneOnOneEvent *>(active.get());
+		if(oneOnOne && oneOnOne->GetState() == CEventComponent::EEventState::Active)
+		{
+			const auto &parts = oneOnOne->Participants();
+			if(std::find(parts.begin(), parts.end(), GetCid()) != parts.end())
+			{
+				const auto &reservation = oneOnOne->GetSpawnReservation();
+				std::vector<vec2> spawnPositions;
+				GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), spawnPositions);
+				int idx = (GetCid() == parts[0]) ? reservation.pos1Idx : reservation.pos2Idx;
+				if(idx >= 0 && idx < (int)spawnPositions.size())
+				{
+					SpawnPos = spawnPositions[idx];
+					used1on1 = true;
+				}
+			}
+		}
+	}
+	if(!used1on1)
+	{
+		if(!GameServer()->m_pController->CanSpawn(m_Team, &SpawnPos, GameServer()->GetDDRaceTeam(m_ClientId)))
+			return;
+	}
 
 	m_WeakHookSpawn = false;
 	m_Spawning = false;
