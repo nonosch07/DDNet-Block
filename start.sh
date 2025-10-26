@@ -10,12 +10,11 @@ fi
 
 sleep 2
 
-
 if [ $(env | grep '^DEBUG=' | wc -l) -gt 0 ]
 then
-       echo "Starting blockworlds in debug mode..."
-       gdb -ex run -ex bt --batch --args ./blockworlds_d -f autoexec_server.cfg
+    echo "Starting blockworlds in debug mode..."
+    gdb -ex run -ex bt --batch --args ./blockworlds_d -f autoexec_server.cfg
 else
-echo "Starting blockworlds in release mode..."
-./blockworlds -f autoexec_server.cfg
-#fi
+    echo "Starting blockworlds in release mode..."
+    ./blockworlds -f autoexec_server.cfg
+fi
