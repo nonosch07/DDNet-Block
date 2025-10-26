@@ -6,6 +6,7 @@ RUN apt install -y libssl3 libcurl4 libsqlite3-0 libmariadb3
 WORKDIR /blockworlds
 
 COPY build/DDNet-Server blockworlds
+COPY build/DDNet-Server_d blockworlds_d
 COPY storage.cfg .
 COPY start.sh .
 

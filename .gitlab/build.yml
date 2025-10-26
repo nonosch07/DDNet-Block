@@ -1,10 +1,11 @@
 image: ubuntu:22.04
 
 stages:
-  - Build DDNet Server
+  - Build DDNet Server (Release)
+  - Build DDNet Server (Debug)
   - Build docker image and deploy
 
-build_cmake:
+build_cmake_release:
   stage: Build DDNet Server
   before_script:
     - apt-get update -y
@@ -26,6 +27,35 @@ build_cmake:
   artifacts:
     paths:
       - build/DDNet-Server
+    when: on_success
+    expire_in: 7 days
+  only:
+    - master
+    - test
+
+build_cmake_debug:
+  stage: Build DDNet Server (Debug)
+  before_script:
+    - apt-get update -y
+    - apt-get upgrade -y
+    - apt-get install
+      pkg-config
+      clang rustc
+      cargo cmake ninja-build
+      libfreetype6-dev libnotify-dev libsdl2-dev libsqlite3-dev libvulkan-dev
+      glslang-tools spirv-tools libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev
+      libx264-dev libpng-dev libmariadb-dev
+      libcurl4 libcurl3-gnutls libcurl4-openssl-dev libcurlpp-dev
+      libogg-dev libopus-dev libopusfile-dev
+      valgrind -y
+  script:
+    - mkdir build && cd build
+    - cmake -DCMAKE_BUILD_TYPE=Debug -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=ON ..
+    - make game-server
+    - cp DDNet-Server DDNet-Server_d
+  artifacts:
+    paths:
+      - build/DDNet-Server_d
     when: on_success
     expire_in: 7 days
   only:
