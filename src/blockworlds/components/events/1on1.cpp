@@ -856,7 +856,7 @@ void COneOnOneEvent::PayoutWinner(CPlayer *pWinner, CPlayer *pLoser)
 		return;
 	}
 	// Fallback
-	if(m_Wager > 0 && pLoser->GetPlayerBlockpoints() >= m_Wager)
+	if(m_Wager > 0 && pLoser && pLoser->GetPlayerBlockpoints() >= m_Wager)
 	{
 		pLoser->SetPlayerBlockpoints(pLoser->GetPlayerBlockpoints() - m_Wager);
 		pWinner->SetPlayerBlockpoints(pWinner->GetPlayerBlockpoints() + m_Wager);
@@ -866,7 +866,7 @@ void COneOnOneEvent::PayoutWinner(CPlayer *pWinner, CPlayer *pLoser)
 		str_format(aBuf, sizeof(aBuf), "[1on1] - %s won %d blockpoints from %s!", Server()->ClientName(pWinner->GetCid()), m_Wager, Server()->ClientName(pLoser->GetCid()));
 		GameServer()->SendChatTarget(-1, aBuf);
 	}
-	else
+	else if(pLoser)
 	{
 		char aBuf[256];
 		str_format(aBuf, sizeof(aBuf), "[1on1] - %s could not pay the wager of %d blockpoints to %s!", Server()->ClientName(pLoser->GetCid()), m_Wager, Server()->ClientName(pWinner->GetCid()));
