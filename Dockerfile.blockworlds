@@ -1,7 +1,7 @@
 FROM debian:stable-slim
 
 RUN apt update -y && apt upgrade -y
-RUN apt install -y libssl3 libcurl4 libsqlite3-0 libmariadb3
+RUN apt install -y libssl3 libcurl4 libsqlite3-0 libmariadb3 gdb
 
 WORKDIR /blockworlds
 
