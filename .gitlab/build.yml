@@ -6,7 +6,7 @@ stages:
   - Build docker image and deploy
 
 build_cmake_release:
-  stage: Build DDNet Server
+  stage: Build DDNet Server (Release)
   before_script:
     - apt-get update -y
     - apt-get upgrade -y
