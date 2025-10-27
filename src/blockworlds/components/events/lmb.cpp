@@ -10,6 +10,7 @@
 #include <game/teamscore.h>
 
 #include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/components/events.h>
 #include <blockworlds/discord/webhook.h>
 
 CLastManBlockingEvent::CLastManBlockingEvent(CGameContext *pGameContext) :
@@ -47,12 +48,14 @@ void CLastManBlockingEvent::OnTick()
 		// TODO: broadcast manager
 		if(Server()->Tick() % Config()->m_SvLMBBroadcastRate == 0)
 		{
-			GameServer()->SendBroadcast(-1, "%s is about to start!\n"
-							"Register with /join\n"
-							"Time left: %d seconds\n\n"
-							"Candidates: %" PRIzu "\n\n"
-							"%s\n"
-							"%s",
+			// build message first
+			char aBuf[512];
+			str_format(aBuf, sizeof(aBuf), "%s is about to start!\n"
+								   "Register with /join\n"
+								   "Time left: %d seconds\n\n"
+								   "Candidates: %" PRIzu "\n\n"
+								   "%s\n"
+								   "%s",
 				GetEventName(),
 				(int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()),
 				Candidates().size(),
@@ -60,6 +63,16 @@ void CLastManBlockingEvent::OnTick()
 				"                                                                                     "
 				"                                                                                     "
 				"                                                                                     ");
+
+			// send to all clients except those currently in an active 1on1
+			for(int i = 0; i < MAX_CLIENTS; ++i)
+			{
+				if(!Server()->ClientIngame(i))
+					continue;
+				if(IsClientInActive1on1(i))
+					continue;
+				GameServer()->SendBroadcast(aBuf, i);
+			}
 		}
 	}
 	else if(GetState() == CEventComponent::EEventState::Active)
@@ -175,22 +188,19 @@ void CLastManBlockingEvent::FinishEvent()
 	SetState(CEventComponent::EEventState::Ending);
 	if(m_FinishingReason == NATURAL)
 	{
-		if(m_Winner != -1)
+			if(m_Winner != -1)
 		{
 			char aBuf[256];
 			str_format(aBuf, sizeof(aBuf), "'%s' has won the %s", Server()->ClientName(m_Winner), GetEventName());
 			GameServer()->SendChatTarget(-1, aBuf);
-			GameServer()->SendBroadcast(-1, aBuf, false);
-
-			CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
-			if(Discord.IsConfigured(g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr))
+			// send broadcast to all except clients in active 1on1s
+			for(int i = 0; i < MAX_CLIENTS; ++i)
 			{
-				char aMsg[512];
-				const char *pMap = Server()->GetMapName();
-				str_format(aMsg, sizeof(aMsg), "LMB finished on %s: Winner **%s**", pMap ? pMap : "<map>", Server()->ClientName(m_Winner));
-				CDiscordWebhook::SSendOptions Opt;
-				Opt.m_pWebhookUrl = g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr;
-				Discord.Send(aMsg, Opt);
+				if(!Server()->ClientIngame(i))
+					continue;
+				if(IsClientInActive1on1(i))
+					continue;
+				GameServer()->SendBroadcast(aBuf, i, false);
 			}
 
 			int BlockpointsReward = Config()->m_SvLMBBlockpointsReward;
@@ -230,11 +240,18 @@ void CLastManBlockingEvent::FinishEvent()
 		}
 	}
 	else if(m_FinishingReason == NOT_ENOUGH_CANDIDATES)
-	{
-		char aBuf[256];
-		str_format(aBuf, sizeof(aBuf), "Not enough candidates joined %s", GetEventName());
-		GameServer()->SendChatTarget(-1, aBuf);
-		GameServer()->SendBroadcast(-1, aBuf, false);
+		{
+			char aBuf[256];
+			str_format(aBuf, sizeof(aBuf), "Not enough candidates joined %s", GetEventName());
+			GameServer()->SendChatTarget(-1, aBuf);
+			for(int i = 0; i < MAX_CLIENTS; ++i)
+			{
+				if(!Server()->ClientIngame(i))
+					continue;
+				if(IsClientInActive1on1(i))
+					continue;
+				GameServer()->SendBroadcast(aBuf, i, false);
+			}
 
 		CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
 		if(Discord.IsConfigured(g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr))
@@ -245,11 +262,18 @@ void CLastManBlockingEvent::FinishEvent()
 		}
 	}
 	else if(m_FinishingReason == EMERGENCY)
-	{
-		char aBuf[256];
-		str_format(aBuf, sizeof(aBuf), "%s finished prematurely", GetEventName());
-		GameServer()->SendChatTarget(-1, aBuf);
-		GameServer()->SendBroadcast(-1, aBuf, false);
+		{
+			char aBuf[256];
+			str_format(aBuf, sizeof(aBuf), "%s finished prematurely", GetEventName());
+			GameServer()->SendChatTarget(-1, aBuf);
+			for(int i = 0; i < MAX_CLIENTS; ++i)
+			{
+				if(!Server()->ClientIngame(i))
+					continue;
+				if(IsClientInActive1on1(i))
+					continue;
+				GameServer()->SendBroadcast(aBuf, i, false);
+			}
 
 		CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
 		if(Discord.IsConfigured(g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr))
@@ -495,4 +519,22 @@ int CLastManBlockingEvent::GetFrozenSince(int ClientId) const
 void CLastManBlockingEvent::SetFrozenSince(int ClientId, int Tick)
 {
 	m_FrozenSince[ClientId] = Tick;
+}
+
+bool CLastManBlockingEvent::IsClientInActive1on1(int ClientId) const
+{
+	if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+	{
+		for(const auto &active : eventsAccessor->GetActive1on1Events())
+		{
+			if(!active)
+				continue;
+			if(active->GetState() != CEventComponent::EEventState::Active)
+				continue;
+			const auto &parts = active->Participants();
+			if(std::find(parts.begin(), parts.end(), ClientId) != parts.end())
+				return true;
+		}
+	}
+	return false;
 }

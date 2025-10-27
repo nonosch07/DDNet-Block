@@ -43,6 +43,10 @@ protected:
 	void CheckFreezeTime();
 
 private:
+
+	// return true if the client is participating in any active 1on1 private event
+	bool IsClientInActive1on1(int ClientId) const;
+
 	int m_RegistrationEndTick;
 	int m_ActiveStartTick;
 	int m_ActiveEndTick;
