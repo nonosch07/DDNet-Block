@@ -9,24 +9,26 @@
 #include "1on1_utils.h"
 
 #include "event.h"
+#include <mutex>
+#include <memory>
+#include <atomic>
 
-class COneOnOneEvent : public CEventComponent
+class COneOnOneEvent : public CComponent
 {
 public:
 	explicit COneOnOneEvent(CGameContext *pGameServer);
+    ~COneOnOneEvent() override;
 
-	const char *GetEventName() const override { return "1on1"; }
-	void OpenRegistration() override {}
-	void CloseRegistration() override {}
-	void StartEvent() override;
-	void FinishEvent() override;
-	void ForceNextStage() override { FinishEvent(); }
-	bool CheckEndCondition() override;
+	// CComponent name
+	[[nodiscard]] const char *GetName() const override { return "1on1"; }
 
-	bool Register(int ClientId) override { return false; }
-	bool DeRegister(int ClientId) override { return false; }
-	bool Join(int ClientId) override { return false; }
-	bool Leave(int ClientId) override;
+	// lifecycle
+	void StartEvent();
+	void FinishEvent();
+	void ForceNextStage() { FinishEvent(); }
+	bool CheckEndCondition();
+
+	bool Leave(int ClientId);
 
 	void Initialize(int Player1ID, int Player2ID, int Wager = 0);
 
@@ -34,17 +36,61 @@ public:
 	void OnCharacterSpawn(int ClientId, vec2 SpawnPos) override;
 	void OnCharacterDeath(int KillerId, int ClientId, int Weapon) override;
 	void OnPlayerDropping(int ClientId) override;
-	void EmergencyShutdown(const char *pMsg) override;
+	void EmergencyShutdown(const char *pMsg);
 
-	[[nodiscard]] std::optional<int> GetScoreOf(int ClientId) const override;
+	[[nodiscard]] std::optional<int> GetScoreOf(int ClientId) const;
 	const S1on1SpawnReservation &GetSpawnReservation() const { return m_SpawnReservation; }
 
 private:
+public:
+	// Minimal event-like state copied from CEventComponent so 1on1 can be independent
+	enum class EEventState
+	{
+		Created,
+		Registration,
+		Preparation,
+		Active,
+		Ending,
+		Finished
+	};
+
+	[[nodiscard]] EEventState GetState() const { return m_State.load(); }
+		mutable std::mutex m_Mutex;
+	[[nodiscard]] const char *GetStateName() const;
+	[[nodiscard]] static const char *GetStateName(EEventState State);
+
+	void SetState(EEventState NewState);
+
+	void SavePosition(int ClientId);
+	void LoadPosition(int ClientId);
+
+	void SaveWeapons(int ClientId);
+	void LoadWeapons(int ClientId);
+
+	int PlayerHookedGroundFor(bool ClientId) const;
+
+	// state
+	std::atomic<EEventState> m_State{EEventState::Created};
+
+	using FnOnStateChange = std::function<void(EEventState OldState, EEventState NewState)>;
+	FnOnStateChange m_pfnOnStateChange;
+
+	std::map<int, std::unique_ptr<class CSaveTee>> m_pSavedPlayers;
+	std::map<int, std::array<CCharacterCore::WeaponStat, NUM_WEAPONS>> m_SavedWeapons;
+
+	std::vector<int> m_Candidates;
+	std::vector<int> m_Participants;
+
+	[[nodiscard]] std::vector<int> Participants() const { std::lock_guard<std::mutex> g(m_Mutex); return m_Participants; }
+
+	bool m_EmergencyShutdown = false;
+	char m_EmergencyMessage[256]{};
+
 	S1on1SpawnReservation m_SpawnReservation;
 	int m_Player1ID;
 	int m_Player2ID;
-	int m_Score1;
-	int m_Score2;
+	std::atomic<int> m_Score1{0};
+	std::atomic<int> m_Score2{0};
 	int m_Wager;
 	int m_Team;
 	int64_t m_StartTimer;
@@ -96,5 +142,7 @@ private:
 	void AbortAndRefund(const char *pReason);
 	void CheckFreezePenalties();
 };
+
+	// End of class
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_1ON1_H

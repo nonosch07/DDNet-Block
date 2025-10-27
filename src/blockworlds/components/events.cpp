@@ -8,7 +8,9 @@
 #include <blockworlds/utils/memory.h>
 
 #include <blockworlds/components/core/component_registry.h>
+#if 0 // 1on1 moved out of the single-active events system; handled by oneonone_manager
 #include <blockworlds/components/events/1on1.h>
+#endif
 #include <blockworlds/components/events/clanwar.h>
 #include <blockworlds/components/events/colorsoldiers.h>
 #include <blockworlds/components/events/event.h>
@@ -27,7 +29,7 @@ CEvents::CEvents(CGameContext *pGameServer) :
 	m_EventsFactory.emplace("colorsoldiers", SFactoryRec{EEventCategory::Public, [](class CGameContext *pGS) { return std::make_shared<CColorSoldiersEvent>(pGS); }});
 
 	// Private events
-	m_EventsFactory.emplace("1on1", SFactoryRec{EEventCategory::Private, [](class CGameContext *pGS) { return std::make_shared<COneOnOneEvent>(pGS); }});
+	// Note: 1on1 is intentionally NOT registered here. 1on1 matches are managed by COneOnOneManager
 	m_EventsFactory.emplace("priv_tdm", SFactoryRec{EEventCategory::Private, [](class CGameContext *pGS) { return std::make_shared<CPrivateTdmEvent>(pGS); }});
 	m_EventsFactory.emplace("clanwar", SFactoryRec{EEventCategory::Private, [](class CGameContext *pGS) { return std::make_shared<CClanwarEvent>(pGS); }});
 }

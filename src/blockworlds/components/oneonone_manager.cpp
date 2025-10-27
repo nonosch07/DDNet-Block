@@ -1,0 +1,128 @@
+#include "oneonone_manager.h"
+#include <base/system.h>
+
+#include <algorithm>
+
+COneOnOneManager::COneOnOneManager(CGameContext *pGameServer)
+    : CComponent(pGameServer)
+{
+}
+
+std::shared_ptr<COneOnOneEvent> COneOnOneManager::CreateMatch(int Player1ID, int Player2ID, int Wager)
+{
+    auto match = std::make_shared<COneOnOneEvent>(GameServer());
+    // Insert into manager before initialization so the match is discoverable during Initialize/StartEvent
+    {
+        std::lock_guard<std::mutex> g(m_Mutex);
+        m_Matches.push_back(match);
+    }
+
+    // Initialize will call StartEvent() immediately
+    match->Initialize(Player1ID, Player2ID, Wager);
+
+    return match;
+}
+
+std::shared_ptr<COneOnOneEvent> COneOnOneManager::GetMatchForPlayer(int ClientId) const
+{
+    std::lock_guard<std::mutex> g(m_Mutex);
+    for(const auto &m : m_Matches)
+    {
+        if(!m)
+            continue;
+    auto parts = m->Participants();
+        if(std::find(parts.begin(), parts.end(), ClientId) != parts.end())
+            return m;
+    }
+    return nullptr;
+}
+
+void COneOnOneManager::OnTick()
+{
+    // Copy matches under lock, then call OnTick() outside the lock to avoid
+    // holding the mutex while running match logic (which may re-enter manager
+    // code). Afterwards prune finished matches while holding the lock.
+    std::vector<std::shared_ptr<COneOnOneEvent>> snapshot;
+    {
+        std::lock_guard<std::mutex> g(m_Mutex);
+        snapshot = m_Matches;
+    }
+
+    for(const auto &m : snapshot)
+    {
+        if(m && m->GetState() != COneOnOneEvent::EEventState::Finished)
+            m->OnTick();
+    }
+
+    // remove finished matches
+    {
+        std::lock_guard<std::mutex> g(m_Mutex);
+        m_Matches.erase(std::remove_if(m_Matches.begin(), m_Matches.end(), [](const std::shared_ptr<COneOnOneEvent> &m) {
+                               return !m || m->GetState() == COneOnOneEvent::EEventState::Finished;
+                           }),
+                       m_Matches.end());
+    }
+}
+
+void COneOnOneManager::OnPlayerDropping(int ClientId)
+{
+    std::vector<std::shared_ptr<COneOnOneEvent>> snapshot;
+    {
+        std::lock_guard<std::mutex> g(m_Mutex);
+        snapshot = m_Matches;
+    }
+
+    for(const auto &m : snapshot)
+    {
+        if(m && m->GetState() == COneOnOneEvent::EEventState::Active)
+        {
+            auto parts = m->Participants();
+            if(std::find(parts.begin(), parts.end(), ClientId) != parts.end())
+            {
+                m->OnPlayerDropping(ClientId);
+            }
+        }
+    }
+}
+
+void COneOnOneManager::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
+{
+    std::vector<std::shared_ptr<COneOnOneEvent>> snapshot;
+    {
+        std::lock_guard<std::mutex> g(m_Mutex);
+        snapshot = m_Matches;
+    }
+
+    for(const auto &m : snapshot)
+    {
+        if(m && m->GetState() == COneOnOneEvent::EEventState::Active)
+        {
+            auto parts = m->Participants();
+            if(std::find(parts.begin(), parts.end(), ClientId) != parts.end())
+            {
+                m->OnCharacterSpawn(ClientId, SpawnPos);
+            }
+        }
+    }
+}
+
+void COneOnOneManager::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
+{
+    std::vector<std::shared_ptr<COneOnOneEvent>> snapshot;
+    {
+        std::lock_guard<std::mutex> g(m_Mutex);
+        snapshot = m_Matches;
+    }
+
+    for(const auto &m : snapshot)
+    {
+        if(m && m->GetState() == COneOnOneEvent::EEventState::Active)
+        {
+            auto parts = m->Participants();
+            if(std::find(parts.begin(), parts.end(), ClientId) != parts.end() || std::find(parts.begin(), parts.end(), KillerId) != parts.end())
+            {
+                m->OnCharacterDeath(KillerId, ClientId, Weapon);
+            }
+        }
+    }
+}

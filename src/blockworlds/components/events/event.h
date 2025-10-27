@@ -10,12 +10,14 @@
 #include <array>
 #include <functional>
 #include <map>
+#include <memory>
 #include <optional>
 
 class CEventComponent : public CComponent
 {
 public:
 	explicit CEventComponent(CGameContext *pGameServer);
+    virtual ~CEventComponent();
 
 	enum class EEventState
 	{
@@ -33,7 +35,7 @@ protected:
 	FnOnStateChange m_pfnOnStateChange;
 	void SetState(EEventState NewState);
 
-	std::map<int, class CSaveTee *> m_pSavedPlayers;
+	std::map<int, std::unique_ptr<class CSaveTee>> m_pSavedPlayers;
 	std::map<int, std::array<CCharacterCore::WeaponStat, NUM_WEAPONS>> m_SavedWeapons;
 
 	std::vector<int> m_Candidates;

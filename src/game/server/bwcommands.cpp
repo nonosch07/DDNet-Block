@@ -469,35 +469,6 @@ void CGameContext::ConDisplayProfile(IConsole::IResult *pResult, void *pUserData
 	str_format(aBuf, sizeof(aBuf), "*** PlayTime: %d hours %d minutes", Hours, Minutes);
 	pSelf->SendChatTarget(ClientId, aBuf);
 
-	pSelf->SendChatTarget(ClientId, "*** ------Cosmetics------");
-
-	int OwnedSkinmani = 0;
-	for(int i = 0; i < CCosmeticsHandler::NUM_SKINMANIS; i++)
-	{
-		if(pSelf->Cosmetics()->HasSkinmani(pTargetPlayer->GetCid(), i))
-			OwnedSkinmani++;
-	}
-	str_format(aBuf, sizeof(aBuf), "*** Skin Manipulations: %d/%d", OwnedSkinmani, CCosmeticsHandler::NUM_SKINMANIS);
-	pSelf->SendChatTarget(ClientId, aBuf);
-
-	int OwnedGundesign = 0;
-	for(int i = 0; i < CCosmeticsHandler::NUM_GUNDESIGNS; i++)
-	{
-		if(pSelf->Cosmetics()->HasGundesign(pTargetPlayer->GetCid(), i))
-			OwnedGundesign++;
-	}
-	str_format(aBuf, sizeof(aBuf), "*** Gun Designs: %d/%d", OwnedGundesign, CCosmeticsHandler::NUM_GUNDESIGNS);
-	pSelf->SendChatTarget(ClientId, aBuf);
-
-	int OwnedKnockouts = 0;
-	for(int i = 0; i < CCosmeticsHandler::NUM_KNOCKOUTS; i++)
-	{
-		if(pSelf->Cosmetics()->HasKnockoutEffect(pTargetPlayer->GetCid(), i))
-			OwnedKnockouts++;
-	}
-	str_format(aBuf, sizeof(aBuf), "*** Knockout Effects: %d/%d", OwnedKnockouts, CCosmeticsHandler::NUM_KNOCKOUTS);
-	pSelf->SendChatTarget(ClientId, aBuf);
-
 	// pSelf->SendChatTarget(ClientId, "*** ------Ranked------");
 
 	// // ranked stats: Games, Kills, Deaths, Wins

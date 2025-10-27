@@ -37,6 +37,7 @@
 #include <blockworlds/components/events.h>
 #include <blockworlds/components/promises.h>
 #include <blockworlds/components/requests.h>
+#include <blockworlds/components/oneonone_manager.h>
 
 #include <game/generated/protocol7.h>
 #include <game/generated/protocolglue.h>
@@ -160,9 +161,12 @@ void CGameContext::Construct(int Resetting)
 	{
 		g_ComponentRegistry.Register<CPromises>(CPromises::GetNameStatic());
 		g_ComponentRegistry.Register<CEvents>(CEvents::GetNameStatic());
+		g_ComponentRegistry.Register<COneOnOneManager>(COneOnOneManager::GetNameStatic());
 		g_ComponentRegistry.Register<CRequests>(CRequests::GetNameStatic());
 		g_ComponentRegistry.Register<CAiBotComponent>(CAiBotComponent::GetNameStatic());
 		g_ComponentRegistry.Register<CChatFilterComponent>(CChatFilterComponent::GetNameStatic());
+
+		g_ComponentRegistry.Create<COneOnOneManager>(this);
 	}
 }
 
@@ -3084,6 +3088,7 @@ void CGameContext::OnSetTeamNetMessage(const CNetMsg_Cl_SetTeam *pMsg, int Clien
 		// if player tries to go to spectators during an active event, make them leave the event instead
 		if(pMsg->m_Team == TEAM_SPECTATORS)
 		{
+			// First check legacy/component events
 			if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
 			{
 				auto pEvent = eventsAccessor->GetActiveEvent();
@@ -3096,6 +3101,18 @@ void CGameContext::OnSetTeamNetMessage(const CNetMsg_Cl_SetTeam *pMsg, int Clien
 						pEvent->Leave(ClientId);
 						return; // suppress actual team change
 					}
+				}
+			}
+
+			// then check 1on1 manager
+			if(auto oneOnOneMgr = g_ComponentRegistry.Get<COneOnOneManager>(); oneOnOneMgr)
+			{
+				auto match = oneOnOneMgr->GetMatchForPlayer(ClientId);
+				if(match && match->GetState() == COneOnOneEvent::EEventState::Active)
+				{
+					// treat as ragequit/leave from the 1on1 match
+					match->Leave(ClientId);
+					return; // suppress actual team change
 				}
 			}
 		}
@@ -5918,6 +5935,13 @@ void CGameContext::ReadCensorList()
 
 int CGameContext::isInEvent(int pPlayerID)
 {
+	// Prefer explicit 1on1 manager lookup first (allows multiple concurrent 1on1s)
+	if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>(); mgr)
+	{
+		if(mgr->GetMatchForPlayer(pPlayerID))
+			return 1; // EVENT_1on1
+	}
+
 	// Only component-based events are supported now
 	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
 	{
@@ -5931,8 +5955,7 @@ int CGameContext::isInEvent(int pPlayerID)
 			if(std::find(parts.begin(), parts.end(), pPlayerID) != parts.end())
 			{
 				const char *name = pEv->GetEventName();
-				if(str_comp(name, "1on1") == 0)
-					return 1; // EVENT_1on1
+				// 1on1 is handled by COneOnOneManager; do not treat it as a legacy CEvent here.
 				if(str_comp(name, "tdm") == 0)
 					return 2; // EVENT_TDM
 				if(str_comp(name, "LMB") == 0)

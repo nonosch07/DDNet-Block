@@ -26,7 +26,7 @@
 #include <blockworlds/components/events.h>
 #include <blockworlds/cosmetics/cosmetics.h>
 // include specific event header to query 1on1 scores
-#include <blockworlds/components/events/1on1.h>
+#include <blockworlds/components/oneonone_manager.h>
 #include <game/mapitems.h>
 // (no direct dependency on requests here; rename notice is broadcast directly)
 #include <blockworlds/components/requests.h>
@@ -539,31 +539,48 @@ void CPlayer::Snap(int SnappingClient)
 	// Due to clients expecting this as a negative value, we have to make sure it's negative.
 	// Special numbers:
 	// -9999: means no time and isn't displayed in the scoreboard.
-	if(m_Score.has_value())
-	{
-		bool treatedAsEventScore = false;
-		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+		if(m_Score.has_value())
 		{
-			if(auto active = eventsAccessor->GetActiveEvent())
+			bool treatedAsEventScore = false;
+			// First check active 1on1 matches managed by the oneonone manager
+			if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>(); mgr)
 			{
-				if(auto evScore = active->GetScoreOf(GetCid()); evScore.has_value())
+				if(auto match = mgr->GetMatchForPlayer(GetCid()); match)
 				{
-					Score = evScore.value();
-					treatedAsEventScore = true;
+					if(auto evScore = match->GetScoreOf(GetCid()); evScore.has_value())
+					{
+						Score = evScore.value();
+						treatedAsEventScore = true;
+					}
 				}
 			}
-		}
 
-		if(!treatedAsEventScore)
-		{
-			// shift the time by a second if the player actually took 9999
-			// seconds to finish the map.
-			if(m_Score.value() == 9999)
-				Score = -10000;
-			else
-				Score = -m_Score.value();
+			// fallback to the global active event (other event types)
+			if(!treatedAsEventScore)
+			{
+				if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+				{
+					if(auto active = eventsAccessor->GetActiveEvent())
+					{
+						if(auto evScore = active->GetScoreOf(GetCid()); evScore.has_value())
+						{
+							Score = evScore.value();
+							treatedAsEventScore = true;
+						}
+					}
+				}
+			}
+
+			if(!treatedAsEventScore)
+			{
+				// shift the time by a second if the player actually took 9999
+				// seconds to finish the map.
+				if(m_Score.value() == 9999)
+					Score = -10000;
+				else
+					Score = -m_Score.value();
+			}
 		}
-	}
 	else
 	{
 		Score = -9999;
@@ -574,14 +591,15 @@ void CPlayer::Snap(int SnappingClient)
 		Score = -9999;
 
 	bool bScoreSetFromEvent = false;
-	if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+	// Prefer manager-based 1on1 matches for per-player scoring/participant checks
+	if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>(); mgr)
 	{
-		if(auto active = eventsAccessor->GetActiveEvent())
+		if(auto match = mgr->GetMatchForPlayer(GetCid()); match)
 		{
-			const auto &parts = active->Participants();
+			auto parts = match->Participants();
 			bool isParticipant = std::find(parts.begin(), parts.end(), GetCid()) != parts.end();
 
-			if(auto evScore = active->GetScoreOf(GetCid()); evScore.has_value())
+			if(auto evScore = match->GetScoreOf(GetCid()); evScore.has_value())
 			{
 				Score = evScore.value();
 				m_Score = evScore;
@@ -594,6 +612,34 @@ void CPlayer::Snap(int SnappingClient)
 				m_Score = 0;
 				Server()->SetClientScore(m_ClientId, Score);
 				bScoreSetFromEvent = true;
+			}
+		}
+	}
+
+	// fallback to global active event if no manager match was found
+	if(!bScoreSetFromEvent)
+	{
+		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+		{
+			if(auto active = eventsAccessor->GetActiveEvent())
+			{
+				const auto &parts = active->Participants();
+				bool isParticipant = std::find(parts.begin(), parts.end(), GetCid()) != parts.end();
+
+				if(auto evScore = active->GetScoreOf(GetCid()); evScore.has_value())
+				{
+					Score = evScore.value();
+					m_Score = evScore;
+					Server()->SetClientScore(m_ClientId, Score);
+					bScoreSetFromEvent = true;
+				}
+				else if(isParticipant)
+				{
+					Score = 0;
+					m_Score = 0;
+					Server()->SetClientScore(m_ClientId, Score);
+					bScoreSetFromEvent = true;
+				}
 			}
 		}
 	}
@@ -890,19 +936,15 @@ void CPlayer::Respawn(bool WeakHook)
 
 CCharacter *CPlayer::ForceSpawn(vec2 Pos, bool doEvent)
 {
-	// check for active 1on1 event and override spawn position
-	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
+	// check for active 1on1 match via manager and override spawn position
+	if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>(); mgr)
 	{
-		auto active = events->GetActiveEvent();
-		COneOnOneEvent *oneOnOne = nullptr;
-		if(active && std::string(active->GetEventName()) == "1on1")
-			oneOnOne = static_cast<COneOnOneEvent *>(active.get());
-		if(oneOnOne && oneOnOne->GetState() == CEventComponent::EEventState::Active)
+		if(auto match = mgr->GetMatchForPlayer(GetCid()); match && match->GetState() == COneOnOneEvent::EEventState::Active)
 		{
-			const auto &parts = oneOnOne->Participants();
+				auto parts = match->Participants();
 			if(std::find(parts.begin(), parts.end(), GetCid()) != parts.end())
 			{
-				const auto &reservation = oneOnOne->GetSpawnReservation();
+				const auto &reservation = match->GetSpawnReservation();
 				std::vector<vec2> spawnPositions;
 				GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), spawnPositions);
 				int idx = (GetCid() == parts[0]) ? reservation.pos1Idx : reservation.pos2Idx;
@@ -998,19 +1040,15 @@ void CPlayer::TryRespawn()
 	vec2 SpawnPos;
 
 	bool used1on1 = false;
-	// check for active 1on1 event and override spawn position if needed
-	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
+	// check for active 1on1 match via manager and override spawn position if needed
+	if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>(); mgr)
 	{
-		auto active = events->GetActiveEvent();
-		COneOnOneEvent *oneOnOne = nullptr;
-		if(active && std::string(active->GetEventName()) == "1on1")
-			oneOnOne = static_cast<COneOnOneEvent *>(active.get());
-		if(oneOnOne && oneOnOne->GetState() == CEventComponent::EEventState::Active)
+		if(auto match = mgr->GetMatchForPlayer(GetCid()); match && match->GetState() == COneOnOneEvent::EEventState::Active)
 		{
-			const auto &parts = oneOnOne->Participants();
+			auto parts = match->Participants();
 			if(std::find(parts.begin(), parts.end(), GetCid()) != parts.end())
 			{
-				const auto &reservation = oneOnOne->GetSpawnReservation();
+				const auto &reservation = match->GetSpawnReservation();
 				std::vector<vec2> spawnPositions;
 				GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), spawnPositions);
 				int idx = (GetCid() == parts[0]) ? reservation.pos1Idx : reservation.pos2Idx;

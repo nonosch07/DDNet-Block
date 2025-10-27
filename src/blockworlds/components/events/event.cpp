@@ -15,118 +15,57 @@ CEventComponent::CEventComponent(CGameContext *pGameServer) :
 	m_EmergencyMessage[0] = '\0';
 }
 
+CEventComponent::~CEventComponent()
+{
+	// Clear saved tees and weapons; unique_ptr will free saved tees automatically
+	m_pSavedPlayers.clear();
+	m_SavedWeapons.clear();
+}
+
 void CEventComponent::SetState(CEventComponent::EEventState NewState)
 {
-	if(m_State == NewState)
-		return;
-
-	EEventState OldState = m_State;
-	m_State = NewState;
-
-	if(m_pfnOnStateChange)
+	EEventState OldState;
+	std::function<void(EEventState, EEventState)> cb;
 	{
-		m_pfnOnStateChange(OldState, NewState);
+		// protect state change and copy callback while holding lock on derived classes if they expose mutex
+		// CEventComponent doesn't have its own mutex; derived classes may override behavior. We simply update state and call callback.
+		OldState = m_State;
+		if(OldState == NewState)
+			return;
+		m_State = NewState;
+		cb = m_pfnOnStateChange;
 	}
+
+	if(cb)
+		cb(OldState, NewState);
 }
+
+// Delegate position/weapons/hook helpers to centralized inline helpers
+#include "event_helpers.h"
 
 void CEventComponent::SavePosition(int ClientId)
 {
-	auto *pSavedTee = new CSaveTee();
-	auto *pChar = GameServer()->GetPlayerChar(ClientId);
-	if(pChar)
-		pSavedTee->Save(pChar, false);
-
-	m_pSavedPlayers.insert_or_assign(ClientId, pSavedTee);
+	SavePositionHelper(GameServer(), m_pSavedPlayers, ClientId);
 }
+
 void CEventComponent::LoadPosition(int ClientId)
 {
-	auto it = m_pSavedPlayers.find(ClientId);
-	CPlayer *pPlayer = GameServer()->GetPlayer(ClientId);
-
-	if(it != m_pSavedPlayers.end())
-	{
-		if(!pPlayer)
-		{
-			delete it->second;
-			m_pSavedPlayers.erase(it);
-			return;
-		}
-
-		CCharacter *pChar = GameServer()->GetPlayerChar(ClientId);
-		if(!pChar)
-		{
-			pChar = pPlayer->ForceSpawn(vec2(0, 0), false);
-		}
-
-		if(pChar)
-		{
-			it->second->Load(pChar, TEAM_FLOCK, false);
-			pChar->ResetVelocity();
-		}
-
-		// free saved tee and erase entry regardless of success to avoid leaks
-		delete it->second;
-		m_pSavedPlayers.erase(it);
-		return;
-	}
-
-	if(pPlayer)
-	{
-		CCharacter *pChar = GameServer()->GetPlayerChar(ClientId);
-		if(pChar && pChar->IsAlive())
-		{
-			pChar->Die(-1, WEAPON_WORLD);
-		}
-	}
+	LoadPositionHelper(GameServer(), m_pSavedPlayers, ClientId);
 }
 
 void CEventComponent::SaveWeapons(int ClientId)
 {
-	if(const auto it = m_SavedWeapons.find(ClientId); it != m_SavedWeapons.end())
-	{
-		m_SavedWeapons.erase(it);
-	}
-
-	const auto Character = GameServer()->GetPlayerChar(ClientId);
-	if(!Character)
-		return;
-
-	std::array<CCharacterCore::WeaponStat, NUM_WEAPONS> savedWeapons;
-	mem_copy(savedWeapons.data(), Character->Core()->m_aWeapons, sizeof(CCharacterCore::WeaponStat) * NUM_WEAPONS);
-	m_SavedWeapons.emplace(ClientId, savedWeapons);
-
-	mem_zero(&Character->Core()->m_aWeapons, sizeof(CCharacterCore::WeaponStat) * NUM_WEAPONS);
-	Character->GiveWeapon(WEAPON_HAMMER);
-	Character->GiveWeapon(WEAPON_GUN);
+	SaveWeaponsHelper(GameServer(), m_SavedWeapons, ClientId);
 }
 
 void CEventComponent::LoadWeapons(int ClientId)
 {
-	const auto it = m_SavedWeapons.find(ClientId);
-	if(it == m_SavedWeapons.end())
-	{
-		return;
-	}
-
-	auto Character = GameServer()->GetPlayerChar(ClientId);
-	if(!Character)
-		return;
-
-	mem_copy(&Character->Core()->m_aWeapons, &it->second, sizeof(CCharacterCore::WeaponStat) * NUM_WEAPONS);
-	m_SavedWeapons.erase(it);
+	LoadWeaponsHelper(GameServer(), m_SavedWeapons, ClientId);
 }
 
 int CEventComponent::PlayerHookedGroundFor(bool ClientId) const
 {
-	auto pChar = GameServer()->GetPlayerChar(ClientId);
-	if(!pChar)
-		return 0;
-
-	bool HookingGround = pChar->Core()->m_HookState == HOOK_GRABBED && pChar->Core()->HookedPlayer() == -1;
-
-	if(HookingGround)
-		return pChar->Core()->m_HookTick;
-	return 0;
+	return PlayerHookedGroundForHelper(GameServer(), ClientId);
 }
 
 const char *CEventComponent::GetStateName() const

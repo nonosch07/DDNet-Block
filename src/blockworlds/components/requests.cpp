@@ -3,7 +3,7 @@
 #include <base/system.h>
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
-#include <blockworlds/components/events/1on1.h>
+#include <blockworlds/components/oneonone_manager.h>
 #include <blockworlds/discord/webhook.h>
 #include <ctime>
 #include <engine/shared/config.h>
@@ -571,24 +571,17 @@ bool CRequests::AcceptRequest(int RequestId)
 			}
 			GameServer()->SendChatTarget(to, aBuf);
 		}
-		if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
+		if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>(); mgr)
 		{
-			auto ev = events->CreateEventByName("1on1");
-			if(ev)
-			{
-				if(auto one = std::dynamic_pointer_cast<COneOnOneEvent>(ev))
-				{
-					one->Initialize(from, to, wager);
-					events->SetActiveEvent(ev);
-					// GameServer()->SendChatTarget(-1, "Starting 1on1 via component system");
-				}
-			}
-			else
-			{
-				char aBuf[128];
-				str_format(aBuf, sizeof(aBuf), "Starting 1on1 between %s and %s (wager %d)", SafeClientName(GameServer(), from), SafeClientName(GameServer(), to), wager);
-				GameServer()->SendChatTarget(-1, aBuf);
-			}
+			// create a new independent 1on1 match via manager (allows multiple concurrent matches)
+			mgr->CreateMatch(from, to, wager);
+		}
+		else
+		{
+			// fallback to broadcast if manager isn't available
+			char aBuf[128];
+			str_format(aBuf, sizeof(aBuf), "Starting 1on1 between %s and %s (wager %d)", SafeClientName(GameServer(), from), SafeClientName(GameServer(), to), wager);
+			GameServer()->SendChatTarget(-1, aBuf);
 		}
 
 		// success path: remove the request by id

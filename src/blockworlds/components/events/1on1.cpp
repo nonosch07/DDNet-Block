@@ -10,8 +10,18 @@
 #include <blockworlds/discord/webhook.h>
 
 COneOnOneEvent::COneOnOneEvent(CGameContext *pGameServer) :
-	CEventComponent(pGameServer), m_Player1ID(-1), m_Player2ID(-1), m_Score1(0), m_Score2(0), m_Wager(0), m_Team(-1), m_StartTimer(0), m_CurrentTick(0), m_SuppressFinishBroadcast(false)
+	CComponent(pGameServer), m_Player1ID(-1), m_Player2ID(-1), m_Wager(0), m_Team(-1), m_StartTimer(0), m_CurrentTick(0), m_SuppressFinishBroadcast(false)
 {
+	m_State.store(EEventState::Created);
+	m_EmergencyShutdown = false;
+	m_EmergencyMessage[0] = '\0';
+}
+
+COneOnOneEvent::~COneOnOneEvent()
+{
+	// Clear saved tees and weapons; unique_ptr will free saved tees automatically
+	m_pSavedPlayers.clear();
+	m_SavedWeapons.clear();
 }
 
 void COneOnOneEvent::Initialize(int Player1ID, int Player2ID, int Wager)
@@ -32,8 +42,8 @@ void COneOnOneEvent::StartEvent()
 	pController->Teams().SetTeamEvent(m_Team, true);
 	pController->Teams().SetTeamLock(m_Team, true);
 
-	m_Score1 = 0;
-	m_Score2 = 0;
+	m_Score1.store(0);
+	m_Score2.store(0);
 	m_Player1DeathTick = -1;
 	m_Player2DeathTick = -1;
 	m_LastAwardedPlayer = 0;
@@ -92,9 +102,12 @@ void COneOnOneEvent::StartEvent()
 	SavePosition(m_Player1ID);
 	SavePosition(m_Player2ID);
 
-	m_Participants.clear();
-	m_Participants.push_back(m_Player1ID);
-	m_Participants.push_back(m_Player2ID);
+	{
+		std::lock_guard<std::mutex> g(m_Mutex);
+		m_Participants.clear();
+		m_Participants.push_back(m_Player1ID);
+		m_Participants.push_back(m_Player2ID);
+	}
 
 	// teleport/spawn
 	CPlayer *p1 = GameServer()->GetPlayer(m_Player1ID);
@@ -160,7 +173,7 @@ void COneOnOneEvent::OnTick()
 	m_CurrentTick = Server()->Tick();
 
 	// handle deferred finish restoration outside of death callbacks
-	if(GetState() == CEventComponent::EEventState::Ending && m_DeferFinishRestore && m_RestoreAtTick <= m_CurrentTick)
+	if(GetState() == EEventState::Ending && m_DeferFinishRestore && m_RestoreAtTick <= m_CurrentTick)
 	{
 		// restore team lock
 		auto pController = (CGameControllerDDRace *)GameServer()->m_pController;
@@ -207,8 +220,8 @@ void COneOnOneEvent::OnTick()
 							 "                                                                                     "
 							 "                                                                                     ";
 
-		GameServer()->SendBroadcast(m_Player1ID, "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);
-		GameServer()->SendBroadcast(m_Player2ID, "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);
+	GameServer()->SendBroadcast(m_Player1ID, "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load(), s_padding);
+	GameServer()->SendBroadcast(m_Player2ID, "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load(), s_padding);
 	}
 
 	const int GraceTicks = Config()->m_Sv1on1DrawFreezeGrace * Server()->TickSpeed();
@@ -282,7 +295,7 @@ void COneOnOneEvent::OnTick()
 			GameServer()->SendChatTarget(m_Player1ID, "Draw!");
 			GameServer()->SendChatTarget(m_Player2ID, "Draw!");
 			char aDrawBuf[256];
-			str_format(aDrawBuf, sizeof(aDrawBuf), "%s: %d\n%s: %d\nStalemate draw! restarting...", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2);
+			str_format(aDrawBuf, sizeof(aDrawBuf), "%s: %d\n%s: %d\nStalemate draw! restarting...", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load());
 			GameServer()->SendBroadcast(aDrawBuf, m_Player1ID, false);
 			GameServer()->SendBroadcast(aDrawBuf, m_Player2ID, false);
 			// reset freeze timers so they can't unfreeze before respawn
@@ -297,7 +310,7 @@ void COneOnOneEvent::OnTick()
 		m_BothFrozenSinceTick = -1; // reset if condition breaks
 	}
 
-	if(GetState() == CEventComponent::EEventState::Active)
+	if(GetState() == EEventState::Active)
 	{
 		if(PlayerHookedGroundFor(m_Player1ID) > Config()->m_SvGroundHookPenaltyDelay)
 		{
@@ -311,13 +324,13 @@ void COneOnOneEvent::OnTick()
 		CheckFreezePenalties();
 	}
 
-	if(GetState() == CEventComponent::EEventState::Active && CheckEndCondition())
+	if(GetState() == EEventState::Active && CheckEndCondition())
 	{
 		static constexpr const char *s_padding = "                                                                                     "
 							 "                                                                                     "
 							 "                                                                                     ";
 		char aFinalBroadcast[256];
-		str_format(aFinalBroadcast, sizeof(aFinalBroadcast), "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);
+	str_format(aFinalBroadcast, sizeof(aFinalBroadcast), "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load(), s_padding);
 		GameServer()->SendBroadcast(aFinalBroadcast, m_Player1ID, false);
 		GameServer()->SendBroadcast(aFinalBroadcast, m_Player2ID, false);
 
@@ -328,7 +341,7 @@ void COneOnOneEvent::OnTick()
 void COneOnOneEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 {
 	// only manage spawns during the active phase of the event
-	if(GetState() != CEventComponent::EEventState::Active)
+	if(GetState() != EEventState::Active)
 		return;
 
 	if(ClientId < 0)
@@ -369,7 +382,7 @@ void COneOnOneEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 // award points on death: opponent gets one point (suicides count)
 void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 {
-	if(GetState() != CEventComponent::EEventState::Active)
+	if(GetState() != EEventState::Active)
 		return;
 
 	if(ClientId != m_Player1ID && ClientId != m_Player2ID)
@@ -400,7 +413,7 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 		GameServer()->SendChatTarget(m_Player1ID, "Draw!");
 		GameServer()->SendChatTarget(m_Player2ID, "Draw!");
 		char aDrawBuf[256];
-		str_format(aDrawBuf, sizeof(aDrawBuf), "%s: %d\n%s: %d\nRound draw! restarting...", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2);
+			str_format(aDrawBuf, sizeof(aDrawBuf), "%s: %d\n%s: %d\nRound draw! restarting...", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load());
 		GameServer()->SendBroadcast(aDrawBuf, m_Player1ID, false);
 		GameServer()->SendBroadcast(aDrawBuf, m_Player2ID, false);
 		RestartRoundAfterDraw();
@@ -434,7 +447,7 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 		GameServer()->SendChatTarget(m_Player1ID, "Draw!");
 		GameServer()->SendChatTarget(m_Player2ID, "Draw!");
 		char aDrawBuf[256];
-		str_format(aDrawBuf, sizeof(aDrawBuf), "%s: %d\n%s: %d\nRound draw! restarting...", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2);
+			str_format(aDrawBuf, sizeof(aDrawBuf), "%s: %d\n%s: %d\nRound draw! restarting...", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load());
 		GameServer()->SendBroadcast(aDrawBuf, m_Player1ID, false);
 		GameServer()->SendBroadcast(aDrawBuf, m_Player2ID, false);
 
@@ -443,11 +456,11 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 	}
 	if(ClientId == m_Player1ID)
 	{
-		m_Score2 += 1;
+		m_Score2.fetch_add(1);
 		m_LastAwardedPlayer = 2;
 		m_LastAwardedTick = Server()->Tick();
 		if(auto p = GameServer()->GetPlayer(m_Player2ID))
-			p->m_Score = m_Score2;
+			p->m_Score = m_Score2.load();
 
 		char aPointMsg[256];
 		str_format(aPointMsg, sizeof(aPointMsg), "Score for %s!", Server()->ClientName(m_Player2ID));
@@ -458,7 +471,7 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 							 "                                                                                     "
 							 "                                                                                     ";
 		char aBroadcastMsg[256];
-		str_format(aBroadcastMsg, sizeof(aBroadcastMsg), "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);
+	str_format(aBroadcastMsg, sizeof(aBroadcastMsg), "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load(), s_padding);
 		GameServer()->SendBroadcast(aBroadcastMsg, m_Player1ID, false);
 		GameServer()->SendBroadcast(aBroadcastMsg, m_Player2ID, false);
 
@@ -472,11 +485,11 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 	}
 	else if(ClientId == m_Player2ID)
 	{
-		m_Score1 += 1;
+		m_Score1.fetch_add(1);
 		m_LastAwardedPlayer = 1;
 		m_LastAwardedTick = Server()->Tick();
 		if(auto p = GameServer()->GetPlayer(m_Player1ID))
-			p->m_Score = m_Score1;
+			p->m_Score = m_Score1.load();
 
 		char aPointMsg[256];
 		str_format(aPointMsg, sizeof(aPointMsg), "Score for %s!", Server()->ClientName(m_Player1ID));
@@ -487,7 +500,7 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 							 "                                                                                     "
 							 "                                                                                     ";
 		char aBroadcastMsg[256];
-		str_format(aBroadcastMsg, sizeof(aBroadcastMsg), "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1, Server()->ClientName(m_Player2ID), m_Score2, s_padding);
+	str_format(aBroadcastMsg, sizeof(aBroadcastMsg), "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load(), s_padding);
 		GameServer()->SendBroadcast(aBroadcastMsg, m_Player1ID, false);
 		GameServer()->SendBroadcast(aBroadcastMsg, m_Player2ID, false);
 
@@ -503,7 +516,7 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 
 bool COneOnOneEvent::CheckEndCondition()
 {
-	return m_Score1 >= 10 || m_Score2 >= 10;
+	return m_Score1.load() >= 10 || m_Score2.load() >= 10;
 }
 
 void COneOnOneEvent::CheckFreezePenalties()
@@ -611,7 +624,7 @@ void COneOnOneEvent::FinishEvent()
 		winnerCid = m_ForcedWinnerCid;
 		loserCid = (winnerCid == m_Player1ID) ? m_Player2ID : m_Player1ID;
 	}
-	else if(m_Score1 > m_Score2)
+	else if(m_Score1.load() > m_Score2.load())
 	{
 		winnerCid = m_Player1ID;
 		loserCid = m_Player2ID;
@@ -629,7 +642,7 @@ void COneOnOneEvent::FinishEvent()
 		const char *pName2 = m_Player2ID >= 0 ? Server()->ClientName(m_Player2ID) : "<none>";
 		const char *pWinnerName = (winnerCid == m_Player1ID) ? pName1 : pName2;
 		char aBuf[256];
-		str_format(aBuf, sizeof(aBuf), "[1on1] - %s vs %s — %s won! (Result: %d - %d)", pName1, pName2, pWinnerName, m_Score1, m_Score2);
+			str_format(aBuf, sizeof(aBuf), "[1on1] - %s vs %s — %s won! (Result: %d - %d)", pName1, pName2, pWinnerName, m_Score1.load(), m_Score2.load());
 		GameServer()->SendChatTarget(-1, aBuf);
 
 		// post to Discord webhook
@@ -641,11 +654,11 @@ void COneOnOneEvent::FinishEvent()
 			const char *pMap = Server()->GetMapName();
 			if(m_Wager > 0)
 			{
-				str_format(aMsg, sizeof(aMsg), "1on1 finished on %s: %s (%d) vs %s (%d) → Winner: %s | Score %d-%d | Wager: %d", pMap ? pMap : "<map>", pName1, m_Score1, pName2, m_Score2, pWinnerName, m_Score1, m_Score2, m_Wager);
+				str_format(aMsg, sizeof(aMsg), "1on1 finished on %s: %s (%d) vs %s (%d) → Winner: %s | Score %d-%d | Wager: %d", pMap ? pMap : "<map>", pName1, m_Score1.load(), pName2, m_Score2.load(), pWinnerName, m_Score1.load(), m_Score2.load(), m_Wager);
 			}
 			else
 			{
-				str_format(aMsg, sizeof(aMsg), "1on1 finished on %s: %s (%d) vs %s (%d) → Winner: %s | Score %d-%d", pMap ? pMap : "<map>", pName1, m_Score1, pName2, m_Score2, pWinnerName, m_Score1, m_Score2);
+				str_format(aMsg, sizeof(aMsg), "1on1 finished on %s: %s (%d) vs %s (%d) → Winner: %s | Score %d-%d", pMap ? pMap : "<map>", pName1, m_Score1.load(), pName2, m_Score2.load(), pWinnerName, m_Score1.load(), m_Score2.load());
 			}
 			CDiscordWebhook::SSendOptions Opt;
 			Opt.m_pWebhookUrl = p1on1Url;
@@ -664,7 +677,7 @@ void COneOnOneEvent::FinishEvent()
 			char aMsg[256];
 			const char *pMap = Server()->GetMapName();
 			int loserId = (m_ForcedWinnerCid == m_Player1ID) ? m_Player2ID : m_Player1ID;
-			int winnerId = m_ForcedWinnerCid >= 0 ? m_ForcedWinnerCid : (m_Score1 > m_Score2 ? m_Player1ID : m_Player2ID);
+			int winnerId = m_ForcedWinnerCid >= 0 ? m_ForcedWinnerCid : (m_Score1.load() > m_Score2.load() ? m_Player1ID : m_Player2ID);
 			str_format(aMsg, sizeof(aMsg), "1on1 wager transferred on %s: %s → %s | Amount: %d BP", pMap ? pMap : "<map>", Server()->ClientName(loserId), Server()->ClientName(winnerId), m_Wager);
 			CDiscordWebhook::SSendOptions Opt;
 			Opt.m_pWebhookUrl = pLogsUrl;
@@ -709,8 +722,14 @@ bool COneOnOneEvent::Leave(int ClientId)
 		// str_format(aBuf, sizeof(aBuf), s_RagequitMsgs[idx], pLeaverName, pOpponentName);
 		// GameServer()->SendChatTarget(-1, aBuf);
 
-		// force the opponent as winner, but do not change the scoreline
-		m_SuppressFinishBroadcast = false;
+		m_SuppressFinishBroadcast = true;
+
+		// announce ragequit (no score shown)
+		{
+			char aBuf[256];
+			str_format(aBuf, sizeof(aBuf), "[1on1] - %s ragequited the match vs %s!", pLeaverName, pOpponentName);
+			GameServer()->SendChatTarget(-1, aBuf);
+		}
 
 		// proactively clear forced team to avoid spawn issues when finishing
 		auto pController = (CGameControllerDDRace *)GameServer()->m_pController;
@@ -724,7 +743,7 @@ bool COneOnOneEvent::Leave(int ClientId)
 		if(Discord.IsConfigured(p1on1Url))
 		{
 			char aMsg[256];
-			str_format(aMsg, sizeof(aMsg), "1on1 ragequit: %s left vs %s (score so far %d-%d)", pLeaverName, pOpponentName, m_Score1, m_Score2);
+			    str_format(aMsg, sizeof(aMsg), "1on1 ragequit: %s left vs %s (score so far %d-%d)", pLeaverName, pOpponentName, m_Score1.load(), m_Score2.load());
 			CDiscordWebhook::SSendOptions Opt;
 			Opt.m_pWebhookUrl = p1on1Url;
 			Discord.Send(aMsg, Opt);
@@ -736,7 +755,7 @@ bool COneOnOneEvent::Leave(int ClientId)
 
 void COneOnOneEvent::OnPlayerDropping(int ClientId)
 {
-	if(GetState() == CEventComponent::EEventState::Active)
+	if(GetState() == EEventState::Active)
 	{
 		if(ClientId == m_Player1ID || ClientId == m_Player2ID)
 			Leave(ClientId);
@@ -746,9 +765,9 @@ void COneOnOneEvent::OnPlayerDropping(int ClientId)
 std::optional<int> COneOnOneEvent::GetScoreOf(int ClientId) const
 {
 	if(ClientId == m_Player1ID)
-		return m_Score1;
+		return m_Score1.load();
 	if(ClientId == m_Player2ID)
-		return m_Score2;
+		return m_Score2.load();
 	return std::nullopt;
 }
 
@@ -756,8 +775,15 @@ std::optional<int> COneOnOneEvent::GetScoreOf(int ClientId) const
 
 bool COneOnOneEvent::CollectEscrow()
 {
-	if(m_EscrowCollected || m_Wager <= 0)
-		return true;
+	int wager;
+	{
+		std::lock_guard<std::mutex> g(m_Mutex);
+		if(m_EscrowCollected || m_Wager <= 0)
+			return true;
+		wager = m_Wager;
+	}
+
+	// Validate players and balances without holding match lock
 	CPlayer *p1 = GameServer()->GetPlayer(m_Player1ID);
 	CPlayer *p2 = GameServer()->GetPlayer(m_Player2ID);
 	if(!p1 || !p2)
@@ -767,23 +793,29 @@ bool COneOnOneEvent::CollectEscrow()
 		GameServer()->SendChatTarget(-1, "[1on1] Wager requires both players to be logged in.");
 		return false;
 	}
-	if(p1->GetPlayerBlockpoints() < m_Wager || p2->GetPlayerBlockpoints() < m_Wager)
+	if(p1->GetPlayerBlockpoints() < wager || p2->GetPlayerBlockpoints() < wager)
 	{
 		char aBuf[256];
-		const char *pWho = p1->GetPlayerBlockpoints() < m_Wager ? Server()->ClientName(m_Player1ID) : Server()->ClientName(m_Player2ID);
+		const char *pWho = p1->GetPlayerBlockpoints() < wager ? Server()->ClientName(m_Player1ID) : Server()->ClientName(m_Player2ID);
 		str_format(aBuf, sizeof(aBuf), "[1on1] Wager collection failed: %s doesn't have enough blockpoints.", pWho);
 		GameServer()->SendChatTarget(-1, aBuf);
 		return false;
 	}
-	// Deduct to escrow
-	p1->SetPlayerBlockpoints(p1->GetPlayerBlockpoints() - m_Wager);
-	p2->SetPlayerBlockpoints(p2->GetPlayerBlockpoints() - m_Wager);
+
+	// Deduct to escrow (perform account saves immediately; update state under lock)
+	p1->SetPlayerBlockpoints(p1->GetPlayerBlockpoints() - wager);
+	p2->SetPlayerBlockpoints(p2->GetPlayerBlockpoints() - wager);
 	GameServer()->Accounts()->Save(m_Player1ID, &p1->m_Account);
 	GameServer()->Accounts()->Save(m_Player2ID, &p2->m_Account);
-	m_EscrowCollected = true;
-	m_EscrowBalance = m_Wager * 2;
+
+	{
+		std::lock_guard<std::mutex> g(m_Mutex);
+		m_EscrowCollected = true;
+		m_EscrowBalance = wager * 2;
+	}
+
 	char aBuf[192];
-	str_format(aBuf, sizeof(aBuf), "[1on1] Pot started with %d BP from each player.", m_Wager);
+	str_format(aBuf, sizeof(aBuf), "[1on1] Pot started with %d BP from each player.", wager);
 	GameServer()->SendChatTarget(m_Player1ID, aBuf);
 	GameServer()->SendChatTarget(m_Player2ID, aBuf);
 	return true;
@@ -791,22 +823,34 @@ bool COneOnOneEvent::CollectEscrow()
 
 void COneOnOneEvent::RefundEscrow()
 {
-	if(!m_EscrowCollected || m_EscrowBalance <= 0)
+	int wager;
+	bool doRefund = false;
+	{
+		std::lock_guard<std::mutex> g(m_Mutex);
+		if(!m_EscrowCollected || m_EscrowBalance <= 0)
+			return;
+		// snapshot and clear escrow under lock
+		wager = m_Wager;
+		m_EscrowBalance = 0;
+		m_EscrowCollected = false;
+		doRefund = true;
+	}
+
+	if(!doRefund)
 		return;
+
 	CPlayer *p1 = GameServer()->GetPlayer(m_Player1ID);
 	CPlayer *p2 = GameServer()->GetPlayer(m_Player2ID);
 	if(p1)
 	{
-		p1->SetPlayerBlockpoints(p1->GetPlayerBlockpoints() + m_Wager);
+		p1->SetPlayerBlockpoints(p1->GetPlayerBlockpoints() + wager);
 		GameServer()->Accounts()->Save(m_Player1ID, &p1->m_Account);
 	}
 	if(p2)
 	{
-		p2->SetPlayerBlockpoints(p2->GetPlayerBlockpoints() + m_Wager);
+		p2->SetPlayerBlockpoints(p2->GetPlayerBlockpoints() + wager);
 		GameServer()->Accounts()->Save(m_Player2ID, &p2->m_Account);
 	}
-	m_EscrowBalance = 0;
-	m_EscrowCollected = false;
 	if(p1)
 		GameServer()->SendChatTarget(m_Player1ID, "[1on1] Pot refunded.");
 	if(p2)
@@ -815,15 +859,26 @@ void COneOnOneEvent::RefundEscrow()
 
 void COneOnOneEvent::PayoutWinner(CPlayer *pWinner, CPlayer *pLoser)
 {
-	if(m_EscrowCollected && m_EscrowBalance == m_Wager * 2)
+	int balance = 0;
+	bool hadEscrow = false;
 	{
-		pWinner->SetPlayerBlockpoints(pWinner->GetPlayerBlockpoints() + m_EscrowBalance);
+		std::lock_guard<std::mutex> g(m_Mutex);
+		if(m_EscrowCollected && m_EscrowBalance == m_Wager * 2)
+		{
+			balance = m_EscrowBalance;
+			m_EscrowBalance = 0;
+			m_EscrowCollected = false;
+			hadEscrow = true;
+		}
+	}
+
+	if(hadEscrow)
+	{
+		pWinner->SetPlayerBlockpoints(pWinner->GetPlayerBlockpoints() + balance);
 		GameServer()->Accounts()->Save(pWinner->GetCid(), &pWinner->m_Account);
 		char aBuf[256];
-		str_format(aBuf, sizeof(aBuf), "[1on1] - %s won the pot of %d blockpoints!", Server()->ClientName(pWinner->GetCid()), m_EscrowBalance);
+		str_format(aBuf, sizeof(aBuf), "[1on1] - %s won the pot of %d blockpoints!", Server()->ClientName(pWinner->GetCid()), balance);
 		GameServer()->SendChatTarget(-1, aBuf);
-		m_EscrowBalance = 0;
-		m_EscrowCollected = false;
 		return;
 	}
 	// Fallback
@@ -867,8 +922,86 @@ void COneOnOneEvent::AbortAndRefund(const char *pReason)
 
 void COneOnOneEvent::EmergencyShutdown(const char *pMsg)
 {
-	// base handles flags
-	CEventComponent::EmergencyShutdown(pMsg);
-	// ensure escrow is returned lol
+	// set emergency flag/message
+	if(pMsg && pMsg[0])
+	{
+		str_copy(m_EmergencyMessage, pMsg);
+		m_EmergencyShutdown = true;
+	}
+	// ensure escrow is returned
 	RefundEscrow();
+}
+
+// ========== Minimal event-like helpers (adapted from CEventComponent) ==========
+
+// Delegate shared helpers to centralized inline helpers
+#include "event_helpers.h"
+
+void COneOnOneEvent::SetState(COneOnOneEvent::EEventState NewState)
+{
+	EEventState OldState;
+	std::function<void(EEventState, EEventState)> cb;
+	{
+		// Use atomic exchange to set state and obtain old value atomically
+		OldState = m_State.exchange(NewState);
+		if(OldState == NewState)
+			return;
+		// copy callback under lock to avoid races with setter
+		std::lock_guard<std::mutex> g(m_Mutex);
+		cb = m_pfnOnStateChange;
+	}
+
+	// Invoke callback outside the lock to avoid deadlocks.
+	if(cb)
+		cb(OldState, NewState);
+}
+
+const char *COneOnOneEvent::GetStateName() const
+{
+	return GetStateName(m_State.load());
+}
+
+const char *COneOnOneEvent::GetStateName(COneOnOneEvent::EEventState State)
+{
+	switch(State)
+	{
+	case EEventState::Created:
+		return "created";
+	case EEventState::Registration:
+		return "registration";
+	case EEventState::Preparation:
+		return "preparation";
+	case EEventState::Active:
+		return "active";
+	case EEventState::Ending:
+		return "ending";
+	case EEventState::Finished:
+		return "finished";
+	}
+	return "";
+}
+
+void COneOnOneEvent::SavePosition(int ClientId)
+{
+	SavePositionHelper(GameServer(), m_pSavedPlayers, ClientId);
+}
+
+void COneOnOneEvent::LoadPosition(int ClientId)
+{
+	LoadPositionHelper(GameServer(), m_pSavedPlayers, ClientId);
+}
+
+void COneOnOneEvent::SaveWeapons(int ClientId)
+{
+	SaveWeaponsHelper(GameServer(), m_SavedWeapons, ClientId);
+}
+
+void COneOnOneEvent::LoadWeapons(int ClientId)
+{
+	LoadWeaponsHelper(GameServer(), m_SavedWeapons, ClientId);
+}
+
+int COneOnOneEvent::PlayerHookedGroundFor(bool ClientId) const
+{
+	return PlayerHookedGroundForHelper(GameServer(), ClientId);
 }
