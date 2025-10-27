@@ -80,6 +80,7 @@ void CLastManBlockingEvent::OnTick()
 			CheckFreezeTime();
 		}
 
+
 		if(CheckEndCondition())
 			FinishEvent(NATURAL);
 	}

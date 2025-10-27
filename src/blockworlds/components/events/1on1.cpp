@@ -672,9 +672,9 @@ void COneOnOneEvent::FinishEvent()
 		}
 	}
 
-	// clear per-player broadcasts using the correct overload
-	GameServer()->SendBroadcast(" ", m_Player1ID);
-	GameServer()->SendBroadcast(" ", m_Player2ID);
+	// clear per-player broadcasts using non-format overload
+	GameServer()->SendBroadcast(" ", m_Player1ID, false);
+	GameServer()->SendBroadcast(" ", m_Player2ID, false);
 
 	// defer team unlock and position restore to the next tick to avoid reentrant spawn during death handling
 	m_DeferFinishRestore = true;
@@ -696,44 +696,38 @@ bool COneOnOneEvent::Leave(int ClientId)
 		m_PendingAwardTo = 0;
 		m_PendingAwardTick = -1;
 		m_ForcedWinnerCid = opponent; // force winner without changing scores
+
+		// static const char *s_RagequitMsgs[] = {
+		// 	"[1on1] - %s ragequited the match vs %s! What a dramatic exit.",
+		// 	"[1on1] - %s has abandoned the duel against %s — coward move!",
+		// 	"[1on1] - %s disconnected mid-fight vs %s. GG, we saw nothing...",
+		// 	"[1on1] - %s choked under pressure and fled from %s. Shame.",
+		// 	"[1on1] - %s decided running was the best strategy against %s. Classic."};
+		// const int NumMsgs = sizeof(s_RagequitMsgs) / sizeof(s_RagequitMsgs[0]);
+		// int idx = (int)((Server()->Tick() + leaver) % NumMsgs);
+		// char aBuf[256];
+		// str_format(aBuf, sizeof(aBuf), s_RagequitMsgs[idx], pLeaverName, pOpponentName);
+		// GameServer()->SendChatTarget(-1, aBuf);
+
+		// force the opponent as winner, but do not change the scoreline
 		m_SuppressFinishBroadcast = false;
 
-		// always restore teams and positions for both players, even if offline
+		// proactively clear forced team to avoid spawn issues when finishing
 		auto pController = (CGameControllerDDRace *)GameServer()->m_pController;
-		if(m_Team >= 0)
-		{
-			pController->Teams().SetTeamEvent(m_Team, false);
-			pController->Teams().SetTeamLock(m_Team, false);
-		}
-		pController->Teams().SetForceCharacterTeam(m_Player1ID, TEAM_FLOCK);
-		pController->Teams().SetForceCharacterTeam(m_Player2ID, TEAM_FLOCK);
-		LoadPosition(m_Player1ID);
-		LoadPosition(m_Player2ID);
-		LoadWeapons(m_Player1ID);
-		LoadWeapons(m_Player2ID);
-
-		// clear per-player broadcasts for both participants
-		GameServer()->SendBroadcast(" ", m_Player1ID);
-		GameServer()->SendBroadcast(" ", m_Player2ID);
-
-		SetState(EEventState::Finished);
-
-		// broadcast to all: X vs Y - Y left the 1on1 (score)
-		char aMsg[256];
-		str_format(aMsg, sizeof(aMsg), "[1on1] %s vs %s — %s left the 1on1 (score: %d-%d)",
-			pLeaverName, pOpponentName, pLeaverName, m_Score1, m_Score2);
-		GameServer()->SendChatTarget(-1, aMsg);
+		pController->Teams().SetForceCharacterTeam(m_Player1ID, 0);
+		pController->Teams().SetForceCharacterTeam(m_Player2ID, 0);
+		FinishEvent();
 
 		// notify Discord about ragequit
 		CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
 		const char *p1on1Url = g_Config.m_SvDiscordWebhookUrl1on1[0] ? g_Config.m_SvDiscordWebhookUrl1on1 : nullptr;
 		if(Discord.IsConfigured(p1on1Url))
 		{
-			char aDiscordMsg[256];
-			str_format(aDiscordMsg, sizeof(aDiscordMsg), "1on1 ragequit: %s left vs %s (score so far %d-%d) :kek:", pLeaverName, pOpponentName, m_Score1, m_Score2);
+			char aMsg[256];
+			str_format(aMsg, sizeof(aMsg), "1on1 ragequit: %s left vs %s (score so far %d-%d)", pLeaverName, pOpponentName, m_Score1, m_Score2);
 			CDiscordWebhook::SSendOptions Opt;
 			Opt.m_pWebhookUrl = p1on1Url;
-			Discord.Send(aDiscordMsg, Opt);
+			Discord.Send(aMsg, Opt);
 		}
 		return true;
 	}

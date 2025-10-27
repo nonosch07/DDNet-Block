@@ -1,8 +1,3 @@
-#include <blockworlds/components/core/component_registry.h>
-#include <blockworlds/components/events.h>
-#include <blockworlds/components/events/1on1.h>
-#include <blockworlds/components/events/1on1_utils.h>
-extern CComponentRegistry g_ComponentRegistry;
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include <engine/shared/config.h>
@@ -16,9 +11,6 @@ extern CComponentRegistry g_ComponentRegistry;
 #include "gamecontext.h"
 #include "gamecontroller.h"
 #include "player.h"
-#include <blockworlds/components/core/component_registry.h>
-#include <blockworlds/components/events.h>
-#include <blockworlds/components/events/1on1.h>
 
 #include "entities/character.h"
 #include "entities/door.h"
@@ -505,32 +497,6 @@ void IGameController::OnCharacterSpawn(class CCharacter *pChr, bool doEvent)
 {
 	pChr->SetTeams(&Teams());
 	Teams().OnCharacterSpawn(pChr->GetPlayer()->GetCid());
-
-	// 1on1 event spawn override
-	CPlayer *pPlayer = pChr->GetPlayer();
-	if(pPlayer)
-	{
-		if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
-		{
-			for(const auto &oneOnOne : events->GetActive1on1Events())
-			{
-				if(oneOnOne && oneOnOne->GetState() == CEventComponent::EEventState::Active)
-				{
-					const auto &parts = oneOnOne->Participants();
-					if(std::find(parts.begin(), parts.end(), pPlayer->GetCid()) != parts.end())
-					{
-						const auto &reservation = oneOnOne->GetSpawnReservation();
-						std::vector<vec2> spawnPositions;
-						GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), spawnPositions);
-						int idx = (pPlayer->GetCid() == parts[0]) ? reservation.pos1Idx : reservation.pos2Idx;
-						if(idx >= 0 && idx < (int)spawnPositions.size())
-							pChr->m_Pos = spawnPositions[idx];
-						break; // found the event, no need to check others
-					}
-				}
-			}
-		}
-	}
 
 	// default health
 	pChr->IncreaseHealth(10);

@@ -18,7 +18,7 @@
 #include <blockworlds/components/events/zcatch.h>
 
 CEvents::CEvents(CGameContext *pGameServer) :
-	CComponent(pGameServer), m_pEventToDelete(nullptr)
+	CComponent(pGameServer), m_pActiveEvent(nullptr), m_pEventToDelete(nullptr)
 {
 	// Public events
 	m_EventsFactory.emplace("lmb", SFactoryRec{EEventCategory::Public, [](class CGameContext *pGS) { return std::make_shared<CLastManBlockingEvent>(pGS); }});
@@ -30,8 +30,6 @@ CEvents::CEvents(CGameContext *pGameServer) :
 	m_EventsFactory.emplace("1on1", SFactoryRec{EEventCategory::Private, [](class CGameContext *pGS) { return std::make_shared<COneOnOneEvent>(pGS); }});
 	m_EventsFactory.emplace("priv_tdm", SFactoryRec{EEventCategory::Private, [](class CGameContext *pGS) { return std::make_shared<CPrivateTdmEvent>(pGS); }});
 	m_EventsFactory.emplace("clanwar", SFactoryRec{EEventCategory::Private, [](class CGameContext *pGS) { return std::make_shared<CClanwarEvent>(pGS); }});
-	// multi-event support for now
-	m_vActiveEvents.clear();
 }
 
 CEvents::~CEvents()
@@ -41,25 +39,24 @@ CEvents::~CEvents()
 		m_pEventToDelete.reset();
 		m_pEventToDelete = nullptr;
 	}
-	m_vActiveEvents.clear();
 }
 
 std::vector<ComponentAccessor<CComponent>> CEvents::GetSubComponents() const
 {
 	std::vector<ComponentAccessor<CComponent>> vSubComponents;
-	for(const auto &ev : m_vActiveEvents)
-		vSubComponents.emplace_back(ev);
+	if(m_pActiveEvent)
+		vSubComponents.emplace_back(m_pActiveEvent);
 	return vSubComponents;
 }
 
 void CEvents::OnDisable()
 {
-	for(const auto &ev : m_vActiveEvents)
+	if(m_pActiveEvent)
 	{
-		if(ev)
-			ev->EmergencyShutdown("Events Shutdown");
+		m_pActiveEvent->EmergencyShutdown("Events Shutdown");
+		m_pEventToDelete = m_pActiveEvent;
+		m_pActiveEvent.reset();
 	}
-	m_vActiveEvents.clear();
 }
 
 #define LIST_OF_ALL_COMMANDS(DEF) \
@@ -94,36 +91,14 @@ std::shared_ptr<CEventComponent> CEvents::CreateEventByName(const char *pName)
 	return it->second.m_Factory(GameServer());
 }
 
-// Multi-event management
-void CEvents::AddActiveEvent(std::shared_ptr<CEventComponent> pEvent)
+void CEvents::SetActiveEvent(std::shared_ptr<CEventComponent> pEvent)
 {
-	m_vActiveEvents.push_back(std::move(pEvent));
+	m_pActiveEvent = std::move(pEvent);
 }
 
-void CEvents::RemoveActiveEvent(CEventComponent *pEventPtr)
+std::shared_ptr<CEventComponent> CEvents::GetActiveEvent() const
 {
-	m_vActiveEvents.erase(
-		std::remove_if(m_vActiveEvents.begin(), m_vActiveEvents.end(),
-			[pEventPtr](const std::shared_ptr<CEventComponent> &ev) { return ev.get() == pEventPtr; }),
-		m_vActiveEvents.end());
-}
-
-std::vector<std::shared_ptr<CEventComponent>> CEvents::GetActiveEvents() const
-{
-	return m_vActiveEvents;
-}
-
-std::vector<std::shared_ptr<COneOnOneEvent>> CEvents::GetActive1on1Events() const
-{
-	std::vector<std::shared_ptr<COneOnOneEvent>> result;
-	for(const auto &ev : m_vActiveEvents)
-	{
-		if(ev && ev->GetEventName() && std::string(ev->GetEventName()) == "1on1")
-		{
-			result.push_back(std::static_pointer_cast<COneOnOneEvent>(ev));
-		}
-	}
-	return result;
+	return m_pActiveEvent;
 }
 void CEvents::OnConsoleTerminate()
 {
@@ -137,20 +112,15 @@ void CEvents::OnTick()
 	if(m_pEventToDelete)
 		return;
 
-	for(auto it = m_vActiveEvents.begin(); it != m_vActiveEvents.end();)
+	if(m_pActiveEvent)
 	{
-		auto &ev = *it;
-		if(ev && ev->GetState() == CEventComponent::EEventState::Finished)
+		if(m_pActiveEvent->GetState() == CEventComponent::EEventState::Finished)
 		{
-			if(ev->EmergencyShutdown())
-				Log("'%s' did emergency shutdown. Message: %s", ev->GetEventName(), ev->GetEmergencyMessage());
-			Log("'%s' finished. Marking for clean up", ev->GetEventName());
-			m_pEventToDelete = ev;
-			it = m_vActiveEvents.erase(it);
-		}
-		else
-		{
-			++it;
+			if(m_pActiveEvent->EmergencyShutdown())
+				Log("'%s' did emergency shutdown. Message: %s", m_pActiveEvent->GetEventName(), m_pActiveEvent->GetEmergencyMessage());
+			Log("'%s' finished. Marking for clean up", m_pActiveEvent->GetEventName());
+			m_pEventToDelete = m_pActiveEvent;
+			m_pActiveEvent.reset();
 		}
 	}
 }
@@ -167,19 +137,11 @@ void CEvents::OnPostTick()
 void CEvents::ConEventsStatus(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pThis = (CEvents *)pUserData;
-	const auto &events = pThis->GetActiveEvents();
-	if(events.empty())
-	{
-		pThis->Log("No active events.");
-		return;
-	}
-	for(const auto &ev : events)
-	{
-		pThis->Log("Event: %s", ev ? ev->GetEventName() : "none");
-		pThis->Log("State: %s", ev ? ev->GetStateName() : "none");
-		pThis->Log("Candidates: %" PRIzu, ev ? ev->Candidates().size() : 0);
-		pThis->Log("Participants: %" PRIzu, ev ? ev->Participants().size() : 0);
-	}
+
+	pThis->Log("Current event: %s", pThis->m_pActiveEvent ? pThis->m_pActiveEvent->GetEventName() : "none");
+	pThis->Log("State: %s", pThis->m_pActiveEvent ? pThis->m_pActiveEvent->GetStateName() : "none");
+	pThis->Log("Candidates: %" PRIzu, pThis->m_pActiveEvent ? pThis->m_pActiveEvent->Candidates().size() : 0);
+	pThis->Log("Participants: %" PRIzu, pThis->m_pActiveEvent ? pThis->m_pActiveEvent->Participants().size() : 0);
 }
 void CEvents::ConEventsList(IConsole::IResult *pResult, void *pUserData)
 {
@@ -214,6 +176,13 @@ void CEvents::ConEventsListPrivate(IConsole::IResult *pResult, void *pUserData)
 void CEvents::ConEventsStart(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pThis = (CEvents *)pUserData;
+
+	if(pThis->m_pActiveEvent)
+	{
+		pThis->Log("Event is already running");
+		return;
+	}
+
 	const char *pName = pResult->GetString(0);
 	char aClearName[64];
 	str_copy(aClearName, pName);
@@ -226,108 +195,91 @@ void CEvents::ConEventsStart(IConsole::IResult *pResult, void *pUserData)
 		return;
 	}
 
-	// create and add new event
-	auto newEvent = it->second.m_Factory(pThis->GameServer());
+	// Don't ask, just believe
 	auto pThisShared = ((CEvents *)pUserData)->Registry()->Get<CEvents>();
-	newEvent->SetStateChangeCallback(MakeSafeCallback(&CEvents::OnEventStateChange, pThisShared.Store()));
-	newEvent->SetStateChangeCallback([pThis](auto OldState, auto NewState) { pThis->OnEventStateChange(OldState, NewState); });
-	if(!newEvent->EmergencyShutdown())
-		newEvent->OpenRegistration();
-	pThis->AddActiveEvent(newEvent);
+	pThis->m_pActiveEvent = it->second.m_Factory(pThis->GameServer());
+	pThis->m_pActiveEvent->SetStateChangeCallback(MakeSafeCallback(&CEvents::OnEventStateChange, pThisShared.Store()));
+	pThis->m_pActiveEvent->SetStateChangeCallback([pThis](auto OldState, auto NewState) { pThis->OnEventStateChange(OldState, NewState); });
+	if(!pThis->m_pActiveEvent->EmergencyShutdown())
+		pThis->m_pActiveEvent->OpenRegistration();
 }
 void CEvents::ConEventsForceNextState(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pThis = (CEvents *)pUserData;
-	auto events = pThis->GetActiveEvents();
-	if(events.empty())
+
+	if(!pThis->m_pActiveEvent)
 	{
 		pThis->Log("No active event at this time");
 		return;
 	}
-	for(const auto &ev : events)
-	{
-		if(ev)
-			ev->ForceNextStage();
-	}
+
+	pThis->m_pActiveEvent->ForceNextStage();
 }
 void CEvents::ConEventsForceEnd(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pThis = (CEvents *)pUserData;
-	auto events = pThis->GetActiveEvents();
-	if(events.empty())
+
+	if(!pThis->m_pActiveEvent)
 	{
 		pThis->Log("No active event at this time");
 		return;
 	}
-	for(const auto &ev : events)
-	{
-		if(ev)
-			ev->EmergencyShutdown("Forced");
-	}
+
+	pThis->m_pActiveEvent->EmergencyShutdown("Forced");
 }
 
 void CEvents::ConJoin(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pThis = (CEvents *)pUserData;
-	bool joined = false;
-	for(const auto &ev : pThis->GetActiveEvents())
+
+	if(pThis->m_pActiveEvent)
 	{
-		if(ev && ev->Register(pResult->m_ClientId))
-		{
-			joined = true;
-			break;
-		}
+		pThis->m_pActiveEvent->Register(pResult->m_ClientId);
+		return;
 	}
-	if(!joined)
-		pThis->GameServer()->SendChatTarget(pResult->m_ClientId, "No active event at this time");
+
+	pThis->GameServer()->SendChatTarget(pResult->m_ClientId, "No active event at this time");
 }
 void CEvents::ConLeave(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pThis = (CEvents *)pUserData;
-	bool left = false;
-	for(const auto &ev : pThis->GetActiveEvents())
+
+	if(!pThis->m_pActiveEvent)
 	{
-		if(ev)
-		{
-			if(ev->GetState() == CEventComponent::EEventState::Registration)
-			{
-				if(ev->DeRegister(pResult->m_ClientId))
-				{
-					left = true;
-					break;
-				}
-			}
-			else if(ev->Leave(pResult->m_ClientId))
-			{
-				pThis->GameServer()->SendChatTarget(pResult->m_ClientId, "You have left the event and have been disqualified.");
-				pThis->GameServer()->SendBroadcast(" ", pResult->m_ClientId, false);
-				left = true;
-				break;
-			}
-		}
+		pThis->GameServer()->SendChatTarget(pResult->m_ClientId, "No active event at this time");
+		return;
 	}
-	if(!left)
-		pThis->GameServer()->SendChatTarget(pResult->m_ClientId, "You are not participating in any active event.");
+
+	if(pThis->m_pActiveEvent->GetState() == CEventComponent::EEventState::Registration)
+	{
+		if(!pThis->m_pActiveEvent->DeRegister(pResult->m_ClientId))
+			pThis->GameServer()->SendChatTarget(pResult->m_ClientId, "You aren't registered to participate.");
+		return;
+	}
+
+	if(pThis->m_pActiveEvent->Leave(pResult->m_ClientId))
+	{
+		pThis->GameServer()->SendChatTarget(pResult->m_ClientId, "You have left the event and have been disqualified.");
+		pThis->GameServer()->SendBroadcast(" ", pResult->m_ClientId, false);
+	}
+	else
+	{
+		pThis->GameServer()->SendChatTarget(pResult->m_ClientId, "You are not participating in the current event.");
+	}
 }
 
 void CEvents::OnEventStateChange(CEventComponent::EEventState OldState, CEventComponent::EEventState NewState)
 {
 	LogDebug("Event state changed: from %s to %s", CEventComponent::GetStateName(OldState), CEventComponent::GetStateName(NewState));
 
-	if(NewState == CEventComponent::EEventState::Finished)
+	if(NewState == CEventComponent::EEventState::Finished && m_pActiveEvent)
 	{
-		for(const auto &ev : GetActiveEvents())
+		const auto &parts = m_pActiveEvent->Participants();
+		for(int ClientId : parts)
 		{
-			if(ev && ev->GetState() == CEventComponent::EEventState::Finished)
-			{
-				const auto &parts = ev->Participants();
-				for(int ClientId : parts)
-				{
-					if(ClientId < 0)
-						continue;
-					GameServer()->SendBroadcast(" ", ClientId, false);
-				}
-			}
+			if(ClientId < 0)
+				continue;
+			GameServer()->SendBroadcast(" ", ClientId, false);
 		}
 	}
 }

@@ -579,7 +579,7 @@ bool CRequests::AcceptRequest(int RequestId)
 				if(auto one = std::dynamic_pointer_cast<COneOnOneEvent>(ev))
 				{
 					one->Initialize(from, to, wager);
-					events->AddActiveEvent(ev);
+					events->SetActiveEvent(ev);
 					// GameServer()->SendChatTarget(-1, "Starting 1on1 via component system");
 				}
 			}

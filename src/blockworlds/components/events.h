@@ -2,7 +2,6 @@
 #define BLOCKWORLDS_COMPONENTS_EVENTS_H
 
 #include "core/component.h"
-#include "events/1on1.h"
 #include "events/event.h"
 
 #include <engine/console.h>
@@ -52,17 +51,15 @@ public:
 	~CEvents() override;
 
 	std::shared_ptr<CEventComponent> CreateEventByName(const char *pName);
-	// multi-event managment
-	void AddActiveEvent(std::shared_ptr<CEventComponent> pEvent);
-	void RemoveActiveEvent(CEventComponent *pEventPtr);
-	std::vector<std::shared_ptr<CEventComponent>> GetActiveEvents() const;
-	std::vector<std::shared_ptr<COneOnOneEvent>> GetActive1on1Events() const;
+	void SetActiveEvent(std::shared_ptr<CEventComponent> pEvent);
+	// Returns currently active event or nullptr if none
+	std::shared_ptr<CEventComponent> GetActiveEvent() const;
 
 	std::vector<std::string> GetEventsByCategory(EEventCategory Category) const;
-	std::optional<EEventCategory> GetCategoryOf(const char *pName) const;
+	std::optional<EEventCategory> GetCategoryOf(const char *pName) const; // just an helper cause i'm retarded
 
 private:
-	std::vector<std::shared_ptr<CEventComponent>> m_vActiveEvents;
+	std::shared_ptr<CEventComponent> m_pActiveEvent;
 	std::shared_ptr<CEventComponent> m_pEventToDelete;
 
 	using FnFactory = std::function<std::shared_ptr<CEventComponent>(class CGameContext *)>;
@@ -71,7 +68,7 @@ private:
 		EEventCategory m_Category;
 		FnFactory m_Factory;
 	};
-	std::map<std::string, SFactoryRec> m_EventsFactory;
+	std::map<std::string, SFactoryRec> m_EventsFactory; // key: internal event name
 
 	void OnEventStateChange(CEventComponent::EEventState OldState, CEventComponent::EEventState NewState);
 };
