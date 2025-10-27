@@ -114,8 +114,12 @@ void CPassiveZone::HandleProtection(int ClientID, CPlayer *pPlayer, CCharacter *
 			return;
 		}
 
-		// only give protection once per life
-		if(!m_ProtectionUsed[ClientID])
+		// only give protection once per life, but only if passive is enabled before entering
+		static bool s_PassiveEnabledOnEntry[MAX_CLIENTS] = {false};
+		bool passiveAllowed = (pPlayer->IsLoggedIn() && pPlayer->GetPlayerPassive() > 0 && pPlayer->IsUsingPassiveProtection()) || (!pPlayer->IsLoggedIn() && pPlayer->m_LocalPassiveDuration > 0);
+		if(WasInZone != InZone) // zone entry event
+			s_PassiveEnabledOnEntry[ClientID] = passiveAllowed;
+		if(!m_ProtectionUsed[ClientID] && s_PassiveEnabledOnEntry[ClientID])
 		{
 			m_ProtectionUsed[ClientID] = true;
 			pChar->Core()->m_Passive = true;
