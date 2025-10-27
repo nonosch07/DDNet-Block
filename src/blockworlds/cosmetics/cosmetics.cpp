@@ -82,8 +82,7 @@ bool CCosmeticsHandler::ToggleSpecial(int ClientID, const char *pName)
 	{
 		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
 		{
-			auto pEv = eventsAccessor->GetActiveEvent();
-			if(pEv)
+			for(const auto &pEv : eventsAccessor->GetActiveEvents())
 			{
 				const char *pEvName = pEv->GetEventName();
 				bool IsBlockedEvent = (str_comp(pEvName, "LMB") == 0) || (str_comp(pEvName, "Team Deathmatch") == 0);
@@ -278,8 +277,7 @@ bool CCosmeticsHandler::ToggleKnockout(int ClientID, const char *pName)
 	{
 		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
 		{
-			auto pEv = eventsAccessor->GetActiveEvent();
-			if(pEv)
+			for(const auto &pEv : eventsAccessor->GetActiveEvents())
 			{
 				const char *pEvName = pEv->GetEventName();
 				bool IsBlockedEvent = (str_comp(pEvName, "LMB") == 0) || (str_comp(pEvName, "Team Deathmatch") == 0);
@@ -411,8 +409,7 @@ bool CCosmeticsHandler::ToggleGundesign(int ClientID, const char *pName)
 	{
 		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
 		{
-			auto pEv = eventsAccessor->GetActiveEvent();
-			if(pEv)
+			for(const auto &pEv : eventsAccessor->GetActiveEvents())
 			{
 				const char *pEvName = pEv->GetEventName();
 				bool IsBlockedEvent = (str_comp(pEvName, "LMB") == 0) || (str_comp(pEvName, "Team Deathmatch") == 0);
@@ -533,8 +530,7 @@ bool CCosmeticsHandler::ToggleSkinmani(int ClientID, const char *pName)
 	{
 		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
 		{
-			auto pEv = eventsAccessor->GetActiveEvent();
-			if(pEv)
+			for(const auto &pEv : eventsAccessor->GetActiveEvents())
 			{
 				const char *pEvName = pEv->GetEventName();
 				bool IsBlockedEvent = (str_comp(pEvName, "LMB") == 0) || (str_comp(pEvName, "Team Deathmatch") == 0);

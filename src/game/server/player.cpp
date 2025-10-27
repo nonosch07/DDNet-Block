@@ -544,12 +544,13 @@ void CPlayer::Snap(int SnappingClient)
 		bool treatedAsEventScore = false;
 		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
 		{
-			if(auto active = eventsAccessor->GetActiveEvent())
+			for(const auto &active : eventsAccessor->GetActive1on1Events())
 			{
 				if(auto evScore = active->GetScoreOf(GetCid()); evScore.has_value())
 				{
 					Score = evScore.value();
 					treatedAsEventScore = true;
+					break;
 				}
 			}
 		}
@@ -576,7 +577,7 @@ void CPlayer::Snap(int SnappingClient)
 	bool bScoreSetFromEvent = false;
 	if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
 	{
-		if(auto active = eventsAccessor->GetActiveEvent())
+		for(const auto &active : eventsAccessor->GetActive1on1Events())
 		{
 			const auto &parts = active->Participants();
 			bool isParticipant = std::find(parts.begin(), parts.end(), GetCid()) != parts.end();
@@ -587,6 +588,7 @@ void CPlayer::Snap(int SnappingClient)
 				m_Score = evScore;
 				Server()->SetClientScore(m_ClientId, Score);
 				bScoreSetFromEvent = true;
+				break;
 			}
 			else if(isParticipant)
 			{
@@ -594,6 +596,7 @@ void CPlayer::Snap(int SnappingClient)
 				m_Score = 0;
 				Server()->SetClientScore(m_ClientId, Score);
 				bScoreSetFromEvent = true;
+				break;
 			}
 		}
 	}
@@ -819,8 +822,7 @@ void CPlayer::OnPredictedEarlyInput(CNetObj_PlayerInput *pNewInput)
 		// to avoid distracting them
 		if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
 		{
-			auto active = events->GetActiveEvent();
-			if(active)
+			for(const auto &active : events->GetActive1on1Events())
 			{
 				const auto &parts = active->Participants();
 				if(std::find(parts.begin(), parts.end(), GetCid()) != parts.end())
@@ -893,21 +895,21 @@ CCharacter *CPlayer::ForceSpawn(vec2 Pos, bool doEvent)
 	// check for active 1on1 event and override spawn position
 	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
 	{
-		auto active = events->GetActiveEvent();
-		COneOnOneEvent *oneOnOne = nullptr;
-		if(active && std::string(active->GetEventName()) == "1on1")
-			oneOnOne = static_cast<COneOnOneEvent *>(active.get());
-		if(oneOnOne && oneOnOne->GetState() == CEventComponent::EEventState::Active)
+		for(const auto &oneOnOne : events->GetActive1on1Events())
 		{
-			const auto &parts = oneOnOne->Participants();
-			if(std::find(parts.begin(), parts.end(), GetCid()) != parts.end())
+			if(oneOnOne && oneOnOne->GetState() == CEventComponent::EEventState::Active)
 			{
-				const auto &reservation = oneOnOne->GetSpawnReservation();
-				std::vector<vec2> spawnPositions;
-				GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), spawnPositions);
-				int idx = (GetCid() == parts[0]) ? reservation.pos1Idx : reservation.pos2Idx;
-				if(idx >= 0 && idx < (int)spawnPositions.size())
-					Pos = spawnPositions[idx];
+				const auto &parts = oneOnOne->Participants();
+				if(std::find(parts.begin(), parts.end(), GetCid()) != parts.end())
+				{
+					const auto &reservation = oneOnOne->GetSpawnReservation();
+					std::vector<vec2> spawnPositions;
+					GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), spawnPositions);
+					int idx = (GetCid() == parts[0]) ? reservation.pos1Idx : reservation.pos2Idx;
+					if(idx >= 0 && idx < (int)spawnPositions.size())
+						Pos = spawnPositions[idx];
+					break;
+				}
 			}
 		}
 	}
@@ -1001,23 +1003,23 @@ void CPlayer::TryRespawn()
 	// check for active 1on1 event and override spawn position if needed
 	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
 	{
-		auto active = events->GetActiveEvent();
-		COneOnOneEvent *oneOnOne = nullptr;
-		if(active && std::string(active->GetEventName()) == "1on1")
-			oneOnOne = static_cast<COneOnOneEvent *>(active.get());
-		if(oneOnOne && oneOnOne->GetState() == CEventComponent::EEventState::Active)
+		for(const auto &oneOnOne : events->GetActive1on1Events())
 		{
-			const auto &parts = oneOnOne->Participants();
-			if(std::find(parts.begin(), parts.end(), GetCid()) != parts.end())
+			if(oneOnOne && oneOnOne->GetState() == CEventComponent::EEventState::Active)
 			{
-				const auto &reservation = oneOnOne->GetSpawnReservation();
-				std::vector<vec2> spawnPositions;
-				GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), spawnPositions);
-				int idx = (GetCid() == parts[0]) ? reservation.pos1Idx : reservation.pos2Idx;
-				if(idx >= 0 && idx < (int)spawnPositions.size())
+				const auto &parts = oneOnOne->Participants();
+				if(std::find(parts.begin(), parts.end(), GetCid()) != parts.end())
 				{
-					SpawnPos = spawnPositions[idx];
-					used1on1 = true;
+					const auto &reservation = oneOnOne->GetSpawnReservation();
+					std::vector<vec2> spawnPositions;
+					GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), spawnPositions);
+					int idx = (GetCid() == parts[0]) ? reservation.pos1Idx : reservation.pos2Idx;
+					if(idx >= 0 && idx < (int)spawnPositions.size())
+					{
+						SpawnPos = spawnPositions[idx];
+						used1on1 = true;
+						break;
+					}
 				}
 			}
 		}

@@ -2443,7 +2443,7 @@ void CGameContext::ConCreateTDM(IConsole::IResult *pResult, void *pUserData)
 		if(ev)
 		{
 			ev->SetStateChangeCallback([](auto, auto) {});
-			events->SetActiveEvent(ev);
+			events->AddActiveEvent(ev);
 			return;
 		}
 	}

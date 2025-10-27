@@ -865,15 +865,17 @@ void CGameContext::SendChat(int ChatterClientId, int Team, const char *pText, in
 			return false;
 		if(auto events = g_ComponentRegistry.Get<CEvents>())
 		{
-			auto active = events->GetActiveEvent();
-			if(active && active->GetState() == CEventComponent::EEventState::Active)
+			for(const auto &active : events->GetActiveEvents())
 			{
-				const char *pName = active->GetName();
-				if((str_comp(pName, "LMB") == 0 || str_comp(pName, "tdm") == 0))
+				if(active && active->GetState() == CEventComponent::EEventState::Active)
 				{
-					const auto &Parts = active->Participants();
-					if(std::find(Parts.begin(), Parts.end(), ClientId) != Parts.end())
-						return true;
+					const char *pName = active->GetName();
+					if((str_comp(pName, "LMB") == 0 || str_comp(pName, "tdm") == 0))
+					{
+						const auto &Parts = active->Participants();
+						if(std::find(Parts.begin(), Parts.end(), ClientId) != Parts.end())
+							return true;
+					}
 				}
 			}
 		}
@@ -2712,15 +2714,17 @@ void CGameContext::OnSayNetMessage(const CNetMsg_Cl_Say *pMsg, int ClientId, con
 		{
 			if(auto events = g_ComponentRegistry.Get<CEvents>())
 			{
-				auto active = events->GetActiveEvent();
-				if(active && active->GetState() == CEventComponent::EEventState::Active)
+				for(const auto &active : events->GetActiveEvents())
 				{
-					const char *pName = active->GetName();
-					if((str_comp(pName, "LMB") == 0 || str_comp(pName, "tdm") == 0))
+					if(active && active->GetState() == CEventComponent::EEventState::Active)
 					{
-						const auto &Parts = active->Participants();
-						if(std::find(Parts.begin(), Parts.end(), ClientId) != Parts.end())
-							BlockSpeak = true;
+						const char *pName = active->GetName();
+						if((str_comp(pName, "LMB") == 0 || str_comp(pName, "tdm") == 0))
+						{
+							const auto &Parts = active->Participants();
+							if(std::find(Parts.begin(), Parts.end(), ClientId) != Parts.end())
+								BlockSpeak = true;
+						}
 					}
 				}
 			}
@@ -3086,15 +3090,17 @@ void CGameContext::OnSetTeamNetMessage(const CNetMsg_Cl_SetTeam *pMsg, int Clien
 		{
 			if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
 			{
-				auto pEvent = eventsAccessor->GetActiveEvent();
-				if(pEvent && pEvent->GetState() == CEventComponent::EEventState::Active)
+				for(const auto &pEvent : eventsAccessor->GetActiveEvents())
 				{
-					const auto &parts = pEvent->Participants();
-					if(std::find(parts.begin(), parts.end(), ClientId) != parts.end())
+					if(pEvent && pEvent->GetState() == CEventComponent::EEventState::Active)
 					{
-						// treat as ragequit/leave from the current event
-						pEvent->Leave(ClientId);
-						return; // suppress actual team change
+						const auto &parts = pEvent->Participants();
+						if(std::find(parts.begin(), parts.end(), ClientId) != parts.end())
+						{
+							// treat as ragequit/leave from the current event
+							pEvent->Leave(ClientId);
+							return; // suppress actual team change
+						}
 					}
 				}
 			}
@@ -6094,7 +6100,7 @@ void CGameContext::SendCosmeticsVoteOptions(int ClientID)
 {
 	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
 	{
-		if(auto active = events->GetActiveEvent(); active)
+		for(const auto &active : events->GetActiveEvents())
 		{
 			const auto &parts = active->Participants();
 			if(std::find(parts.begin(), parts.end(), ClientID) != parts.end())
