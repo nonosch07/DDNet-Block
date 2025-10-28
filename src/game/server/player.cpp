@@ -224,7 +224,7 @@ void CPlayer::Tick()
 		if(Server()->Tick() > m_PendingLoginSaveTick)
 		{
 			GameServer()->Accounts()->Save(GetCid(), &m_Account);
-			dbg_msg("account", "login snapshot saved for AccountId=%d (deferred)", m_Account.m_Id);
+			// dbg_msg("account", "login snapshot saved for AccountId=%d (deferred)", m_Account.m_Id);
 			m_PendingLoginCoreSave = false;
 		}
 	}
@@ -1415,7 +1415,7 @@ void CPlayer::BWProcessAccountsResult(CAccountResult &Result)
 			{
 				if(aMessage[0] == 0)
 					break;
-				dbg_msg("account", "%s", aMessage);
+				// dbg_msg("account", "%s", aMessage);
 			}
 			break;
 		}
@@ -1683,7 +1683,7 @@ void CPlayer::BWProcessAdminCommandResult(CAdminCommandResult &Result)
 			{
 				if(aMessage[0] == 0)
 					break;
-				dbg_msg("account", "%s", aMessage);
+				// dbg_msg("account", "%s", aMessage);
 			}
 			break;
 		}
@@ -1763,7 +1763,7 @@ void CPlayer::OnPlayerLogin()
 
 void CPlayer::OnPlayerSave(bool Logout)
 {
-	dbg_msg("account", "saving account '%s' CID=%d AccountId=%d Logout=%d", Server()->ClientName(GetCid()), GetCid(), m_Account.m_Id, Logout);
+	// dbg_msg("account", "saving account '%s' CID=%d AccountId=%d Logout=%d", Server()->ClientName(GetCid()), GetCid(), m_Account.m_Id, Logout);
 
 	if(!m_Account.m_Id)
 		return;
@@ -1837,7 +1837,7 @@ void CPlayer::OnPlayerLogout()
 		return;
 	if(GameServer()->Accounts() && GameServer()->Accounts()->ShutdownFlushActive())
 	{
-		dbg_msg("account", "skip duplicate logout save for AccountId=%d during shutdown", GetAccId());
+		// dbg_msg("account", "skip duplicate logout save for AccountId=%d during shutdown", GetAccId());
 		m_Account = CAccountData();
 		return;
 	}
@@ -1845,7 +1845,7 @@ void CPlayer::OnPlayerLogout()
 	GameServer()->ClearVotes(GetCid());
 	GameServer()->ProgressVoteOptions(GetCid());
 	OnPlayerSave(true);
-	dbg_msg("account", "logging out AccountId=%d", GetAccId());
+	// dbg_msg("account", "logging out AccountId=%d", GetAccId());
 
 	if(GetClanId() > 0)
 	{

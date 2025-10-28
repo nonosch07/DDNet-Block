@@ -452,6 +452,16 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 		m_Player2DeathTick = Server()->Tick();
 	}
 
+	// Prevent duplicate awards from multiple rapid death callbacks (e.g. when
+	// a freeze forces a Die() and another kill event is emitted in the same
+	// tick). If we've already awarded a point this tick, ignore further
+	// death callbacks.
+	if(m_LastAwardedTick == Server()->Tick())
+	{
+		dbg_msg("1on1", "Ignoring duplicate OnCharacterDeath for cid=%d in tick=%d", ClientId, Server()->Tick());
+		return;
+	}
+
 	CCharacter *pChr1 = GameServer()->GetPlayerChar(m_Player1ID);
 	CCharacter *pChr2 = GameServer()->GetPlayerChar(m_Player2ID);
 	bool p1InFreezeTileNow = pChr1 ? pChr1->Core()->m_IsInFreeze : m_P1InFreezeTile;

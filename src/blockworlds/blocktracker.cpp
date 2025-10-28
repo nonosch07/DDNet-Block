@@ -11,6 +11,7 @@
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
 #include <blockworlds/components/events/event.h>
+#include <blockworlds/components/oneonone_manager.h>
 #include <ctime>
 #include <deque>
 #include <unordered_map>
@@ -114,6 +115,28 @@ bool CBlockTracker::Blocked(int ClientID, int BlockerID)
 			if(std::find(parts.begin(), parts.end(), ClientID) != parts.end() || std::find(parts.begin(), parts.end(), BlockerID) != parts.end())
 			{
 				DebugMsg(BlockerID, "No EXP: event participant exclusion");
+				return false;
+			}
+		}
+
+		if(auto p1on1 = g_ComponentRegistry.Get<COneOnOneManager>())
+		{
+			if(p1on1->GetMatchForPlayer(ClientID) || p1on1->GetMatchForPlayer(BlockerID))
+			{
+				DebugMsg(BlockerID, "No EXP: 1on1 participant exclusion");
+				return false;
+			}
+		}
+
+		auto active = events->GetActiveEvent();
+		if(active)
+		{
+			const char *pEvName = active->GetName();
+			if((str_comp(pEvName, "LMB") == 0 || str_comp(pEvName, "Team Deathmatch") == 0) &&
+			   (std::find(active->Participants().begin(), active->Participants().end(), ClientID) != active->Participants().end() ||
+			    std::find(active->Participants().begin(), active->Participants().end(), BlockerID) != active->Participants().end()))
+			{
+				DebugMsg(BlockerID, "No EXP: active LMB/TDm event participant exclusion");
 				return false;
 			}
 		}
@@ -607,36 +630,37 @@ void CBlockTracker::OnPlayerImpacted(int ClientID, int InitiatorID)
 	if(ClientID == InitiatorID)
 		return;
 
-	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
+	if(auto events = g_ComponentRegistry.Get<CEvents>())
 	{
 		auto subs = events->GetSubComponents();
-		if(!subs.empty())
+		for(auto &sub : subs)
 		{
-			for(auto &sub : subs)
+			CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
+			if(!pEv)
+				continue;
+			const auto &parts = pEv->Participants();
+			if(std::find(parts.begin(), parts.end(), ClientID) != parts.end() || std::find(parts.begin(), parts.end(), InitiatorID) != parts.end())
+				return;
+		}
+
+		auto active = events->GetActiveEvent();
+		if(active)
+		{
+			const char *pEvName = active->GetName();
+			if((str_comp(pEvName, "LMB") == 0 || str_comp(pEvName, "Team Deathmatch") == 0) &&
+			   (std::find(active->Participants().begin(), active->Participants().end(), ClientID) != active->Participants().end() ||
+				std::find(active->Participants().begin(), active->Participants().end(), InitiatorID) != active->Participants().end()))
 			{
-				CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
-				if(!pEv)
-					continue;
-				const auto &parts = pEv->Participants();
-				if(std::find(parts.begin(), parts.end(), ClientID) != parts.end() || std::find(parts.begin(), parts.end(), InitiatorID) != parts.end())
-					return;
+				return;
 			}
 		}
 	}
-	else
+
+	// exclude 1on1 participants
+	if(auto p1on1 = g_ComponentRegistry.Get<COneOnOneManager>())
 	{
-		if(auto events2 = g_ComponentRegistry.Get<CEvents>())
-		{
-			for(auto &sub : events2->GetSubComponents())
-			{
-				CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
-				if(!pEv)
-					continue;
-				const auto &parts = pEv->Participants();
-				if(std::find(parts.begin(), parts.end(), ClientID) != parts.end() || std::find(parts.begin(), parts.end(), InitiatorID) != parts.end())
-					return;
-			}
-		}
+		if(p1on1->GetMatchForPlayer(ClientID) || p1on1->GetMatchForPlayer(InitiatorID))
+			return;
 	}
 
 	STrackedPlayer &Player = m_aTrackedPlayers[ClientID];

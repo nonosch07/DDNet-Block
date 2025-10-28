@@ -11,6 +11,7 @@
 
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/discord/webhook.h>
+#include <blockworlds/components/oneonone_manager.h>
 
 CLastManBlockingEvent::CLastManBlockingEvent(CGameContext *pGameContext) :
 	CEventComponent(pGameContext), m_SpawnOffset(0), m_DDRaceTeam(-1), m_Winner(-1), m_FinishingReason(NATURAL)
@@ -47,33 +48,52 @@ void CLastManBlockingEvent::OnTick()
 		// TODO: broadcast manager
 		if(Server()->Tick() % Config()->m_SvLMBBroadcastRate == 0)
 		{
-			GameServer()->SendBroadcast(-1, "%s is about to start!\n"
-							"Register with /join\n"
-							"Time left: %d seconds\n\n"
-							"Candidates: %" PRIzu "\n\n"
-							"%s\n"
-							"%s",
-				GetEventName(),
-				(int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()),
-				Candidates().size(),
-				(int)Candidates().size() < Config()->m_SvLMBMinimumCandidates ? "Not enough candidates!" : "",
-				"                                                                                     "
-				"                                                                                     "
-				"                                                                                     ");
+			char aMsg[1024];
+			str_format(aMsg, sizeof(aMsg), "%s is about to start!\n"
+									 "Register with /join\n"
+									 "Time left: %d seconds\n\n"
+									 "Candidates: %" PRIzu "\n\n"
+									 "%s\n"
+									 "%s",
+					   GetEventName(),
+					   (int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()),
+					   Candidates().size(),
+					   (int)Candidates().size() < Config()->m_SvLMBMinimumCandidates ? "Not enough candidates!" : "",
+					   "                                                                                     "
+					   "                                                                                     "
+					   "                                                                                     ");
+
+			auto p1on1 = g_ComponentRegistry.Get<COneOnOneManager>();
+			IServer *pServer = Server();
+			for(int i = 0; i < pServer->MaxClients(); ++i)
+			{
+				if(!pServer->ClientIngame(i))
+					continue;
+				if(p1on1 && p1on1->GetMatchForPlayer(i))
+					continue; // don't send LMB registration broadcasts to 1on1 participants
+				GameServer()->SendBroadcast(aMsg, i);
+			}
 		}
 	}
 	else if(GetState() == CEventComponent::EEventState::Active)
 	{
 		if(Server()->Tick() % Config()->m_SvLMBBroadcastRate == 0)
+		{
+			auto p1on1 = g_ComponentRegistry.Get<COneOnOneManager>();
 			for(const auto &ClientId : Participants())
+			{
+				if(p1on1 && p1on1->GetMatchForPlayer(ClientId))
+					continue; // skip sending to players that are in a 1on1 match
 				GameServer()->SendBroadcast(ClientId, "Participants left: %" PRIzu "\n"
-								      "Time left: %d seconds\n"
-								      "%s",
+											  "Time left: %d seconds\n"
+											  "%s",
 					Participants().size(),
 					(int)((m_ActiveEndTick - Server()->Tick()) / Server()->TickSpeed()),
 					"                                                                                     "
 					"                                                                                     "
 					"                                                                                     ");
+			}
+		}
 
 		if(Server()->Tick() > m_ActiveStartTick + Config()->m_SvLMBInitialFreezeTime * Server()->TickSpeed())
 		{
