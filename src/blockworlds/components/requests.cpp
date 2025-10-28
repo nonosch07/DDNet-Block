@@ -574,7 +574,14 @@ bool CRequests::AcceptRequest(int RequestId)
 		if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>(); mgr)
 		{
 			// create a new independent 1on1 match via manager (allows multiple concurrent matches)
-			mgr->CreateMatch(from, to, wager);
+			auto match = mgr->CreateMatch(from, to, wager);
+			if(!match)
+			{
+				if(CheckClientId(from) && GameServer()->m_apPlayers[from])
+					GameServer()->SendChatTarget(from, "Failed to start 1on1: opponent busy or no free teams available.");
+				if(CheckClientId(to) && GameServer()->m_apPlayers[to])
+					GameServer()->SendChatTarget(to, "Failed to start 1on1: opponent busy or no free teams available.");
+			}
 		}
 		else
 		{

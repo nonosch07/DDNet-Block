@@ -263,7 +263,19 @@ void CLastManBlockingEvent::FinishEvent()
 
 	auto RemainingParticipants = m_Participants;
 	for(const auto &ClientId : RemainingParticipants)
+	{
 		Leave(ClientId);
+	}
+	for(const auto &soloEntry : m_PrevSoloState)
+	{
+		if(auto *pChar = GameServer()->GetPlayerChar(soloEntry.first))
+		{
+			if(soloEntry.second.solo)
+				pChar->SetSolo(true);
+			pChar->Core()->m_CollisionDisabled = soloEntry.second.collision;
+		}
+	}
+	m_PrevSoloState.clear();
 
 	if(m_DDRaceTeam != -1)
 		GameServer()->m_pController->Teams().ResetRoundState(m_DDRaceTeam);
@@ -361,6 +373,17 @@ bool CLastManBlockingEvent::Join(int ClientId)
 	SavePosition(ClientId);
 
 	auto *pChar = GameServer()->GetPlayerChar(ClientId);
+	if(pChar)
+	{
+		// save previous solo and collision state, set not solo (character+teams) and enable collision for event
+		bool wasSolo = pChar->Core()->m_Solo;
+		bool wasCollisionDisabled = pChar->Core()->m_CollisionDisabled;
+		m_PrevSoloState[ClientId] = {wasSolo, wasCollisionDisabled};
+		if(wasSolo)
+			pChar->SetSolo(false);
+		if(wasCollisionDisabled)
+			pChar->Core()->m_CollisionDisabled = false;
+	}
 	GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, m_DDRaceTeam);
 	pChar->ResetVelocity();
 	pChar->FreezeForce(Config()->m_SvLMBInitialFreezeTime);
@@ -389,6 +412,18 @@ bool CLastManBlockingEvent::Leave(int ClientId)
 	m_Participants.erase(ClientIdIt);
 	LoadPosition(ClientId);
 	LoadWeapons(ClientId);
+
+	// restore solo and collision state if needed
+	if(auto *pChar = GameServer()->GetPlayerChar(ClientId))
+	{
+		auto it = m_PrevSoloState.find(ClientId);
+		if(it != m_PrevSoloState.end()) {
+			if(it->second.solo)
+				pChar->SetSolo(true);
+			pChar->Core()->m_CollisionDisabled = it->second.collision;
+			m_PrevSoloState.erase(it);
+		}
+	}
 
 	// restore specials state is intentionally left unchanged; players may re-enable after event
 	static const char *s_randomStrings[] = {

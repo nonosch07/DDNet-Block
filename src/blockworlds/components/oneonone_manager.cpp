@@ -10,6 +10,18 @@ COneOnOneManager::COneOnOneManager(CGameContext *pGameServer)
 
 std::shared_ptr<COneOnOneEvent> COneOnOneManager::CreateMatch(int Player1ID, int Player2ID, int Wager)
 {
+    if(!GameServer()->GetPlayer(Player1ID) || !GameServer()->GetPlayer(Player2ID))
+    {
+        dbg_msg("oneonone", "CreateMatch failed: one or both players not present (p1=%d p2=%d)", Player1ID, Player2ID);
+        return nullptr;
+    }
+
+    if(GetMatchForPlayer(Player1ID) || GetMatchForPlayer(Player2ID))
+    {
+        dbg_msg("oneonone", "CreateMatch failed: one or both players already in an active match (p1=%d p2=%d)", Player1ID, Player2ID);
+        return nullptr;
+    }
+
     auto match = std::make_shared<COneOnOneEvent>(GameServer());
     // Insert into manager before initialization so the match is discoverable during Initialize/StartEvent
     {
@@ -17,8 +29,15 @@ std::shared_ptr<COneOnOneEvent> COneOnOneManager::CreateMatch(int Player1ID, int
         m_Matches.push_back(match);
     }
 
-    // Initialize will call StartEvent() immediately
-    match->Initialize(Player1ID, Player2ID, Wager);
+    // Initialize will call StartEvent() immediately. If initialization fails (e.g., no free team), remove match and return null
+    bool ok = match->Initialize(Player1ID, Player2ID, Wager);
+    if(!ok)
+    {
+        std::lock_guard<std::mutex> g(m_Mutex);
+        m_Matches.erase(std::remove_if(m_Matches.begin(), m_Matches.end(), [&](const std::shared_ptr<COneOnOneEvent> &m) { return m == match; }), m_Matches.end());
+        dbg_msg("oneonone", "CreateMatch failed: Initialize returned false for players %d vs %d", Player1ID, Player2ID);
+        return nullptr;
+    }
 
     return match;
 }

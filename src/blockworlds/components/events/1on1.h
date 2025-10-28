@@ -23,14 +23,14 @@ public:
 	[[nodiscard]] const char *GetName() const override { return "1on1"; }
 
 	// lifecycle
-	void StartEvent();
+	bool StartEvent();
 	void FinishEvent();
 	void ForceNextStage() { FinishEvent(); }
 	bool CheckEndCondition();
 
 	bool Leave(int ClientId);
 
-	void Initialize(int Player1ID, int Player2ID, int Wager = 0);
+	bool Initialize(int Player1ID, int Player2ID, int Wager = 0);
 
 	void OnTick() override;
 	void OnCharacterSpawn(int ClientId, vec2 SpawnPos) override;
@@ -122,11 +122,20 @@ public:
 	int m_P1InFreezeTileTick = -1;
 	int m_P2InFreezeTileTick = -1;
 
+
 	// general freeze tracking for penalties
 	bool m_P1Frozen = false;
 	bool m_P2Frozen = false;
 	int m_P1FrozenTick = -1;
 	int m_P2FrozenTick = -1;
+
+
+	// solo & collision state tracking for participants
+	struct SoloCollisionState {
+		bool solo;
+		bool collision;
+	};
+	std::map<int, SoloCollisionState> m_PrevSoloState;
 
 	// finish handling
 	bool m_DeferFinishRestore = false;

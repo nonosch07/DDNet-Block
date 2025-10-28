@@ -24,23 +24,52 @@ COneOnOneEvent::~COneOnOneEvent()
 	m_SavedWeapons.clear();
 }
 
-void COneOnOneEvent::Initialize(int Player1ID, int Player2ID, int Wager)
+bool COneOnOneEvent::Initialize(int Player1ID, int Player2ID, int Wager)
 {
 	m_Player1ID = Player1ID;
 	m_Player2ID = Player2ID;
 	m_Wager = Wager;
-	StartEvent();
+	return StartEvent();
 }
 
-void COneOnOneEvent::StartEvent()
+bool COneOnOneEvent::StartEvent()
 {
 	auto pController = (CGameControllerDDRace *)GameServer()->m_pController;
 	m_Team = pController->Teams().GetFirstEmptyTeam();
+	if(m_Team == -1)
+	{
+		// no free team — fail gracefully so caller can notify players instead of emergency-shutdown
+		dbg_msg("1on1", "StartEvent failed: no free team available");
+		return false;
+	}
 	pController->Teams().SetForceCharacterTeam(m_Player1ID, m_Team);
 	pController->Teams().SetForceCharacterTeam(m_Player2ID, m_Team);
 	// mark this team as an event team so team-wide kills are suppressed
 	pController->Teams().SetTeamEvent(m_Team, true);
 	pController->Teams().SetTeamLock(m_Team, true);
+
+	// save and disable solo & collision state for both participants
+	auto& core = ((CGameControllerDDRace*)GameServer()->m_pController)->Teams().m_Core;
+	for(int cid : {m_Player1ID, m_Player2ID}) {
+		CCharacter *pChr = GameServer()->GetPlayerChar(cid);
+		if(pChr)
+		{
+			bool wasSolo = pChr->Core()->m_Solo;
+			bool wasCollisionDisabled = pChr->Core()->m_CollisionDisabled;
+			m_PrevSoloState[cid] = {wasSolo, wasCollisionDisabled};
+			if(wasSolo)
+				pChr->SetSolo(false);
+			if(wasCollisionDisabled)
+				pChr->Core()->m_CollisionDisabled = false;
+		}
+		else
+		{
+			// fallback to teams core if no character is present
+			bool wasSolo = core.GetSolo(cid);
+			m_PrevSoloState[cid] = {wasSolo, false};
+			core.SetSolo(cid, false);
+		}
+	}
 
 	m_Score1.store(0);
 	m_Score2.store(0);
@@ -78,7 +107,7 @@ void COneOnOneEvent::StartEvent()
 		if(!CollectEscrow())
 		{
 			AbortAndRefund("[1on1] Failed to collect wager from both players. Event aborted.");
-			return;
+			return false;
 		}
 		CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
 		const char *pLogsUrl = g_Config.m_SvDiscordWebhookUrlLogs[0] ? g_Config.m_SvDiscordWebhookUrlLogs : nullptr;
@@ -117,7 +146,7 @@ void COneOnOneEvent::StartEvent()
 		GameServer()->SendChatTarget(m_Player1ID, "Something went wrong with the 1v1. Please try again.");
 		GameServer()->SendChatTarget(m_Player2ID, "Something went wrong with the 1v1. Please try again.");
 		FinishEvent();
-		return;
+		return false;
 	}
 
 	std::vector<vec2> spawnPosition;
@@ -166,6 +195,7 @@ void COneOnOneEvent::StartEvent()
 
 	m_StartTimer = 0;
 	SetState(EEventState::Active);
+	return true;
 }
 
 void COneOnOneEvent::OnTick()
@@ -199,6 +229,27 @@ void COneOnOneEvent::OnTick()
 			LoadWeapons(Cid);
 			if(auto p = GameServer()->GetPlayer(Cid))
 				p->m_allowDeath = true;
+		}
+
+		// restore solo & collision state for saved players
+		auto& core = ((CGameControllerDDRace*)GameServer()->m_pController)->Teams().m_Core;
+		for(const int Cid : aSaved)
+		{
+			auto it = m_PrevSoloState.find(Cid);
+			if(it == m_PrevSoloState.end())
+				continue;
+			CCharacter *pChr = GameServer()->GetPlayerChar(Cid);
+			if(pChr)
+			{
+				if(it->second.solo)
+					pChr->SetSolo(true);
+				pChr->Core()->m_CollisionDisabled = it->second.collision;
+			}
+			else
+			{
+				core.SetSolo(Cid, it->second.solo);
+			}
+			m_PrevSoloState.erase(it);
 		}
 
 		m_DeferFinishRestore = false;
@@ -731,11 +782,35 @@ bool COneOnOneEvent::Leave(int ClientId)
 			GameServer()->SendChatTarget(-1, aBuf);
 		}
 
+
+
 		// proactively clear forced team to avoid spawn issues when finishing
 		auto pController = (CGameControllerDDRace *)GameServer()->m_pController;
 		pController->Teams().SetForceCharacterTeam(m_Player1ID, 0);
 		pController->Teams().SetForceCharacterTeam(m_Player2ID, 0);
+
+		// restore solo and collision state for both participants if it was changed for the event
+		auto& core = ((CGameControllerDDRace*)GameServer()->m_pController)->Teams().m_Core;
+		for(const auto& soloEntry : m_PrevSoloState) {
+			int cid = soloEntry.first;
+			CCharacter *pChr = GameServer()->GetPlayerChar(cid);
+			if(pChr)
+			{
+				if(soloEntry.second.solo)
+					pChr->SetSolo(true);
+				pChr->Core()->m_CollisionDisabled = soloEntry.second.collision;
+			}
+			else
+			{
+				// fallback to teams core
+				core.SetSolo(cid, soloEntry.second.solo);
+			}
+		}
+		m_PrevSoloState.clear();
+
 		FinishEvent();
+
+
 
 		// notify Discord about ragequit
 		CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());

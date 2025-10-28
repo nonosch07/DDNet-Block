@@ -20,6 +20,7 @@
 
 #include <blockworlds/accounts.h>
 #include <blockworlds/clans.h>
+#include <blockworlds/discord/webhook.h>
 #include <blockworlds/common.h>
 
 #include <blockworlds/components/core/component_registry.h>
@@ -1423,6 +1424,10 @@ void CPlayer::BWProcessAccountsResult(CAccountResult &Result)
 
 void CPlayer::BWProcessClansResult(CClanResult &Result)
 {
+	CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
+	const char *pLogsUrl = g_Config.m_SvDiscordWebhookUrlLogs[0] ? g_Config.m_SvDiscordWebhookUrlLogs : nullptr;
+	bool discordConfigured = Discord.IsConfigured(pLogsUrl);
+
 	if(Result.m_Success || Result.m_aaMessages[0][0] != '\0')
 	{
 		// First, apply any deferred actions requested by the SQL worker thread
@@ -1433,20 +1438,56 @@ void CPlayer::BWProcessClansResult(CClanResult &Result)
 			{
 				CPlayer *pTarget = GameServer()->m_apPlayers[Result.m_ActionClientId];
 				if(pTarget)
+				{
+					const char *pPlayerName = pTarget->GetPlayerName();
+
 					pTarget->m_Account.m_ClanId = Result.m_ActionNewClanId;
-				pTarget->m_Account.m_AuthLevel = static_cast<ClanAuthLevel>(Result.m_ActionNewAuthLevel);
+					pTarget->m_Account.m_AuthLevel = static_cast<ClanAuthLevel>(Result.m_ActionNewAuthLevel);
+
+					if(discordConfigured && Result.m_Success)
+					{
+						if(Result.m_ActionNewClanId > 0 && Result.m_ActionNewAuthLevel == static_cast<int>(ClanAuthLevel::LEADER))
+						{
+							std::string clanName = GameServer()->Clans()->GetClanNameCopy(Result.m_ActionNewClanId);
+							char aMsg[512];
+							str_format(aMsg, sizeof(aMsg), "[CLAN] Created: %s (cid=%d) created clan '%s' (id=%d)", pPlayerName, Result.m_ActionClientId, clanName.c_str(), Result.m_ActionNewClanId);
+							CDiscordWebhook::SSendOptions Opt; Opt.m_pWebhookUrl = pLogsUrl; Discord.Send(aMsg, Opt);
+						}
+					}
+				}
 			}
 			break;
 		case CClanResult::ACTION_UPDATE_PLAYER_BY_NAME:
 			if(Result.m_ActionPlayerName[0] != '\0')
 			{
+				// find target player by name to capture previous clan for logging
 				for(int i = 0; i < MAX_CLIENTS; ++i)
 				{
 					CPlayer *pTarget = GameServer()->m_apPlayers[i];
 					if(pTarget && pTarget->IsLoggedIn() && str_comp(pTarget->m_Account.m_aName, Result.m_ActionPlayerName) == 0)
 					{
+						int prevClan = pTarget->GetClanId();
+						const char *pPlayerName = pTarget->GetPlayerName();
 						pTarget->m_Account.m_ClanId = Result.m_ActionNewClanId;
 						pTarget->m_Account.m_AuthLevel = static_cast<ClanAuthLevel>(Result.m_ActionNewAuthLevel);
+
+						if(discordConfigured && Result.m_Success)
+						{
+							if(Result.m_ActionNewClanId > 0 && prevClan == 0)
+							{
+								std::string clanName = GameServer()->Clans()->GetClanNameCopy(Result.m_ActionNewClanId);
+								char aMsg[512];
+								str_format(aMsg, sizeof(aMsg), "[CLAN] Joined: %s joined clan '%s' (id=%d)", pPlayerName, clanName.c_str(), Result.m_ActionNewClanId);
+								CDiscordWebhook::SSendOptions Opt; Opt.m_pWebhookUrl = pLogsUrl; Discord.Send(aMsg, Opt);
+							}
+							else if(Result.m_ActionNewClanId == 0 && prevClan > 0)
+							{
+								std::string clanName = GameServer()->Clans()->GetClanNameCopy(prevClan);
+								char aMsg[512];
+								str_format(aMsg, sizeof(aMsg), "[CLAN] Removed: %s was removed/left clan '%s' (id=%d)", pPlayerName, clanName.c_str(), prevClan);
+								CDiscordWebhook::SSendOptions Opt; Opt.m_pWebhookUrl = pLogsUrl; Discord.Send(aMsg, Opt);
+							}
+						}
 						break;
 					}
 				}
@@ -1455,6 +1496,14 @@ void CPlayer::BWProcessClansResult(CClanResult &Result)
 		case CClanResult::ACTION_RESET_CLAN_PLAYERS:
 			if(Result.m_ActionResetClanId > 0)
 			{
+				// log clan deletion
+				if(discordConfigured && Result.m_Success)
+				{
+					std::string clanName = GameServer()->Clans()->GetClanNameCopy(Result.m_ActionResetClanId);
+					char aMsg[512];
+					str_format(aMsg, sizeof(aMsg), "[CLAN] Deleted: Clan '%s' (id=%d) was deleted", clanName.c_str(), Result.m_ActionResetClanId);
+					CDiscordWebhook::SSendOptions Opt; Opt.m_pWebhookUrl = pLogsUrl; Discord.Send(aMsg, Opt);
+				}
 				for(int i = 0; i < MAX_CLIENTS; ++i)
 				{
 					CPlayer *pTarget = GameServer()->m_apPlayers[i];
@@ -1480,6 +1529,12 @@ void CPlayer::BWProcessClansResult(CClanResult &Result)
 					{
 						GameServer()->SendChatTarget(i, aBuf);
 					}
+				}
+				if(discordConfigured && Result.m_Success)
+				{
+					char aMsg[512];
+					str_format(aMsg, sizeof(aMsg), "[CLAN] Renamed: '%s' -> '%s'", pOld, pNew);
+					CDiscordWebhook::SSendOptions Opt; Opt.m_pWebhookUrl = pLogsUrl; Discord.Send(aMsg, Opt);
 				}
 			}
 			break;

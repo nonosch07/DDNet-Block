@@ -58,6 +58,13 @@ private:
 	int GetFrozenSince(int ClientId) const;
 	void SetFrozenSince(int ClientId, int Tick);
 
+	// store previous solo and collision state for each participant
+	struct SoloCollisionState {
+		bool solo;
+		bool collision;
+	};
+	std::map<int, SoloCollisionState> m_PrevSoloState;
+
 	enum FinishingReason
 	{
 		NATURAL = 0,
