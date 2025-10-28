@@ -2199,10 +2199,10 @@ void CGameContext::Con1on1(IConsole::IResult *pResult, void *pUserData)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "Player doesn't have enough blockpoints.");
 
 	if(pSelf->isInEvent(pResult->m_ClientId))
-		return pSelf->SendChatTarget(pResult->m_ClientId, "You must finish the ongoing event (or use '/leave' to leave).");
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You must finish the ongoing 1on1 match.");
 
 	if(pSelf->isInEvent(pTarget->GetCid()))
-		return pSelf->SendChatTarget(pResult->m_ClientId, "This player is already in an event.");
+		return pSelf->SendChatTarget(pResult->m_ClientId, "This player is already in a 1on1 match.");
 
 	char aBuf[256];
 	if(result.empty())
