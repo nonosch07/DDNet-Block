@@ -817,8 +817,17 @@ void CGameContext::SendChatTarget(int To, const char *pText, int VersionFlags) c
 	}
 }
 
-void CGameContext::SendChatClan(int ClanId, const char *pText, int VersionFlags) const
+void CGameContext::SendChatClan(int ClanId, const char *pText, int VersionFlags, int From) const
 {
+	CNetMsg_Sv_Chat Msg;
+	// mark as team chat so clients render it in the team (green) color
+	Msg.m_Team = 1;
+	Msg.m_ClientId = From;
+	Msg.m_pMessage = pText;
+
+	if(g_Config.m_SvDemoChat)
+		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NOSEND, SERVER_DEMO_CLIENT);
+
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		CPlayer *pPlayer = m_apPlayers[i];
@@ -828,7 +837,11 @@ void CGameContext::SendChatClan(int ClanId, const char *pText, int VersionFlags)
 		if(pPlayer->GetClanId() != ClanId)
 			continue;
 
-		SendChatTarget(i, pText, VersionFlags);
+		if(!((Server()->IsSixup(i) && (VersionFlags & FLAG_SIXUP)) ||
+			 (!Server()->IsSixup(i) && (VersionFlags & FLAG_SIX))))
+			continue;
+
+		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, i);
 	}
 }
 
@@ -2631,10 +2644,22 @@ void CGameContext::OnSayNetMessage(const CNetMsg_Cl_Say *pMsg, int ClientId, con
 			return; // don't fall back to public
 		}
 
+		if(auto events = g_ComponentRegistry.Get<CEvents>())
+		{
+			auto active = events->GetActiveEvent();
+			if(active && active->GetState() == CEventComponent::EEventState::Active)
+			{
+				const auto &Parts = active->Participants();
+				if(std::find(Parts.begin(), Parts.end(), ClientId) != Parts.end())
+				{
+					SendChatTarget(ClientId, "Clan chat is disabled in events.");
+					return;
+				}
+			}
+		}
+
 		char aCensored[256];
 		CensorMessage(aCensored, pMsg->m_pMessage, sizeof(aCensored));
-		char aFinal[300];
-		const char *pName = Server()->ClientName(ClientId);
 		char aClanName[64] = "";
 		if(Clans())
 		{
@@ -2643,8 +2668,8 @@ void CGameContext::OnSayNetMessage(const CNetMsg_Cl_Say *pMsg, int ClientId, con
 				str_copy(aClanName, Tmp.m_ClanName, sizeof(aClanName));
 		}
 
-		str_format(aFinal, sizeof(aFinal), "%s: %s", pName, aCensored);
-		SendChatClan(pPlayer->GetClanId(), aFinal);
+
+		SendChatClan(pPlayer->GetClanId(), aCensored, FLAG_SIX | FLAG_SIXUP, ClientId);
 		return;
 	}
 	else

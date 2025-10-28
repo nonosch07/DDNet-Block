@@ -307,7 +307,7 @@ public:
 	// network
 	void CallVote(int ClientId, const char *pDesc, const char *pCmd, const char *pReason, const char *pChatmsg, const char *pSixupDesc = 0);
 	void SendChatTarget(int To, const char *pText, int VersionFlags = FLAG_SIX | FLAG_SIXUP) const;
-	void SendChatClan(int ClanId, const char *pText, int VersionFlags = FLAG_SIX | FLAG_SIXUP) const;
+	void SendChatClan(int ClanId, const char *pText, int VersionFlags = FLAG_SIX | FLAG_SIXUP, int From = -1) const;
 	void SendChatAccount(int AccountId, const char *pText, int VersionFlags = FLAG_SIX | FLAG_SIXUP) const;
 	void SendChatTeam(int Team, const char *pText) const;
 	void SendChat(int ClientId, int Team, const char *pText, int SpamProtectionClientId = -1, int VersionFlags = FLAG_SIX | FLAG_SIXUP);
