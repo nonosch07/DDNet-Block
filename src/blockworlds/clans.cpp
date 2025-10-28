@@ -1579,14 +1579,14 @@ bool CClanManager::SaveClanThread(IDbConnection *pSqlServer, const ISqlData *pGa
 		}
 		return true;
 	}
-	else if(NumUpdated == 0)
-	{
-		dbg_msg("clan", "Clan %d save: no changes made (0 rows updated).", ClanCopy.m_Id);
-	}
-	else
-	{
-		dbg_msg("clan", "Clan %d saved successfully (rows updated: %d).", ClanCopy.m_Id, NumUpdated);
-	}
+	// else if(NumUpdated == 0)
+	// {
+	// 	dbg_msg("clan", "Clan %d save: no changes made (0 rows updated).", ClanCopy.m_Id);
+	// }
+	// else
+	// {
+	// 	dbg_msg("clan", "Clan %d saved successfully (rows updated: %d).", ClanCopy.m_Id, NumUpdated);
+	// }
 
 	int CurrentTick = pData->m_pClanManager->GameServer()->Server()->Tick();
 	// update the in-memory clan's last saved tick under mutex to avoid races with main thread

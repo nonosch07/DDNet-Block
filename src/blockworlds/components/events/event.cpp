@@ -63,7 +63,7 @@ void CEventComponent::LoadWeapons(int ClientId)
 	LoadWeaponsHelper(GameServer(), m_SavedWeapons, ClientId);
 }
 
-int CEventComponent::PlayerHookedGroundFor(bool ClientId) const
+int CEventComponent::PlayerHookedGroundFor(int ClientId) const
 {
 	return PlayerHookedGroundForHelper(GameServer(), ClientId);
 }

@@ -88,7 +88,7 @@ protected:
 	void SaveWeapons(int ClientId);
 	void LoadWeapons(int ClientId);
 
-	int PlayerHookedGroundFor(bool ClientId) const;
+	int PlayerHookedGroundFor(int ClientId) const;
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_EVENT_H

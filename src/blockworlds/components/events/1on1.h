@@ -67,7 +67,7 @@ public:
 	void SaveWeapons(int ClientId);
 	void LoadWeapons(int ClientId);
 
-	int PlayerHookedGroundFor(bool ClientId) const;
+	int PlayerHookedGroundFor(int ClientId) const;
 
 	// state
 	std::atomic<EEventState> m_State{EEventState::Created};

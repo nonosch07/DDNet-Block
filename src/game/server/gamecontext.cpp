@@ -1340,16 +1340,28 @@ void CGameContext::OnTick()
 			m_apPlayers[i]->Tick();
 			m_apPlayers[i]->PostTick();
 
-			if(m_apPlayers[i]->IsLoggedIn() && UpdatePlaytimeThisSkibidiTick)
+			// update per-second values
+			if(UpdatePlaytimeThisSkibidiTick)
 			{
-				m_apPlayers[i]->SetPlayerPlaytime(m_apPlayers[i]->GetPlayerPlaytime() + 1);
+				if(m_apPlayers[i]->IsLoggedIn())
+				{
+					m_apPlayers[i]->SetPlayerPlaytime(m_apPlayers[i]->GetPlayerPlaytime() + 1);
 
-				int PassiveTime = m_apPlayers[i]->GetPlayerPassive();
-				if(PassiveTime > 0)
-					m_apPlayers[i]->SetPlayerPassive(PassiveTime - 1);
-
+					int PassiveTime = m_apPlayers[i]->GetPlayerPassive();
+					if(PassiveTime > 0)
+					{
+						int NewPassive = PassiveTime - 1;
+						m_apPlayers[i]->SetPlayerPassive(NewPassive);
+						if(NewPassive == 0)
+							SendChatTarget(i, "Your account passive protection has expired.");
+					}
+				}
 				if(m_apPlayers[i]->m_LocalPassiveDuration > 0)
+				{
 					m_apPlayers[i]->m_LocalPassiveDuration--;
+					if(m_apPlayers[i]->m_LocalPassiveDuration == 0)
+						SendChatTarget(i, "Your passive protection has expired.");
+				}
 			}
 		}
 	}

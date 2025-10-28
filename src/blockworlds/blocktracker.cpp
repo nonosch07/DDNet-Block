@@ -526,6 +526,17 @@ void CBlockTracker::KillStreaks(int ClientID, int BlockerID)
 
 	pBlockerChr->m_KillStreak++;
 
+	if(CPlayer *pBlockerPlayer = pBlockerChr->GetPlayer())
+	{
+		if(pBlockerPlayer->IsLoggedIn())
+		{
+			// only update stored account killstreak if we reached a new maximum
+			if(pBlockerChr->m_KillStreak > pBlockerPlayer->GetPlayerKillstreak())
+			{
+				pBlockerPlayer->SetPlayerKillstreak(pBlockerChr->m_KillStreak);
+			}
+		}
+	}
 	if(pBlockerChr->m_KillStreak % g_Config.m_SvKillStreakCount == 0)
 	{
 		char aBuf[64];
