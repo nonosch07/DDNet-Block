@@ -5612,6 +5612,27 @@ void CGameContext::WhisperId(int ClientId, int VictimId, const char *pMessage)
 	if(!CheckClientId2(VictimId))
 		return;
 
+	if(Server()->GetAuthedState(ClientId) == 0)
+	{
+		if(auto events = g_ComponentRegistry.Get<CEvents>())
+		{
+			auto active = events->GetActiveEvent();
+			if(active && active->GetState() == CEventComponent::EEventState::Active)
+			{
+				const char *pName = active->GetName();
+				if((str_comp(pName, "LMB") == 0 || str_comp(pName, "tdm") == 0))
+				{
+					const auto &Parts = active->Participants();
+					if(std::find(Parts.begin(), Parts.end(), ClientId) != Parts.end())
+					{
+						SendChatTarget(ClientId, "You cannot whisper while participating in events.");
+						return;
+					}
+				}
+			}
+		}
+	}
+
 	if(m_apPlayers[ClientId])
 		m_apPlayers[ClientId]->m_LastWhisperTo = VictimId;
 
@@ -5619,6 +5640,27 @@ void CGameContext::WhisperId(int ClientId, int VictimId, const char *pMessage)
 	{
 		if(chatfilter->CheckAndMaybeMute(ClientId, pMessage))
 			return;
+	}
+
+	if(Server()->GetAuthedState(VictimId) == 0)
+	{
+		if(auto events = g_ComponentRegistry.Get<CEvents>())
+		{
+			auto active = events->GetActiveEvent();
+			if(active && active->GetState() == CEventComponent::EEventState::Active)
+			{
+				const char *pName = active->GetName();
+				if((str_comp(pName, "LMB") == 0 || str_comp(pName, "tdm") == 0))
+				{
+					const auto &Parts = active->Participants();
+					if(std::find(Parts.begin(), Parts.end(), VictimId) != Parts.end())
+					{
+						SendChatTarget(ClientId, "This person is participating in an event and cannot receive whispers.");
+						return;
+					}
+				}
+			}
+		}
 	}
 
 	char aCensoredMessage[256];
