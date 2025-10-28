@@ -27,7 +27,7 @@ build_cmake_release:
     - cp DDNet-Server ../blockworlds
     # Build Debug
     - rm -rf *
-    - cmake -DCMAKE_BUILD_TYPE=Debug -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=ON ..
+    - cmake -DCMAKE_BUILD_TYPE=Debug -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=OFF ..
     - make -j$(nproc) game-server
     - cp DDNet-Server ../blockworlds_d
 
