@@ -59,7 +59,8 @@ private:
 	void SetFrozenSince(int ClientId, int Tick);
 
 	// store previous solo and collision state for each participant
-	struct SoloCollisionState {
+	struct SoloCollisionState
+	{
 		bool solo;
 		bool collision;
 	};

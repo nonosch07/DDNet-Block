@@ -80,7 +80,6 @@ void CLastManBlockingEvent::OnTick()
 			CheckFreezeTime();
 		}
 
-
 		if(CheckEndCondition())
 			FinishEvent(NATURAL);
 	}
@@ -417,7 +416,8 @@ bool CLastManBlockingEvent::Leave(int ClientId)
 	if(auto *pChar = GameServer()->GetPlayerChar(ClientId))
 	{
 		auto it = m_PrevSoloState.find(ClientId);
-		if(it != m_PrevSoloState.end()) {
+		if(it != m_PrevSoloState.end())
+		{
 			if(it->second.solo)
 				pChar->SetSolo(true);
 			pChar->Core()->m_CollisionDisabled = it->second.collision;

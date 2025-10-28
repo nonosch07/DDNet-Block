@@ -20,8 +20,8 @@
 
 #include <blockworlds/accounts.h>
 #include <blockworlds/clans.h>
-#include <blockworlds/discord/webhook.h>
 #include <blockworlds/common.h>
+#include <blockworlds/discord/webhook.h>
 
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
@@ -540,48 +540,48 @@ void CPlayer::Snap(int SnappingClient)
 	// Due to clients expecting this as a negative value, we have to make sure it's negative.
 	// Special numbers:
 	// -9999: means no time and isn't displayed in the scoreboard.
-		if(m_Score.has_value())
+	if(m_Score.has_value())
+	{
+		bool treatedAsEventScore = false;
+		// First check active 1on1 matches managed by the oneonone manager
+		if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>(); mgr)
 		{
-			bool treatedAsEventScore = false;
-			// First check active 1on1 matches managed by the oneonone manager
-			if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>(); mgr)
+			if(auto match = mgr->GetMatchForPlayer(GetCid()); match)
 			{
-				if(auto match = mgr->GetMatchForPlayer(GetCid()); match)
+				if(auto evScore = match->GetScoreOf(GetCid()); evScore.has_value())
 				{
-					if(auto evScore = match->GetScoreOf(GetCid()); evScore.has_value())
+					Score = evScore.value();
+					treatedAsEventScore = true;
+				}
+			}
+		}
+
+		// fallback to the global active event (other event types)
+		if(!treatedAsEventScore)
+		{
+			if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+			{
+				if(auto active = eventsAccessor->GetActiveEvent())
+				{
+					if(auto evScore = active->GetScoreOf(GetCid()); evScore.has_value())
 					{
 						Score = evScore.value();
 						treatedAsEventScore = true;
 					}
 				}
 			}
-
-			// fallback to the global active event (other event types)
-			if(!treatedAsEventScore)
-			{
-				if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
-				{
-					if(auto active = eventsAccessor->GetActiveEvent())
-					{
-						if(auto evScore = active->GetScoreOf(GetCid()); evScore.has_value())
-						{
-							Score = evScore.value();
-							treatedAsEventScore = true;
-						}
-					}
-				}
-			}
-
-			if(!treatedAsEventScore)
-			{
-				// shift the time by a second if the player actually took 9999
-				// seconds to finish the map.
-				if(m_Score.value() == 9999)
-					Score = -10000;
-				else
-					Score = -m_Score.value();
-			}
 		}
+
+		if(!treatedAsEventScore)
+		{
+			// shift the time by a second if the player actually took 9999
+			// seconds to finish the map.
+			if(m_Score.value() == 9999)
+				Score = -10000;
+			else
+				Score = -m_Score.value();
+		}
+	}
 	else
 	{
 		Score = -9999;
@@ -942,7 +942,7 @@ CCharacter *CPlayer::ForceSpawn(vec2 Pos, bool doEvent)
 	{
 		if(auto match = mgr->GetMatchForPlayer(GetCid()); match && match->GetState() == COneOnOneEvent::EEventState::Active)
 		{
-				auto parts = match->Participants();
+			auto parts = match->Participants();
 			if(std::find(parts.begin(), parts.end(), GetCid()) != parts.end())
 			{
 				const auto &reservation = match->GetSpawnReservation();
@@ -1451,7 +1451,9 @@ void CPlayer::BWProcessClansResult(CClanResult &Result)
 							std::string clanName = GameServer()->Clans()->GetClanNameCopy(Result.m_ActionNewClanId);
 							char aMsg[512];
 							str_format(aMsg, sizeof(aMsg), "[CLAN] Created: %s (cid=%d) created clan '%s' (id=%d)", pPlayerName, Result.m_ActionClientId, clanName.c_str(), Result.m_ActionNewClanId);
-							CDiscordWebhook::SSendOptions Opt; Opt.m_pWebhookUrl = pLogsUrl; Discord.Send(aMsg, Opt);
+							CDiscordWebhook::SSendOptions Opt;
+							Opt.m_pWebhookUrl = pLogsUrl;
+							Discord.Send(aMsg, Opt);
 						}
 					}
 				}
@@ -1478,14 +1480,18 @@ void CPlayer::BWProcessClansResult(CClanResult &Result)
 								std::string clanName = GameServer()->Clans()->GetClanNameCopy(Result.m_ActionNewClanId);
 								char aMsg[512];
 								str_format(aMsg, sizeof(aMsg), "[CLAN] Joined: %s joined clan '%s' (id=%d)", pPlayerName, clanName.c_str(), Result.m_ActionNewClanId);
-								CDiscordWebhook::SSendOptions Opt; Opt.m_pWebhookUrl = pLogsUrl; Discord.Send(aMsg, Opt);
+								CDiscordWebhook::SSendOptions Opt;
+								Opt.m_pWebhookUrl = pLogsUrl;
+								Discord.Send(aMsg, Opt);
 							}
 							else if(Result.m_ActionNewClanId == 0 && prevClan > 0)
 							{
 								std::string clanName = GameServer()->Clans()->GetClanNameCopy(prevClan);
 								char aMsg[512];
 								str_format(aMsg, sizeof(aMsg), "[CLAN] Removed: %s was removed/left clan '%s' (id=%d)", pPlayerName, clanName.c_str(), prevClan);
-								CDiscordWebhook::SSendOptions Opt; Opt.m_pWebhookUrl = pLogsUrl; Discord.Send(aMsg, Opt);
+								CDiscordWebhook::SSendOptions Opt;
+								Opt.m_pWebhookUrl = pLogsUrl;
+								Discord.Send(aMsg, Opt);
 							}
 						}
 						break;
@@ -1502,7 +1508,9 @@ void CPlayer::BWProcessClansResult(CClanResult &Result)
 					std::string clanName = GameServer()->Clans()->GetClanNameCopy(Result.m_ActionResetClanId);
 					char aMsg[512];
 					str_format(aMsg, sizeof(aMsg), "[CLAN] Deleted: Clan '%s' (id=%d) was deleted", clanName.c_str(), Result.m_ActionResetClanId);
-					CDiscordWebhook::SSendOptions Opt; Opt.m_pWebhookUrl = pLogsUrl; Discord.Send(aMsg, Opt);
+					CDiscordWebhook::SSendOptions Opt;
+					Opt.m_pWebhookUrl = pLogsUrl;
+					Discord.Send(aMsg, Opt);
 				}
 				for(int i = 0; i < MAX_CLIENTS; ++i)
 				{
@@ -1534,7 +1542,9 @@ void CPlayer::BWProcessClansResult(CClanResult &Result)
 				{
 					char aMsg[512];
 					str_format(aMsg, sizeof(aMsg), "[CLAN] Renamed: '%s' -> '%s'", pOld, pNew);
-					CDiscordWebhook::SSendOptions Opt; Opt.m_pWebhookUrl = pLogsUrl; Discord.Send(aMsg, Opt);
+					CDiscordWebhook::SSendOptions Opt;
+					Opt.m_pWebhookUrl = pLogsUrl;
+					Discord.Send(aMsg, Opt);
 				}
 			}
 			break;

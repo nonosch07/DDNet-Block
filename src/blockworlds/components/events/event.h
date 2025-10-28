@@ -17,7 +17,7 @@ class CEventComponent : public CComponent
 {
 public:
 	explicit CEventComponent(CGameContext *pGameServer);
-    virtual ~CEventComponent();
+	virtual ~CEventComponent();
 
 	enum class EEventState
 	{

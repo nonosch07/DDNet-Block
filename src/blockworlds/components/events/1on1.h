@@ -9,15 +9,15 @@
 #include "1on1_utils.h"
 
 #include "event.h"
-#include <mutex>
-#include <memory>
 #include <atomic>
+#include <memory>
+#include <mutex>
 
 class COneOnOneEvent : public CComponent
 {
 public:
 	explicit COneOnOneEvent(CGameContext *pGameServer);
-    ~COneOnOneEvent() override;
+	~COneOnOneEvent() override;
 
 	// CComponent name
 	[[nodiscard]] const char *GetName() const override { return "1on1"; }
@@ -55,7 +55,7 @@ public:
 	};
 
 	[[nodiscard]] EEventState GetState() const { return m_State.load(); }
-		mutable std::mutex m_Mutex;
+	mutable std::mutex m_Mutex;
 	[[nodiscard]] const char *GetStateName() const;
 	[[nodiscard]] static const char *GetStateName(EEventState State);
 
@@ -81,7 +81,11 @@ public:
 	std::vector<int> m_Candidates;
 	std::vector<int> m_Participants;
 
-	[[nodiscard]] std::vector<int> Participants() const { std::lock_guard<std::mutex> g(m_Mutex); return m_Participants; }
+	[[nodiscard]] std::vector<int> Participants() const
+	{
+		std::lock_guard<std::mutex> g(m_Mutex);
+		return m_Participants;
+	}
 
 	bool m_EmergencyShutdown = false;
 	char m_EmergencyMessage[256]{};
@@ -122,16 +126,15 @@ public:
 	int m_P1InFreezeTileTick = -1;
 	int m_P2InFreezeTileTick = -1;
 
-
 	// general freeze tracking for penalties
 	bool m_P1Frozen = false;
 	bool m_P2Frozen = false;
 	int m_P1FrozenTick = -1;
 	int m_P2FrozenTick = -1;
 
-
 	// solo & collision state tracking for participants
-	struct SoloCollisionState {
+	struct SoloCollisionState
+	{
 		bool solo;
 		bool collision;
 	};
@@ -152,6 +155,6 @@ public:
 	void CheckFreezePenalties();
 };
 
-	// End of class
+// End of class
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_1ON1_H

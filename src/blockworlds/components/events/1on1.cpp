@@ -49,8 +49,9 @@ bool COneOnOneEvent::StartEvent()
 	pController->Teams().SetTeamLock(m_Team, true);
 
 	// save and disable solo & collision state for both participants
-	auto& core = ((CGameControllerDDRace*)GameServer()->m_pController)->Teams().m_Core;
-	for(int cid : {m_Player1ID, m_Player2ID}) {
+	auto &core = ((CGameControllerDDRace *)GameServer()->m_pController)->Teams().m_Core;
+	for(int cid : {m_Player1ID, m_Player2ID})
+	{
 		CCharacter *pChr = GameServer()->GetPlayerChar(cid);
 		if(pChr)
 		{
@@ -232,7 +233,7 @@ void COneOnOneEvent::OnTick()
 		}
 
 		// restore solo & collision state for saved players
-		auto& core = ((CGameControllerDDRace*)GameServer()->m_pController)->Teams().m_Core;
+		auto &core = ((CGameControllerDDRace *)GameServer()->m_pController)->Teams().m_Core;
 		for(const int Cid : aSaved)
 		{
 			auto it = m_PrevSoloState.find(Cid);
@@ -271,8 +272,8 @@ void COneOnOneEvent::OnTick()
 							 "                                                                                     "
 							 "                                                                                     ";
 
-	GameServer()->SendBroadcast(m_Player1ID, "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load(), s_padding);
-	GameServer()->SendBroadcast(m_Player2ID, "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load(), s_padding);
+		GameServer()->SendBroadcast(m_Player1ID, "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load(), s_padding);
+		GameServer()->SendBroadcast(m_Player2ID, "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load(), s_padding);
 	}
 
 	const int GraceTicks = Config()->m_Sv1on1DrawFreezeGrace * Server()->TickSpeed();
@@ -381,7 +382,7 @@ void COneOnOneEvent::OnTick()
 							 "                                                                                     "
 							 "                                                                                     ";
 		char aFinalBroadcast[256];
-	str_format(aFinalBroadcast, sizeof(aFinalBroadcast), "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load(), s_padding);
+		str_format(aFinalBroadcast, sizeof(aFinalBroadcast), "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load(), s_padding);
 		GameServer()->SendBroadcast(aFinalBroadcast, m_Player1ID, false);
 		GameServer()->SendBroadcast(aFinalBroadcast, m_Player2ID, false);
 
@@ -464,7 +465,7 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 		GameServer()->SendChatTarget(m_Player1ID, "Draw!");
 		GameServer()->SendChatTarget(m_Player2ID, "Draw!");
 		char aDrawBuf[256];
-			str_format(aDrawBuf, sizeof(aDrawBuf), "%s: %d\n%s: %d\nRound draw! restarting...", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load());
+		str_format(aDrawBuf, sizeof(aDrawBuf), "%s: %d\n%s: %d\nRound draw! restarting...", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load());
 		GameServer()->SendBroadcast(aDrawBuf, m_Player1ID, false);
 		GameServer()->SendBroadcast(aDrawBuf, m_Player2ID, false);
 		RestartRoundAfterDraw();
@@ -498,7 +499,7 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 		GameServer()->SendChatTarget(m_Player1ID, "Draw!");
 		GameServer()->SendChatTarget(m_Player2ID, "Draw!");
 		char aDrawBuf[256];
-			str_format(aDrawBuf, sizeof(aDrawBuf), "%s: %d\n%s: %d\nRound draw! restarting...", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load());
+		str_format(aDrawBuf, sizeof(aDrawBuf), "%s: %d\n%s: %d\nRound draw! restarting...", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load());
 		GameServer()->SendBroadcast(aDrawBuf, m_Player1ID, false);
 		GameServer()->SendBroadcast(aDrawBuf, m_Player2ID, false);
 
@@ -522,7 +523,7 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 							 "                                                                                     "
 							 "                                                                                     ";
 		char aBroadcastMsg[256];
-	str_format(aBroadcastMsg, sizeof(aBroadcastMsg), "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load(), s_padding);
+		str_format(aBroadcastMsg, sizeof(aBroadcastMsg), "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load(), s_padding);
 		GameServer()->SendBroadcast(aBroadcastMsg, m_Player1ID, false);
 		GameServer()->SendBroadcast(aBroadcastMsg, m_Player2ID, false);
 
@@ -551,7 +552,7 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 							 "                                                                                     "
 							 "                                                                                     ";
 		char aBroadcastMsg[256];
-	str_format(aBroadcastMsg, sizeof(aBroadcastMsg), "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load(), s_padding);
+		str_format(aBroadcastMsg, sizeof(aBroadcastMsg), "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load(), s_padding);
 		GameServer()->SendBroadcast(aBroadcastMsg, m_Player1ID, false);
 		GameServer()->SendBroadcast(aBroadcastMsg, m_Player2ID, false);
 
@@ -693,7 +694,7 @@ void COneOnOneEvent::FinishEvent()
 		const char *pName2 = m_Player2ID >= 0 ? Server()->ClientName(m_Player2ID) : "<none>";
 		const char *pWinnerName = (winnerCid == m_Player1ID) ? pName1 : pName2;
 		char aBuf[256];
-			str_format(aBuf, sizeof(aBuf), "[1on1] - %s vs %s — %s won! (Result: %d - %d)", pName1, pName2, pWinnerName, m_Score1.load(), m_Score2.load());
+		str_format(aBuf, sizeof(aBuf), "[1on1] - %s vs %s — %s won! (Result: %d - %d)", pName1, pName2, pWinnerName, m_Score1.load(), m_Score2.load());
 		GameServer()->SendChatTarget(-1, aBuf);
 
 		// post to Discord webhook
@@ -782,16 +783,15 @@ bool COneOnOneEvent::Leave(int ClientId)
 			GameServer()->SendChatTarget(-1, aBuf);
 		}
 
-
-
 		// proactively clear forced team to avoid spawn issues when finishing
 		auto pController = (CGameControllerDDRace *)GameServer()->m_pController;
 		pController->Teams().SetForceCharacterTeam(m_Player1ID, 0);
 		pController->Teams().SetForceCharacterTeam(m_Player2ID, 0);
 
 		// restore solo and collision state for both participants if it was changed for the event
-		auto& core = ((CGameControllerDDRace*)GameServer()->m_pController)->Teams().m_Core;
-		for(const auto& soloEntry : m_PrevSoloState) {
+		auto &core = ((CGameControllerDDRace *)GameServer()->m_pController)->Teams().m_Core;
+		for(const auto &soloEntry : m_PrevSoloState)
+		{
 			int cid = soloEntry.first;
 			CCharacter *pChr = GameServer()->GetPlayerChar(cid);
 			if(pChr)
@@ -810,15 +810,13 @@ bool COneOnOneEvent::Leave(int ClientId)
 
 		FinishEvent();
 
-
-
 		// notify Discord about ragequit
 		CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
 		const char *p1on1Url = g_Config.m_SvDiscordWebhookUrl1on1[0] ? g_Config.m_SvDiscordWebhookUrl1on1 : nullptr;
 		if(Discord.IsConfigured(p1on1Url))
 		{
 			char aMsg[256];
-			    str_format(aMsg, sizeof(aMsg), "1on1 ragequit: %s left vs %s (score so far %d-%d)", pLeaverName, pOpponentName, m_Score1.load(), m_Score2.load());
+			str_format(aMsg, sizeof(aMsg), "1on1 ragequit: %s left vs %s (score so far %d-%d)", pLeaverName, pOpponentName, m_Score1.load(), m_Score2.load());
 			CDiscordWebhook::SSendOptions Opt;
 			Opt.m_pWebhookUrl = p1on1Url;
 			Discord.Send(aMsg, Opt);

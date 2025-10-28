@@ -35,9 +35,9 @@
 #include <blockworlds/components/chatfilter/chat_filter.h>
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
+#include <blockworlds/components/oneonone_manager.h>
 #include <blockworlds/components/promises.h>
 #include <blockworlds/components/requests.h>
-#include <blockworlds/components/oneonone_manager.h>
 
 #include <game/generated/protocol7.h>
 #include <game/generated/protocolglue.h>
@@ -838,7 +838,7 @@ void CGameContext::SendChatClan(int ClanId, const char *pText, int VersionFlags,
 			continue;
 
 		if(!((Server()->IsSixup(i) && (VersionFlags & FLAG_SIXUP)) ||
-			 (!Server()->IsSixup(i) && (VersionFlags & FLAG_SIX))))
+			   (!Server()->IsSixup(i) && (VersionFlags & FLAG_SIX))))
 			continue;
 
 		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, i);
@@ -2667,7 +2667,6 @@ void CGameContext::OnSayNetMessage(const CNetMsg_Cl_Say *pMsg, int ClientId, con
 			if(Clans()->GetClanSnapshotById(pPlayer->GetClanId(), Tmp))
 				str_copy(aClanName, Tmp.m_ClanName, sizeof(aClanName));
 		}
-
 
 		SendChatClan(pPlayer->GetClanId(), aCensored, FLAG_SIX | FLAG_SIXUP, ClientId);
 		return;
