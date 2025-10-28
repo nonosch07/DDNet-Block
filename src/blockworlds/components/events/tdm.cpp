@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <blockworlds/components/core/component_registry.h>
 #include <random>
+#include <array>
 
 CTeamDeathmatchEvent::CTeamDeathmatchEvent(CGameContext *pGameContext) :
 	CEventComponent(pGameContext),
@@ -23,17 +24,51 @@ CTeamDeathmatchEvent::CTeamDeathmatchEvent(CGameContext *pGameContext) :
 	m_PointsPerKill(1),
 	m_TargetScore(80)
 {
-	// ensure map provides per-team quad spawn layers
-	auto blueCenters = pGameContext->ZoneManager()->GetNamedQuadCenters("tdm_blue");
-	auto redCenters = pGameContext->ZoneManager()->GetNamedQuadCenters("tdm_red");
-	if(blueCenters.empty() || redCenters.empty())
+	// prefer map-provided per-team quad spawn layers (use full quad geometry to pick a random point inside)
+	auto blueQuads = pGameContext->ZoneManager()->GetNamedQuads("tdm_blue");
+	auto redQuads = pGameContext->ZoneManager()->GetNamedQuads("tdm_red");
+	if(blueQuads.empty() || redQuads.empty())
 	{
-		EmergencyShutdown("Map must provide 'tdm_blue' and 'tdm_red' quad layers in game_zones");
-		return;
+		// fallback to centers for older maps
+		auto blueCenters = pGameContext->ZoneManager()->GetNamedQuadCenters("tdm_blue");
+		auto redCenters = pGameContext->ZoneManager()->GetNamedQuadCenters("tdm_red");
+		if(blueCenters.empty() || redCenters.empty())
+		{
+			EmergencyShutdown("Map must provide 'tdm_blue' and 'tdm_red' quad layers in game_zones");
+			return;
+		}
+		// store as initial fallback; StartEvent will set per-team spawns/quads
+		m_SpawnPositionsTeam[0] = blueCenters;
+		m_SpawnPositionsTeam[1] = redCenters;
 	}
-	// store as initial fallback; StartEvent will set per-team spawns
-	m_SpawnPositionsTeam[0] = blueCenters;
-	m_SpawnPositionsTeam[1] = redCenters;
+	else
+	{
+		m_SpawnQuadsTeam[0] = blueQuads;
+		m_SpawnQuadsTeam[1] = redQuads;
+	}
+}
+
+// helper: sample a random spot inside a quad by splitting it into two triangles - stonks
+static vec2 RandomPointInQuad(const std::array<vec2, 4> &Q, std::default_random_engine &RNG)
+{
+	std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+	// randomly choose one of the two triangles (p0,p1,p2) or (p0,p2,p3)
+	bool firstTri = dist(RNG) < 0.5f;
+	float u = dist(RNG);
+	float v = dist(RNG);
+	if(u + v > 1.0f)
+	{
+		u = 1.0f - u;
+		v = 1.0f - v;
+	}
+	if(firstTri)
+	{
+		return Q[0] + (Q[1] - Q[0]) * u + (Q[2] - Q[0]) * v;
+	}
+	else
+	{
+		return Q[0] + (Q[2] - Q[0]) * u + (Q[3] - Q[0]) * v;
+	}
 }
 
 void CTeamDeathmatchEvent::OnTick()
@@ -150,11 +185,23 @@ void CTeamDeathmatchEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 		if(!pChar)
 			return;
 		GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, m_DDRaceTeam);
-		auto &spawns = m_SpawnPositionsTeam[side];
-		if(spawns.empty())
-			return;
-		int idx = (m_SpawnOffsetTeam[side]++) % spawns.size();
-		GameServer()->Teleport(pChar, spawns[idx]);
+		// prefer full quad spawn if available (random point inside quad). fall back to centers if not
+		if(!m_SpawnQuadsTeam[side].empty())
+		{
+			auto &quads = m_SpawnQuadsTeam[side];
+			int idx = (m_SpawnOffsetTeam[side]++) % quads.size();
+			std::default_random_engine rng((unsigned)(Server()->Tick() + ClientId * 9973 + idx));
+			vec2 dest = RandomPointInQuad(quads[idx], rng);
+			GameServer()->Teleport(pChar, dest);
+		}
+		else
+		{
+			auto &spawns = m_SpawnPositionsTeam[side];
+			if(spawns.empty())
+				return;
+			int idx = (m_SpawnOffsetTeam[side]++) % spawns.size();
+			GameServer()->Teleport(pChar, spawns[idx]);
+		}
 		pChar->ResetVelocity();
 		if(m_ActiveStartTick != -1 && Server()->Tick() < m_ActiveStartTick + Config()->m_SvTDMFreezeTime * Server()->TickSpeed())
 		{
@@ -230,6 +277,8 @@ void CTeamDeathmatchEvent::StartEvent()
 	m_ClientTeam.clear();
 	m_SpawnPositionsTeam[0].clear();
 	m_SpawnPositionsTeam[1].clear();
+	m_SpawnQuadsTeam[0].clear();
+	m_SpawnQuadsTeam[1].clear();
 	m_SpawnOffsetTeam[0] = 0;
 	m_SpawnOffsetTeam[1] = 0;
 
@@ -271,17 +320,28 @@ void CTeamDeathmatchEvent::StartEvent()
 		i++;
 	}
 
-	auto blueCenters = GameServer()->ZoneManager()->GetNamedQuadCenters("tdm_blue");
-	auto redCenters = GameServer()->ZoneManager()->GetNamedQuadCenters("tdm_red");
-	if(!blueCenters.empty() && !redCenters.empty())
+	auto blueQuads = GameServer()->ZoneManager()->GetNamedQuads("tdm_blue");
+	auto redQuads = GameServer()->ZoneManager()->GetNamedQuads("tdm_red");
+	if(!blueQuads.empty() && !redQuads.empty())
 	{
-		m_SpawnPositionsTeam[0] = blueCenters;
-		m_SpawnPositionsTeam[1] = redCenters;
+		m_SpawnQuadsTeam[0] = blueQuads;
+		m_SpawnQuadsTeam[1] = redQuads;
 	}
 	else
 	{
-		EmergencyShutdown("Missing tdm_blue or tdm_red quad layers at StartEvent");
-		return;
+		// fallback to centers for older maps
+		auto blueCenters = GameServer()->ZoneManager()->GetNamedQuadCenters("tdm_blue");
+		auto redCenters = GameServer()->ZoneManager()->GetNamedQuadCenters("tdm_red");
+		if(!blueCenters.empty() && !redCenters.empty())
+		{
+			m_SpawnPositionsTeam[0] = blueCenters;
+			m_SpawnPositionsTeam[1] = redCenters;
+		}
+		else
+		{
+			EmergencyShutdown("Missing tdm_blue or tdm_red quad layers at StartEvent");
+			return;
+		}
 	}
 
 	m_ActiveStartTick = Server()->Tick();
@@ -309,11 +369,33 @@ void CTeamDeathmatchEvent::StartEvent()
 		CCharacter *pChar = GameServer()->GetPlayerChar(ClientId);
 		if(!pChar)
 			continue;
-		auto &spawns = m_SpawnPositionsTeam[side];
-		if(spawns.empty())
-			continue;
-		int idx = (m_SpawnOffsetTeam[side]++) % spawns.size();
-		GameServer()->Teleport(pChar, spawns[idx]);
+
+		// save previous solo and collision state, set not-solo and enable collision for event
+		{
+			bool wasSolo = pChar->Core()->m_Solo;
+			bool wasCollisionDisabled = pChar->Core()->m_CollisionDisabled;
+			m_PrevSoloState[ClientId] = {wasSolo, wasCollisionDisabled};
+			if(wasSolo)
+				pChar->SetSolo(false);
+			if(wasCollisionDisabled)
+				pChar->Core()->m_CollisionDisabled = false;
+		}
+		if(!m_SpawnQuadsTeam[side].empty())
+		{
+			auto &quads = m_SpawnQuadsTeam[side];
+			int idx = (m_SpawnOffsetTeam[side]++) % quads.size();
+			std::default_random_engine rng((unsigned)(Server()->Tick() + ClientId * 9973 + idx));
+			vec2 dest = RandomPointInQuad(quads[idx], rng);
+			GameServer()->Teleport(pChar, dest);
+		}
+		else
+		{
+			auto &spawns = m_SpawnPositionsTeam[side];
+			if(spawns.empty())
+				continue;
+			int idx = (m_SpawnOffsetTeam[side]++) % spawns.size();
+			GameServer()->Teleport(pChar, spawns[idx]);
+		}
 		// freeze player for initial TDM freeze time
 		pChar->FreezeForce(Config()->m_SvTDMFreezeTime);
 	}
@@ -425,6 +507,18 @@ void CTeamDeathmatchEvent::FinishEvent()
 			p->m_HideInfoInScoreboard = false;
 		}
 	}
+
+	// restore solo and collision state for participants
+	for(const auto &soloEntry : m_PrevSoloState)
+	{
+		if(auto *pChar = GameServer()->GetPlayerChar(soloEntry.first))
+		{
+			if(soloEntry.second.solo)
+				pChar->SetSolo(true);
+			pChar->Core()->m_CollisionDisabled = soloEntry.second.collision;
+		}
+	}
+	m_PrevSoloState.clear();
 
 	std::vector<int> SavedClientIds;
 	SavedClientIds.reserve(m_pSavedPlayers.size());
@@ -557,6 +651,21 @@ bool CTeamDeathmatchEvent::Leave(int ClientId)
 		p->m_TeeInfos = p->m_OldTeeInfos;
 		p->m_HideInfo = false;
 		p->m_HideInfoInScoreboard = false;
+	}
+
+	// restore solo/collision state for this player if present
+	{
+		auto it = m_PrevSoloState.find(ClientId);
+		if(it != m_PrevSoloState.end())
+		{
+			if(auto *pChar = GameServer()->GetPlayerChar(ClientId))
+			{
+				if(it->second.solo)
+					pChar->SetSolo(true);
+				pChar->Core()->m_CollisionDisabled = it->second.collision;
+			}
+			m_PrevSoloState.erase(it);
+		}
 	}
 	// communicate ragequit flavor text for clarity
 	char aBuf[256];

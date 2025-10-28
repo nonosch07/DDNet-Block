@@ -16,6 +16,7 @@
 
 #include "zone.h"
 #include "zonemanager.h"
+#include <array>
 
 inline void IntsToStr(const int *pInts, int Num, char *pStr)
 {
@@ -272,4 +273,53 @@ std::vector<vec2> CZoneManager::GetNamedQuadCenters(const char *pName) const
 		}
 	}
 	return centers;
+}
+
+std::vector<std::array<vec2, 4>> CZoneManager::GetNamedQuads(const char *pName) const
+{
+	std::vector<std::array<vec2, 4>> quads;
+	int GroupsStart, LayersStart, GroupsNum, LayersNum;
+	IMap *pMap = GameServer()->Layers()->Map();
+
+	pMap->GetType(MAPITEMTYPE_GROUP, &GroupsStart, &GroupsNum);
+	pMap->GetType(MAPITEMTYPE_LAYER, &LayersStart, &LayersNum);
+
+	for(int g = 0; g < GroupsNum; g++)
+	{
+		auto *pGroup = static_cast<CMapItemGroup *>(pMap->GetItem(GroupsStart + g));
+
+		char aGroupName[12];
+		IntsToStr(pGroup->m_aName, 3, aGroupName);
+
+		if(str_comp_nocase(aGroupName, "game_zones") == 0)
+		{
+			for(int l = 0; l < pGroup->m_NumLayers; l++)
+			{
+				auto *pLayer = static_cast<CMapItemLayer *>(pMap->GetItem(LayersStart + pGroup->m_StartLayer + l));
+
+				if(pLayer->m_Type == LAYERTYPE_QUADS)
+				{
+					CMapItemLayerQuads *pQuads = reinterpret_cast<CMapItemLayerQuads *>(pLayer);
+
+					char aName[12];
+					IntsToStr(pQuads->m_aName, 3, aName);
+
+					if(str_comp_nocase(aName, pName) == 0)
+					{
+						auto *pQuadData = static_cast<CQuad *>(pMap->GetData(pQuads->m_Data));
+						for(int q = 0; q < pQuads->m_NumQuads; q++)
+						{
+							CQuad &Q = pQuadData[q];
+							std::array<vec2, 4> corners;
+							for(int i = 0; i < 4; ++i)
+								corners[i] = vec2{fx2f(Q.m_aPoints[i].x), fx2f(Q.m_aPoints[i].y)};
+							quads.push_back(corners);
+						}
+						return quads; // return for first matching layer
+					}
+				}
+			}
+		}
+	}
+	return quads;
 }

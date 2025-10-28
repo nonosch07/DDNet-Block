@@ -4,6 +4,8 @@
 #include "event.h"
 #include <map>
 #include <vector>
+#include <array>
+#include <base/vmath.h>
 
 class CTeamDeathmatchEvent final : public CEventComponent, public std::enable_shared_from_this<CTeamDeathmatchEvent>
 {
@@ -46,6 +48,15 @@ private:
 
 	// per-team spawn positions (0 = blue, 1 = red)
 	std::vector<vec2> m_SpawnPositionsTeam[2];
+	// per-team spawn quads (full quad corner coords) - prefer spawning inside quads when present
+	std::vector<std::array<vec2, 4>> m_SpawnQuadsTeam[2];
+	// store previous solo and collision state for each participant (mirrors LMB behaviour)
+	struct SoloCollisionState
+	{
+		bool solo;
+		bool collision;
+	};
+	std::map<int, SoloCollisionState> m_PrevSoloState;
 	int m_SpawnOffsetTeam[2];
 
 	int m_DDRaceTeam;

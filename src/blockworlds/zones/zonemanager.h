@@ -4,6 +4,7 @@
 #include "zone.h"
 #include <base/vmath.h>
 #include <vector>
+#include <array>
 
 class CGameContext;
 
@@ -33,6 +34,10 @@ public:
 
 	// return centers of quads from named quad layers (e.g. "tdm_red", "tdm_blue")
 	std::vector<vec2> GetNamedQuadCenters(const char *pName) const;
+
+	// return full quad corner coordinates for a named quad layer
+	// each quad is represented as std::array<vec2, 4> (clockwise order as in map data)
+	std::vector<std::array<vec2, 4>> GetNamedQuads(const char *pName) const;
 
 	void Tick();
 	void Snap(int ClientID);
