@@ -54,15 +54,15 @@ RUN printf '#!/bin/bash\n \
         mkdir /build/linux\n \
         cd /build/linux\n \
         pwd\n \
-        cmake -DANTIBOT=ON /ddnet && make -j$(nproc) \n \
+        cmake -DANTIBOT=OFF /ddnet && make -j$(nproc) \n \
         mkdir /build/win64\n \
         cd /build/win64\n \
         pwd\n \
-        cmake -DCMAKE_TOOLCHAIN_FILE=/ddnet/cmake/toolchains/mingw64.toolchain -DANTIBOT=ON /ddnet && make -j$(nproc) \n \
+        cmake -DCMAKE_TOOLCHAIN_FILE=/ddnet/cmake/toolchains/mingw64.toolchain -DANTIBOT=OFF /ddnet && make -j$(nproc) \n \
         mkdir /build/win32\n \
         cd /build/win32\n \
         pwd\n \
-        cmake -DCMAKE_TOOLCHAIN_FILE=/ddnet/cmake/toolchains/mingw32.toolchain -DANTIBOT=ON /ddnet && make -j$(nproc) \n' \
+        cmake -DCMAKE_TOOLCHAIN_FILE=/ddnet/cmake/toolchains/mingw32.toolchain -DANTIBOT=OFF /ddnet && make -j$(nproc) \n' \
         > build-all.sh
 RUN chmod +x build-all.sh
 RUN mkdir /build

@@ -22,7 +22,7 @@ build_cmake_release:
   script:
     # Build Release
     - mkdir build && cd build
-    - cmake -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=ON ..
+    - cmake -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=OFF ..
     - make -j$(nproc) game-server
     - cp DDNet-Server ../blockworlds
     # Build Debug
