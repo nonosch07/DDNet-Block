@@ -9,9 +9,9 @@
 #include <game/server/player.h>
 
 #include <algorithm>
+#include <array>
 #include <blockworlds/components/core/component_registry.h>
 #include <random>
-#include <array>
 
 CTeamDeathmatchEvent::CTeamDeathmatchEvent(CGameContext *pGameContext) :
 	CEventComponent(pGameContext),

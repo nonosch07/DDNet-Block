@@ -2,9 +2,9 @@
 #define BLOCKWORLDS_ZONES_ZONEMANAGER_H
 
 #include "zone.h"
+#include <array>
 #include <base/vmath.h>
 #include <vector>
-#include <array>
 
 class CGameContext;
 

@@ -1451,6 +1451,7 @@ void CGameContext::ConClanHelp(IConsole::IResult *pResult, void *pUserData)
 	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_kick <player> — Kick a member (leader/co-leader)");
 	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_setlevel <player> <1|2> — Set rank (leader only)");
 	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_rename <newname> — Rename clan (leader only)");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_transfer <player> — Transfer clan leadership (leader only)");
 	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_exp — Show clan EXP progress");
 	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_list — List clan members");
 	char aBuf[128];
@@ -1918,6 +1919,86 @@ void CGameContext::ConClanRemove(IConsole::IResult *pResult, void *pUserData)
 	}
 }
 
+void CGameContext::ConClanTransfer(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+
+	int ClientId = pResult->m_ClientId;
+	CPlayer *pPlayer = pSelf->m_apPlayers[ClientId];
+	if(!pPlayer)
+		return;
+
+	if(!pPlayer->m_Account.m_Id)
+		return pSelf->SendChatTarget(ClientId, "You must be logged in to transfer clan leadership.");
+
+	if(pPlayer->m_Account.m_ClanId < 1 || pPlayer->m_Account.m_AuthLevel != ClanAuthLevel::LEADER)
+		return pSelf->SendChatTarget(ClientId, "You are either not in a clan or not its leader.");
+
+	const char *pTargetName = pResult->GetString(0);
+	if(!pTargetName || pTargetName[0] == '\0')
+	{
+		pSelf->SendChatTarget(ClientId, "Usage: /clan_transfer <player>");
+		return;
+	}
+
+	int TargetClientId = -1;
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		if(pSelf->m_apPlayers[i] && !str_comp(pTargetName, pSelf->Server()->ClientName(i)))
+		{
+			TargetClientId = i;
+			break;
+		}
+	}
+
+	if(TargetClientId == -1)
+	{
+		pSelf->SendChatTarget(ClientId, "Player not found or not online.");
+		return;
+	}
+
+	CPlayer *pTargetPlayer = pSelf->m_apPlayers[TargetClientId];
+	if(!pTargetPlayer || !pTargetPlayer->m_Account.m_Id)
+	{
+		pSelf->SendChatTarget(ClientId, "Target player must be logged in.");
+		return;
+	}
+
+	if(pTargetPlayer->m_Account.m_ClanId != pPlayer->m_Account.m_ClanId)
+	{
+		pSelf->SendChatTarget(ClientId, "Target player is not in your clan.");
+		return;
+	}
+
+	if(TargetClientId == ClientId)
+	{
+		pSelf->SendChatTarget(ClientId, "You cannot transfer leadership to yourself.");
+		return;
+	}
+
+	if(pTargetPlayer->GetAuthLevel() == ClanAuthLevel::LEADER)
+	{
+		pSelf->SendChatTarget(ClientId, "Target is already a leader."); // shouldn't happen
+		return;
+	}
+
+	auto requests = g_ComponentRegistry.Get<CRequests>();
+	if(!requests)
+	{
+		pSelf->SendChatTarget(ClientId, "Requests subsystem unavailable.");
+		return;
+	}
+	int id = requests->CreateClanTransferConfirm(ClientId, pPlayer->GetClanId(), pTargetPlayer->m_Account.m_aName, g_Config.m_SvClanConfirmExpiry);
+	if(id < 0)
+	{
+		pSelf->SendChatTarget(ClientId, "Failed to initiate clan transfer confirmation.");
+		return;
+	}
+	pSelf->SendChatTarget(ClientId, "Transfer confirmation sent. Type /clan_yes to confirm or /clan_no to cancel.");
+}
+
 // /clan_yes: confirm last self-addressed clan confirmation (delete/kick)
 void CGameContext::ConClanYes(IConsole::IResult *pResult, void *pUserData)
 {
@@ -1940,7 +2021,7 @@ void CGameContext::ConClanYes(IConsole::IResult *pResult, void *pUserData)
 			continue;
 		if(info.m_To != pResult->m_ClientId || info.m_From != pResult->m_ClientId)
 			continue;
-		if(info.m_Type == CRequests::SRequest::EType::ClanDeleteConfirm || info.m_Type == CRequests::SRequest::EType::ClanKickConfirm || info.m_Type == CRequests::SRequest::EType::ClanRenameConfirm || info.m_Type == CRequests::SRequest::EType::ClanCreateConfirm)
+		if(info.m_Type == CRequests::SRequest::EType::ClanDeleteConfirm || info.m_Type == CRequests::SRequest::EType::ClanKickConfirm || info.m_Type == CRequests::SRequest::EType::ClanRenameConfirm || info.m_Type == CRequests::SRequest::EType::ClanCreateConfirm || info.m_Type == CRequests::SRequest::EType::ClanTransferConfirm)
 		{
 			if(info.m_ExpireTick > pSelf->Server()->Tick())
 				chosen = std::max(chosen, id);
@@ -1976,7 +2057,7 @@ void CGameContext::ConClanNo(IConsole::IResult *pResult, void *pUserData)
 			continue;
 		if(info.m_To != pResult->m_ClientId || info.m_From != pResult->m_ClientId)
 			continue;
-		if(info.m_Type == CRequests::SRequest::EType::ClanDeleteConfirm || info.m_Type == CRequests::SRequest::EType::ClanKickConfirm || info.m_Type == CRequests::SRequest::EType::ClanRenameConfirm || info.m_Type == CRequests::SRequest::EType::ClanCreateConfirm)
+		if(info.m_Type == CRequests::SRequest::EType::ClanDeleteConfirm || info.m_Type == CRequests::SRequest::EType::ClanKickConfirm || info.m_Type == CRequests::SRequest::EType::ClanRenameConfirm || info.m_Type == CRequests::SRequest::EType::ClanCreateConfirm || info.m_Type == CRequests::SRequest::EType::ClanTransferConfirm)
 		{
 			if(info.m_ExpireTick > pSelf->Server()->Tick())
 				chosen = std::max(chosen, id);

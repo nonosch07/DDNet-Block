@@ -375,6 +375,37 @@ int CRequests::CreateClanKickConfirm(int ClientId, int ClanId, const char *pTarg
 	return r.m_Id;
 }
 
+int CRequests::CreateClanTransferConfirm(int ClientId, int ClanId, const char *pTargetAccountName, int ExpireSeconds)
+{
+	SRequest r;
+	r.m_Id = NextId();
+	r.m_Type = SRequest::EType::ClanTransferConfirm;
+	r.m_From = ClientId;
+	r.m_To = ClientId; // self-confirmation
+	r.m_ClanId = ClanId;
+	{
+		int expiry = ExpireSeconds > 0 ? ExpireSeconds : g_Config.m_SvClanConfirmExpiry;
+		r.m_ExpireTick = Server()->Tick() + expiry * Server()->TickSpeed();
+	}
+	r.m_aUsername[0] = '\0';
+	if(pTargetAccountName)
+		str_copy(r.m_aUsername, pTargetAccountName, sizeof(r.m_aUsername));
+	m_Requests.push_back(r);
+
+	const char *pClanName = "<clan>";
+	if(GameServer()->Clans())
+	{
+		CClansData tmp;
+		if(GameServer()->Clans()->GetClanSnapshotById(ClanId, tmp))
+			pClanName = tmp.m_ClanName;
+	}
+	char aBuf[256];
+	str_format(aBuf, sizeof(aBuf), "Are you sure you want to give ownership of clan '%s' to '%s'? Type /clan_yes or /clan_no.", pClanName, r.m_aUsername[0] ? r.m_aUsername : "<target>");
+	if(CheckClientId(ClientId) && GameServer()->m_apPlayers[ClientId])
+		GameServer()->SendChatTarget(ClientId, aBuf);
+	return r.m_Id;
+}
+
 int CRequests::CreateClanRenameConfirm(int ClientId, int ClanId, const char *pOldName, const char *pNewName, int ExpireSeconds)
 {
 	SRequest r;
@@ -651,6 +682,45 @@ bool CRequests::AcceptRequest(int RequestId)
 			GameServer()->Clans()->RemoveFromClan(clientId, it->m_aUsername, clanId);
 			char aBuf[192];
 			str_format(aBuf, sizeof(aBuf), "Clan kick confirmed: '%s' will be removed.", it->m_aUsername);
+			GameServer()->SendChatTarget(clientId, aBuf);
+		}
+		m_Requests.erase(it);
+		return true;
+	}
+
+	if(it->m_Type == SRequest::EType::ClanTransferConfirm)
+	{
+		int clientId = it->m_From;
+		int clanId = it->m_ClanId;
+		CPlayer *pPl = CheckClientId(clientId) ? GameServer()->m_apPlayers[clientId] : nullptr;
+		if(!pPl || !pPl->IsLoggedIn())
+		{
+			if(CheckClientId(clientId) && GameServer()->m_apPlayers[clientId])
+				GameServer()->SendChatTarget(clientId, "You must be logged in to confirm clan transfer.");
+			m_Requests.erase(it);
+			return false;
+		}
+		if(pPl->GetClanId() != clanId || pPl->GetAuthLevel() != ClanAuthLevel::LEADER)
+		{
+			GameServer()->SendChatTarget(clientId, "You are no longer the leader of this clan.");
+			m_Requests.erase(it);
+			return false;
+		}
+		if(it->m_aUsername[0] == '\0')
+		{
+			GameServer()->SendChatTarget(clientId, "Invalid transfer target.");
+			m_Requests.erase(it);
+			return false;
+		}
+		if(GameServer()->Clans())
+		{
+			// promote target
+			GameServer()->Clans()->SetAuthLevel(clientId, it->m_aUsername, static_cast<int>(ClanAuthLevel::LEADER), clanId);
+
+			// demote issuer
+			GameServer()->Clans()->SetAuthLevel(clientId, pPl->m_Account.m_aName, static_cast<int>(ClanAuthLevel::COLEADER), clanId);
+			char aBuf[256];
+			str_format(aBuf, sizeof(aBuf), "Clan transfer confirmed: '%s' is now the leader.", it->m_aUsername);
 			GameServer()->SendChatTarget(clientId, aBuf);
 		}
 		m_Requests.erase(it);

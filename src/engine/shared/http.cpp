@@ -345,7 +345,6 @@ void CHttpRequest::OnCompletionInternal(void *pHandle, unsigned int Result)
 			if(!(strstr(m_aUrl, "webhooks/") != nullptr))
 			{
 				log_info("http", "task done: %s", m_aUrl);
-
 			}
 		}
 		State = EHttpState::DONE;

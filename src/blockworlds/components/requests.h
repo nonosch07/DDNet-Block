@@ -28,6 +28,7 @@ public:
 			ClanRenameNotice = 6,
 			ClanRenameConfirm = 7,
 			ClanCreateConfirm = 8,
+			ClanTransferConfirm = 9,
 		};
 		int m_Id{};
 		EType m_Type{EType::OneOnOne};
@@ -56,6 +57,7 @@ public:
 	int CreateBlockpointTransfer(int FromClient, int ToClient, int Amount, int ExpireSeconds);
 	int CreateClanDeleteConfirm(int ClientId, int ClanId, int ExpireSeconds);
 	int CreateClanKickConfirm(int ClientId, int ClanId, const char *pTargetAccountName, int ExpireSeconds);
+	int CreateClanTransferConfirm(int ClientId, int ClanId, const char *pTargetAccountName, int ExpireSeconds);
 	int CreateClanRenameNotice(int FromClient, int ToClient, int ClanId, const char *pOldName, const char *pNewName, int ExpireSeconds);
 	int CreateClanRenameConfirm(int ClientId, int ClanId, const char *pOldName, const char *pNewName, int ExpireSeconds);
 	int CreateClanCreateConfirm(int ClientId, const char *pNewClanName, int ExpireSeconds);

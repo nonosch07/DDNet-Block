@@ -748,6 +748,7 @@ private:
 	static void ConClanInvite(IConsole::IResult *pResult, void *pUserData);
 	static void ConClanAccept(IConsole::IResult *pResult, void *pUserData);
 	static void ConClanDecline(IConsole::IResult *pResult, void *pUserData);
+	static void ConClanTransfer(IConsole::IResult *pResult, void *pUserData);
 	static void ConClanYes(IConsole::IResult *pResult, void *pUserData);
 	static void ConClanNo(IConsole::IResult *pResult, void *pUserData);
 	static void ConContributors(IConsole::IResult *pResult, void *pUserData);

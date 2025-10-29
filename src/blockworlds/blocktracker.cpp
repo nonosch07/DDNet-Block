@@ -133,8 +133,8 @@ bool CBlockTracker::Blocked(int ClientID, int BlockerID)
 		{
 			const char *pEvName = active->GetName();
 			if((str_comp(pEvName, "LMB") == 0 || str_comp(pEvName, "Team Deathmatch") == 0) &&
-			   (std::find(active->Participants().begin(), active->Participants().end(), ClientID) != active->Participants().end() ||
-			    std::find(active->Participants().begin(), active->Participants().end(), BlockerID) != active->Participants().end()))
+				(std::find(active->Participants().begin(), active->Participants().end(), ClientID) != active->Participants().end() ||
+					std::find(active->Participants().begin(), active->Participants().end(), BlockerID) != active->Participants().end()))
 			{
 				DebugMsg(BlockerID, "No EXP: active LMB/TDm event participant exclusion");
 				return false;
@@ -659,8 +659,8 @@ void CBlockTracker::OnPlayerImpacted(int ClientID, int InitiatorID)
 		{
 			const char *pEvName = active->GetName();
 			if((str_comp(pEvName, "LMB") == 0 || str_comp(pEvName, "Team Deathmatch") == 0) &&
-			   (std::find(active->Participants().begin(), active->Participants().end(), ClientID) != active->Participants().end() ||
-				std::find(active->Participants().begin(), active->Participants().end(), InitiatorID) != active->Participants().end()))
+				(std::find(active->Participants().begin(), active->Participants().end(), ClientID) != active->Participants().end() ||
+					std::find(active->Participants().begin(), active->Participants().end(), InitiatorID) != active->Participants().end()))
 			{
 				return;
 			}

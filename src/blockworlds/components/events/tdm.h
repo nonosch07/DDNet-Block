@@ -2,10 +2,10 @@
 #define BLOCKWORLDS_COMPONENTS_EVENTS_TDM_H
 
 #include "event.h"
-#include <map>
-#include <vector>
 #include <array>
 #include <base/vmath.h>
+#include <map>
+#include <vector>
 
 class CTeamDeathmatchEvent final : public CEventComponent, public std::enable_shared_from_this<CTeamDeathmatchEvent>
 {
