@@ -2199,6 +2199,86 @@ void CGameContext::ConWhoisIp(IConsole::IResult *pResult, void *pUserData)
 	}
 }
 
+// whois_id [clientid] [/32|/24|/16]
+void CGameContext::ConWhoisId(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int ClientId = pResult->m_ClientId;
+	if(pSelf->Server()->GetAuthedState(ClientId) <= 0)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "Permission denied");
+		return;
+	}
+	int64_t Now = pSelf->Server()->Tick();
+	if(pSelf->m_aWhoisCooldown[ClientId] && Now < pSelf->m_aWhoisCooldown[ClientId])
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "Please wait before using whois again");
+		return;
+	}
+	if(!pSelf->m_pWhoIs)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "Whois not available");
+		return;
+	}
+	if(pResult->NumArguments() < 1)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "[Error] Incorrect command usage. Correct format: whois_id <client id> [/32|/24|/16]");
+		return;
+	}
+	int Target = pResult->GetInteger(0);
+	if(!CheckClientId(Target))
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "[Error] Invalid client id. Correct format: whois_id <client id> [/32|/24|/16]");
+		return;
+	}
+	if(!pSelf->m_apPlayers[Target])
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "[Error] Target client not online");
+		return;
+	}
+
+	char aIp[NETADDR_MAXSTRSIZE] = {0};
+	pSelf->Server()->GetClientAddr(Target, aIp, sizeof(aIp));
+	if(aIp[0] == '\0')
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "[Error] Could not obtain IP for target client");
+		return;
+	}
+
+	int Cutoff = 0;
+	const char *pMask = pResult->NumArguments() >= 2 ? pResult->GetString(1) : nullptr;
+	if(pMask && *pMask)
+	{
+		if(pMask[0] != '/')
+		{
+			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "[Error] CIDR mask must start with '/'. Allowed: /32, /24, /16");
+			return;
+		}
+		int Bits = str_toint(pMask + 1);
+		if(Bits == 32)
+			Cutoff = 0;
+		else if(Bits == 24)
+			Cutoff = 1;
+		else if(Bits == 16)
+			Cutoff = 2;
+		else
+		{
+			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "[Error] Unsupported CIDR mask. Allowed: /32, /24, /16");
+			return;
+		}
+	}
+
+	auto pRes = std::make_shared<CWhoIsResult>();
+	pRes->m_TargetClientId = ClientId;
+	str_copy(pRes->m_aTag, "whois", sizeof(pRes->m_aTag));
+	pSelf->m_vWhoisResults.push_back(pRes);
+	pSelf->m_pWhoIs->CmdWhoisStr(ClientId, /*Mode=*/0, Cutoff, aIp, pRes);
+	{
+		int Sec = clamp(g_Config.m_SvWhoisCooldownSec, 0, 300);
+		pSelf->m_aWhoisCooldown[ClientId] = Sec > 0 ? Now + Sec * pSelf->Server()->TickSpeed() : 0;
+	}
+}
+
 // whois_name: explicit name lookup (supports '*' wildcard)
 void CGameContext::ConWhoisName(IConsole::IResult *pResult, void *pUserData)
 {
@@ -4351,6 +4431,7 @@ void CGameContext::OnConsoleInit()
 
 	// Admin-only whois commands
 	Console()->Register("whois_ip", "r[ip] ?r[cidr]", CFGFLAG_SERVER, ConWhoisIp, this, "whois_ip <IP> [/32|/24|/16]");
+	Console()->Register("whois_id", "v[id] ?r[cidr]", CFGFLAG_SERVER, ConWhoisId, this, "whois_id <client id> [/32|/24|/16]");
 	Console()->Register("whois_name", "r[name]", CFGFLAG_SERVER, ConWhoisName, this, "whois_name <name or pattern>");
 	Console()->Register("whois_purge", "?i[retention_months]", CFGFLAG_SERVER, ConWhoisPurge, this, "Force-run whois retention purge now (optional override months, default=sv_whois_retention_months)");
 }

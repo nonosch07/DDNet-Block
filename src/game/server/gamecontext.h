@@ -754,6 +754,7 @@ private:
 	static void ConContributors(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConWhoisIp(IConsole::IResult *pResult, void *pUserData);
+	static void ConWhoisId(IConsole::IResult *pResult, void *pUserData);
 	static void ConWhoisName(IConsole::IResult *pResult, void *pUserData);
 	static void ConWhoisPurge(IConsole::IResult *pResult, void *pUserData);
 
