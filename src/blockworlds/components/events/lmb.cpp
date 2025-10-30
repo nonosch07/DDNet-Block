@@ -21,7 +21,7 @@ CLastManBlockingEvent::CLastManBlockingEvent(CGameContext *pGameContext) :
 	m_ActiveEndTick = -1;
 
 	m_SpawnPositions.clear();
-	int Found = CGameContext::GetTilePositions(TILE_BW_EVENT_START_POS, GameServer(), m_SpawnPositions);
+	int Found = CGameContext::GetTilePositions(TILE_BW_EVENT_LMB_START_POS, GameServer(), m_SpawnPositions);
 	if(Found == 0)
 	{
 		EmergencyShutdown("Map has no event start tiles");
@@ -514,6 +514,12 @@ void CLastManBlockingEvent::CheckFreezeTime()
 		auto *pChar = GameServer()->GetPlayerChar(ClientId);
 		if(!pChar || !pChar->IsAlive())
 			continue;
+
+		const int GroundHookDelayTicks = Config()->m_SvGroundHookPenaltyDelay * Server()->TickSpeed();
+		if(PlayerHookedGroundFor(ClientId) > GroundHookDelayTicks)
+		{
+			pChar->FreezeForce(Config()->m_SvGroundHookPenalty);
+		}
 		int FrozenSince = 0;
 		{
 			auto itfs = m_FrozenSince.find(ClientId);
@@ -533,8 +539,8 @@ void CLastManBlockingEvent::CheckFreezeTime()
 			SetFrozenSince(ClientId, 0);
 		}
 
-		// require a configurable continuous freeze duration (in ticks) to eliminate the player
-		int RequiredFreezeTicks = Config()->m_SvLMBFreezeTimeout; // configured in ticks (50 ticks = 1 second)
+		// require a configurable continuous freeze duration (configured in seconds) to eliminate the player
+		const int RequiredFreezeTicks = Config()->m_SvLMBFreezeTimeout * Server()->TickSpeed(); // convert seconds -> ticks
 		if(IsFrozenNow && FrozenSince != 0 && Server()->Tick() - FrozenSince >= RequiredFreezeTicks)
 		{
 			Leave(ClientId);

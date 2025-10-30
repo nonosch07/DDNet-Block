@@ -50,7 +50,6 @@ void CEventComponent::SavePosition(int ClientId)
 
 void CEventComponent::LoadPosition(int ClientId)
 {
-
 	m_DeferredLoadQueue.push_back(ClientId);
 }
 
@@ -61,7 +60,6 @@ void CEventComponent::SaveWeapons(int ClientId)
 
 void CEventComponent::LoadWeapons(int ClientId)
 {
-
 	m_DeferredWeaponsQueue.push_back(ClientId);
 }
 
@@ -69,7 +67,6 @@ void CEventComponent::OnTick()
 {
 	if(m_DeferredLoadQueue.empty())
 		return;
-
 
 	std::vector<int> Queue = std::move(m_DeferredLoadQueue);
 	m_DeferredLoadQueue.clear();

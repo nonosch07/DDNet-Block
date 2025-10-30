@@ -5,8 +5,8 @@
 #include <array>
 #include <base/vmath.h>
 #include <map>
-#include <vector>
 #include <random>
+#include <vector>
 
 class CTeamDeathmatchEvent final : public CEventComponent, public std::enable_shared_from_this<CTeamDeathmatchEvent>
 {

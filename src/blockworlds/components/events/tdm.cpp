@@ -25,8 +25,7 @@ CTeamDeathmatchEvent::CTeamDeathmatchEvent(CGameContext *pGameContext) :
 	m_TargetScore(80),
 	m_Rng((unsigned)std::random_device{}() ^ (unsigned)pGameContext->Server()->Tick())
 {
-
-	CGameContext::GetTilePositions(TILE_BW_EVENT_START_POS, pGameContext, m_EventStartPositions);
+	CGameContext::GetTilePositions(TILE_BW_EVENT_TDM_START_POS, pGameContext, m_EventStartPositions);
 }
 
 void CTeamDeathmatchEvent::OnTick()
@@ -59,7 +58,9 @@ void CTeamDeathmatchEvent::OnTick()
 	{
 		for(int participant : Participants())
 		{
-			if(PlayerHookedGroundFor(participant) > Config()->m_SvGroundHookPenaltyDelay)
+			// Compare hook duration (ticks) against configured seconds converted to ticks.
+			const int GroundHookDelayTicks = Config()->m_SvGroundHookPenaltyDelay * Server()->TickSpeed();
+			if(PlayerHookedGroundFor(participant) > GroundHookDelayTicks)
 			{
 				CCharacter *pChar = GameServer()->GetPlayerChar(participant);
 				if(pChar)
@@ -195,7 +196,6 @@ void CTeamDeathmatchEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 		{
 			pChar->FreezeForce(Config()->m_SvTDMFreezeTime);
 		}
-
 	}
 }
 
@@ -450,8 +450,6 @@ void CTeamDeathmatchEvent::FinishEvent()
 	if(m_ScoreTeam1 > m_ScoreTeam2)
 	{
 		GameServer()->SendBroadcast(-1, "Team Blue wins %d - %d", m_ScoreTeam1, m_ScoreTeam2);
-		// reward blue team players
-		int BlockpointsReward = 25;
 		for(const auto &ClientId : m_Participants)
 		{
 			auto it = m_ClientTeam.find(ClientId);
@@ -460,29 +458,29 @@ void CTeamDeathmatchEvent::FinishEvent()
 			CPlayer *p = GameServer()->GetPlayer(ClientId);
 			if(!p)
 				continue;
-			p->SetPlayerExperience(p->GetPlayerExperience() + 5);
-			p->SetPlayerBlockpoints(p->GetPlayerBlockpoints() + BlockpointsReward);
-			p->AddExpMultiplier(Config()->m_SvLMBWinnerExpMultiplier, Config()->m_SvLMBWinnerExpMultiplierDuration);
-			GameServer()->SendChatTarget(ClientId, "You've received 5 experience and %d blockpoints for winning!", BlockpointsReward);
+			p->AddPlayerExp(Config()->m_SvTDMWinnerExp);
+			p->SetPlayerBlockpoints(p->GetPlayerBlockpoints() + Config()->m_SvTDMWinnerBlockpoints);
+			if(p->IsLoggedIn())
+				p->OnPlayerSave(false);
+			GameServer()->SendChatTarget(ClientId, "You've received %d experience and %d blockpoints for winning!", Config()->m_SvTDMWinnerExp, Config()->m_SvTDMWinnerBlockpoints);
 		}
 	}
 	else if(m_ScoreTeam2 > m_ScoreTeam1)
 	{
 		GameServer()->SendBroadcast(-1, "Team Red wins %d - %d", m_ScoreTeam2, m_ScoreTeam1);
-		// reward red team players
-		int BlockpointsReward = 100;
 		for(const auto &ClientId : m_Participants)
 		{
 			auto it = m_ClientTeam.find(ClientId);
-			if(it == m_ClientTeam.end() || it->second != 1)
+			if(it == m_ClientTeam.end() || it->second != 0)
 				continue;
 			CPlayer *p = GameServer()->GetPlayer(ClientId);
 			if(!p)
 				continue;
-			p->SetPlayerLevel(p->GetPlayerLevel() + 1);
-			p->SetPlayerBlockpoints(p->GetPlayerBlockpoints() + BlockpointsReward);
-			p->AddExpMultiplier(Config()->m_SvLMBWinnerExpMultiplier, Config()->m_SvLMBWinnerExpMultiplierDuration);
-			GameServer()->SendChatTarget(ClientId, "You've received 1 level and %d blockpoints for winning!", BlockpointsReward);
+			p->AddPlayerExp(Config()->m_SvTDMWinnerExp);
+			p->SetPlayerBlockpoints(p->GetPlayerBlockpoints() + Config()->m_SvTDMWinnerBlockpoints);
+			if(p->IsLoggedIn())
+				p->OnPlayerSave(false);
+			GameServer()->SendChatTarget(ClientId, "You've received %d experience and %d blockpoints for winning!", Config()->m_SvTDMWinnerExp, Config()->m_SvTDMWinnerBlockpoints);
 		}
 	}
 	else
@@ -640,8 +638,8 @@ bool CTeamDeathmatchEvent::Leave(int ClientId)
 	if(ClientIdIt == Participants().end())
 		return false;
 	m_Participants.erase(ClientIdIt);
-	LoadPosition(ClientId);
-	// restore player's team to default
+
+	// restore player's team to default first to avoid race when processing deferred loads
 	GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, 0);
 	// remove client team mapping if present
 	auto itct = m_ClientTeam.find(ClientId);
@@ -670,10 +668,11 @@ bool CTeamDeathmatchEvent::Leave(int ClientId)
 			m_PrevSoloState.erase(it);
 		}
 	}
-	// communicate ragequit flavor text for clarity
-	char aBuf[256];
-	str_format(aBuf, sizeof(aBuf), "[TDM] - %s left the event.", Server()->ClientName(ClientId));
-	GameServer()->SendChatTarget(-1, aBuf);
+	// load saved position and weapons immediately so the leaving player is returned right away
+	LoadPosition(ClientId);
+	LoadWeapons(ClientId);
+	// process deferred loads immediately for this component
+	CEventComponent::OnTick();
 
 	// if event is active and one team has become empty, finish the event
 	if(GetState() == CEventComponent::EEventState::Active)

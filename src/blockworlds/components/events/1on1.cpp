@@ -364,11 +364,12 @@ void COneOnOneEvent::OnTick()
 
 	if(GetState() == EEventState::Active)
 	{
-		if(PlayerHookedGroundFor(m_Player1ID) > Config()->m_SvGroundHookPenaltyDelay)
+		const int GroundHookDelayTicks = Config()->m_SvGroundHookPenaltyDelay * Server()->TickSpeed();
+		if(PlayerHookedGroundFor(m_Player1ID) > GroundHookDelayTicks)
 		{
 			GameServer()->GetPlayerChar(m_Player1ID)->FreezeForce(Config()->m_SvGroundHookPenalty);
 		}
-		if(PlayerHookedGroundFor(m_Player2ID) > Config()->m_SvGroundHookPenaltyDelay)
+		if(PlayerHookedGroundFor(m_Player2ID) > GroundHookDelayTicks)
 		{
 			GameServer()->GetPlayerChar(m_Player2ID)->FreezeForce(Config()->m_SvGroundHookPenalty);
 		}

@@ -1082,7 +1082,7 @@ void CPlayer::TryRespawn()
 				if(isPart && active->GetName() && str_comp(active->GetName(), "tdm") == 0)
 				{
 					std::vector<vec2> startPositions;
-					int spawncount = CGameContext::GetTilePositions(TILE_BW_EVENT_START_POS, GameServer(), startPositions);
+					int spawncount = CGameContext::GetTilePositions(TILE_BW_EVENT_TDM_START_POS, GameServer(), startPositions);
 					if(spawncount > 0)
 					{
 						// choose a random event start position so players don't always spawn on the same tile
