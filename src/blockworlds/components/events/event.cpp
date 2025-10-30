@@ -50,7 +50,8 @@ void CEventComponent::SavePosition(int ClientId)
 
 void CEventComponent::LoadPosition(int ClientId)
 {
-	LoadPositionHelper(GameServer(), m_pSavedPlayers, ClientId);
+
+	m_DeferredLoadQueue.push_back(ClientId);
 }
 
 void CEventComponent::SaveWeapons(int ClientId)
@@ -60,7 +61,33 @@ void CEventComponent::SaveWeapons(int ClientId)
 
 void CEventComponent::LoadWeapons(int ClientId)
 {
-	LoadWeaponsHelper(GameServer(), m_SavedWeapons, ClientId);
+
+	m_DeferredWeaponsQueue.push_back(ClientId);
+}
+
+void CEventComponent::OnTick()
+{
+	if(m_DeferredLoadQueue.empty())
+		return;
+
+
+	std::vector<int> Queue = std::move(m_DeferredLoadQueue);
+	m_DeferredLoadQueue.clear();
+
+	for(int ClientId : Queue)
+	{
+		LoadPositionHelper(GameServer(), m_pSavedPlayers, ClientId);
+	}
+
+	if(!m_DeferredWeaponsQueue.empty())
+	{
+		std::vector<int> WeaponQueue = std::move(m_DeferredWeaponsQueue);
+		m_DeferredWeaponsQueue.clear();
+		for(int ClientId : WeaponQueue)
+		{
+			LoadWeaponsHelper(GameServer(), m_SavedWeapons, ClientId);
+		}
+	}
 }
 
 int CEventComponent::PlayerHookedGroundFor(int ClientId) const

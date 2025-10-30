@@ -460,6 +460,13 @@ void CGameContext::ConKill(IConsole::IResult *pResult, void *pUserData)
 		return;
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 
+	// prevent participants in events from using /kill to leave or suicide
+	if(pSelf->isInEvent(pResult->m_ClientId))
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "You can't /kill while participating in an event. Use /leave first.");
+		return;
+	}
+
 	if(!pPlayer || (pPlayer->m_LastKill && pPlayer->m_LastKill + pSelf->Server()->TickSpeed() * g_Config.m_SvKillDelay > pSelf->Server()->Tick()))
 		return;
 

@@ -38,6 +38,10 @@ protected:
 	std::map<int, std::unique_ptr<class CSaveTee>> m_pSavedPlayers;
 	std::map<int, std::array<CCharacterCore::WeaponStat, NUM_WEAPONS>> m_SavedWeapons;
 
+	std::vector<int> m_DeferredLoadQueue;
+
+	std::vector<int> m_DeferredWeaponsQueue;
+
 	std::vector<int> m_Candidates;
 	std::vector<int> m_Participants;
 
@@ -77,6 +81,9 @@ public:
 	[[nodiscard]] static const char *GetStateName(EEventState State);
 	void SetStateChangeCallback(FnOnStateChange pfnCallback) { m_pfnOnStateChange = std::move(pfnCallback); }
 
+	// Process deferred operations (default implementation processes deferred loads).
+	virtual void OnTick() override;
+
 	[[nodiscard]] virtual std::optional<int> GetScoreOf(int /*ClientId*/) const { return std::nullopt; }
 
 	[[nodiscard]] const char *GetName() const override { return GetEventName(); }
@@ -89,6 +96,10 @@ protected:
 	void LoadWeapons(int ClientId);
 
 	int PlayerHookedGroundFor(int ClientId) const;
+
+	// Query whether the event considers the client protected (server-side protection
+	// like post-death invulnerability). Default: no protection.
+	[[nodiscard]] virtual bool IsClientProtected(int ClientId) const { return false; }
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_EVENT_H

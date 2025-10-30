@@ -3524,6 +3524,13 @@ void CGameContext::OnKillNetMessage(const CNetMsg_Cl_Kill *pMsg, int ClientId)
 		return;
 	}
 	CPlayer *pPlayer = m_apPlayers[ClientId];
+
+	// prevent participants in events from killing themselves via the client kill net message
+	if(isInEvent(ClientId))
+	{
+		SendChatTarget(ClientId, "You can't kill yourself while participating in an event. Use /leave first.");
+		return;
+	}
 	if(pPlayer->m_LastKill && pPlayer->m_LastKill + Server()->TickSpeed() * g_Config.m_SvKillDelay > Server()->Tick())
 		return;
 	if(pPlayer->IsPaused())
@@ -6113,13 +6120,12 @@ int CGameContext::isInEvent(int pPlayerID)
 			const auto &parts = pEv->Participants();
 			if(std::find(parts.begin(), parts.end(), pPlayerID) != parts.end())
 			{
-				const char *name = pEv->GetEventName();
-				// 1on1 is handled by COneOnOneManager; do not treat it as a legacy CEvent here.
+				const char *name = pEv->GetName();
 				if(str_comp(name, "tdm") == 0)
 					return 2; // EVENT_TDM
 				if(str_comp(name, "LMB") == 0)
 					return 3; // EVENT_LMB
-				return 0;
+				return 4; // Some other event
 			}
 		}
 	}

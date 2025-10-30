@@ -1130,6 +1130,14 @@ void CGameTeams::OnCharacterDeath(int ClientId, int Weapon)
 	{
 		SetForceCharacterTeam(ClientId, Team);
 
+		// if this team is reserved for an event, avoid the usual "team-killed"
+		// behaviour and chat messages; events handle participant lifecycle themselve s
+		if(m_aTeamEvent[Team])
+		{
+			// keep the dead player's forced team and return early
+			return;
+		}
+
 		if(GetTeamState(Team) != TEAMSTATE_OPEN && !m_aTeamFlock[m_Core.Team(ClientId)])
 		{
 			ChangeTeamState(Team, CGameTeams::TEAMSTATE_OPEN);

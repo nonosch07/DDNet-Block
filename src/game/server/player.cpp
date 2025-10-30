@@ -14,6 +14,7 @@
 #include <engine/server.h>
 #include <engine/shared/config.h>
 #include <memory>
+#include <random>
 
 #include <game/gamecore.h>
 #include <game/teamscore.h>
@@ -955,6 +956,13 @@ CCharacter *CPlayer::ForceSpawn(vec2 Pos, bool doEvent)
 		}
 	}
 	m_Spawning = false;
+
+	if(m_pCharacter)
+	{
+		delete m_pCharacter;
+		m_pCharacter = nullptr;
+	}
+
 	m_pCharacter = new(m_ClientId) CCharacter(&GameServer()->m_World, GameServer()->GetLastPlayerInput(m_ClientId));
 	m_pCharacter->Spawn(this, Pos, doEvent);
 	m_Team = 0;
@@ -1063,6 +1071,30 @@ void CPlayer::TryRespawn()
 	}
 	if(!used1on1)
 	{
+		// check for active event (TDM) and override spawn position to event start tiles
+		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+		{
+			auto active = eventsAccessor->GetActiveEvent();
+			if(active)
+			{
+				auto parts = active->Participants();
+				bool isPart = std::find(parts.begin(), parts.end(), GetCid()) != parts.end();
+				if(isPart && active->GetName() && str_comp(active->GetName(), "tdm") == 0)
+				{
+					std::vector<vec2> startPositions;
+					int spawncount = CGameContext::GetTilePositions(TILE_BW_EVENT_START_POS, GameServer(), startPositions);
+					if(spawncount > 0)
+					{
+						// choose a random event start position so players don't always spawn on the same tile
+						std::default_random_engine rng((unsigned)(Server()->Tick() + GetCid() * 9973));
+						std::uniform_int_distribution<int> dist(0, spawncount - 1);
+						int idx = dist(rng);
+						SpawnPos = startPositions[idx];
+						used1on1 = true; // reuse flag name to indicate we've chosen a special spawn --rework tgat
+					}
+				}
+			}
+		}
 		if(!GameServer()->m_pController->CanSpawn(m_Team, &SpawnPos, GameServer()->GetDDRaceTeam(m_ClientId)))
 			return;
 	}

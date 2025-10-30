@@ -6,6 +6,7 @@
 #include <base/vmath.h>
 #include <map>
 #include <vector>
+#include <random>
 
 class CTeamDeathmatchEvent final : public CEventComponent, public std::enable_shared_from_this<CTeamDeathmatchEvent>
 {
@@ -59,6 +60,9 @@ private:
 	std::map<int, SoloCollisionState> m_PrevSoloState;
 	int m_SpawnOffsetTeam[2];
 
+	// event start positions (used for respawning participants after death)
+	std::vector<vec2> m_EventStartPositions;
+
 	int m_DDRaceTeam;
 	int m_ScoreTeam1;
 	int m_ScoreTeam2;
@@ -71,6 +75,8 @@ private:
 	static constexpr int MIN_PLAYERS = 8;
 	static constexpr int MAX_PLAYERS = 16;
 	static constexpr int REGISTRATION_SECONDS = 60; // default registration time
+
+	std::mt19937 m_Rng;
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_TDM_H
