@@ -3525,11 +3525,14 @@ void CGameContext::OnKillNetMessage(const CNetMsg_Cl_Kill *pMsg, int ClientId)
 	}
 	CPlayer *pPlayer = m_apPlayers[ClientId];
 
-	// prevent participants in events from killing themselves via the client kill net message
-	if(isInEvent(ClientId))
+	// prevent participants in LMB or TDM events from killing themselves - 1on1 is ok
 	{
-		SendChatTarget(ClientId, "You can't kill yourself while participating in an event. Use /leave first.");
-		return;
+		int ev = isInEvent(ClientId);
+		if(ev == 2 /* EVENT_TDM */ || ev == 3 /* EVENT_LMB */)
+		{
+			SendChatTarget(ClientId, "You can't kill yourself while participating in an event. Use /leave first.");
+			return;
+		}
 	}
 	if(pPlayer->m_LastKill && pPlayer->m_LastKill + Server()->TickSpeed() * g_Config.m_SvKillDelay > Server()->Tick())
 		return;

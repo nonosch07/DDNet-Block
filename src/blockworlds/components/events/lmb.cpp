@@ -285,6 +285,9 @@ void CLastManBlockingEvent::FinishEvent()
 	{
 		Leave(ClientId);
 	}
+
+	CEventComponent::OnTick();
+
 	for(const auto &soloEntry : m_PrevSoloState)
 	{
 		if(auto *pChar = GameServer()->GetPlayerChar(soloEntry.first))

@@ -460,8 +460,8 @@ void CTeamDeathmatchEvent::FinishEvent()
 				continue;
 			p->AddPlayerExp(Config()->m_SvTDMWinnerExp);
 			p->SetPlayerBlockpoints(p->GetPlayerBlockpoints() + Config()->m_SvTDMWinnerBlockpoints);
-			if(p->IsLoggedIn())
-				p->OnPlayerSave(false);
+
+			p->OnPlayerSave(false);
 			GameServer()->SendChatTarget(ClientId, "You've received %d experience and %d blockpoints for winning!", Config()->m_SvTDMWinnerExp, Config()->m_SvTDMWinnerBlockpoints);
 		}
 	}
@@ -471,15 +471,16 @@ void CTeamDeathmatchEvent::FinishEvent()
 		for(const auto &ClientId : m_Participants)
 		{
 			auto it = m_ClientTeam.find(ClientId);
-			if(it == m_ClientTeam.end() || it->second != 0)
+			// include players on side == 1 (red team)
+			if(it == m_ClientTeam.end() || it->second != 1)
 				continue;
 			CPlayer *p = GameServer()->GetPlayer(ClientId);
 			if(!p)
 				continue;
 			p->AddPlayerExp(Config()->m_SvTDMWinnerExp);
 			p->SetPlayerBlockpoints(p->GetPlayerBlockpoints() + Config()->m_SvTDMWinnerBlockpoints);
-			if(p->IsLoggedIn())
-				p->OnPlayerSave(false);
+
+			p->OnPlayerSave(false);
 			GameServer()->SendChatTarget(ClientId, "You've received %d experience and %d blockpoints for winning!", Config()->m_SvTDMWinnerExp, Config()->m_SvTDMWinnerBlockpoints);
 		}
 	}

@@ -166,9 +166,32 @@ void CGameContext::ConAccountLogout(IConsole::IResult *pResult, void *pUserData)
 
 	if(!pSelf->m_apPlayers[pResult->m_ClientId]->m_Account.m_Id)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You are not logged in!");
-
 	if(pSelf->isInEvent(pResult->m_ClientId))
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You can't logout while participating in an event. Use /leave first.");
+
+	// deregister from any events as candidate before logout
+	{
+		int Cid = pResult->m_ClientId;
+
+		if(auto events = g_ComponentRegistry.Get<CEvents>())
+		{
+			auto subs = events->GetSubComponents();
+			for(auto &sub : subs)
+			{
+				CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
+				if(!pEv)
+					continue;
+
+				// if registered as candidate, deregister
+				const auto &cands = pEv->Candidates();
+				if(std::find(cands.begin(), cands.end(), Cid) != cands.end())
+				{
+					pEv->DeRegister(Cid);
+					continue; // we've removed them from this event
+				}
+			}
+		}
+	}
 	IZone *pSpawnZone = pSelf->ZoneManager()->GetZone(ZONE_SPAWN);
 	CPlayer *pReqPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 	if(pSpawnZone && pReqPlayer && pReqPlayer->GetCharacter() && !pSpawnZone->IsInZone(pReqPlayer->GetCharacter()->m_Pos))
