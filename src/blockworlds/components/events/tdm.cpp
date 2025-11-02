@@ -408,22 +408,15 @@ void CTeamDeathmatchEvent::OnCharacterDeath(int KillerId, int ClientId, int Weap
 	if(GetState() != CEventComponent::EEventState::Active)
 		return;
 
-	// award points: each kill awards m_PointsPerKill to the killer's team (m_PointsPerKill is set to 1)
-	int killerTeam = -1;
-	if(KillerId >= 0)
+	auto itV = m_ClientTeam.find(ClientId);
+	if(itV != m_ClientTeam.end())
 	{
-		auto itK = m_ClientTeam.find(KillerId);
-		if(itK != m_ClientTeam.end())
-			killerTeam = itK->second;
+		int victimTeam = itV->second;
+		if(victimTeam == 0)
+			m_ScoreTeam2 += m_PointsPerKill; // blue died → red gains
+		else
+			m_ScoreTeam1 += m_PointsPerKill; // red died → blue gains
 	}
-
-	if(killerTeam == -1)
-		return;
-
-	if(killerTeam == 0)
-		m_ScoreTeam1 += m_PointsPerKill;
-	else if(killerTeam == 1)
-		m_ScoreTeam2 += m_PointsPerKill;
 
 	// re-apply forced team for killer and victim to prevent leaving on death
 	auto &Teams = GameServer()->m_pController->Teams();
@@ -736,25 +729,7 @@ void CTeamDeathmatchEvent::CheckFreezeTime()
 				victimTeam = itVictim->second;
 
 			// award point to opposite team if victim team known
-			if(victimTeam != -1)
-			{
-				if(victimTeam == 0)
-					m_ScoreTeam2 += m_PointsPerKill;
-				else
-					m_ScoreTeam1 += m_PointsPerKill;
-
-				// update participant visible scores
-				for(const auto &pid : m_Participants)
-				{
-					CPlayer *p = GameServer()->GetPlayer(pid);
-					if(!p)
-						continue;
-					if(m_ClientTeam[pid] == 0)
-						p->m_Score = m_ScoreTeam1;
-					else
-						p->m_Score = m_ScoreTeam2;
-				}
-			}
+				// (nothing here — scoring is handled centrally in OnCharacterDeath)
 
 			pChar->Die(-1, WEAPON_WORLD);
 			SetFrozenSince(ClientId, 0);
