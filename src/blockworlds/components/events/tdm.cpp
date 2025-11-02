@@ -442,9 +442,9 @@ void CTeamDeathmatchEvent::OnCharacterDeath(int KillerId, int ClientId, int Weap
 		return;
 
 	if(awardSide == 0)
-		m_ScoreTeam2 += m_PointsPerKill;
-	else if(awardSide == 1)
 		m_ScoreTeam1 += m_PointsPerKill;
+	else if(awardSide == 1)
+		m_ScoreTeam2 += m_PointsPerKill;
 
 	// re-apply forced team for killer and victim to prevent leaving on death
 	auto &Teams = GameServer()->m_pController->Teams();
