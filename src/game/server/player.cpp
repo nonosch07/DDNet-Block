@@ -2055,16 +2055,19 @@ void CPlayer::AddPlayerExp(int Amount, bool ApplyMultiplier)
 	Amount = (int)((float)Amount * TotalMult);
 	m_Account.m_Experience += Amount;
 
+	m_Account.m_DirtyProgress = true;
+
 	if(GetPlayerExperience() >= NeededAccountExp(GetPlayerLevel()))
 	{
 		CPlayer *pPlayer = GameServer()->GetPlayer(m_ClientId);
+		if (!pPlayer)
+			return;
 
 		int ExcessiveExp = GetPlayerExperience() - NeededAccountExp(GetPlayerLevel());
 
 		SetPlayerLevel(GetPlayerLevel() + 1);
 		SetPlayerExperience(0);
 
-		GameServer()->CreateSound(pPlayer->GetCharacter()->GetPos(), SOUND_CTF_CAPTURE, -1);
 		pPlayer->GetCharacter()->SetEmote(EMOTE_HAPPY, Server()->Tick() + 2 * Server()->TickSpeed());
 
 		// confetti effect
@@ -2072,6 +2075,7 @@ void CPlayer::AddPlayerExp(int Amount, bool ApplyMultiplier)
 		{
 			CCharacter *pChar = pPlayer->GetCharacter();
 			GameServer()->CreateFinishEffect(pChar->GetPos(), pChar->TeamMask());
+			GameServer()->CreateSound(pPlayer->GetCharacter()->GetPos(), SOUND_CTF_CAPTURE, -1);
 		}
 
 		char aBuf[256];

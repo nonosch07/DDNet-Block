@@ -123,6 +123,7 @@ MACRO_CONFIG_INT(SvTDMMinimumCandidates, sv_tdm_minimum_candidates, 8, 2, MAX_CL
 MACRO_CONFIG_INT(SvTDMMaximumCandidates, sv_tdm_maximum_candidates, 16, 2, MAX_CLIENTS, CFGFLAG_SERVER, "Maximum amount of participants for TDM")
 MACRO_CONFIG_INT(SvTDMBroadcastRate, sv_tdm_broadcast_rate, 10, 1, 500, CFGFLAG_SERVER, "Rate at which TDM information broadcasts will be sent (ticks)")
 MACRO_CONFIG_INT(SvTDMFreezeTime, sv_tdm_freeze_time, 3, 5, 30, CFGFLAG_SERVER, "Specifies the time required for a player to be frozen in order to die")
+MACRO_CONFIG_INT(SvTDMFreezeTimeKill, sv_tdm_freeze_time_kill, 5, 5, 30, CFGFLAG_SERVER, "Specifies the time required for a frozen player to die")
 MACRO_CONFIG_INT(SvTDMWinnerExp, sv_tdm_winner_exp, 5, 0, 10000, CFGFLAG_SERVER, "Experience rewarded to each winning TDM participant")
 MACRO_CONFIG_INT(SvTDMWinnerBlockpoints, sv_tdm_winner_blockpoints, 25, 0, 100000, CFGFLAG_SERVER, "Blockpoints rewarded to winning TDM participants")
 

@@ -6,6 +6,7 @@
 #include <base/vmath.h>
 #include <map>
 #include <random>
+#include <unordered_map>
 #include <vector>
 
 class CTeamDeathmatchEvent final : public CEventComponent, public std::enable_shared_from_this<CTeamDeathmatchEvent>
@@ -71,6 +72,12 @@ private:
 
 	// maps client id -> team index (0 or 1)
 	std::map<int, int> m_ClientTeam;
+
+	std::unordered_map<int, int> m_FrozenSince;
+
+	void CheckFreezeTime();
+	int GetFrozenSince(int ClientId) const;
+	void SetFrozenSince(int ClientId, int Tick);
 
 	static constexpr int MIN_PLAYERS = 8;
 	static constexpr int MAX_PLAYERS = 16;

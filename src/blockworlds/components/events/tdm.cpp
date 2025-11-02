@@ -134,6 +134,11 @@ void CTeamDeathmatchEvent::OnTick()
 			}
 		}
 
+		if(m_ActiveStartTick != -1 && Server()->Tick() > m_ActiveStartTick + Config()->m_SvTDMFreezeTime * Server()->TickSpeed())
+		{
+			CheckFreezeTime();
+		}
+
 		if(CheckEndCondition())
 			FinishEvent();
 	}
@@ -195,6 +200,8 @@ void CTeamDeathmatchEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 		if(m_ActiveStartTick != -1 && Server()->Tick() < m_ActiveStartTick + Config()->m_SvTDMFreezeTime * Server()->TickSpeed())
 		{
 			pChar->FreezeForce(Config()->m_SvTDMFreezeTime);
+			// track when this player became frozen due to the initial freeze
+			SetFrozenSince(ClientId, Server()->Tick());
 		}
 	}
 }
@@ -444,50 +451,23 @@ void CTeamDeathmatchEvent::OnCharacterDeath(int KillerId, int ClientId, int Weap
 
 void CTeamDeathmatchEvent::FinishEvent()
 {
+	if(GetState() == CEventComponent::EEventState::Ending || GetState() == CEventComponent::EEventState::Finished)
+		return;
+
 	SetState(CEventComponent::EEventState::Ending);
 
-	// announce result
+	int WinningSide = -1;
 	if(m_ScoreTeam1 > m_ScoreTeam2)
-	{
-		GameServer()->SendBroadcast(-1, "Team Blue wins %d - %d", m_ScoreTeam1, m_ScoreTeam2);
-		for(const auto &ClientId : m_Participants)
-		{
-			auto it = m_ClientTeam.find(ClientId);
-			if(it == m_ClientTeam.end() || it->second != 0)
-				continue;
-			CPlayer *p = GameServer()->GetPlayer(ClientId);
-			if(!p)
-				continue;
-			p->AddPlayerExp(Config()->m_SvTDMWinnerExp);
-			p->SetPlayerBlockpoints(p->GetPlayerBlockpoints() + Config()->m_SvTDMWinnerBlockpoints);
-
-			p->OnPlayerSave(false);
-			GameServer()->SendChatTarget(ClientId, "You've received %d experience and %d blockpoints for winning!", Config()->m_SvTDMWinnerExp, Config()->m_SvTDMWinnerBlockpoints);
-		}
-	}
+		WinningSide = 0;
 	else if(m_ScoreTeam2 > m_ScoreTeam1)
-	{
-		GameServer()->SendBroadcast(-1, "Team Red wins %d - %d", m_ScoreTeam2, m_ScoreTeam1);
-		for(const auto &ClientId : m_Participants)
-		{
-			auto it = m_ClientTeam.find(ClientId);
-			// include players on side == 1 (red team)
-			if(it == m_ClientTeam.end() || it->second != 1)
-				continue;
-			CPlayer *p = GameServer()->GetPlayer(ClientId);
-			if(!p)
-				continue;
-			p->AddPlayerExp(Config()->m_SvTDMWinnerExp);
-			p->SetPlayerBlockpoints(p->GetPlayerBlockpoints() + Config()->m_SvTDMWinnerBlockpoints);
+		WinningSide = 1;
 
-			p->OnPlayerSave(false);
-			GameServer()->SendChatTarget(ClientId, "You've received %d experience and %d blockpoints for winning!", Config()->m_SvTDMWinnerExp, Config()->m_SvTDMWinnerBlockpoints);
-		}
-	}
+	if(WinningSide == 0)
+		GameServer()->SendBroadcast(-1, "Team Blue wins %d - %d", m_ScoreTeam1, m_ScoreTeam2);
+	else if(WinningSide == 1)
+		GameServer()->SendBroadcast(-1, "Team Red wins %d - %d", m_ScoreTeam2, m_ScoreTeam1);
 	else
-	{
 		GameServer()->SendBroadcast(-1, "TDM ended in a tie %d - %d", m_ScoreTeam1, m_ScoreTeam2);
-	}
 
 	// return participants to their saved positions
 	// restore tee infos for participants first
@@ -628,6 +608,10 @@ bool CTeamDeathmatchEvent::Join(int ClientId)
 		pPlayer->SetKnockout(-1);
 		if(pPlayer->GetCurrentSpecial() != -1)
 			pPlayer->ToggleSpecial(pPlayer->GetCurrentSpecial());
+
+		auto *pChar = GameServer()->GetPlayerChar(ClientId);
+		if(pChar)
+			pChar->ResetVelocity();
 	}
 
 	return true;
@@ -646,6 +630,7 @@ bool CTeamDeathmatchEvent::Leave(int ClientId)
 	auto itct = m_ClientTeam.find(ClientId);
 	if(itct != m_ClientTeam.end())
 		m_ClientTeam.erase(itct);
+
 	// restore tee infos
 	CPlayer *p = GameServer()->GetPlayer(ClientId);
 	if(p)
@@ -707,4 +692,58 @@ bool CTeamDeathmatchEvent::IsCandidate(int ClientId) const
 bool CTeamDeathmatchEvent::IsParticipant(int ClientId) const
 {
 	return std::find(m_Participants.begin(), m_Participants.end(), ClientId) != m_Participants.end();
+}
+
+void CTeamDeathmatchEvent::CheckFreezeTime()
+{
+	auto Participants = m_Participants;
+	for(const auto &ClientId : Participants)
+	{
+		auto *pChar = GameServer()->GetPlayerChar(ClientId);
+		if(!pChar || !pChar->IsAlive())
+			continue;
+
+		const int GroundHookDelayTicks = Config()->m_SvGroundHookPenaltyDelay * Server()->TickSpeed();
+		if(PlayerHookedGroundFor(ClientId) > GroundHookDelayTicks)
+		{
+			pChar->FreezeForce(Config()->m_SvGroundHookPenalty);
+		}
+
+		int FrozenSince = 0;
+		{
+			auto itfs = m_FrozenSince.find(ClientId);
+			if(itfs != m_FrozenSince.end())
+				FrozenSince = itfs->second;
+		}
+		bool WasFrozenTickBefore = FrozenSince != 0;
+		bool IsFrozenNow = pChar->m_FreezeTime;
+		if(IsFrozenNow && !WasFrozenTickBefore)
+		{
+			SetFrozenSince(ClientId, Server()->Tick());
+		}
+		if(!IsFrozenNow && WasFrozenTickBefore)
+		{
+			SetFrozenSince(ClientId, 0);
+		}
+
+		const int RequiredFreezeTicks = Config()->m_SvTDMFreezeTimeKill * Server()->TickSpeed();
+		if(IsFrozenNow && FrozenSince != 0 && Server()->Tick() - FrozenSince >= RequiredFreezeTicks)
+		{
+			pChar->Die(-1, WEAPON_WORLD);
+			SetFrozenSince(ClientId, 0);
+		}
+	}
+}
+
+int CTeamDeathmatchEvent::GetFrozenSince(int ClientId) const
+{
+	auto it = m_FrozenSince.find(ClientId);
+	if(it == m_FrozenSince.end())
+		return 0;
+	return it->second;
+}
+
+void CTeamDeathmatchEvent::SetFrozenSince(int ClientId, int Tick)
+{
+	m_FrozenSince[ClientId] = Tick;
 }
