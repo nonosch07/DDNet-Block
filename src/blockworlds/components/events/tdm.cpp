@@ -729,8 +729,7 @@ void CTeamDeathmatchEvent::CheckFreezeTime()
 				victimTeam = itVictim->second;
 
 			// award point to opposite team if victim team known
-					// (nothing here — scoring is handled centrally in OnCharacterDeath)
-			}
+				// (nothing here — scoring is handled centrally in OnCharacterDeath)
 
 			pChar->Die(-1, WEAPON_WORLD);
 			SetFrozenSince(ClientId, 0);
