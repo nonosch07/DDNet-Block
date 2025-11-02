@@ -408,21 +408,42 @@ void CTeamDeathmatchEvent::OnCharacterDeath(int KillerId, int ClientId, int Weap
 	if(GetState() != CEventComponent::EEventState::Active)
 		return;
 
-	// award points: each kill awards m_PointsPerKill to the killer's team (m_PointsPerKill is set to 1)
+
 	int killerTeam = -1;
+	int victimTeam = -1;
 	if(KillerId >= 0)
 	{
 		auto itK = m_ClientTeam.find(KillerId);
 		if(itK != m_ClientTeam.end())
 			killerTeam = itK->second;
 	}
+	// victim (the dead client)
+	auto itV = m_ClientTeam.find(ClientId);
+	if(itV != m_ClientTeam.end())
+		victimTeam = itV->second;
 
-	if(killerTeam == -1)
+
+	if(killerTeam != -1 && victimTeam != -1 && killerTeam == victimTeam)
 		return;
 
-	if(killerTeam == 0)
+	int awardSide = -1; // 0 = team1(blue), 1 = team2(red)
+	if(killerTeam != -1)
+	{
+		// regular kill by a participant
+		awardSide = killerTeam;
+	}
+	else if(victimTeam != -1)
+	{
+		// world kill/autokill: award to opposite side of the victim
+		awardSide = (victimTeam == 0) ? 1 : 0;
+	}
+
+	if(awardSide == -1)
+		return;
+
+	if(awardSide == 0)
 		m_ScoreTeam1 += m_PointsPerKill;
-	else if(killerTeam == 1)
+	else if(awardSide == 1)
 		m_ScoreTeam2 += m_PointsPerKill;
 
 	// re-apply forced team for killer and victim to prevent leaving on death
