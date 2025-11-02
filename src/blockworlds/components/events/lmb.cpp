@@ -1,5 +1,7 @@
 #include "lmb.h"
 
+#include <algorithm>
+
 #include <engine/shared/config.h>
 
 #include <game/mapitems.h>
@@ -7,6 +9,7 @@
 #include <game/server/gamecontext.h>
 #include <game/server/gamecontroller.h>
 #include <game/server/player.h>
+#include "event_helpers.h"
 #include <game/teamscore.h>
 
 #include <blockworlds/components/core/component_registry.h>
@@ -432,8 +435,21 @@ bool CLastManBlockingEvent::Leave(int ClientId)
 	if(ClientIdIt == Participants().end())
 		return false;
 	m_Participants.erase(ClientIdIt);
-	LoadPosition(ClientId);
-	LoadWeapons(ClientId);
+	// Immediately restore saved position and weapons for the leaving player so
+	// their old state is available as soon as they die/leave the event.
+	// The default LoadPosition/LoadWeapons defer restoration to OnTick which
+	// causes restoration to occur only when the event processes deferred
+	// operations (commonly when the event finishes). Call the helpers
+	// directly to avoid that delay.
+	LoadPositionHelper(GameServer(), m_pSavedPlayers, ClientId);
+	LoadWeaponsHelper(GameServer(), m_SavedWeapons, ClientId);
+
+	// Ensure we don't process the deferred queues for this client later
+	// (CEventComponent::OnTick processes m_DeferredLoadQueue / m_DeferredWeaponsQueue).
+	// If the client was queued earlier, remove them so we don't double-load or cause
+	// a spurious death when OnTick runs.
+	m_DeferredLoadQueue.erase(std::remove(m_DeferredLoadQueue.begin(), m_DeferredLoadQueue.end(), ClientId), m_DeferredLoadQueue.end());
+	m_DeferredWeaponsQueue.erase(std::remove(m_DeferredWeaponsQueue.begin(), m_DeferredWeaponsQueue.end(), ClientId), m_DeferredWeaponsQueue.end());
 
 	// restore solo and collision state if needed
 	if(auto *pChar = GameServer()->GetPlayerChar(ClientId))

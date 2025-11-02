@@ -605,22 +605,6 @@ void COneOnOneEvent::CheckFreezePenalties()
 			pChr2->Die(m_Player1ID, WEAPON_WORLD);
 		}
 	}
-
-	if(m_P1Frozen && pChr1->IsAlive() && pChr1->Core()->m_Vel.x == 0 && pChr1->Core()->m_Vel.y == 0)
-	{
-		if(m_P1FrozenTick != -1 && m_CurrentTick - m_P1FrozenTick > 6 * Server()->TickSpeed())
-		{
-			pChr1->Die(m_Player2ID, WEAPON_WORLD);
-		}
-	}
-
-	if(m_P2Frozen && pChr2->IsAlive() && pChr2->Core()->m_Vel.x == 0 && pChr2->Core()->m_Vel.y == 0)
-	{
-		if(m_P2FrozenTick != -1 && m_CurrentTick - m_P2FrozenTick > 6 * Server()->TickSpeed())
-		{
-			pChr2->Die(m_Player1ID, WEAPON_WORLD);
-		}
-	}
 }
 
 void COneOnOneEvent::RestartRoundAfterDraw()

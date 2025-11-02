@@ -729,8 +729,42 @@ void CTeamDeathmatchEvent::CheckFreezeTime()
 		const int RequiredFreezeTicks = Config()->m_SvTDMFreezeTimeKill * Server()->TickSpeed();
 		if(IsFrozenNow && FrozenSince != 0 && Server()->Tick() - FrozenSince >= RequiredFreezeTicks)
 		{
+			// autokill due to freeze timeout
+			int victimTeam = -1;
+			auto itVictim = m_ClientTeam.find(ClientId);
+			if(itVictim != m_ClientTeam.end())
+				victimTeam = itVictim->second;
+
+			// award point to opposite team if victim team known
+			if(victimTeam != -1)
+			{
+				if(victimTeam == 0)
+					m_ScoreTeam2 += m_PointsPerKill;
+				else
+					m_ScoreTeam1 += m_PointsPerKill;
+
+				// update participant visible scores
+				for(const auto &pid : m_Participants)
+				{
+					CPlayer *p = GameServer()->GetPlayer(pid);
+					if(!p)
+						continue;
+					if(m_ClientTeam[pid] == 0)
+						p->m_Score = m_ScoreTeam1;
+					else
+						p->m_Score = m_ScoreTeam2;
+				}
+			}
+
 			pChar->Die(-1, WEAPON_WORLD);
 			SetFrozenSince(ClientId, 0);
+
+			// re-apply forced team for the victim to prevent leaving on death
+			GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, m_DDRaceTeam);
+
+			// check for immediate end condition after awarding point
+			if(CheckEndCondition())
+				FinishEvent();
 		}
 	}
 }
