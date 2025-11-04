@@ -69,6 +69,14 @@ private:
 	std::map<int, SoloCollisionState> m_PrevSoloState;
 	std::unordered_map<int, int> m_FrozenSince; // ClientId -> tick when got frozen (0 = not frozen)
 
+	// temporary, per-event player stats
+	struct SPlayerStats
+	{
+		int Kills = 0;
+		int Deaths = 0;
+	};
+	std::map<int, SPlayerStats> m_PlayerStats; // ClientId -> stats for this TDM event
+
 	// utils no tneeded
 	std::mt19937 m_Rng;
 
@@ -90,6 +98,10 @@ private:
 	int GetSideOf(int ClientId) const;
 	void SetFrozenSince(int ClientId, int Tick);
 	int GetFrozenSince(int ClientId) const;
+
+	// results helpers
+	void ResetStats();
+	void AnnounceResults();
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_TDM_H

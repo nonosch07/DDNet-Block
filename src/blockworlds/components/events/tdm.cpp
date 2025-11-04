@@ -219,7 +219,8 @@ void CTeamDeathmatchEvent::TrackFreezeAndAutokill()
 		since = GetFrozenSince(ClientId);
 		if(isFrozen && since != 0 && Server()->Tick() - since >= RequiredFreezeTicks)
 		{
-			pChar->Die(-1, WEAPON_WORLD);
+			// autokill due to long freeze should not emit a kill message
+			pChar->Die(-1, WEAPON_WORLD, false);
 			SetFrozenSince(ClientId, 0);
 			GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, m_DDRaceTeam);
 			if(CheckEndCondition())
@@ -259,6 +260,7 @@ void CTeamDeathmatchEvent::ResetTransientState()
 	m_PrevSoloState.clear();
 	m_FrozenSince.clear();
 	m_ScoreTeam[0] = m_ScoreTeam[1] = 0;
+	ResetStats();
 }
 
 int CTeamDeathmatchEvent::GetSideOf(int ClientId) const
@@ -468,6 +470,48 @@ void CTeamDeathmatchEvent::OnCharacterDeath(int KillerId, int ClientId, int /*We
 	if(GetState() != CEventComponent::EEventState::Active)
 		return;
 
+	// update temporary player stats (does not affect account K/D)
+	const bool victimIsParticipant = IsParticipant(ClientId);
+	if(victimIsParticipant)
+		m_PlayerStats[ClientId].Deaths++;
+
+	int vSide = GetSideOf(ClientId);
+	if(vSide != -1)
+	{
+		int effectiveKiller = -1;
+		if(KillerId >= 0 && KillerId != ClientId && IsParticipant(KillerId))
+		{
+			int kSide = GetSideOf(KillerId);
+			if(kSide != -1 && kSide != vSide)
+				effectiveKiller = KillerId;
+		}
+
+		if(effectiveKiller == -1)
+		{
+			// pick opponent with the fewest kills so far to distribute points fairly
+			int oppSide = Opposite(vSide);
+			int bestCid = -1;
+			int bestKills = 0x7fffffff;
+			for(int pid : m_Participants)
+			{
+				if(GetSideOf(pid) != oppSide)
+					continue;
+				int k = 0;
+				if(auto it = m_PlayerStats.find(pid); it != m_PlayerStats.end())
+					k = it->second.Kills;
+				if(k < bestKills)
+				{
+					bestKills = k;
+					bestCid = pid;
+				}
+			}
+			effectiveKiller = bestCid;
+		}
+
+		if(effectiveKiller != -1)
+			m_PlayerStats[effectiveKiller].Kills++;
+	}
+
 	auto itV = m_ClientTeam.find(ClientId);
 	if(itV != m_ClientTeam.end())
 	{
@@ -502,6 +546,9 @@ void CTeamDeathmatchEvent::FinishEvent()
 	else
 		GameServer()->SendBroadcast(-1, "TDM ended in a tie %d - %d", m_ScoreTeam[0], m_ScoreTeam[1]);
 
+	// announce per-team best players and summary stats in chat
+	AnnounceResults();
+
 	RestoreParticipants();
 
 	m_Participants.clear();
@@ -514,6 +561,65 @@ void CTeamDeathmatchEvent::FinishEvent()
 	}
 
 	SetState(CEventComponent::EEventState::Finished);
+}
+
+void CTeamDeathmatchEvent::ResetStats()
+{
+	m_PlayerStats.clear();
+}
+
+void CTeamDeathmatchEvent::AnnounceResults()
+{
+	struct Ranked { int ClientId; int K; int D; float KD; int Side; };
+	std::vector<Ranked> blue, red;
+	blue.reserve(m_Participants.size());
+	red.reserve(m_Participants.size());
+	for(int pid : m_Participants)
+	{
+		const auto it = m_PlayerStats.find(pid);
+		int k = 0, d = 0;
+		if(it != m_PlayerStats.end()) { k = it->second.Kills; d = it->second.Deaths; }
+		float kd = d > 0 ? (float)k / (float)d : (k > 0 ? (float)k : 0.0f);
+		int side = GetSideOf(pid);
+		Ranked r{pid, k, d, kd, side};
+		if(side == 0) blue.push_back(r);
+		else if(side == 1) red.push_back(r);
+	}
+	auto cmp = [](const Ranked &a, const Ranked &b) {
+		if(a.K != b.K) return a.K > b.K; // more kills first
+		if(a.KD != b.KD) return a.KD > b.KD; // better KD
+		return a.ClientId < b.ClientId; // stable
+	};
+	std::sort(blue.begin(), blue.end(), cmp);
+	std::sort(red.begin(), red.end(), cmp);
+
+	char aBuf[256];
+	// overall summary
+	str_format(aBuf, sizeof(aBuf), "TDM results: Blue %d - %d Red (Target %d)", m_ScoreTeam[0], m_ScoreTeam[1], m_TargetScore);
+	GameServer()->SendChatTarget(-1, aBuf);
+
+	// show the top3 best players of each team
+	auto announceTop = [&](const char *pTeamName, const std::vector<Ranked> &v) {
+		for(int i = 0; i < 3; ++i)
+		{
+			if(i < (int)v.size())
+			{
+				const auto &r = v[i];
+				const char *pName = GameServer()->Server()->ClientName(r.ClientId);
+				int kd_int = (int)(r.KD * 100.0f + 0.5f);
+				str_format(aBuf, sizeof(aBuf), "%s #%d: %s — K %d / D %d (K/D %d.%02d)",
+					pTeamName, i + 1, pName, r.K, r.D, kd_int / 100, kd_int % 100);
+			}
+			else
+			{
+				str_format(aBuf, sizeof(aBuf), "%s #%d: —", pTeamName, i + 1);
+			}
+			GameServer()->SendChatTarget(-1, aBuf);
+		}
+	};
+
+	announceTop("Blue", blue);
+	announceTop("Red", red);
 }
 
 void CTeamDeathmatchEvent::ForceNextStage()
