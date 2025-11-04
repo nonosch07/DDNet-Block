@@ -12,6 +12,9 @@
 #include "gamecontroller.h"
 #include "player.h"
 
+#include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/components/events.h>
+
 #include "entities/character.h"
 #include "entities/door.h"
 #include "entities/dragger.h"
@@ -634,6 +637,27 @@ void IGameController::Snap(int SnappingClient)
 	if(g_Config.m_SvNoWeakHook)
 		pGameInfoEx->m_Flags2 |= GAMEINFOFLAG2_NO_WEAK_HOOK;
 	pGameInfoEx->m_Version = GAMEINFO_CURVERSION;
+
+	// Switch TDM participants to vanilla client view only for their own snapshots
+	if(SnappingClient >= 0)
+	{
+		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+		{
+			if(auto ev = eventsAccessor->GetActiveEvent())
+			{
+				using EState = CEventComponent::EEventState;
+				if(ev->GetState() == EState::Active && str_comp(ev->GetName(), "tdm") == 0)
+				{
+					const auto &parts = ev->Participants();
+					if(std::find(parts.begin(), parts.end(), SnappingClient) != parts.end())
+					{
+						// force teams for UI (Join Blue/Red) without affecting others
+						pGameInfoObj->m_GameFlags |= GAMEFLAG_TEAMS;
+					}
+				}
+			}
+		}
+	}
 
 	if(Server()->IsSixup(SnappingClient))
 	{

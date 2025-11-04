@@ -2,9 +2,13 @@
 #define BLOCKWORLDS_COMPONENTS_EVENTS_EVENT_HELPERS_H
 
 #include <array>
+#include <map>
+
+#include <engine/shared/protocol.h>
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
-#include <map>
+#include <game/server/player.h>
+#include <game/teamscore.h>
 
 inline void SavePositionHelper(CGameContext *pGameServer, std::map<int, std::unique_ptr<class CSaveTee>> &m_pSavedPlayers, int ClientId)
 {

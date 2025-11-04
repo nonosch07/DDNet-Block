@@ -52,7 +52,6 @@
 #include <blockworlds/zones/zonemanager.h>
 
 #include <blockworlds/discord/webhook.h>
-#include <blockworlds/votes/cosmetics.h>
 #include <blockworlds/votes/votemanager.h>
 
 #include <blockworlds/whois.h>
@@ -145,7 +144,7 @@ void CGameContext::Construct(int Resetting)
 		m_WeaponkitsAllowed = g_Config.m_SvWeaponkitsAllowed;
 
 		m_LastGlobalWeaponkitsVoteCall = 0;
-		m_LastGlobalLMBVoteCall = 0;
+		m_LastGlobalEventVoteCall = 0;
 
 		// default: LMB enabled (persisted via config)
 		// LMB enable/disable toggle removed; votes will only start events via "events_start lmb"
@@ -658,23 +657,23 @@ void CGameContext::CallVote(int ClientId, const char *pDesc, const char *pCmd, c
 			m_LastGlobalWeaponkitsVoteCall = Now;
 		}
 
-		if(pCmd && str_find(pCmd, "events_start lmb") != nullptr)
+		if(pCmd && (str_find(pCmd, "events_start lmb") != nullptr || str_find(pCmd, "events_start tdm") != nullptr))
 		{
-			int64_t Cooldown = Server()->TickSpeed() * 60 * g_Config.m_SvLmbVoteCoolDown; // global cooldown
-			if(m_LastGlobalLMBVoteCall && Now < m_LastGlobalLMBVoteCall + Cooldown)
+			int64_t Cooldown = Server()->TickSpeed() * 60 * g_Config.m_SvEventVoteCoolDown; // shared global cooldown for events
+			if(m_LastGlobalEventVoteCall && Now < m_LastGlobalEventVoteCall + Cooldown)
 			{
-				int64_t Remaining = (m_LastGlobalLMBVoteCall + Cooldown - Now + Server()->TickSpeed() - 1) / Server()->TickSpeed();
-				char aBuf[128];
+				int64_t Remaining = (m_LastGlobalEventVoteCall + Cooldown - Now + Server()->TickSpeed() - 1) / Server()->TickSpeed();
+				char aBuf[160];
 				int Minutes = (int)(Remaining / 60);
 				int Seconds = (int)(Remaining % 60);
 				if(Minutes > 0)
-					str_format(aBuf, sizeof(aBuf), "You must wait %d minute(s) %d second(s) before calling the LMB start vote again.", Minutes, Seconds);
+					str_format(aBuf, sizeof(aBuf), "You must wait %d minute(s) %d second(s) before calling an event start vote again.", Minutes, Seconds);
 				else
-					str_format(aBuf, sizeof(aBuf), "You must wait %d second(s) before calling the LMB start vote again.", Seconds);
+					str_format(aBuf, sizeof(aBuf), "You must wait %d second(s) before calling an event start vote again.", Seconds);
 				SendChatTarget(ClientId, aBuf);
 				return;
 			}
-			m_LastGlobalLMBVoteCall = Now;
+			m_LastGlobalEventVoteCall = Now;
 		}
 	}
 
@@ -1741,6 +1740,11 @@ void CGameContext::ProgressVoteOptions(int ClientId)
 	if(pPl->m_SendVoteIndex > m_NumVoteOptions)
 		return; // shouldn't happen / fail silently
 
+	// only stream real server votes when the Blockworlds menu is at the root page.
+	// if a player is browsing subpages, keep the list clean from server votes.
+	if(!g_VoteManager.IsAtRoot(ClientId))
+		return;
+
 	int VotesLeft = m_NumVoteOptions - pPl->m_SendVoteIndex;
 	int NumVotesToSend = minimum(g_Config.m_SvSendVotesPerTick, VotesLeft);
 
@@ -1801,6 +1805,31 @@ void CGameContext::ProgressVoteOptions(int ClientId)
 	// send msg
 	if(pPl->m_SendVoteIndex == 0)
 	{
+		// Prepend a stripline header to separate server votes in the combined list.
+		char aHeader[128];
+		CreateStripline(aHeader, sizeof(aHeader), "Server Votes");
+		{
+			int idx = 0;
+			CNetMsg_Sv_VoteOptionListAdd HeaderMsg;
+			HeaderMsg.m_pDescription0 = "";
+			HeaderMsg.m_pDescription1 = "";
+			HeaderMsg.m_pDescription2 = "";
+			HeaderMsg.m_pDescription3 = "";
+			HeaderMsg.m_pDescription4 = "";
+			HeaderMsg.m_pDescription5 = "";
+			HeaderMsg.m_pDescription6 = "";
+			HeaderMsg.m_pDescription7 = "";
+			HeaderMsg.m_pDescription8 = "";
+			HeaderMsg.m_pDescription9 = "";
+			HeaderMsg.m_pDescription10 = "";
+			HeaderMsg.m_pDescription11 = "";
+			HeaderMsg.m_pDescription12 = "";
+			HeaderMsg.m_pDescription13 = "";
+			HeaderMsg.m_pDescription14 = "";
+			SetVoteDescriptionAtIndex(&idx, aHeader, &HeaderMsg);
+			HeaderMsg.m_NumOptions = 1;
+			Server()->SendPackMsg(&HeaderMsg, MSGFLAG_VITAL, ClientId);
+		}
 		CNetMsg_Sv_VoteOptionGroupStart StartMsg;
 		Server()->SendPackMsg(&StartMsg, MSGFLAG_VITAL, ClientId);
 	}
@@ -6180,6 +6209,7 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("clan_kick", "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanRemove, this, "Remove the specified user from your clan.");
 	Console()->Register("clan_setlevel", "s[username] i[level]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanSetAuth, this, "Assign a clan access level to a member (1: member, 2: co-leader).");
 	Console()->Register("clan_rename", "s[newname]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanRename, this, "Rename your clan (leader only).");
+	Console()->Register("clan_transfer", "s[newname]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanTransfer, this, "Transfer leadership to another member.");
 
 	Console()->Register("clan_invite", "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanInvite, this, "Invite a user to join your clan.");
 	Console()->Register("clan_accept", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanAccept, this, "Accept a pending clan invitation.");
@@ -6277,6 +6307,12 @@ void CGameContext::CreateStripline(char *pDst, int DstSize, const char *pTitle)
 
 	for(int i = 0; i < StripSideLen; i++)
 		str_append(pDst, "#", DstSize);
+}
+
+void CGameContext::SetVoteDescriptionAtIndex(int *pIndex, const char *pStr, CNetMsg_Sv_VoteOptionListAdd *pOptionMsg)
+{
+	// forward to the existing free function to keep logic in one place
+	::SetVoteDescriptionAtIndex(pIndex, pStr, pOptionMsg);
 }
 
 extern CVoteManager g_VoteManager;

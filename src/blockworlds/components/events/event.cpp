@@ -65,24 +65,47 @@ void CEventComponent::LoadWeapons(int ClientId)
 
 void CEventComponent::OnTick()
 {
-	if(m_DeferredLoadQueue.empty())
-		return;
+	// process both queues independently and requeue items that could not be completed yet
+	// this makes restoration robust whenn a player has no character this tick (e.g., in spec, paused, timing issues)
 
-	std::vector<int> Queue = std::move(m_DeferredLoadQueue);
-	m_DeferredLoadQueue.clear();
-
-	for(int ClientId : Queue)
+	if(!m_DeferredLoadQueue.empty())
 	{
-		LoadPositionHelper(GameServer(), m_pSavedPlayers, ClientId);
+		std::vector<int> Queue = std::move(m_DeferredLoadQueue);
+		m_DeferredLoadQueue.clear();
+
+		for(int ClientId : Queue)
+		{
+			// first atttempt
+			LoadPositionHelper(GameServer(), m_pSavedPlayers, ClientId);
+
+			// if the saved entry still exists after attempting to load, it means we couldn't apply it yet (no character spawned)
+			// requeue for the next tick
+			if(m_pSavedPlayers.find(ClientId) != m_pSavedPlayers.end())
+			{
+				m_DeferredLoadQueue.push_back(ClientId);
+			}
+		}
 	}
 
 	if(!m_DeferredWeaponsQueue.empty())
 	{
 		std::vector<int> WeaponQueue = std::move(m_DeferredWeaponsQueue);
 		m_DeferredWeaponsQueue.clear();
+
 		for(int ClientId : WeaponQueue)
 		{
+			if(GameServer()->GetPlayer(ClientId) == nullptr)
+			{
+				m_SavedWeapons.erase(ClientId);
+				continue;
+			}
+
 			LoadWeaponsHelper(GameServer(), m_SavedWeapons, ClientId);
+
+			if(m_SavedWeapons.find(ClientId) != m_SavedWeapons.end())
+			{
+				m_DeferredWeaponsQueue.push_back(ClientId);
+			}
 		}
 	}
 }

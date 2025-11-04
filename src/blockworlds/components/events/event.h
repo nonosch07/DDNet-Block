@@ -86,6 +86,10 @@ public:
 
 	[[nodiscard]] virtual std::optional<int> GetScoreOf(int /*ClientId*/) const { return std::nullopt; }
 
+	// optional per-event team index for presenting teams to clients (e.g., vanilla UI teams).
+	// Return 0 for red, 1 for blue, or nullopt if not applicable/not a participant.
+	[[nodiscard]] virtual std::optional<int> GetTeamIndexFor(int /*ClientId*/) const { return std::nullopt; }
+
 	[[nodiscard]] const char *GetName() const override { return GetEventName(); }
 
 protected:

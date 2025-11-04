@@ -1,32 +1,95 @@
+// New Blockworlds voting system with page-based menus and safe, internal actions.
 #ifndef BLOCKWORLDS_VOTES_VOTEMANAGER_H
 #define BLOCKWORLDS_VOTES_VOTEMANAGER_H
 
 #include <game/server/gamecontext.h>
-#include <memory>
+
+#include <functional>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
-class IVoteModule
-{
-public:
-	virtual ~IVoteModule() = default;
-	virtual void EnsureInitialized() = 0;
-	virtual void SendOptions(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext) = 0;
-	// return true if handled
-	virtual bool HandleVote(CPlayer *pPlayer, const std::string &voteInput, int ClientId, CGameContext *pGameContext) = 0;
-};
+// Forward declarations
+class IServer;
+class CPlayer;
+class CGameContext;
 
+// page-aware, safe voting manager. it renders a menu as vote options and
+// maps the exact option texts it sent to internal actions per-client
+
+// only if a player's selection doesn't match a known option do we fall back
+// to the engine's real vote handling.
 class CVoteManager
 {
 public:
-	CVoteManager();
-	void RegisterModule(std::unique_ptr<IVoteModule> pModule);
-	void EnsureInitialized();
+	CVoteManager() = default;
+
+	// public to simplify helper usage in implementation
+	enum class EActionKind
+	{
+		None = 0,
+		Back,
+		Close,
+		OpenExtras,
+		OpenCosmetics,
+		TogglePassive,
+		OpenCosmeticsCategory, // data = category index
+		ToggleCosmeticItem, // data = (category index, item index)
+	};
+
+	struct Action
+	{
+		EActionKind Kind{EActionKind::None};
+		int A{-1};
+		int B{-1};
+	};
+
+	// render the root voting menu for the given player (page-based UI)
 	void SendOptions(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext);
-	bool HandleVote(CPlayer *pPlayer, const std::string &voteInput, int ClientId, CGameContext *pGameContext);
+
+	// handle a click/selection from the voting menu. returns true if it was
+	// handled internally (no real server vote triggered). returns false to
+	// allow the engine to handle real server vote options.
+	bool HandleVote(CPlayer *pPlayer, const std::string &VoteInput, int ClientId, CGameContext *pGameContext);
+
+	// clear transient state for a client (e.g. on disconnect)
+	void ClearClient(int ClientId);
+
+	// query helpers
+	bool IsAtRoot(int ClientId);
 
 private:
-	std::vector<std::unique_ptr<IVoteModule>> m_vModules;
-	bool m_Initialized = false;
+	// exact option text => action mapping for last sent menu for that client
+	std::unordered_map<int, std::vector<std::pair<std::string, Action>>> m_MapByClient;
+
+	// page stack: 0=root, 1=extras, 2=cosmetics-root, >=3=cosmetics-category (value stores category index)
+	struct Page
+	{
+		// type encodes which builder to use; data holds category index for cosmetics pages.
+		enum Type
+		{
+			ROOT = 0,
+			EXTRAS,
+			COSMETICS_ROOT,
+			COSMETICS_CATEGORY,
+		} PageType{ROOT};
+		int Data{-1};
+	};
+
+	std::unordered_map<int, std::vector<Page>> m_PageStack; // per client
+
+private:
+	// rendering helpers
+	void RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext);
+	void BuildRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
+	void BuildExtras(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
+	void BuildCosmeticsRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
+	void BuildCosmeticsCategory(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int CategoryIndex, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
+
+	// nav helpers
+	void PushPage(int ClientID, Page::Type T, int Data = -1);
+	bool PopPage(int ClientID);
+	const std::vector<Page> &GetStack(int ClientID);
 };
 
 extern CVoteManager g_VoteManager;

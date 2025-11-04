@@ -6,6 +6,7 @@
 #include <game/server/gamecontext.h>
 #include <game/server/gamemodes/DDRace.h>
 #include <game/server/player.h>
+#include <game/server/teams.h>
 
 #include <blockworlds/discord/webhook.h>
 
@@ -35,7 +36,17 @@ bool COneOnOneEvent::Initialize(int Player1ID, int Player2ID, int Wager)
 bool COneOnOneEvent::StartEvent()
 {
 	auto pController = (CGameControllerDDRace *)GameServer()->m_pController;
-	m_Team = pController->Teams().GetFirstEmptyTeam();
+	// choose an empty team that is not currently used by another event
+	int chosenTeam = -1;
+	for(int t = 1; t < NUM_DDRACE_TEAMS; ++t)
+	{
+		if(pController->Teams().GetTeamState(t) == CGameTeams::TEAMSTATE_EMPTY && !pController->Teams().IsTeamEvent(t))
+		{
+			chosenTeam = t;
+			break;
+		}
+	}
+	m_Team = chosenTeam;
 	if(m_Team == -1)
 	{
 		// no free team — fail gracefully so caller can notify players instead of emergency-shutdown

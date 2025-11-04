@@ -4,12 +4,12 @@
 
 #include <engine/shared/config.h>
 
+#include "event_helpers.h"
 #include <game/mapitems.h>
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/gamecontroller.h>
 #include <game/server/player.h>
-#include "event_helpers.h"
 #include <game/teamscore.h>
 
 #include <blockworlds/components/core/component_registry.h>
@@ -167,7 +167,17 @@ void CLastManBlockingEvent::StartEvent()
 	}
 
 	auto &Teams = GameServer()->m_pController->Teams();
-	m_DDRaceTeam = Teams.GetFirstEmptyTeam();
+	// choose an empty team that is not currently used by another event
+	int chosenTeam = -1;
+	for(int t = 1; t < NUM_DDRACE_TEAMS; ++t)
+	{
+		if(Teams.GetTeamState(t) == CGameTeams::TEAMSTATE_EMPTY && !Teams.IsTeamEvent(t))
+		{
+			chosenTeam = t;
+			break;
+		}
+	}
+	m_DDRaceTeam = chosenTeam;
 	if(m_DDRaceTeam == -1)
 	{
 		EmergencyShutdown("No free team was found");
