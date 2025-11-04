@@ -1,6 +1,7 @@
 #include "tdm.h"
 
 #include <engine/shared/config.h>
+#include <engine/shared/protocol.h>
 
 #include <game/mapitems.h>
 #include <game/server/entities/character.h>
@@ -9,24 +10,284 @@
 #include <game/server/player.h>
 
 #include <algorithm>
-#include <array>
 #include <blockworlds/components/core/component_registry.h>
 #include <random>
 
+namespace {
+static constexpr const char *PADDING =
+	"                                                                                     "
+	"                                                                                     "
+	"                                                                                     ";
+}
+
 CTeamDeathmatchEvent::CTeamDeathmatchEvent(CGameContext *pGameContext) :
-	CEventComponent(pGameContext),
-	m_RegistrationEndTick(-1),
-	m_ActiveStartTick(-1),
-	m_ActiveEndTick(-1),
-	m_DDRaceTeam(-1),
-	m_ScoreTeam1(0),
-	m_ScoreTeam2(0),
-	m_PointsPerKill(1),
-	m_TargetScore(80),
-	m_Rng((unsigned)std::random_device{}() ^ (unsigned)pGameContext->Server()->Tick())
+	CEventComponent(pGameContext), m_Rng((unsigned)std::random_device{}() ^ (unsigned)pGameContext->Server()->Tick())
 {
+	// preload shared event spawn tiles if present on map
 	CGameContext::GetTilePositions(TILE_BW_EVENT_TDM_START_POS, pGameContext, m_EventStartPositions);
 }
+
+// ===== Helpers =====
+
+void CTeamDeathmatchEvent::AssignTeamsShuffled()
+{
+	m_ClientTeam.clear();
+	if(m_Participants.empty())
+		return;
+
+	std::shuffle(m_Participants.begin(), m_Participants.end(), m_Rng);
+	const int split = (int)m_Participants.size() / 2;
+	for(size_t i = 0; i < m_Participants.size(); ++i)
+	{
+		int side = (int)i >= split ? 1 : 0; // 0 = blue, 1 = red
+		m_ClientTeam[m_Participants[i]] = side;
+	}
+}
+
+void CTeamDeathmatchEvent::ApplyParticipantVisuals(int ClientId, int Side)
+{
+	if(auto *p = GameServer()->GetPlayer(ClientId))
+	{
+		p->m_OldTeeInfos = p->m_TeeInfos;
+		str_copy(p->m_TeeInfos.m_aSkinName, "default", sizeof(p->m_TeeInfos.m_aSkinName));
+		p->m_TeeInfos.m_UseCustomColor = 1;
+		if(Side == 0)
+		{
+			p->m_TeeInfos.m_ColorBody = 10223467; // blue
+			p->m_TeeInfos.m_ColorFeet = 10223467;
+		}
+		else
+		{
+			p->m_TeeInfos.m_ColorBody = 65387; // red
+			p->m_TeeInfos.m_ColorFeet = 65387;
+		}
+		p->m_HideInfo = true;
+		p->m_HideInfoInScoreboard = true;
+
+		// strip cosmetics
+		p->ClearCosmetics();
+		p->SetSkinMani(-1);
+		p->SetGunDesign(-1);
+		p->SetKnockout(-1);
+		if(p->GetCurrentSpecial() != -1)
+			p->ToggleSpecial(p->GetCurrentSpecial());
+	}
+}
+
+void CTeamDeathmatchEvent::RestoreParticipantVisuals(int ClientId)
+{
+	if(auto *p = GameServer()->GetPlayer(ClientId))
+	{
+		p->m_TeeInfos = p->m_OldTeeInfos;
+		p->m_HideInfo = false;
+		p->m_HideInfoInScoreboard = false;
+	}
+}
+
+void CTeamDeathmatchEvent::SaveAndPrepareParticipants()
+{
+	for(int ClientId : m_Participants)
+	{
+		SaveWeapons(ClientId);
+		SavePosition(ClientId);
+
+		auto it = m_ClientTeam.find(ClientId);
+		if(it != m_ClientTeam.end())
+			ApplyParticipantVisuals(ClientId, it->second);
+
+		if(auto *pChar = GameServer()->GetPlayerChar(ClientId))
+		{
+			// save transient solo/collision, then ensure normal interaction in the event
+			bool wasSolo = pChar->Core()->m_Solo;
+			bool wasCollisionDisabled = pChar->Core()->m_CollisionDisabled;
+			m_PrevSoloState[ClientId] = {wasSolo, wasCollisionDisabled};
+			if(wasSolo)
+				pChar->SetSolo(false);
+			if(wasCollisionDisabled)
+				pChar->Core()->m_CollisionDisabled = false;
+		}
+	}
+}
+
+void CTeamDeathmatchEvent::RestoreParticipants()
+{
+	// restore visuals first
+	for(int ClientId : m_Participants)
+		RestoreParticipantVisuals(ClientId);
+
+	// restore solo/collision
+	for(const auto &kv : m_PrevSoloState)
+	{
+		if(auto *pChar = GameServer()->GetPlayerChar(kv.first))
+		{
+			if(kv.second.solo)
+				pChar->SetSolo(true);
+			pChar->Core()->m_CollisionDisabled = kv.second.collision;
+		}
+	}
+	m_PrevSoloState.clear();
+
+	// restore saved position & weapons (deferred processed right after)
+	std::vector<int> ids;
+	ids.reserve(m_pSavedPlayers.size());
+	for(const auto &kv : m_pSavedPlayers)
+		ids.push_back(kv.first);
+	for(int ClientId : ids)
+	{
+		LoadPosition(ClientId);
+		LoadWeapons(ClientId);
+	}
+	CEventComponent::OnTick();
+}
+
+std::optional<vec2> CTeamDeathmatchEvent::ChooseSpawnFor(int ClientId)
+{
+	if(!m_EventStartPositions.empty())
+	{
+		std::uniform_int_distribution<int> dist(0, (int)m_EventStartPositions.size() - 1);
+		return m_EventStartPositions[(size_t)dist(m_Rng)];
+	}
+	// no TILE_BW_EVENT_TDM_START_POS provided: do not teleport (fallback is saved position)
+	(void)ClientId;
+	return std::nullopt;
+}
+
+void CTeamDeathmatchEvent::TeleportToSpawn(int ClientId)
+{
+	if(auto *pChar = GameServer()->GetPlayerChar(ClientId))
+	{
+		if(auto pos = ChooseSpawnFor(ClientId))
+			GameServer()->Teleport(pChar, *pos);
+		pChar->ResetVelocity();
+	}
+}
+
+void CTeamDeathmatchEvent::BroadcastStatus()
+{
+	int secs = (int)((m_ActiveEndTick - Server()->Tick()) / Server()->TickSpeed());
+	if(secs < 0)
+		secs = 0;
+	const int minutes = secs / 60;
+	const int seconds = secs % 60;
+
+	for(int ClientId : m_Participants)
+	{
+		int side = GetSideOf(ClientId);
+		if(side == 0)
+		{
+			GameServer()->SendBroadcast(ClientId, "Team Blue\nBlue %d / %d\nRed %d / %d\nTime left: %d:%02d\n%s",
+				m_ScoreTeam[0], m_TargetScore, m_ScoreTeam[1], m_TargetScore, minutes, seconds, PADDING);
+		}
+		else if(side == 1)
+		{
+			GameServer()->SendBroadcast(ClientId, "Team Red\nRed %d / %d\nBlue %d / %d\nTime left: %d:%02d\n%s",
+				m_ScoreTeam[1], m_TargetScore, m_ScoreTeam[0], m_TargetScore, minutes, seconds, PADDING);
+		}
+		else
+		{
+			GameServer()->SendBroadcast(ClientId, "%s\nBlue %d / %d\nRed %d / %d\nTime left: %d:%02d\n%s",
+				GetEventName(), m_ScoreTeam[0], m_TargetScore, m_ScoreTeam[1], m_TargetScore, minutes, seconds, PADDING);
+		}
+	}
+}
+
+void CTeamDeathmatchEvent::EnsureForcedTeamForAll()
+{
+	auto &Teams = GameServer()->m_pController->Teams();
+	for(int ClientId : m_Participants)
+		Teams.SetForceCharacterTeam(ClientId, m_DDRaceTeam);
+}
+
+void CTeamDeathmatchEvent::TrackFreezeAndAutokill()
+{
+	const int RequiredFreezeTicks = Config()->m_SvTDMFreezeTimeKill * Server()->TickSpeed();
+	for(int ClientId : m_Participants)
+	{
+		auto *pChar = GameServer()->GetPlayerChar(ClientId);
+		if(!pChar || !pChar->IsAlive())
+			continue;
+
+		// track freeze start/stop
+		const bool isFrozen = pChar->m_FreezeTime;
+		int since = GetFrozenSince(ClientId);
+		if(isFrozen && since == 0)
+			SetFrozenSince(ClientId, Server()->Tick());
+		if(!isFrozen && since != 0)
+			SetFrozenSince(ClientId, 0);
+
+		// kill if frozen too long
+		since = GetFrozenSince(ClientId);
+		if(isFrozen && since != 0 && Server()->Tick() - since >= RequiredFreezeTicks)
+		{
+			pChar->Die(-1, WEAPON_WORLD);
+			SetFrozenSince(ClientId, 0);
+			GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, m_DDRaceTeam);
+			if(CheckEndCondition())
+			{
+				FinishEvent();
+				return;
+			}
+		}
+	}
+}
+
+void CTeamDeathmatchEvent::ApplyGroundHookPenalty(int ClientId)
+{
+	const int GroundHookDelayTicks = Config()->m_SvGroundHookPenaltyDelay * Server()->TickSpeed();
+	if(PlayerHookedGroundFor(ClientId) > GroundHookDelayTicks)
+	{
+		if(auto *pChar = GameServer()->GetPlayerChar(ClientId))
+			pChar->FreezeForce(Config()->m_SvGroundHookPenalty);
+	}
+}
+
+void CTeamDeathmatchEvent::UpdatePerPlayerScores()
+{
+	for(int pid : m_Participants)
+	{
+		if(auto *p = GameServer()->GetPlayer(pid))
+		{
+			int side = GetSideOf(pid);
+			p->m_Score = side == 0 ? m_ScoreTeam[0] : m_ScoreTeam[1];
+		}
+	}
+}
+
+void CTeamDeathmatchEvent::ResetTransientState()
+{
+	m_ClientTeam.clear();
+	m_PrevSoloState.clear();
+	m_FrozenSince.clear();
+	m_ScoreTeam[0] = m_ScoreTeam[1] = 0;
+}
+
+int CTeamDeathmatchEvent::GetSideOf(int ClientId) const
+{
+	auto it = m_ClientTeam.find(ClientId);
+	return it == m_ClientTeam.end() ? -1 : it->second;
+}
+
+void CTeamDeathmatchEvent::SetFrozenSince(int ClientId, int Tick)
+{
+	m_FrozenSince[ClientId] = Tick;
+}
+
+int CTeamDeathmatchEvent::GetFrozenSince(int ClientId) const
+{
+	auto it = m_FrozenSince.find(ClientId);
+	return it == m_FrozenSince.end() ? 0 : it->second;
+}
+
+std::optional<int> CTeamDeathmatchEvent::GetTeamIndexFor(int ClientId) const
+{
+	auto it = m_ClientTeam.find(ClientId);
+	if(it == m_ClientTeam.end())
+		return std::nullopt;
+	// internal mapping is 0=blue,1=red; caller will translate to TEAM_BLUE/TEAM_RED
+	return it->second;
+}
+
+// ===== Event lifecycle =====
 
 void CTeamDeathmatchEvent::OnTick()
 {
@@ -46,98 +307,30 @@ void CTeamDeathmatchEvent::OnTick()
 
 		if(Server()->Tick() % Config()->m_SvTDMBroadcastRate == 0)
 		{
-			static constexpr const char *s_padding = "                                                                                     "
-								 "                                                                                     "
-								 "                                                                                     ";
-
 			GameServer()->SendBroadcast(-1, "%s is about to start!\nRegister with /join\nTime left: %d seconds\n\nCandidates: %zd\n%s",
-				GetEventName(), (int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()), Candidates().size(), s_padding);
+				GetEventName(), (int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()),
+				Candidates().size(), PADDING);
 		}
 	}
 	else if(GetState() == CEventComponent::EEventState::Active)
 	{
-		for(int participant : Participants())
+		for(int id : Participants())
 		{
-			// Compare hook duration (ticks) against configured seconds converted to ticks.
-			const int GroundHookDelayTicks = Config()->m_SvGroundHookPenaltyDelay * Server()->TickSpeed();
-			if(PlayerHookedGroundFor(participant) > GroundHookDelayTicks)
+			// keep cosmetics disabled and apply ground hook penalty
+			ApplyGroundHookPenalty(id);
+			if(auto *p = GameServer()->GetPlayer(id))
 			{
-				CCharacter *pChar = GameServer()->GetPlayerChar(participant);
-				if(pChar)
-					pChar->FreezeForce(Config()->m_SvGroundHookPenalty);
-			}
-
-			CPlayer *pPlayer = GameServer()->GetPlayer(participant);
-			if(pPlayer)
-			{
-				pPlayer->m_HideInfo = true;
-				pPlayer->m_HideInfoInScoreboard = true;
-				auto it = m_ClientTeam.find(participant);
-				if(it != m_ClientTeam.end())
-				{
-					int side = it->second;
-					str_copy(pPlayer->m_TeeInfos.m_aSkinName, "default", sizeof(pPlayer->m_TeeInfos.m_aSkinName));
-					pPlayer->m_TeeInfos.m_UseCustomColor = 1;
-					if(side == 0)
-					{
-						pPlayer->m_TeeInfos.m_ColorBody = 10223467;
-						pPlayer->m_TeeInfos.m_ColorFeet = 10223467;
-					}
-					else
-					{
-						pPlayer->m_TeeInfos.m_ColorBody = 65387;
-						pPlayer->m_TeeInfos.m_ColorFeet = 65387;
-					}
-				}
-				// remove active cosmetics if any slipped through
-				pPlayer->ClearCosmetics();
-				pPlayer->SetSkinMani(-1);
-				pPlayer->SetGunDesign(-1);
-				pPlayer->SetKnockout(-1);
+				p->m_HideInfo = true;
+				p->m_HideInfoInScoreboard = true;
 			}
 		}
 
 		if(Server()->Tick() % Config()->m_SvTDMBroadcastRate == 0)
-		{
-			int timeLeftSeconds = (int)((m_ActiveEndTick - Server()->Tick()) / Server()->TickSpeed());
-			if(timeLeftSeconds < 0)
-				timeLeftSeconds = 0;
-			int minutes = timeLeftSeconds / 60;
-			int seconds = timeLeftSeconds % 60;
+			BroadcastStatus();
 
-			static constexpr const char *s_padding = "                                                                                     "
-								 "                                                                                     "
-								 "                                                                                     ";
-
-			for(const auto &ClientId : Participants())
-			{
-				auto it = m_ClientTeam.find(ClientId);
-				if(it == m_ClientTeam.end())
-				{
-					// fallback: send general info
-					GameServer()->SendBroadcast(ClientId, "%s\nBlue %d / %d\nRed %d / %d\nTime left: %d:%02d\n%s",
-						GetEventName(), m_ScoreTeam1, m_TargetScore, m_ScoreTeam2, m_TargetScore, minutes, seconds, s_padding);
-					continue;
-				}
-
-				int side = it->second;
-				if(side == 0)
-				{
-					GameServer()->SendBroadcast(ClientId, "Team Blue\nBlue %d / %d\nRed %d / %d\nTime left: %d:%02d\n%s",
-						m_ScoreTeam1, m_TargetScore, m_ScoreTeam2, m_TargetScore, minutes, seconds, s_padding);
-				}
-				else
-				{
-					GameServer()->SendBroadcast(ClientId, "Team Red\nRed %d / %d\nBlue %d / %d\nTime left: %d:%02d\n%s",
-						m_ScoreTeam2, m_TargetScore, m_ScoreTeam1, m_TargetScore, minutes, seconds, s_padding);
-				}
-			}
-		}
-
+		// after initial fixed freeze window, start tracking long freezes for autokill
 		if(m_ActiveStartTick != -1 && Server()->Tick() > m_ActiveStartTick + Config()->m_SvTDMFreezeTime * Server()->TickSpeed())
-		{
-			CheckFreezeTime();
-		}
+			TrackFreezeAndAutokill();
 
 		if(CheckEndCondition())
 			FinishEvent();
@@ -151,56 +344,29 @@ void CTeamDeathmatchEvent::OnSnapClientInfo(int ClientId, int SnappingClient, st
 
 	if(IsParticipant(ClientId) && SnappingClient != ClientId)
 	{
-		bool snappingAuthed = Server()->ClientAuthed(SnappingClient);
-
-		if(snappingAuthed)
+		if(Server()->ClientAuthed(SnappingClient))
 			return;
 
 		StrToInts(&pClientInfo->m_Name0, 4, " ");
 		StrToInts(&pClientInfo->m_Clan0, 3, " ");
 		StrToInts(&pClientInfo->m_Skin0, 6, "default");
-
 		pClientInfo->m_Country = 0;
-		return;
 	}
 }
 
-void CTeamDeathmatchEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
+void CTeamDeathmatchEvent::OnCharacterSpawn(int ClientId, vec2 /*SpawnPos*/)
 {
-	if(GetState() != CEventComponent::EEventState::Active)
+	if(GetState() != CEventComponent::EEventState::Active || !IsParticipant(ClientId))
 		return;
 
-	if(IsParticipant(ClientId))
+	GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, m_DDRaceTeam);
+	TeleportToSpawn(ClientId);
+
+	if(auto *pChar = GameServer()->GetPlayerChar(ClientId))
 	{
-		auto it = m_ClientTeam.find(ClientId);
-		if(it == m_ClientTeam.end())
-			return;
-		int side = it->second;
-		auto *pChar = GameServer()->GetPlayerChar(ClientId);
-		if(!pChar)
-			return;
-		GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, m_DDRaceTeam);
-		// use general event start positions for spawns (shared across teams)
-		if(!m_EventStartPositions.empty())
-		{
-			std::uniform_int_distribution<int> dist(0, (int)m_EventStartPositions.size() - 1);
-			int idx = dist(m_Rng);
-			GameServer()->Teleport(pChar, m_EventStartPositions[idx]);
-		}
-		else
-		{
-			auto &spawns = m_SpawnPositionsTeam[side];
-			if(spawns.empty())
-				return;
-			std::uniform_int_distribution<int> dist(0, (int)spawns.size() - 1);
-			int idx = dist(m_Rng);
-			GameServer()->Teleport(pChar, spawns[idx]);
-		}
-		pChar->ResetVelocity();
 		if(m_ActiveStartTick != -1 && Server()->Tick() < m_ActiveStartTick + Config()->m_SvTDMFreezeTime * Server()->TickSpeed())
 		{
 			pChar->FreezeForce(Config()->m_SvTDMFreezeTime);
-			// track when this player became frozen due to the initial freeze
 			SetFrozenSince(ClientId, Server()->Tick());
 		}
 	}
@@ -239,7 +405,6 @@ void CTeamDeathmatchEvent::CloseRegistration()
 		return;
 	}
 
-	// First-come first-serve, limit to MAX_PLAYERS
 	if((int)m_Candidates.size() > Config()->m_SvTDMMaximumCandidates)
 		m_Candidates.resize(Config()->m_SvTDMMaximumCandidates);
 
@@ -250,7 +415,9 @@ void CTeamDeathmatchEvent::CloseRegistration()
 
 void CTeamDeathmatchEvent::StartEvent()
 {
-	// create a ddnet team (like LMB) and assign participants evenly
+	ResetTransientState();
+
+	// create isolated DDNet team for the event
 	auto &Teams = GameServer()->m_pController->Teams();
 	m_DDRaceTeam = Teams.GetFirstEmptyTeam();
 	if(m_DDRaceTeam == -1)
@@ -258,152 +425,35 @@ void CTeamDeathmatchEvent::StartEvent()
 		EmergencyShutdown("No free team was found");
 		return;
 	}
-	// mark this team as an event team so team-wide kills are suppressed
 	Teams.SetTeamEvent(m_DDRaceTeam, true);
-	// lock the event team so players don't leave on death
 	Teams.SetTeamLock(m_DDRaceTeam, true);
 	Teams.SetTeamInvitesOpen(m_DDRaceTeam, false);
 
-	for(const auto &ClientId : m_Participants)
-	{
-		SaveWeapons(ClientId);
-		SavePosition(ClientId);
-	}
-
-	m_ClientTeam.clear();
-	m_SpawnPositionsTeam[0].clear();
-	m_SpawnPositionsTeam[1].clear();
-	m_SpawnQuadsTeam[0].clear();
-	m_SpawnQuadsTeam[1].clear();
-	m_SpawnOffsetTeam[0] = 0;
-	m_SpawnOffsetTeam[1] = 0;
-
-	// shuffle participants before assigning teams to make teams random
-	{
-		std::shuffle(m_Participants.begin(), m_Participants.end(), m_Rng);
-	}
-
-	// split participants into two internal sides (0 = blue, 1 = red)
-	int i = 0;
-	int switchAt = (int)m_Participants.size() / 2;
-	for(const auto &ClientId : m_Participants)
-	{
-		int side = (i >= switchAt) ? 1 : 0;
-		m_ClientTeam[ClientId] = side;
-		Teams.SetForceCharacterTeam(ClientId, m_DDRaceTeam);
-		CPlayer *p = GameServer()->GetPlayer(ClientId);
-		if(p)
-		{
-			p->m_OldTeeInfos = p->m_TeeInfos;
-			str_copy(p->m_TeeInfos.m_aSkinName, "default", sizeof(p->m_TeeInfos.m_aSkinName));
-			p->m_TeeInfos.m_UseCustomColor = 1;
-			if(side == 0)
-			{
-				// blue
-				p->m_TeeInfos.m_ColorBody = 10223467;
-				p->m_TeeInfos.m_ColorFeet = 10223467;
-			}
-			else
-			{
-				// red
-				p->m_TeeInfos.m_ColorBody = 65387;
-				p->m_TeeInfos.m_ColorFeet = 65387;
-			}
-			p->m_HideInfo = true;
-			p->m_HideInfoInScoreboard = true;
-		}
-		i++;
-	}
-
-	// If event start positions are provided on the map, use them and skip per-team quad loading.
-	if(m_EventStartPositions.empty())
-	{
-		auto blueQuads = GameServer()->ZoneManager()->GetNamedQuads("tdm_blue");
-		auto redQuads = GameServer()->ZoneManager()->GetNamedQuads("tdm_red");
-		if(!blueQuads.empty() && !redQuads.empty())
-		{
-			m_SpawnQuadsTeam[0] = blueQuads;
-			m_SpawnQuadsTeam[1] = redQuads;
-		}
-		else
-		{
-			// fallback to centers for older maps
-			auto blueCenters = GameServer()->ZoneManager()->GetNamedQuadCenters("tdm_blue");
-			auto redCenters = GameServer()->ZoneManager()->GetNamedQuadCenters("tdm_red");
-			if(!blueCenters.empty() && !redCenters.empty())
-			{
-				m_SpawnPositionsTeam[0] = blueCenters;
-				m_SpawnPositionsTeam[1] = redCenters;
-			}
-			else
-			{
-				// No per-team spawn quads/centers found. We'll not emergency-shutdown here —
-				// m_EventStartPositions is empty as well, so StartEvent will attempt to
-				// continue and per-player spawn logic will skip teleport if no positions
-				// are available. Log a warning so map authors can fix it.
-				GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "events", "TDM: no tdm_blue/tdm_red quads or centers found; falling back to saved positions");
-			}
-		}
-	}
+	AssignTeamsShuffled();
+	SaveAndPrepareParticipants();
 
 	m_ActiveStartTick = Server()->Tick();
 	m_ActiveEndTick = Server()->Tick() + Config()->m_SvTDMActiveTime * Server()->TickSpeed();
 
-	int playersTeam1 = 0, playersTeam2 = 0;
-	for(const auto &p : m_ClientTeam)
+	// force all participants into the event team and spawn/freeze
+	for(int ClientId : m_Participants)
 	{
-		if(p.second == 0)
-			playersTeam1++;
-		else if(p.second == 1)
-			playersTeam2++;
+		Teams.SetForceCharacterTeam(ClientId, m_DDRaceTeam);
+		TeleportToSpawn(ClientId);
+		if(auto *pChar = GameServer()->GetPlayerChar(ClientId))
+			pChar->FreezeForce(Config()->m_SvTDMFreezeTime);
 	}
-	int maxPlayers = std::max(playersTeam1, playersTeam2);
-	m_TargetScore = maxPlayers * 10;
+
+	// adaptive target score based on the larger team size
+	int countBlue = 0, countRed = 0;
+	for(const auto &kv : m_ClientTeam)
+		(kv.second == 0 ? countBlue : countRed)++;
+	m_TargetScore = std::max(countBlue, countRed) * 10;
 
 	SetState(CEventComponent::EEventState::Active);
-
-	for(const auto &ClientId : m_Participants)
-	{
-		auto it = m_ClientTeam.find(ClientId);
-		if(it == m_ClientTeam.end())
-			continue;
-		int side = it->second;
-		CCharacter *pChar = GameServer()->GetPlayerChar(ClientId);
-		if(!pChar)
-			continue;
-
-		// save previous solo and collision state, set not-solo and enable collision for event
-		{
-			bool wasSolo = pChar->Core()->m_Solo;
-			bool wasCollisionDisabled = pChar->Core()->m_CollisionDisabled;
-			m_PrevSoloState[ClientId] = {wasSolo, wasCollisionDisabled};
-			if(wasSolo)
-				pChar->SetSolo(false);
-			if(wasCollisionDisabled)
-				pChar->Core()->m_CollisionDisabled = false;
-		}
-		// spawn players at general event start positions (shared across teams)
-		if(m_EventStartPositions.empty())
-		{
-			auto &spawns = m_SpawnPositionsTeam[side];
-			if(spawns.empty())
-				continue;
-			std::uniform_int_distribution<int> dist(0, (int)spawns.size() - 1);
-			int idx = dist(m_Rng);
-			GameServer()->Teleport(pChar, spawns[idx]);
-		}
-		else
-		{
-			std::uniform_int_distribution<int> dist(0, (int)m_EventStartPositions.size() - 1);
-			int idx = dist(m_Rng);
-			GameServer()->Teleport(pChar, m_EventStartPositions[idx]);
-		}
-		// freeze player for initial TDM freeze time
-		pChar->FreezeForce(Config()->m_SvTDMFreezeTime);
-	}
 }
 
-void CTeamDeathmatchEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
+void CTeamDeathmatchEvent::OnCharacterDeath(int KillerId, int ClientId, int /*Weapon*/)
 {
 	if(GetState() != CEventComponent::EEventState::Active)
 		return;
@@ -411,33 +461,18 @@ void CTeamDeathmatchEvent::OnCharacterDeath(int KillerId, int ClientId, int Weap
 	auto itV = m_ClientTeam.find(ClientId);
 	if(itV != m_ClientTeam.end())
 	{
-		int victimTeam = itV->second;
-		if(victimTeam == 0)
-			m_ScoreTeam2 += m_PointsPerKill; // blue died → red gains
-		else
-			m_ScoreTeam1 += m_PointsPerKill; // red died → blue gains
+		const int victimSide = itV->second;
+		m_ScoreTeam[Opposite(victimSide)] += m_PointsPerKill;
 	}
 
-	// re-apply forced team for killer and victim to prevent leaving on death
+	// keep event team enforced
 	auto &Teams = GameServer()->m_pController->Teams();
 	if(IsParticipant(ClientId))
 		Teams.SetForceCharacterTeam(ClientId, m_DDRaceTeam);
 	if(KillerId >= 0 && IsParticipant(KillerId))
 		Teams.SetForceCharacterTeam(KillerId, m_DDRaceTeam);
 
-	// update participant scores shown to players
-	for(const auto &pid : m_Participants)
-	{
-		CPlayer *p = GameServer()->GetPlayer(pid);
-		if(!p)
-			continue;
-		if(m_ClientTeam[pid] == 0)
-			p->m_Score = m_ScoreTeam1;
-		else
-			p->m_Score = m_ScoreTeam2;
-	}
-
-	// check immediate end
+	UpdatePerPlayerScores();
 	if(CheckEndCondition())
 		FinishEvent();
 }
@@ -449,66 +484,23 @@ void CTeamDeathmatchEvent::FinishEvent()
 
 	SetState(CEventComponent::EEventState::Ending);
 
-	int WinningSide = -1;
-	if(m_ScoreTeam1 > m_ScoreTeam2)
-		WinningSide = 0;
-	else if(m_ScoreTeam2 > m_ScoreTeam1)
-		WinningSide = 1;
-
-	if(WinningSide == 0)
-		GameServer()->SendBroadcast(-1, "Team Blue wins %d - %d", m_ScoreTeam1, m_ScoreTeam2);
-	else if(WinningSide == 1)
-		GameServer()->SendBroadcast(-1, "Team Red wins %d - %d", m_ScoreTeam2, m_ScoreTeam1);
+	// announce winner
+	if(m_ScoreTeam[0] > m_ScoreTeam[1])
+		GameServer()->SendBroadcast(-1, "Team Blue wins %d - %d", m_ScoreTeam[0], m_ScoreTeam[1]);
+	else if(m_ScoreTeam[1] > m_ScoreTeam[0])
+		GameServer()->SendBroadcast(-1, "Team Red wins %d - %d", m_ScoreTeam[1], m_ScoreTeam[0]);
 	else
-		GameServer()->SendBroadcast(-1, "TDM ended in a tie %d - %d", m_ScoreTeam1, m_ScoreTeam2);
+		GameServer()->SendBroadcast(-1, "TDM ended in a tie %d - %d", m_ScoreTeam[0], m_ScoreTeam[1]);
 
-	// return participants to their saved positions
-	// restore tee infos for participants first
-	for(const auto &ClientId : m_Participants)
-	{
-		CPlayer *p = GameServer()->GetPlayer(ClientId);
-		if(p)
-		{
-			p->m_TeeInfos = p->m_OldTeeInfos;
-			p->m_HideInfo = false;
-			p->m_HideInfoInScoreboard = false;
-		}
-	}
-
-	// restore solo and collision state for participants
-	for(const auto &soloEntry : m_PrevSoloState)
-	{
-		if(auto *pChar = GameServer()->GetPlayerChar(soloEntry.first))
-		{
-			if(soloEntry.second.solo)
-				pChar->SetSolo(true);
-			pChar->Core()->m_CollisionDisabled = soloEntry.second.collision;
-		}
-	}
-	m_PrevSoloState.clear();
-
-	std::vector<int> SavedClientIds;
-	SavedClientIds.reserve(m_pSavedPlayers.size());
-	for(const auto &kv : m_pSavedPlayers)
-		SavedClientIds.push_back(kv.first);
-
-	for(const auto ClientId : SavedClientIds)
-	{
-		LoadPosition(ClientId);
-		LoadWeapons(ClientId);
-	}
-
-	// process deferred loads immediately so players (winners and everyone else)
-	// are returned to their saved position/weapon state in the same tick.
-	CEventComponent::OnTick();
+	RestoreParticipants();
 
 	m_Participants.clear();
 	if(m_DDRaceTeam != -1)
 	{
-		// unlock the team and reset round state
-		GameServer()->m_pController->Teams().SetTeamEvent(m_DDRaceTeam, false);
-		GameServer()->m_pController->Teams().SetTeamLock(m_DDRaceTeam, false);
-		GameServer()->m_pController->Teams().ResetRoundState(m_DDRaceTeam);
+		auto &Teams = GameServer()->m_pController->Teams();
+		Teams.SetTeamEvent(m_DDRaceTeam, false);
+		Teams.SetTeamLock(m_DDRaceTeam, false);
+		Teams.ResetRoundState(m_DDRaceTeam);
 	}
 
 	SetState(CEventComponent::EEventState::Finished);
@@ -524,14 +516,10 @@ void CTeamDeathmatchEvent::ForceNextStage()
 
 bool CTeamDeathmatchEvent::CheckEndCondition()
 {
-	// target score condition
-	if(m_ScoreTeam1 >= m_TargetScore || m_ScoreTeam2 >= m_TargetScore)
+	if(m_ScoreTeam[0] >= m_TargetScore || m_ScoreTeam[1] >= m_TargetScore)
 		return true;
-
-	// time limit
 	if(Server()->Tick() > m_ActiveEndTick)
 		return true;
-
 	return false;
 }
 
@@ -544,9 +532,7 @@ bool CTeamDeathmatchEvent::Register(int ClientId)
 		GameServer()->SendChatTarget(ClientId, "Registration phase is over!");
 		return false;
 	}
-	// only logged-in players can join events
-	CPlayer *pPlayer = GameServer()->GetPlayer(ClientId);
-	if(!pPlayer || !pPlayer->IsLoggedIn())
+	if(auto *pPlayer = GameServer()->GetPlayer(ClientId); !pPlayer || !pPlayer->IsLoggedIn())
 	{
 		GameServer()->SendChatTarget(ClientId, "You must be logged in to join this event.");
 		return false;
@@ -556,10 +542,9 @@ bool CTeamDeathmatchEvent::Register(int ClientId)
 		GameServer()->SendChatTarget(ClientId, "You already registered to participate.");
 		return false;
 	}
-
-	if((int)m_Candidates.size() >= MAX_PLAYERS)
+	if((int)m_Candidates.size() >= Config()->m_SvTDMMaximumCandidates)
 	{
-		GameServer()->SendChatTarget(ClientId, "Registration is full (max %d players).", MAX_PLAYERS);
+		GameServer()->SendChatTarget(ClientId, "Registration is full (max %d players).", Config()->m_SvTDMMaximumCandidates);
 		return false;
 	}
 
@@ -575,14 +560,13 @@ bool CTeamDeathmatchEvent::DeRegister(int ClientId)
 		GameServer()->SendChatTarget(ClientId, "Registration phase is over!");
 		return false;
 	}
-	auto ClientIdIt = std::find(Candidates().begin(), Candidates().end(), ClientId);
-	if(ClientIdIt == Candidates().end())
+	auto it = std::find(Candidates().begin(), Candidates().end(), ClientId);
+	if(it == Candidates().end())
 	{
 		GameServer()->SendChatTarget(ClientId, "You aren't registered to participate.");
 		return false;
 	}
-
-	m_Candidates.erase(ClientIdIt);
+	m_Candidates.erase(it);
 	GameServer()->SendChatTarget(ClientId, "You successfully left %s.", GetEventName());
 	return true;
 }
@@ -590,11 +574,11 @@ bool CTeamDeathmatchEvent::DeRegister(int ClientId)
 bool CTeamDeathmatchEvent::Join(int ClientId)
 {
 	SavePosition(ClientId);
+	SaveWeapons(ClientId);
 	m_Participants.push_back(ClientId);
 
-	if(auto pPlayer = GameServer()->GetPlayer(ClientId))
+	if(auto *pPlayer = GameServer()->GetPlayer(ClientId))
 	{
-		// remove all cosmetics on join and rely on cosmetics module to block reactivation during event
 		pPlayer->ClearCosmetics();
 		pPlayer->SetSkinMani(-1);
 		pPlayer->SetGunDesign(-1);
@@ -602,75 +586,57 @@ bool CTeamDeathmatchEvent::Join(int ClientId)
 		if(pPlayer->GetCurrentSpecial() != -1)
 			pPlayer->ToggleSpecial(pPlayer->GetCurrentSpecial());
 
-		auto *pChar = GameServer()->GetPlayerChar(ClientId);
-		if(pChar)
+		if(auto *pChar = GameServer()->GetPlayerChar(ClientId))
 			pChar->ResetVelocity();
 	}
-
 	return true;
 }
 
 bool CTeamDeathmatchEvent::Leave(int ClientId)
 {
-	auto ClientIdIt = std::find(Participants().begin(), Participants().end(), ClientId);
-	if(ClientIdIt == Participants().end())
+	auto itIn = std::find(Participants().begin(), Participants().end(), ClientId);
+	if(itIn == Participants().end())
 		return false;
-	m_Participants.erase(ClientIdIt);
+	m_Participants.erase(itIn);
 
-	// restore player's team to default first to avoid race when processing deferred loads
+	// reset team mapping and visuals
 	GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, 0);
-	// remove client team mapping if present
-	auto itct = m_ClientTeam.find(ClientId);
-	if(itct != m_ClientTeam.end())
-		m_ClientTeam.erase(itct);
+	m_ClientTeam.erase(ClientId);
+	RestoreParticipantVisuals(ClientId);
 
-	// restore tee infos
-	CPlayer *p = GameServer()->GetPlayer(ClientId);
-	if(p)
+	// restore solo/collision for this player
+	if(auto itSolo = m_PrevSoloState.find(ClientId); itSolo != m_PrevSoloState.end())
 	{
-		p->m_TeeInfos = p->m_OldTeeInfos;
-		p->m_HideInfo = false;
-		p->m_HideInfoInScoreboard = false;
-	}
-
-	// restore solo/collision state for this player if present
-	{
-		auto it = m_PrevSoloState.find(ClientId);
-		if(it != m_PrevSoloState.end())
+		if(auto *pChar = GameServer()->GetPlayerChar(ClientId))
 		{
-			if(auto *pChar = GameServer()->GetPlayerChar(ClientId))
-			{
-				if(it->second.solo)
-					pChar->SetSolo(true);
-				pChar->Core()->m_CollisionDisabled = it->second.collision;
-			}
-			m_PrevSoloState.erase(it);
+			if(itSolo->second.solo)
+				pChar->SetSolo(true);
+			pChar->Core()->m_CollisionDisabled = itSolo->second.collision;
 		}
+		m_PrevSoloState.erase(itSolo);
 	}
-	// load saved position and weapons immediately so the leaving player is returned right away
+
+	// return immediately
 	LoadPosition(ClientId);
 	LoadWeapons(ClientId);
-	// process deferred loads immediately for this component
 	CEventComponent::OnTick();
 
-	// if event is active and one team has become empty, finish the event
+	// if one side becomes empty or overall < 2, end event
 	if(GetState() == CEventComponent::EEventState::Active)
 	{
 		int team0 = 0, team1 = 0;
-		for(const auto &pid : m_Participants)
+		for(int pid : m_Participants)
 		{
-			auto it = m_ClientTeam.find(pid);
-			if(it == m_ClientTeam.end())
-				continue;
-			if(it->second == 0)
+			int side = GetSideOf(pid);
+			if(side == 0)
 				++team0;
-			else if(it->second == 1)
+			else if(side == 1)
 				++team1;
 		}
-		// if either team has no players left or total participants less than 2, end the event
 		if(team0 == 0 || team1 == 0 || (int)m_Participants.size() < 2)
 		{
-			GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "events", "TDM: ending event because a team became empty or too few participants");
+			GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "events",
+				"TDM: ending event because a team became empty or too few participants");
 			FinishEvent();
 		}
 	}
@@ -685,74 +651,4 @@ bool CTeamDeathmatchEvent::IsCandidate(int ClientId) const
 bool CTeamDeathmatchEvent::IsParticipant(int ClientId) const
 {
 	return std::find(m_Participants.begin(), m_Participants.end(), ClientId) != m_Participants.end();
-}
-
-void CTeamDeathmatchEvent::CheckFreezeTime()
-{
-	auto Participants = m_Participants;
-	for(const auto &ClientId : Participants)
-	{
-		auto *pChar = GameServer()->GetPlayerChar(ClientId);
-		if(!pChar || !pChar->IsAlive())
-			continue;
-
-		const int GroundHookDelayTicks = Config()->m_SvGroundHookPenaltyDelay * Server()->TickSpeed();
-		if(PlayerHookedGroundFor(ClientId) > GroundHookDelayTicks)
-		{
-			pChar->FreezeForce(Config()->m_SvGroundHookPenalty);
-		}
-
-		int FrozenSince = 0;
-		{
-			auto itfs = m_FrozenSince.find(ClientId);
-			if(itfs != m_FrozenSince.end())
-				FrozenSince = itfs->second;
-		}
-		bool WasFrozenTickBefore = FrozenSince != 0;
-		bool IsFrozenNow = pChar->m_FreezeTime;
-		if(IsFrozenNow && !WasFrozenTickBefore)
-		{
-			SetFrozenSince(ClientId, Server()->Tick());
-		}
-		if(!IsFrozenNow && WasFrozenTickBefore)
-		{
-			SetFrozenSince(ClientId, 0);
-		}
-
-		const int RequiredFreezeTicks = Config()->m_SvTDMFreezeTimeKill * Server()->TickSpeed();
-		if(IsFrozenNow && FrozenSince != 0 && Server()->Tick() - FrozenSince >= RequiredFreezeTicks)
-		{
-			// autokill due to freeze timeout
-			int victimTeam = -1;
-			auto itVictim = m_ClientTeam.find(ClientId);
-			if(itVictim != m_ClientTeam.end())
-				victimTeam = itVictim->second;
-
-			// award point to opposite team if victim team known
-				// (nothing here — scoring is handled centrally in OnCharacterDeath)
-
-			pChar->Die(-1, WEAPON_WORLD);
-			SetFrozenSince(ClientId, 0);
-
-			// re-apply forced team for the victim to prevent leaving on death
-			GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, m_DDRaceTeam);
-
-			// check for immediate end condition after awarding point
-			if(CheckEndCondition())
-				FinishEvent();
-		}
-	}
-}
-
-int CTeamDeathmatchEvent::GetFrozenSince(int ClientId) const
-{
-	auto it = m_FrozenSince.find(ClientId);
-	if(it == m_FrozenSince.end())
-		return 0;
-	return it->second;
-}
-
-void CTeamDeathmatchEvent::SetFrozenSince(int ClientId, int Tick)
-{
-	m_FrozenSince[ClientId] = Tick;
 }

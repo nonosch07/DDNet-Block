@@ -6180,6 +6180,7 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("clan_kick", "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanRemove, this, "Remove the specified user from your clan.");
 	Console()->Register("clan_setlevel", "s[username] i[level]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanSetAuth, this, "Assign a clan access level to a member (1: member, 2: co-leader).");
 	Console()->Register("clan_rename", "s[newname]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanRename, this, "Rename your clan (leader only).");
+	Console()->Register("clan_transfer", "s[newname]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanTransfer, this, "Transfer leadership to another member.");
 
 	Console()->Register("clan_invite", "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanInvite, this, "Invite a user to join your clan.");
 	Console()->Register("clan_accept", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanAccept, this, "Accept a pending clan invitation.");

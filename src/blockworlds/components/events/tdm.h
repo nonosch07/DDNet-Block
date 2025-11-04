@@ -2,7 +2,6 @@
 #define BLOCKWORLDS_COMPONENTS_EVENTS_TDM_H
 
 #include "event.h"
-#include <array>
 #include <base/vmath.h>
 #include <map>
 #include <random>
@@ -39,51 +38,58 @@ public:
 
 	void OnCharacterDeath(int KillerId, int ClientId, int Weapon) override;
 
+	[[nodiscard]] std::optional<int> GetTeamIndexFor(int ClientId) const override;
+
 protected:
 	bool IsCandidate(int ClientId) const;
 	bool IsParticipant(int ClientId) const;
 
 private:
-	int m_RegistrationEndTick;
-	int m_ActiveStartTick;
-	int m_ActiveEndTick;
+	// timing
+	int m_RegistrationEndTick = -1;
+	int m_ActiveStartTick = -1;
+	int m_ActiveEndTick = -1;
 
-	// per-team spawn positions (0 = blue, 1 = red)
-	std::vector<vec2> m_SpawnPositionsTeam[2];
-	// per-team spawn quads (full quad corner coords) - prefer spawning inside quads when present
-	std::vector<std::array<vec2, 4>> m_SpawnQuadsTeam[2];
-	// store previous solo and collision state for each participant (mirrors LMB behaviour)
-	struct SoloCollisionState
-	{
-		bool solo;
-		bool collision;
-	};
-	std::map<int, SoloCollisionState> m_PrevSoloState;
-	int m_SpawnOffsetTeam[2];
-
-	// event start positions (used for respawning participants after death)
+	// spawns: use only shared event start positions (TILE_BW_EVENT_TDM_START_POS)
 	std::vector<vec2> m_EventStartPositions;
 
-	int m_DDRaceTeam;
-	int m_ScoreTeam1;
-	int m_ScoreTeam2;
-	int m_PointsPerKill;
-	int m_TargetScore;
+	// team/score state
+	int m_DDRaceTeam = -1;
+	int m_ScoreTeam[2] = {0, 0};
+	int m_PointsPerKill = 1;
+	int m_TargetScore = 80; // adaptive later
+	std::map<int, int> m_ClientTeam; // ClientId -> 0 (blue) or 1 (red)
 
-	// maps client id -> team index (0 or 1)
-	std::map<int, int> m_ClientTeam;
+	// participant state
+	struct SoloCollisionState
+	{
+		bool solo = false;
+		bool collision = false;
+	};
+	std::map<int, SoloCollisionState> m_PrevSoloState;
+	std::unordered_map<int, int> m_FrozenSince; // ClientId -> tick when got frozen (0 = not frozen)
 
-	std::unordered_map<int, int> m_FrozenSince;
-
-	void CheckFreezeTime();
-	int GetFrozenSince(int ClientId) const;
-	void SetFrozenSince(int ClientId, int Tick);
-
-	static constexpr int MIN_PLAYERS = 8;
-	static constexpr int MAX_PLAYERS = 16;
-	static constexpr int REGISTRATION_SECONDS = 60; // default registration time
-
+	// utils no tneeded
 	std::mt19937 m_Rng;
+
+	// helpers (in cpp file)
+	void AssignTeamsShuffled();
+	void ApplyParticipantVisuals(int ClientId, int Side);
+	void RestoreParticipantVisuals(int ClientId);
+	void SaveAndPrepareParticipants();
+	void RestoreParticipants();
+	std::optional<vec2> ChooseSpawnFor(int ClientId);
+	void TeleportToSpawn(int ClientId);
+	void BroadcastStatus();
+	void EnsureForcedTeamForAll();
+	void TrackFreezeAndAutokill();
+	void ApplyGroundHookPenalty(int ClientId);
+	void UpdatePerPlayerScores();
+	void ResetTransientState();
+	int Opposite(int Side) const { return Side ^ 1; }
+	int GetSideOf(int ClientId) const;
+	void SetFrozenSince(int ClientId, int Tick);
+	int GetFrozenSince(int ClientId) const;
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_TDM_H

@@ -677,6 +677,34 @@ void CPlayer::Snap(int SnappingClient)
 			pPlayerInfo->m_Team = (m_Paused != PAUSE_PAUSED || m_ClientId != SnappingClient) && m_Paused < PAUSE_SPEC ? m_Team : TEAM_SPECTATORS;
 		}
 
+		// for TDM participants, show vanilla team colors per participant-only view
+		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+		{
+			if(auto active = eventsAccessor->GetActiveEvent())
+			{
+				using EState = CEventComponent::EEventState;
+				if(active->GetState() == EState::Active && str_comp(active->GetName(), "tdm") == 0)
+				{
+					const auto &parts = active->Participants();
+					const bool snapperIsParticipant = std::find(parts.begin(), parts.end(), SnappingClient) != parts.end();
+					if(snapperIsParticipant)
+					{
+						// determine team to show for this player (this = m_ClientId)
+						if(auto teamIdx = active->GetTeamIndexFor(m_ClientId); teamIdx.has_value())
+						{
+							// internal: 0=blue,1=red -> vanilla teams
+							pPlayerInfo->m_Team = teamIdx.value() == 0 ? TEAM_BLUE : TEAM_RED;
+						}
+						else
+						{
+							// non-participants appear as spectators to avoid client-side balance warnings - 200iq ez pz lemon squeezy
+							pPlayerInfo->m_Team = TEAM_SPECTATORS;
+						}
+					}
+				}
+			}
+		}
+
 		for(const auto &Component : g_ComponentRegistry.Active())
 			Component->OnSnapClientInfo(GetCid(), SnappingClient, pClientInfo);
 	}
@@ -2060,7 +2088,7 @@ void CPlayer::AddPlayerExp(int Amount, bool ApplyMultiplier)
 	if(GetPlayerExperience() >= NeededAccountExp(GetPlayerLevel()))
 	{
 		CPlayer *pPlayer = GameServer()->GetPlayer(m_ClientId);
-		if (!pPlayer)
+		if(!pPlayer)
 			return;
 
 		int ExcessiveExp = GetPlayerExperience() - NeededAccountExp(GetPlayerLevel());

@@ -4,12 +4,12 @@
 
 #include <engine/shared/config.h>
 
+#include "event_helpers.h"
 #include <game/mapitems.h>
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/gamecontroller.h>
 #include <game/server/player.h>
-#include "event_helpers.h"
 #include <game/teamscore.h>
 
 #include <blockworlds/components/core/component_registry.h>
