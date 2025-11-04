@@ -419,7 +419,17 @@ void CTeamDeathmatchEvent::StartEvent()
 
 	// create isolated DDNet team for the event
 	auto &Teams = GameServer()->m_pController->Teams();
-	m_DDRaceTeam = Teams.GetFirstEmptyTeam();
+	// choose an empty team that is not currently used by another event
+	int chosenTeam = -1;
+	for(int t = 1; t < NUM_DDRACE_TEAMS; ++t)
+	{
+		if(Teams.GetTeamState(t) == CGameTeams::TEAMSTATE_EMPTY && !Teams.IsTeamEvent(t))
+		{
+			chosenTeam = t;
+			break;
+		}
+	}
+	m_DDRaceTeam = chosenTeam;
 	if(m_DDRaceTeam == -1)
 	{
 		EmergencyShutdown("No free team was found");
