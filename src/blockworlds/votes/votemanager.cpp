@@ -1,111 +1,450 @@
+// page-based, safe voting manager implementation - Nouaa
 #include "votemanager.h"
-#include "cosmetics.h"
-#include "extras.h"
+
+#include <blockworlds/cosmetics/cosmetics.h>
+#include <game/server/player.h>
+
 #include <algorithm>
 #include <cctype>
-#include <memory>
+#include <cstring>
 #include <string>
-
-// local copy of normalization used by cosmetics votes (keeps module independent)
-[[maybe_unused]] static std::string NormalizeForCompareLocal(const std::string &s)
-{
-	std::string tmp;
-	tmp.reserve(s.size());
-	for(size_t i = 0; i < s.size(); ++i)
-	{
-		unsigned char c = s[i];
-		if(c < 0x80)
-		{
-			if(std::isalnum(c) || std::isspace(c))
-				tmp.push_back(c);
-		}
-	}
-	std::string out;
-	out.reserve(tmp.size());
-	bool in_space = false;
-	for(char ch : tmp)
-	{
-		if(std::isspace(static_cast<unsigned char>(ch)))
-		{
-			if(!in_space)
-			{
-				out.push_back(' ');
-				in_space = true;
-			}
-		}
-		else
-		{
-			out.push_back(ch);
-			in_space = false;
-		}
-	}
-	if(!out.empty() && out.front() == ' ')
-		out.erase(out.begin());
-	if(!out.empty() && out.back() == ' ')
-		out.pop_back();
-	// to lower ascii
-	std::string ret;
-	ret.reserve(out.size());
-	for(unsigned char c : out)
-		ret.push_back(static_cast<char>(std::tolower(c)));
-	return ret;
-}
-
-class CVoteCosmetics : public IVoteModule
-{
-public:
-	CVoteCosmetics() = default;
-	void EnsureInitialized() override { m_Cosmetics.EnsureCategoriesInitialized(); }
-	void SendOptions(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext) override
-	{
-		m_Cosmetics.SendOptions(pPlayer, ClientID, pServer, pGameContext);
-	}
-	bool HandleVote(CPlayer *pPlayer, const std::string &voteInput, int ClientId, CGameContext *pGameContext) override
-	{
-		return m_Cosmetics.HandleVote(pPlayer, voteInput, ClientId, pGameContext);
-	}
-
-private:
-	CosmeticsVoteManager m_Cosmetics;
-};
+#include <unordered_set>
 
 CVoteManager g_VoteManager;
 
-CVoteManager::CVoteManager()
+// string helpers for robust client selection matching
+static inline std::string Trim(const std::string &s)
 {
-	// register default modules: extras first so it appears above cosmetics
-	m_vModules.push_back(std::make_unique<CVoteExtras>());
-	m_vModules.push_back(std::make_unique<CVoteCosmetics>());
+	size_t b = 0, e = s.size();
+	while(b < e && std::isspace(static_cast<unsigned char>(s[b]))) ++b;
+	while(e > b && std::isspace(static_cast<unsigned char>(s[e-1]))) --e;
+	return s.substr(b, e - b);
 }
 
-void CVoteManager::RegisterModule(std::unique_ptr<IVoteModule> pModule)
+static inline std::string StripPrefix(const std::string &s, const std::string &prefix)
 {
-	m_vModules.push_back(std::move(pModule));
+	if(s.size() >= prefix.size() && std::equal(prefix.begin(), prefix.end(), s.begin()))
+		return s.substr(prefix.size());
+	return s;
 }
 
-void CVoteManager::EnsureInitialized()
+static inline std::string StripSuffix(const std::string &s, const std::string &suffix)
 {
-	if(m_Initialized)
+	if(s.size() >= suffix.size() && std::equal(suffix.begin(), suffix.end(), s.end() - suffix.size()))
+		return s.substr(0, s.size() - suffix.size());
+	return s;
+}
+
+static void AddWithAliases(std::vector<std::pair<std::string, CVoteManager::Action>> &Map,
+						   std::unordered_set<std::string> &Seen,
+						   const std::string &Label,
+						   const CVoteManager::Action &Act)
+{
+	auto add_once = [&](const std::string &k) {
+		if(k.empty()) return;
+		if(Seen.insert(k).second)
+			Map.emplace_back(k, Act);
+	};
+
+	add_once(Label);
+
+	// generic aliases: trim spaces
+	add_once(Trim(Label));
+
+	// remove leading checkbox icons
+	add_once(Trim(StripPrefix(Label, "☑ ")));
+	add_once(Trim(StripPrefix(Label, "☐ ")));
+
+	// navigation aliases: replace/removing arrows and cross
+	add_once(Trim(StripSuffix(Label, " ›")));
+	add_once(Trim(StripSuffix(Label, " >")));
+	add_once(Trim(StripPrefix(Label, "× "))); // e.g., "× Close" -> "Close"
+	add_once(Trim(StripPrefix(Label, "« "))); // e.g., "« Back" -> "Back"
+
+	// case-insensitive variants 
+	auto to_lower = [](std::string s) {
+		for(char &ch : s) ch = (char)std::tolower((unsigned char)ch);
+		return s;
+	};
+	// snapshot current aliases and add lowercased equivalents
+	std::vector<std::string> current;
+	current.reserve(8);
+	current.push_back(Label);
+	current.push_back(Trim(Label));
+	current.push_back(Trim(StripPrefix(Label, "☑ ")));
+	current.push_back(Trim(StripPrefix(Label, "☐ ")));
+	current.push_back(Trim(StripSuffix(Label, " ›")));
+	current.push_back(Trim(StripSuffix(Label, " >")));
+	current.push_back(Trim(StripPrefix(Label, "× ")));
+	current.push_back(Trim(StripPrefix(Label, "« ")));
+	for(const auto &s : current)
+		add_once(to_lower(s));
+}
+
+// helpers to format option lists
+static void SetVoteDescriptionAtIndex(int &Index, const char *pStr, CNetMsg_Sv_VoteOptionListAdd &Msg)
+{
+	switch(Index)
+	{
+	case 0: Msg.m_pDescription0 = pStr; break;
+	case 1: Msg.m_pDescription1 = pStr; break;
+	case 2: Msg.m_pDescription2 = pStr; break;
+	case 3: Msg.m_pDescription3 = pStr; break;
+	case 4: Msg.m_pDescription4 = pStr; break;
+	case 5: Msg.m_pDescription5 = pStr; break;
+	case 6: Msg.m_pDescription6 = pStr; break;
+	case 7: Msg.m_pDescription7 = pStr; break;
+	case 8: Msg.m_pDescription8 = pStr; break;
+	case 9: Msg.m_pDescription9 = pStr; break;
+	case 10: Msg.m_pDescription10 = pStr; break;
+	case 11: Msg.m_pDescription11 = pStr; break;
+	case 12: Msg.m_pDescription12 = pStr; break;
+	case 13: Msg.m_pDescription13 = pStr; break;
+	case 14: Msg.m_pDescription14 = pStr; break;
+	default: return;
+	}
+	++Index;
+}
+
+static void CreateStripline(char *pDst, int DstSize, const char *pTitle)
+{
+	if(!pDst || DstSize <= 0)
 		return;
-	for(auto &m : m_vModules)
-		m->EnsureInitialized();
-	m_Initialized = true;
+	int TitleLen = str_length(pTitle ? pTitle : "");
+	int StripSideLen = fmin(15, (DstSize / 2) - TitleLen - 3);
+	mem_zero(pDst, DstSize);
+	for(int i = 0; i < StripSideLen; i++)
+		str_append(pDst, "#", DstSize);
+	str_append(pDst, " ", DstSize);
+	str_append(pDst, pTitle ? pTitle : "", DstSize);
+	str_append(pDst, " ", DstSize);
+	for(int i = 0; i < StripSideLen; i++)
+		str_append(pDst, "#", DstSize);
+}
+
+void CVoteManager::ClearClient(int ClientId)
+{
+	m_MapByClient.erase(ClientId);
+	m_PageStack.erase(ClientId);
 }
 
 void CVoteManager::SendOptions(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext)
 {
-	EnsureInitialized();
-	for(auto &m : m_vModules)
-		m->SendOptions(pPlayer, ClientID, pServer, pGameContext);
+	// Do NOT reset the stack on menu open preserve last page
+	// if this is the first time for this client, put him to root page
+	if(m_PageStack.find(ClientID) == m_PageStack.end() || m_PageStack[ClientID].empty())
+	{
+		m_PageStack[ClientID].clear();
+		PushPage(ClientID, Page::ROOT);
+	}
+	RenderCurrentPage(pPlayer, ClientID, pServer, pGameContext);
 }
 
-bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &voteInput, int ClientId, CGameContext *pGameContext)
+bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, int ClientId, CGameContext *pGameContext)
 {
-	EnsureInitialized();
-	for(auto &m : m_vModules)
+	auto it = m_MapByClient.find(ClientId);
+	if(it == m_MapByClient.end())
+		return false; // not one of ours, let server handle
+
+	// exact match only so no coll with real server votes
+	const auto &Entries = it->second;
+	for(const auto &E : Entries)
 	{
-		if(m->HandleVote(pPlayer, voteInput, ClientId, pGameContext))
-			return true;
+		if(E.first == VoteInput)
+		{
+			const Action &A = E.second;
+
+			switch(A.Kind)
+			{
+			case EActionKind::Back:
+				if(PopPage(ClientId))
+				{
+					pGameContext->ClearVotes(ClientId);
+					RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
+					return true;
+				}
+				return true;
+			case EActionKind::Close:
+				pGameContext->ClearVotes(ClientId);
+				return true;
+			case EActionKind::OpenExtras:
+				PushPage(ClientId, Page::EXTRAS);
+				pGameContext->ClearVotes(ClientId);
+				RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
+				return true;
+			case EActionKind::OpenCosmetics:
+				PushPage(ClientId, Page::COSMETICS_ROOT);
+				pGameContext->ClearVotes(ClientId);
+				RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
+				return true;
+			case EActionKind::OpenCosmeticsCategory:
+				PushPage(ClientId, Page::COSMETICS_CATEGORY, A.A);
+				pGameContext->ClearVotes(ClientId);
+				RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
+				return true;
+			case EActionKind::TogglePassive:
+				if(pPlayer)
+				{
+					pPlayer->TogglePassive();
+					pGameContext->SendChatTarget(ClientId, pPlayer->IsUsingPassiveProtection() ? "Passive protection enabled." : "Passive protection disabled.");
+					pGameContext->ClearVotes(ClientId);
+					RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
+				}
+				return true;
+			case EActionKind::ToggleCosmeticItem:
+				if(pGameContext)
+				{
+					// A=A(category), B=item
+					const int Cat = A.A;
+					const int Item = A.B;
+					bool Changed = false;
+					if(Cat == 0) // Skin Manipulations
+						Changed = pGameContext->Cosmetics()->ToggleSkinmani(ClientId, CCosmeticsHandler::ms_SkinmaniNames[Item]);
+					else if(Cat == 1) // Gun Designs
+						Changed = pGameContext->Cosmetics()->ToggleGundesign(ClientId, CCosmeticsHandler::ms_GundesignNames[Item]);
+					else if(Cat == 2) // Knockout Effects
+						Changed = pGameContext->Cosmetics()->ToggleKnockout(ClientId, CCosmeticsHandler::ms_KnockoutNames[Item]);
+					else if(Cat == 3) // VIP Specials
+					{
+						// VIP specials indices: 0..3 mapped directly
+						static const char *s_VipNames[] = {"Ball", "Crown", "Epic Circle", "Halo"};
+						Changed = pGameContext->Cosmetics()->ToggleSpecial(ClientId, s_VipNames[Item]);
+					}
+					if(Changed)
+					{
+						pGameContext->ClearVotes(ClientId);
+						RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
+					}
+				}
+				return true;
+			case EActionKind::None:
+			default:
+				return true;
+			}
+		}
 	}
+
+	// let core handle real server votes
 	return false;
+}
+
+// ------- Internal helpers -------
+
+void CVoteManager::RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext)
+{
+	std::vector<std::string> Labels;
+	std::vector<Action> Actions;
+	Labels.reserve(64);
+	Actions.reserve(64);
+
+	const auto &Stack = GetStack(ClientID);
+	Page Current = Stack.empty() ? Page{} : Stack.back();
+
+	switch(Current.PageType)
+	{
+	case Page::ROOT: BuildRoot(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
+	case Page::EXTRAS: BuildExtras(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
+	case Page::COSMETICS_ROOT: BuildCosmeticsRoot(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
+	case Page::COSMETICS_CATEGORY: BuildCosmeticsCategory(pPlayer, ClientID, pServer, pGameContext, Current.Data, Labels, Actions); break;
+	}
+
+	// add nav ctrls
+	if(Current.PageType != Page::ROOT)
+	{
+		Labels.insert(Labels.begin(), "« Back");
+		Actions.insert(Actions.begin(), Action{EActionKind::Back, -1, -1});
+	}
+	Labels.push_back("× Close");
+	Actions.push_back(Action{EActionKind::Close, -1, -1});
+
+	// store mapping with a few safe aliases to handle client-side string differences
+	std::vector<std::pair<std::string, Action>> Map;
+	Map.reserve(Labels.size() * 3);
+	std::unordered_set<std::string> Seen;
+	for(size_t i = 0; i < Labels.size(); ++i)
+		AddWithAliases(Map, Seen, Labels[i], Actions[i]);
+	m_MapByClient[ClientID] = std::move(Map);
+
+	// send to client in chunks of 15
+	int Sent = 0;
+	const int Total = (int)Labels.size();
+	while(Sent < Total)
+	{
+		int idx = 0;
+		CNetMsg_Sv_VoteOptionListAdd Msg{};
+		Msg.m_pDescription0 = ""; Msg.m_pDescription1 = ""; Msg.m_pDescription2 = ""; Msg.m_pDescription3 = "";
+		Msg.m_pDescription4 = ""; Msg.m_pDescription5 = ""; Msg.m_pDescription6 = ""; Msg.m_pDescription7 = "";
+		Msg.m_pDescription8 = ""; Msg.m_pDescription9 = ""; Msg.m_pDescription10 = ""; Msg.m_pDescription11 = "";
+		Msg.m_pDescription12 = ""; Msg.m_pDescription13 = ""; Msg.m_pDescription14 = "";
+		while(idx < 15 && Sent < Total)
+		{
+			SetVoteDescriptionAtIndex(idx, Labels[Sent].c_str(), Msg);
+			++Sent;
+		}
+		Msg.m_NumOptions = idx;
+		pServer->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
+	}
+}
+
+void CVoteManager::BuildRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions)
+{
+	char aHeader[128];
+	CreateStripline(aHeader, sizeof(aHeader), "Blockworlds Menu");
+	OutLabels.emplace_back(aHeader); OutActions.emplace_back(Action{EActionKind::None});
+
+	// extras page (if eligible)
+	bool extrasEligible = pPlayer && ((pPlayer->m_LocalPassiveDuration > 0) || (pPlayer->IsLoggedIn() && pPlayer->GetPlayerPassive() > 0));
+	if(extrasEligible)
+	{
+		OutLabels.emplace_back("Extras ›");
+		OutActions.emplace_back(Action{EActionKind::OpenExtras});
+	}
+
+	// cosmetics always shown; inside we filter owned
+	OutLabels.emplace_back("Cosmetics ›");
+	OutActions.emplace_back(Action{EActionKind::OpenCosmetics});
+}
+
+void CVoteManager::BuildExtras(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions)
+{
+	char aHeader[128];
+	CreateStripline(aHeader, sizeof(aHeader), "Extras");
+	OutLabels.emplace_back(aHeader); OutActions.emplace_back(Action{EActionKind::None});
+
+	if(!pPlayer)
+		return;
+
+	bool extrasEligible = (pPlayer->m_LocalPassiveDuration > 0) || (pPlayer->IsLoggedIn() && pPlayer->GetPlayerPassive() > 0);
+	if(!extrasEligible)
+	{
+		OutLabels.emplace_back("No extras available.");
+		OutActions.emplace_back(Action{EActionKind::None});
+		return;
+	}
+
+	std::string PassiveLine = std::string(pPlayer->IsUsingPassiveProtection() ? "☑ " : "☐ ") + "Passive Protection";
+	OutLabels.emplace_back(PassiveLine);
+	OutActions.emplace_back(Action{EActionKind::TogglePassive});
+}
+
+void CVoteManager::BuildCosmeticsRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions)
+{
+	char aHeader[128];
+	CreateStripline(aHeader, sizeof(aHeader), "Cosmetics");
+	OutLabels.emplace_back(aHeader); OutActions.emplace_back(Action{EActionKind::None});
+
+	// categories ==
+	// 0=Skin Manipulations, 1=Gun Designs, 2=Knockout Effects, 3=VIP Items
+	struct Cat { const char *Name; int Index; } Cats[] = {
+		{"Skin Manipulations", 0}, {"Gun Designs", 1}, {"Knockout Effects", 2}, {"VIP Items", 3}};
+
+	for(const auto &C : Cats)
+	{
+		OutLabels.emplace_back(std::string(C.Name) + " ›");
+		OutActions.emplace_back(Action{EActionKind::OpenCosmeticsCategory, C.Index});
+	}
+}
+
+void CVoteManager::BuildCosmeticsCategory(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int CategoryIndex, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions)
+{
+	if(!pPlayer || !pGameContext)
+		return;
+
+	const char *pTitle = "";
+	const char **ppNames = nullptr;
+	int Count = 0;
+
+	if(CategoryIndex == 0)
+	{
+		pTitle = "Skin Manipulations";
+		ppNames = CCosmeticsHandler::ms_SkinmaniNames;
+		Count = CCosmeticsHandler::NUM_SKINMANIS;
+	}
+	else if(CategoryIndex == 1)
+	{
+		pTitle = "Gun Designs";
+		ppNames = CCosmeticsHandler::ms_GundesignNames;
+		Count = CCosmeticsHandler::NUM_GUNDESIGNS;
+	}
+	else if(CategoryIndex == 2)
+	{
+		pTitle = "Knockout Effects";
+		ppNames = CCosmeticsHandler::ms_KnockoutNames;
+		Count = CCosmeticsHandler::NUM_KNOCKOUTS;
+	}
+	else if(CategoryIndex == 3)
+	{
+		pTitle = "VIP Items";
+		static const char *s_Vip[] = {"Ball", "Crown", "Epic Circle", "Halo"};
+		ppNames = s_Vip;
+		Count = 4;
+	}
+
+	char aHeader[128];
+	CreateStripline(aHeader, sizeof(aHeader), pTitle);
+	OutLabels.emplace_back(aHeader); OutActions.emplace_back(Action{EActionKind::None});
+
+	// collect owned items and render with selection checkbox
+	int Active = -1;
+	if(CategoryIndex == 0) Active = pPlayer->GetSkinMani();
+	else if(CategoryIndex == 1) Active = pPlayer->GetGunDesign();
+	else if(CategoryIndex == 2) Active = pPlayer->GetKnockout();
+	else if(CategoryIndex == 3) Active = pPlayer->GetCurrentSpecial();
+
+	std::unordered_set<int> Owned;
+	for(int i = 0; i < Count; ++i)
+	{
+		bool Has = false;
+		if(CategoryIndex == 0) Has = pGameContext->Cosmetics()->HasSkinmani(pPlayer->GetCid(), i);
+		else if(CategoryIndex == 1) Has = pGameContext->Cosmetics()->HasGundesign(pPlayer->GetCid(), i);
+		else if(CategoryIndex == 2) Has = pGameContext->Cosmetics()->HasKnockoutEffect(pPlayer->GetCid(), i);
+		else if(CategoryIndex == 3) Has = pGameContext->Cosmetics()->HasSpecial(pPlayer->GetCid(), i);
+		if(Has) Owned.insert(i);
+	}
+
+	if(Owned.empty())
+	{
+		OutLabels.emplace_back("No owned items in this category.");
+		OutActions.emplace_back(Action{EActionKind::None});
+		return;
+	}
+
+	for(int i = 0; i < Count; ++i)
+	{
+		if(!Owned.count(i))
+			continue;
+		const bool IsActive = (Active == i);
+		std::string Line = std::string(IsActive ? "☑ " : "☐ ") + (ppNames && ppNames[i] ? ppNames[i] : "");
+		OutLabels.emplace_back(Line);
+		OutActions.emplace_back(Action{EActionKind::ToggleCosmeticItem, CategoryIndex, i});
+	}
+}
+
+void CVoteManager::PushPage(int ClientID, Page::Type T, int Data)
+{
+	m_PageStack[ClientID].push_back(Page{T, Data});
+}
+
+bool CVoteManager::PopPage(int ClientID)
+{
+	auto it = m_PageStack.find(ClientID);
+	if(it == m_PageStack.end() || it->second.empty())
+		return false;
+	it->second.pop_back();
+	if(it->second.empty())
+		it->second.push_back(Page{Page::ROOT, -1});
+	return true;
+}
+
+const std::vector<CVoteManager::Page> &CVoteManager::GetStack(int ClientID)
+{
+	return m_PageStack[ClientID];
+}
+
+bool CVoteManager::IsAtRoot(int ClientId)
+{
+	auto it = m_PageStack.find(ClientId);
+	if(it == m_PageStack.end() || it->second.empty())
+		return true;
+	return it->second.back().PageType == Page::ROOT;
 }
