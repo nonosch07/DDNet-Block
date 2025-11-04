@@ -281,7 +281,7 @@ public:
 	bool m_WeaponkitsAllowed;
 
 	int64_t m_LastGlobalWeaponkitsVoteCall = 0;
-	int64_t m_LastGlobalLMBVoteCall = 0;
+	int64_t m_LastGlobalEventVoteCall = 0;
 
 	// helper functions
 	void CreateDamageInd(vec2 Pos, float AngleMod, int Amount, CClientMask Mask = CClientMask().set());

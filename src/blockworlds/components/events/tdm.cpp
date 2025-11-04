@@ -570,7 +570,14 @@ void CTeamDeathmatchEvent::ResetStats()
 
 void CTeamDeathmatchEvent::AnnounceResults()
 {
-	struct Ranked { int ClientId; int K; int D; float KD; int Side; };
+	struct Ranked
+	{
+		int ClientId;
+		int K;
+		int D;
+		float KD;
+		int Side;
+	};
 	std::vector<Ranked> blue, red;
 	blue.reserve(m_Participants.size());
 	red.reserve(m_Participants.size());
@@ -578,16 +585,24 @@ void CTeamDeathmatchEvent::AnnounceResults()
 	{
 		const auto it = m_PlayerStats.find(pid);
 		int k = 0, d = 0;
-		if(it != m_PlayerStats.end()) { k = it->second.Kills; d = it->second.Deaths; }
+		if(it != m_PlayerStats.end())
+		{
+			k = it->second.Kills;
+			d = it->second.Deaths;
+		}
 		float kd = d > 0 ? (float)k / (float)d : (k > 0 ? (float)k : 0.0f);
 		int side = GetSideOf(pid);
 		Ranked r{pid, k, d, kd, side};
-		if(side == 0) blue.push_back(r);
-		else if(side == 1) red.push_back(r);
+		if(side == 0)
+			blue.push_back(r);
+		else if(side == 1)
+			red.push_back(r);
 	}
 	auto cmp = [](const Ranked &a, const Ranked &b) {
-		if(a.K != b.K) return a.K > b.K; // more kills first
-		if(a.KD != b.KD) return a.KD > b.KD; // better KD
+		if(a.K != b.K)
+			return a.K > b.K; // more kills first
+		if(a.KD != b.KD)
+			return a.KD > b.KD; // better KD
 		return a.ClientId < b.ClientId; // stable
 	};
 	std::sort(blue.begin(), blue.end(), cmp);

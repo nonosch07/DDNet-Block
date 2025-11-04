@@ -144,7 +144,7 @@ void CGameContext::Construct(int Resetting)
 		m_WeaponkitsAllowed = g_Config.m_SvWeaponkitsAllowed;
 
 		m_LastGlobalWeaponkitsVoteCall = 0;
-		m_LastGlobalLMBVoteCall = 0;
+		m_LastGlobalEventVoteCall = 0;
 
 		// default: LMB enabled (persisted via config)
 		// LMB enable/disable toggle removed; votes will only start events via "events_start lmb"
@@ -657,23 +657,23 @@ void CGameContext::CallVote(int ClientId, const char *pDesc, const char *pCmd, c
 			m_LastGlobalWeaponkitsVoteCall = Now;
 		}
 
-		if(pCmd && str_find(pCmd, "events_start lmb") != nullptr)
+		if(pCmd && (str_find(pCmd, "events_start lmb") != nullptr || str_find(pCmd, "events_start tdm") != nullptr))
 		{
-			int64_t Cooldown = Server()->TickSpeed() * 60 * g_Config.m_SvLmbVoteCoolDown; // global cooldown
-			if(m_LastGlobalLMBVoteCall && Now < m_LastGlobalLMBVoteCall + Cooldown)
+			int64_t Cooldown = Server()->TickSpeed() * 60 * g_Config.m_SvEventVoteCoolDown; // shared global cooldown for events
+			if(m_LastGlobalEventVoteCall && Now < m_LastGlobalEventVoteCall + Cooldown)
 			{
-				int64_t Remaining = (m_LastGlobalLMBVoteCall + Cooldown - Now + Server()->TickSpeed() - 1) / Server()->TickSpeed();
-				char aBuf[128];
+				int64_t Remaining = (m_LastGlobalEventVoteCall + Cooldown - Now + Server()->TickSpeed() - 1) / Server()->TickSpeed();
+				char aBuf[160];
 				int Minutes = (int)(Remaining / 60);
 				int Seconds = (int)(Remaining % 60);
 				if(Minutes > 0)
-					str_format(aBuf, sizeof(aBuf), "You must wait %d minute(s) %d second(s) before calling the LMB start vote again.", Minutes, Seconds);
+					str_format(aBuf, sizeof(aBuf), "You must wait %d minute(s) %d second(s) before calling an event start vote again.", Minutes, Seconds);
 				else
-					str_format(aBuf, sizeof(aBuf), "You must wait %d second(s) before calling the LMB start vote again.", Seconds);
+					str_format(aBuf, sizeof(aBuf), "You must wait %d second(s) before calling an event start vote again.", Seconds);
 				SendChatTarget(ClientId, aBuf);
 				return;
 			}
-			m_LastGlobalLMBVoteCall = Now;
+			m_LastGlobalEventVoteCall = Now;
 		}
 	}
 

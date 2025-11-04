@@ -34,7 +34,7 @@ public:
 		OpenCosmetics,
 		TogglePassive,
 		OpenCosmeticsCategory, // data = category index
-		ToggleCosmeticItem,    // data = (category index, item index)
+		ToggleCosmeticItem, // data = (category index, item index)
 	};
 
 	struct Action
@@ -59,7 +59,6 @@ public:
 	bool IsAtRoot(int ClientId);
 
 private:
-
 	// exact option text => action mapping for last sent menu for that client
 	std::unordered_map<int, std::vector<std::pair<std::string, Action>>> m_MapByClient;
 

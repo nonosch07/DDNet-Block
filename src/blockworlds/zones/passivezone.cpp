@@ -76,7 +76,9 @@ void CPassiveZone::HandleProtection(int ClientID, CPlayer *pPlayer, CCharacter *
 	const int GraceTicks = 3 * TickSpeed;
 	const int MaxFreezeInsideTicks = 4 * TickSpeed;
 
-	bool Eligible = (pPlayer->m_LocalPassiveDuration > 0) || (pPlayer->IsLoggedIn() && pPlayer->GetPlayerPassive() > 0 && pPlayer->IsUsingPassiveProtection());
+	bool HasLocal = (pPlayer->m_LocalPassiveDuration > 0);
+	bool HasAccount = (pPlayer->IsLoggedIn() && pPlayer->GetPlayerPassive() > 0);
+	bool Eligible = (HasLocal || HasAccount) && pPlayer->IsUsingPassiveProtection();
 
 	// if you're not eligible, clear protection
 	if(!Eligible)
@@ -116,7 +118,8 @@ void CPassiveZone::HandleProtection(int ClientID, CPlayer *pPlayer, CCharacter *
 
 		// only give protection once per life, but only if passive is enabled before entering
 		static bool s_PassiveEnabledOnEntry[MAX_CLIENTS] = {false};
-		bool passiveAllowed = (pPlayer->IsLoggedIn() && pPlayer->GetPlayerPassive() > 0 && pPlayer->IsUsingPassiveProtection()) || (!pPlayer->IsLoggedIn() && pPlayer->m_LocalPassiveDuration > 0);
+		// Only allow enabling if the user has opted in via IsUsingPassiveProtection.
+		bool passiveAllowed = (pPlayer->IsLoggedIn() && pPlayer->GetPlayerPassive() > 0 && pPlayer->IsUsingPassiveProtection()) || (!pPlayer->IsLoggedIn() && pPlayer->m_LocalPassiveDuration > 0 && pPlayer->IsUsingPassiveProtection());
 		if(WasInZone != InZone) // zone entry event
 			s_PassiveEnabledOnEntry[ClientID] = passiveAllowed;
 		if(!m_ProtectionUsed[ClientID] && s_PassiveEnabledOnEntry[ClientID])
