@@ -2100,6 +2100,9 @@ void CGameContext::OnClientDrop(int ClientId, const char *pReason)
 {
 	LogEvent("Disconnect", ClientId);
 
+	// Clear bw votemenu
+	g_VoteManager.ClearClient(ClientId);
+
 	if(m_pWhoIs)
 		m_pWhoIs->LogLeave(ClientId);
 

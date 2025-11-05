@@ -44,6 +44,8 @@
 
 // for PreShutdownFlush dynamic_cast to CGameContext
 #include <game/server/gamecontext.h>
+#include <game/server/player.h>
+#include <blockworlds/clans.h>
 
 // DDRace
 #include <engine/shared/linereader.h>
@@ -2172,27 +2174,36 @@ void CServer::CacheServerInfo(CCache *pCache, int Type, bool SendClients)
 			int PreviousSize = q.Size();
 
 			q.AddString(ClientName(i), MAX_NAME_LENGTH); // client name
-			q.AddString(ClientClan(i), MAX_CLAN_LENGTH); // client clan
+
+			// use bw clan if logged in, else none
+			{
+				const char *pClanOut = "";
+				if(auto pCtx = dynamic_cast<CGameContext *>(GameServer()))
+				{
+					CPlayer *pPl = pCtx->m_apPlayers[i];
+					if(pPl && pPl->IsLoggedIn() && pPl->GetClanId() > 0)
+					{
+						CClansData tmp{};
+						if(pCtx->Clans() && pCtx->Clans()->GetClanSnapshotById(pPl->GetClanId(), tmp))
+							pClanOut = tmp.m_ClanName;
+					}
+				}
+				q.AddString(pClanOut, MAX_CLAN_LENGTH); // client clan
+			}
 
 			ADD_INT(q, m_aClients[i].m_Country); // client country
 
-			int Score;
-			if(m_aClients[i].m_Score.has_value())
+			// bw account level as score, 0 if not logged in
 			{
-				Score = m_aClients[i].m_Score.value();
-				if(Score == 9999)
-					Score = -10000;
-				else if(Score == 0) // 0 time isn't displayed otherwise.
-					Score = -1;
-				else
-					Score = -Score;
+				int BWScore = 0;
+				if(auto pCtx = dynamic_cast<CGameContext *>(GameServer()))
+				{
+					CPlayer *pPl = pCtx->m_apPlayers[i];
+					if(pPl && pPl->IsLoggedIn())
+						BWScore = pPl->GetPlayerLevel();
+				}
+				ADD_INT(q, BWScore);
 			}
-			else
-			{
-				Score = -9999;
-			}
-
-			ADD_INT(q, Score); // client score
 			ADD_INT(q, GameServer()->IsClientPlayer(i) ? 1 : 0); // is player?
 			if(Type == SERVERINFO_EXTENDED)
 				q.AddString("", 0); // extra info, reserved
