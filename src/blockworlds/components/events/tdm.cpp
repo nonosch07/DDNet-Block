@@ -144,8 +144,41 @@ std::optional<vec2> CTeamDeathmatchEvent::ChooseSpawnFor(int ClientId)
 {
 	if(!m_EventStartPositions.empty())
 	{
-		std::uniform_int_distribution<int> dist(0, (int)m_EventStartPositions.size() - 1);
-		return m_EventStartPositions[(size_t)dist(m_Rng)];
+		auto it = m_AssignedSpawnIndex.find(ClientId);
+		if(it != m_AssignedSpawnIndex.end())
+		{
+			int idx = it->second;
+			m_AssignedSpawnIndex.erase(it); // consume reservation so later respawns use least-crowded logic
+			if(idx >= 0 && idx < (int)m_EventStartPositions.size())
+				return m_EventStartPositions[(size_t)idx];
+		}
+
+		// choose the least-crowded start position
+		int bestIdx = -1;
+		int bestCount = 0x7fffffff;
+		const float R = 100.0f;
+		for(int i = 0; i < (int)m_EventStartPositions.size(); ++i)
+		{
+			vec2 pos = m_EventStartPositions[(size_t)i];
+			int nearby = 0;
+			for(int pid : m_Participants)
+			{
+				if(pid == ClientId)
+					continue;
+				auto *pChr = GameServer()->GetPlayerChar(pid);
+				if(!pChr || !pChr->IsAlive())
+					continue;
+				if(distance(pChr->m_Pos, pos) <= R)
+					nearby++;
+			}
+			if(nearby < bestCount)
+			{
+				bestCount = nearby;
+				bestIdx = i;
+			}
+		}
+		if(bestIdx >= 0)
+			return m_EventStartPositions[(size_t)bestIdx];
 	}
 	// no TILE_BW_EVENT_TDM_START_POS provided: do not teleport (fallback is saved position)
 	(void)ClientId;
@@ -215,19 +248,43 @@ void CTeamDeathmatchEvent::TrackFreezeAndAutokill()
 		if(!isFrozen && since != 0)
 			SetFrozenSince(ClientId, 0);
 
-		// kill if frozen too long
-		since = GetFrozenSince(ClientId);
-		if(isFrozen && since != 0 && Server()->Tick() - since >= RequiredFreezeTicks)
+		if(isFrozen)
 		{
-			// autokill due to long freeze should not emit a kill message
-			pChar->Die(-1, WEAPON_WORLD, false);
-			SetFrozenSince(ClientId, 0);
-			GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, m_DDRaceTeam);
-			if(CheckEndCondition())
+			int &lastVal = m_LastFreezeTimeValue[ClientId];
+			if(lastVal == 0)
+				lastVal = pChar->m_FreezeTime; // initialize
+
+			if(pChar->m_FreezeTime < lastVal)
 			{
-				FinishEvent();
-				return;
+				// countdown progressed -> not perma-frozen; restart delay
+				m_PermanentFreezeSince.erase(ClientId);
 			}
+			else // equal or increased: not decreasing
+			{
+				int &st = m_PermanentFreezeSince[ClientId];
+				if(st == 0)
+					st = Server()->Tick();
+				if(Server()->Tick() - st >= RequiredFreezeTicks)
+				{
+					// autokill due to permanent freeze should not emit a kill message
+					pChar->Die(-1, WEAPON_WORLD, false);
+					SetFrozenSince(ClientId, 0);
+					m_PermanentFreezeSince.erase(ClientId);
+					GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, m_DDRaceTeam);
+					if(CheckEndCondition())
+					{
+						FinishEvent();
+						return;
+					}
+				}
+			}
+			lastVal = pChar->m_FreezeTime;
+		}
+		else
+		{
+			// not frozen -> clear trackers
+			m_LastFreezeTimeValue.erase(ClientId);
+			m_PermanentFreezeSince.erase(ClientId);
 		}
 	}
 }
@@ -259,6 +316,15 @@ void CTeamDeathmatchEvent::ResetTransientState()
 	m_ClientTeam.clear();
 	m_PrevSoloState.clear();
 	m_FrozenSince.clear();
+	m_RespawnAtTick.clear();
+	m_LastRespawnSeconds.clear();
+	m_AssignedSpawnIndex.clear();
+	m_SetSpecAtTick.clear();
+	m_LastDeathHandledTick.clear();
+	m_LastImpactByVictim.clear();
+	m_LastImpactTick.clear();
+	m_LastFreezeTimeValue.clear();
+	m_PermanentFreezeSince.clear();
 	m_ScoreTeam[0] = m_ScoreTeam[1] = 0;
 	ResetStats();
 }
@@ -278,6 +344,102 @@ int CTeamDeathmatchEvent::GetFrozenSince(int ClientId) const
 {
 	auto it = m_FrozenSince.find(ClientId);
 	return it == m_FrozenSince.end() ? 0 : it->second;
+}
+
+void CTeamDeathmatchEvent::UpdateRespawns()
+{
+	if(m_RespawnAtTick.empty())
+		return;
+
+	std::vector<int> ready;
+	ready.reserve(m_RespawnAtTick.size());
+	for(const auto &kv : m_RespawnAtTick)
+	{
+		int cid = kv.first;
+		int when = kv.second;
+		int ticksLeft = when - Server()->Tick();
+		int secsLeft = ticksLeft > 0 ? (ticksLeft + Server()->TickSpeed() - 1) / Server()->TickSpeed() : 0; // ceil
+		int &lastShown = m_LastRespawnSeconds[cid];
+		if(secsLeft != lastShown)
+		{
+			lastShown = secsLeft;
+			if(secsLeft > 0)
+				GameServer()->SendBroadcast(cid, "You will respawn in %d sec\n%s", secsLeft, PADDING);
+		}
+		if(Server()->Tick() >= when)
+			ready.push_back(cid);
+	}
+
+	for(int cid : ready)
+	{
+		m_RespawnAtTick.erase(cid);
+		m_LastRespawnSeconds.erase(cid);
+		// respawn the player at a chosen spawn position
+		if(IsParticipant(cid))
+		{
+			if(CPlayer *p = GameServer()->GetPlayer(cid))
+			{
+				// reinforce event team and force-spawn at chosen spot if available
+				GameServer()->m_pController->Teams().SetForceCharacterTeam(cid, m_DDRaceTeam);
+				if(auto pos = ChooseSpawnFor(cid))
+				{
+					m_SkipTeleportOnSpawn[cid] = true; // avoid duplicate teleportation in OnCharacterSpawn
+					p->ForceSpawn(*pos, false);
+				}
+				else
+				{
+					m_SkipTeleportOnSpawn[cid] = true; // still skip freeze path in OnCharacterSpawn
+					p->Respawn(false);
+				}
+				GameServer()->SendBroadcast(" ", cid, false); // clear countdown
+			}
+		}
+	}
+}
+
+void CTeamDeathmatchEvent::UpdateSetSpectators()
+{
+	if(m_SetSpecAtTick.empty())
+		return;
+	std::vector<int> done;
+	done.reserve(m_SetSpecAtTick.size());
+	for(const auto &kv : m_SetSpecAtTick)
+	{
+		int cid = kv.first;
+		int when = kv.second;
+		if(Server()->Tick() < when)
+			continue;
+		CPlayer *p = GameServer()->GetPlayer(cid);
+		if(!p)
+		{
+			done.push_back(cid);
+			continue;
+		}
+		if(!p->GetCharacter())
+		{
+			p->SetTeam(TEAM_SPECTATORS, false);
+			done.push_back(cid);
+		}
+	}
+	for(int cid : done)
+		m_SetSpecAtTick.erase(cid);
+}
+
+void CTeamDeathmatchEvent::AssignUniqueStartSpawns()
+{
+	m_AssignedSpawnIndex.clear();
+	if(m_EventStartPositions.empty())
+		return;
+
+	// Greedy: assign each participant a unique spawn if enough positions exist
+	std::vector<int> indices(m_EventStartPositions.size());
+	for(size_t i = 0; i < indices.size(); ++i)
+		indices[i] = (int)i;
+	std::shuffle(indices.begin(), indices.end(), m_Rng);
+
+	const int uniqueCount = std::min((int)m_Participants.size(), (int)indices.size());
+	for(int i = 0; i < uniqueCount; ++i)
+		m_AssignedSpawnIndex[m_Participants[(size_t)i]] = indices[(size_t)i];
 }
 
 std::optional<int> CTeamDeathmatchEvent::GetTeamIndexFor(int ClientId) const
@@ -334,6 +496,12 @@ void CTeamDeathmatchEvent::OnTick()
 		if(m_ActiveStartTick != -1 && Server()->Tick() > m_ActiveStartTick + Config()->m_SvTDMFreezeTime * Server()->TickSpeed())
 			TrackFreezeAndAutokill();
 
+		// move freshly killed participants to spectators (deferred)
+		UpdateSetSpectators();
+
+		// handle spectate-on-death respawn countdowns and spawns
+		UpdateRespawns();
+
 		if(CheckEndCondition())
 			FinishEvent();
 	}
@@ -362,6 +530,12 @@ void CTeamDeathmatchEvent::OnCharacterSpawn(int ClientId, vec2 /*SpawnPos*/)
 		return;
 
 	GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, m_DDRaceTeam);
+
+	if(auto it = m_SkipTeleportOnSpawn.find(ClientId); it != m_SkipTeleportOnSpawn.end() && it->second)
+	{
+		m_SkipTeleportOnSpawn.erase(it);
+		return;
+	}
 	TeleportToSpawn(ClientId);
 
 	if(auto *pChar = GameServer()->GetPlayerChar(ClientId))
@@ -443,6 +617,7 @@ void CTeamDeathmatchEvent::StartEvent()
 
 	AssignTeamsShuffled();
 	SaveAndPrepareParticipants();
+	AssignUniqueStartSpawns();
 
 	m_ActiveStartTick = Server()->Tick();
 	m_ActiveEndTick = Server()->Tick() + Config()->m_SvTDMActiveTime * Server()->TickSpeed();
@@ -470,46 +645,58 @@ void CTeamDeathmatchEvent::OnCharacterDeath(int KillerId, int ClientId, int /*We
 	if(GetState() != CEventComponent::EEventState::Active)
 		return;
 
+	// prevent duplicate processing in the same tick for the same victim
+	{
+		int now = Server()->Tick();
+		int &last = m_LastDeathHandledTick[ClientId];
+		if(last == now)
+			return;
+		last = now;
+	}
+
 	// update temporary player stats (does not affect account K/D)
 	const bool victimIsParticipant = IsParticipant(ClientId);
 	if(victimIsParticipant)
 		m_PlayerStats[ClientId].Deaths++;
 
 	int vSide = GetSideOf(ClientId);
+	bool killCredited = false;
 	if(vSide != -1)
 	{
-		int effectiveKiller = -1;
+		// primary: credit the actual killer if it's a valid opposing participant
 		if(KillerId >= 0 && KillerId != ClientId && IsParticipant(KillerId))
 		{
 			int kSide = GetSideOf(KillerId);
 			if(kSide != -1 && kSide != vSide)
-				effectiveKiller = KillerId;
+			{
+				m_PlayerStats[KillerId].Kills++;
+				killCredited = true;
+			}
 		}
 
-		if(effectiveKiller == -1)
+		if(!killCredited)
 		{
-			// pick opponent with the fewest kills so far to distribute points fairly
-			int oppSide = Opposite(vSide);
-			int bestCid = -1;
-			int bestKills = 0x7fffffff;
-			for(int pid : m_Participants)
+			auto itA = m_LastImpactByVictim.find(ClientId);
+			auto itT = m_LastImpactTick.find(ClientId);
+			if(itA != m_LastImpactByVictim.end() && itT != m_LastImpactTick.end())
 			{
-				if(GetSideOf(pid) != oppSide)
-					continue;
-				int k = 0;
-				if(auto it = m_PlayerStats.find(pid); it != m_PlayerStats.end())
-					k = it->second.Kills;
-				if(k < bestKills)
+				const int attacker = itA->second;
+				const int impactTick = itT->second;
+				const int windowTicks = 10 * Server()->TickSpeed(); // 10s window for last-impact attribution
+				if(attacker >= 0 && attacker != ClientId && Server()->Tick() - impactTick <= windowTicks)
 				{
-					bestKills = k;
-					bestCid = pid;
+					if(IsParticipant(attacker))
+					{
+						int aSide = GetSideOf(attacker);
+						if(aSide != -1 && aSide != vSide)
+						{
+							m_PlayerStats[attacker].Kills++;
+							killCredited = true;
+						}
+					}
 				}
 			}
-			effectiveKiller = bestCid;
 		}
-
-		if(effectiveKiller != -1)
-			m_PlayerStats[effectiveKiller].Kills++;
 	}
 
 	auto itV = m_ClientTeam.find(ClientId);
@@ -529,8 +716,50 @@ void CTeamDeathmatchEvent::OnCharacterDeath(int KillerId, int ClientId, int /*We
 	UpdatePerPlayerScores();
 	if(CheckEndCondition())
 		FinishEvent();
+
+	// schedule spectate-on-death respawn after 3 seconds for participants
+	if(IsParticipant(ClientId))
+	{
+		m_RespawnAtTick[ClientId] = Server()->Tick() + 3 * Server()->TickSpeed();
+		m_LastRespawnSeconds[ClientId] = -1; // force immediate broadcast update
+		// defer switching to spectators by a tick to avoid re-entrant Die loops
+		m_SetSpecAtTick[ClientId] = Server()->Tick() + 1;
+	}
 }
 
+void CTeamDeathmatchEvent::OnPlayerImpacted(int ClientId, int InitiatorId)
+{
+	if(GetState() != CEventComponent::EEventState::Active)
+		return;
+	if(!IsParticipant(ClientId) || !IsParticipant(InitiatorId))
+		return;
+	if(ClientId == InitiatorId)
+		return;
+	const int vSide = GetSideOf(ClientId);
+	const int aSide = GetSideOf(InitiatorId);
+	if(vSide == -1 || aSide == -1 || vSide == aSide)
+		return;
+	m_LastImpactByVictim[ClientId] = InitiatorId;
+	m_LastImpactTick[ClientId] = Server()->Tick();
+}
+
+bool CTeamDeathmatchEvent::AllowKillCommandFor(int ClientId) const
+{
+	if(GetState() != CEventComponent::EEventState::Active)
+		return false;
+	if(!IsParticipant(ClientId))
+		return false;
+	CCharacter *pChr = GameServer()->GetPlayerChar(ClientId);
+	if(!pChr)
+		return false;
+	if(pChr->m_FreezeTime <= 0)
+		return false;
+	int since = GetFrozenSince(ClientId);
+	if(since == 0)
+		return false;
+	const int required = 2 * Server()->TickSpeed(); // 2 seconds
+	return Server()->Tick() - since >= required;
+}
 void CTeamDeathmatchEvent::FinishEvent()
 {
 	if(GetState() == CEventComponent::EEventState::Ending || GetState() == CEventComponent::EEventState::Finished)

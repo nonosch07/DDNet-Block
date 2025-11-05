@@ -43,9 +43,9 @@
 #include <game/version.h>
 
 // for PreShutdownFlush dynamic_cast to CGameContext
+#include <blockworlds/clans.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
-#include <blockworlds/clans.h>
 
 // DDRace
 #include <engine/shared/linereader.h>

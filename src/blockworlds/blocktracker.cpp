@@ -111,6 +111,8 @@ bool CBlockTracker::Blocked(int ClientID, int BlockerID)
 			CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
 			if(!pEv)
 				continue;
+			if(pEv->GetName() && str_comp(pEv->GetName(), "tdm") == 0)
+				continue;
 			const auto &parts = pEv->Participants();
 			if(std::find(parts.begin(), parts.end(), ClientID) != parts.end() || std::find(parts.begin(), parts.end(), BlockerID) != parts.end())
 			{
@@ -132,11 +134,11 @@ bool CBlockTracker::Blocked(int ClientID, int BlockerID)
 		if(active)
 		{
 			const char *pEvName = active->GetName();
-			if((str_comp(pEvName, "LMB") == 0 || str_comp(pEvName, "Team Deathmatch") == 0) &&
+			if(pEvName && str_comp(pEvName, "LMB") == 0 &&
 				(std::find(active->Participants().begin(), active->Participants().end(), ClientID) != active->Participants().end() ||
 					std::find(active->Participants().begin(), active->Participants().end(), BlockerID) != active->Participants().end()))
 			{
-				DebugMsg(BlockerID, "No EXP: active LMB/TDm event participant exclusion");
+				DebugMsg(BlockerID, "No EXP: active LMB event participant exclusion");
 				return false;
 			}
 		}
@@ -649,6 +651,8 @@ void CBlockTracker::OnPlayerImpacted(int ClientID, int InitiatorID)
 			CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
 			if(!pEv)
 				continue;
+			if(pEv->GetName() && str_comp(pEv->GetName(), "tdm") == 0)
+				continue;
 			const auto &parts = pEv->Participants();
 			if(std::find(parts.begin(), parts.end(), ClientID) != parts.end() || std::find(parts.begin(), parts.end(), InitiatorID) != parts.end())
 				return;
@@ -658,7 +662,7 @@ void CBlockTracker::OnPlayerImpacted(int ClientID, int InitiatorID)
 		if(active)
 		{
 			const char *pEvName = active->GetName();
-			if((str_comp(pEvName, "LMB") == 0 || str_comp(pEvName, "Team Deathmatch") == 0) &&
+			if((pEvName && str_comp(pEvName, "LMB") == 0) &&
 				(std::find(active->Participants().begin(), active->Participants().end(), ClientID) != active->Participants().end() ||
 					std::find(active->Participants().begin(), active->Participants().end(), InitiatorID) != active->Participants().end()))
 			{
