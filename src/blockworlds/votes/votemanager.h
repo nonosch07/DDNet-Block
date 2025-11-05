@@ -31,6 +31,10 @@ public:
 		Back,
 		Close,
 		OpenExtras,
+		OpenRules,
+		OpenLeaderboards,
+		OpenLeaderboardCategory, // data = category index (0=Level,1=Blockpoints,2=Killstreaks,3=Clans)
+		OpenProfile,
 		OpenCosmetics,
 		TogglePassive,
 		OpenCosmeticsCategory, // data = category index
@@ -70,6 +74,10 @@ private:
 		{
 			ROOT = 0,
 			EXTRAS,
+			RULES,
+			LEADERBOARDS,
+			LEADERBOARD_DETAIL, // Data = category index
+			PROFILE,
 			COSMETICS_ROOT,
 			COSMETICS_CATEGORY,
 		} PageType{ROOT};
@@ -83,6 +91,10 @@ private:
 	void RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext);
 	void BuildRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
 	void BuildExtras(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
+	void BuildRules(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
+	void BuildLeaderboards(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
+	void BuildLeaderboardDetail(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int CategoryIndex, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
+	void BuildProfile(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
 	void BuildCosmeticsRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
 	void BuildCosmeticsCategory(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int CategoryIndex, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
 

@@ -556,6 +556,14 @@ public:
 	char m_aSpecialsOwned[CCosmeticsHandler::NUM_SPECIALS + 1];
 	bool m_UsePassiveProtection = true;
 
+	// Inline leaderboard capture for vote menu rendering
+	bool m_CaptureTopToMenu = false; // when true, next TOP_MESSAGES/DIRECT top list goes into buffer
+	int m_CaptureTopCategory = -1; // 0=Level,1=Blockpoints,2=Killstreaks,3=Clans
+	int m_TopMessagesCount = 0;
+	static constexpr int TOP_MAX_LINES = 15;
+	static constexpr int TOP_MAX_LINE_LEN = 96;
+	char m_aTopMessages[TOP_MAX_LINES][TOP_MAX_LINE_LEN];
+
 	void TogglePassive()
 	{
 		m_UsePassiveProtection = !m_UsePassiveProtection;

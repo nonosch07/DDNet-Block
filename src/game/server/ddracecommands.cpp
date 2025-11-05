@@ -10,6 +10,9 @@
 #include <game/server/save.h>
 #include <game/server/teams.h>
 
+#include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/components/events.h>
+#include <blockworlds/components/events/tdm.h>
 #include <blockworlds/discord/webhook.h>
 
 bool CheckClientId(int ClientId);
@@ -460,11 +463,26 @@ void CGameContext::ConKill(IConsole::IResult *pResult, void *pUserData)
 		return;
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 
-	// prevent participants in events from using /kill to leave or suicide
+	// prevent participants in events from using /kill to leave or suicide,
+	// except in TDM if they've been frozen for more than 2 seconds
 	if(pSelf->isInEvent(pResult->m_ClientId))
 	{
-		pSelf->SendChatTarget(pResult->m_ClientId, "You can't /kill while participating in an event. Use /leave first.");
-		return;
+		bool allowed = false;
+		if(auto events = g_ComponentRegistry.Get<CEvents>())
+		{
+			if(auto active = events->GetActiveEvent(); active && str_comp(active->GetName(), "tdm") == 0)
+			{
+				if(auto tdm = std::dynamic_pointer_cast<CTeamDeathmatchEvent>(active))
+				{
+					allowed = tdm->AllowKillCommandFor(pResult->m_ClientId);
+				}
+			}
+		}
+		if(!allowed)
+		{
+			pSelf->SendChatTarget(pResult->m_ClientId, "You can't /kill while participating in an event. Use /leave first.");
+			return;
+		}
 	}
 
 	if(!pPlayer || (pPlayer->m_LastKill && pPlayer->m_LastKill + pSelf->Server()->TickSpeed() * g_Config.m_SvKillDelay > pSelf->Server()->Tick()))

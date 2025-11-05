@@ -170,6 +170,12 @@ void CPlayer::Reset()
 		m_FirstVoteTick = Now + g_Config.m_SvJoinVoteDelay * TickSpeed;
 	else
 		m_FirstVoteTick = Now;
+	// reset leaderboard capture state
+	m_CaptureTopToMenu = false;
+	m_CaptureTopCategory = -1;
+	m_TopMessagesCount = 0;
+	for(int i = 0; i < TOP_MAX_LINES; ++i)
+		m_aTopMessages[i][0] = '\0';
 
 	m_NotEligibleForFinish = false;
 	m_EligibleForFinishCheck = 0;
@@ -1430,12 +1436,32 @@ void CPlayer::BWProcessAccountsResult(CAccountResult &Result)
 		}
 
 		case CAccountResult::TOP_MESSAGES:
-			for(auto &aMessage : Result.m_aaMessages)
+			if(m_CaptureTopToMenu)
 			{
-				if(aMessage[0] == 0)
-					break;
-
-				GameServer()->SendChatTarget(m_ClientId, aMessage);
+				// capture into buffer for inline leaderboard rendering
+				m_TopMessagesCount = 0;
+				for(auto &aMessage : Result.m_aaMessages)
+				{
+					if(aMessage[0] == 0 || m_TopMessagesCount >= TOP_MAX_LINES)
+						break;
+					// truncate to safe line length for vote menu
+					str_copy(m_aTopMessages[m_TopMessagesCount], aMessage, TOP_MAX_LINE_LEN);
+					m_TopMessagesCount++;
+				}
+				m_CaptureTopToMenu = false; // one-shot capture
+				// refresh the vote menu to display the data inline
+				GameServer()->ClearVotes(GetCid());
+				GameServer()->ProgressVoteOptions(GetCid());
+				GameServer()->SendCosmeticsVoteOptions(GetCid());
+			}
+			else
+			{
+				for(auto &aMessage : Result.m_aaMessages)
+				{
+					if(aMessage[0] == 0)
+						break;
+					GameServer()->SendChatTarget(m_ClientId, aMessage);
+				}
 			}
 			break;
 
@@ -1487,6 +1513,29 @@ void CPlayer::BWProcessClansResult(CClanResult &Result)
 	CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
 	const char *pLogsUrl = g_Config.m_SvDiscordWebhookUrlLogs[0] ? g_Config.m_SvDiscordWebhookUrlLogs : nullptr;
 	bool discordConfigured = Discord.IsConfigured(pLogsUrl);
+
+	// capture Top Clans into the inline leaderboard buffer if requested
+	if(m_CaptureTopToMenu && Result.m_Success)
+	{
+		const char *pFirst = Result.m_aaMessages[0];
+		if(pFirst && pFirst[0] && str_find_nocase(pFirst, "Top Clans"))
+		{
+			m_TopMessagesCount = 0;
+			for(int i = 0; i < CClanResult::MAX_MESSAGES && m_TopMessagesCount < TOP_MAX_LINES; ++i)
+			{
+				if(Result.m_aaMessages[i][0] == '\0')
+					break;
+				str_copy(m_aTopMessages[m_TopMessagesCount], Result.m_aaMessages[i], TOP_MAX_LINE_LEN);
+				m_TopMessagesCount++;
+			}
+			m_CaptureTopToMenu = false;
+			// refresh the vote menu to display the data inline
+			GameServer()->ClearVotes(GetCid());
+			GameServer()->ProgressVoteOptions(GetCid());
+			GameServer()->SendCosmeticsVoteOptions(GetCid());
+			return;
+		}
+	}
 
 	if(Result.m_Success || Result.m_aaMessages[0][0] != '\0')
 	{
