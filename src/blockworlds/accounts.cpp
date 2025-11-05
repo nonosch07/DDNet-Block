@@ -1015,6 +1015,7 @@ void CAccounts::ShowTopLevel(int ClientId)
 bool CAccounts::ShowTopLevelThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
 {
 	CAccountResult *pResult = dynamic_cast<CAccountResult *>(pGameData->m_pResult.get());
+	pResult->SetVariant(CAccountResult::TOP_MESSAGES);
 
 	char aBuf[512];
 	str_format(aBuf, sizeof(aBuf), "SELECT c.last_name, p.level FROM %s c JOIN %s p ON c.id=p.account_id ORDER BY p.level DESC LIMIT 10;", TBL_ACCOUNTS_CORE, TBL_ACCOUNTS_PROGRESS);
