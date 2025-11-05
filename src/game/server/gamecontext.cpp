@@ -35,6 +35,7 @@
 #include <blockworlds/components/chatfilter/chat_filter.h>
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
+#include <blockworlds/components/events/tdm.h>
 #include <blockworlds/components/oneonone_manager.h>
 #include <blockworlds/components/promises.h>
 #include <blockworlds/components/requests.h>
@@ -2100,6 +2101,9 @@ void CGameContext::OnClientDrop(int ClientId, const char *pReason)
 {
 	LogEvent("Disconnect", ClientId);
 
+	// Clear bw votemenu
+	g_VoteManager.ClearClient(ClientId);
+
 	if(m_pWhoIs)
 		m_pWhoIs->LogLeave(ClientId);
 
@@ -3555,12 +3559,28 @@ void CGameContext::OnKillNetMessage(const CNetMsg_Cl_Kill *pMsg, int ClientId)
 	CPlayer *pPlayer = m_apPlayers[ClientId];
 
 	// prevent participants in LMB or TDM events from killing themselves - 1on1 is ok
+	// allow in TDM if frozen for more than 2 seconds to avoid bullying
 	{
 		int ev = isInEvent(ClientId);
 		if(ev == 2 /* EVENT_TDM */ || ev == 3 /* EVENT_LMB */)
 		{
-			SendChatTarget(ClientId, "You can't kill yourself while participating in an event. Use /leave first.");
-			return;
+			bool allowed = false;
+			if(ev == 2)
+			{
+				if(auto events = g_ComponentRegistry.Get<CEvents>())
+				{
+					if(auto active = events->GetActiveEvent(); active && str_comp(active->GetName(), "tdm") == 0)
+					{
+						if(auto tdm = std::dynamic_pointer_cast<CTeamDeathmatchEvent>(active))
+							allowed = tdm->AllowKillCommandFor(ClientId);
+					}
+				}
+			}
+			if(!allowed)
+			{
+				// SendChatTarget(ClientId, "You can't kill yourself while participating in an event. Use /leave first."); pretty obvious
+				return;
+			}
 		}
 	}
 	if(pPlayer->m_LastKill && pPlayer->m_LastKill + Server()->TickSpeed() * g_Config.m_SvKillDelay > Server()->Tick())

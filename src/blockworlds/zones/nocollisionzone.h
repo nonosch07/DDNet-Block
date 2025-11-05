@@ -15,6 +15,7 @@ public:
 	void OnCharacterDeath(CCharacter *pCharacter);
 
 private:
+	bool m_aWasInZone[MAX_CLIENTS] = {};
 	void Protect(int ClientID, int Ticks);
 	void Unprotect(int ClientID);
 };

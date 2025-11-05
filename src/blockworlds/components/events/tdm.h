@@ -38,6 +38,12 @@ public:
 
 	void OnCharacterDeath(int KillerId, int ClientId, int Weapon) override;
 
+	// records that InitiatorId last impacted ClientId (hook/hammer/push)
+	void OnPlayerImpacted(int ClientId, int InitiatorId);
+
+	// allow /kill or client kill message if frozen for a grace period (e.g., 2 seconds)
+	bool AllowKillCommandFor(int ClientId) const;
+
 	[[nodiscard]] std::optional<int> GetTeamIndexFor(int ClientId) const override;
 
 protected:
@@ -52,6 +58,8 @@ private:
 
 	// spawns: use only shared event start positions (TILE_BW_EVENT_TDM_START_POS)
 	std::vector<vec2> m_EventStartPositions;
+	// reserved unique spawn index for the very first spawn at event start
+	std::unordered_map<int, int> m_AssignedSpawnIndex; // ClientId -> index in m_EventStartPositions
 
 	// team/score state
 	int m_DDRaceTeam = -1;
@@ -80,6 +88,21 @@ private:
 	// utils no tneeded
 	std::mt19937 m_Rng;
 
+	// respawn scheduler and countdown broadcast tracking
+	std::unordered_map<int, int> m_RespawnAtTick; // ClientId -> tick when to respawn
+	std::unordered_map<int, int> m_LastRespawnSeconds; // ClientId -> last shown seconds remaining
+	std::unordered_map<int, bool> m_SkipTeleportOnSpawn; // set true when we force-spawned and should not retp/freeze in OnCharacterSpawn
+	std::unordered_map<int, int> m_SetSpecAtTick; // ClientId -> tick to switch to TEAM_SPECTATORS (deferred to avoid recursion)
+	std::unordered_map<int, int> m_LastDeathHandledTick; // ClientId -> tick when death was processed to prevent duplicate handling
+
+	// last-impact tracking (for fair kill attribution on world/suicide deaths)
+	std::unordered_map<int, int> m_LastImpactByVictim; // Victim ClientId -> Attacker ClientId
+	std::unordered_map<int, int> m_LastImpactTick; // Victim ClientId -> tick when impact recorded
+
+	// freeze tracking for autokill and /kill allowance
+	std::unordered_map<int, int> m_LastFreezeTimeValue; // ClientId -> last observed freeze time value
+	std::unordered_map<int, int> m_PermanentFreezeSince; // ClientId -> tick when freeze time stopped decreasing (perma-freeze detection)
+
 	// helpers (in cpp file)
 	void AssignTeamsShuffled();
 	void ApplyParticipantVisuals(int ClientId, int Side);
@@ -98,6 +121,9 @@ private:
 	int GetSideOf(int ClientId) const;
 	void SetFrozenSince(int ClientId, int Tick);
 	int GetFrozenSince(int ClientId) const;
+	void UpdateRespawns();
+	void AssignUniqueStartSpawns();
+	void UpdateSetSpectators();
 
 	// results helpers
 	void ResetStats();

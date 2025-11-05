@@ -87,7 +87,7 @@ MACRO_CONFIG_INT(SvShopServer, sv_shop_server, 0, 0, 1, CFGFLAG_SERVER, "Set to 
 
 // Clans settings:
 MACRO_CONFIG_INT(SvClanMinLevel, sv_clan_min_level, 25, 0, 100, CFGFLAG_SERVER, "Minimum player level required to create a clan.")
-MACRO_CONFIG_INT(SvClanSaveInterval, sv_clan_save_interval, 600, 1, 3600, CFGFLAG_SERVER, "Time delay (in seconds) between successive clan saves.")
+MACRO_CONFIG_INT(SvClanSaveInterval, sv_clan_save_interval, 120, 1, 3600, CFGFLAG_SERVER, "Time delay (in seconds) between successive clan saves.")
 MACRO_CONFIG_INT(SvClanMaxMembers, sv_clan_max_members, 25, 1, 1000, CFGFLAG_SERVER, "Maximum number of members per clan (including leaders & co-leaders).")
 MACRO_CONFIG_INT(SvClanConfirmExpiry, sv_clan_confirm_expiry, 15, 5, 600, CFGFLAG_SERVER, "Expiry time (in seconds) for clan confirmations like delete/kick/rename.")
 MACRO_CONFIG_INT(SvClanCreatePrice, sv_clan_create_price, 500, 0, 1000000, CFGFLAG_SERVER, "Blockpoints cost to create a clan (0 = free).")
@@ -98,7 +98,7 @@ MACRO_CONFIG_INT(SvGroundHookPenalty, sv_ground_hook_penalty, 3, 1, 999999, CFGF
 
 // LMB (last man blocking)
 MACRO_CONFIG_INT(SvLMBInitialFreezeTime, sv_lmb_initial_freeze_time, 3, 0, 1000, CFGFLAG_SERVER, " Duration of character freeze after teleportation to the arena (seconds)")
-MACRO_CONFIG_INT(SvLMBRegistrationTime, sv_lmb_registration_time, 60, 0, 1000, CFGFLAG_SERVER, "Duration of registration phase (seconds)")
+MACRO_CONFIG_INT(SvLMBRegistrationTime, sv_lmb_registration_time, 120, 0, 1000, CFGFLAG_SERVER, "Duration of registration phase (seconds)")
 MACRO_CONFIG_INT(SvLMBActiveTime, sv_lmb_active_time, 600, 0, 1000, CFGFLAG_SERVER, "Duration of active phase (seconds)")
 MACRO_CONFIG_INT(SvLMBWinnerExpMultiplier, sv_lmb_winner_exp_multiplier, 200, 100, 10000, CFGFLAG_SERVER, "Exp multiplier for the winner (percents)")
 MACRO_CONFIG_INT(SvLMBWinnerExpMultiplierDuration, sv_lmb_winner_exp_multiplier_duration, 5, 1, 60, CFGFLAG_SERVER, " Exp multiplier duration (minutes)") // make more precise?
@@ -117,13 +117,13 @@ MACRO_CONFIG_INT(SvEventVoteCoolDown, sv_lmb_vote_cooldown, 30, 1, 99999, CFGFLA
 MACRO_CONFIG_INT(SvNoHammerOnUnfreeze, sv_no_hammer_on_unfreeze, 1, 0, 1, CFGFLAG_SERVER, "Prevent instant hammer fire immediately after unfreeze (1=on, 0=off)")
 
 // TDM (Team Deathmatch)
-MACRO_CONFIG_INT(SvTDMRegistrationTime, sv_tdm_registration_time, 30, 0, 1000, CFGFLAG_SERVER, "Duration of TDM registration phase (seconds)")
+MACRO_CONFIG_INT(SvTDMRegistrationTime, sv_tdm_registration_time, 120, 0, 1000, CFGFLAG_SERVER, "Duration of TDM registration phase (seconds)")
 MACRO_CONFIG_INT(SvTDMActiveTime, sv_tdm_active_time, 600, 0, 3600, CFGFLAG_SERVER, "Duration of TDM active phase (seconds)")
 MACRO_CONFIG_INT(SvTDMMinimumCandidates, sv_tdm_minimum_candidates, 8, 2, MAX_CLIENTS, CFGFLAG_SERVER, "Minimum amount of candidates to start TDM")
 MACRO_CONFIG_INT(SvTDMMaximumCandidates, sv_tdm_maximum_candidates, 16, 2, MAX_CLIENTS, CFGFLAG_SERVER, "Maximum amount of participants for TDM")
 MACRO_CONFIG_INT(SvTDMBroadcastRate, sv_tdm_broadcast_rate, 10, 1, 500, CFGFLAG_SERVER, "Rate at which TDM information broadcasts will be sent (ticks)")
 MACRO_CONFIG_INT(SvTDMFreezeTime, sv_tdm_freeze_time, 3, 5, 30, CFGFLAG_SERVER, "Specifies the time required for a player to be frozen in order to die")
-MACRO_CONFIG_INT(SvTDMFreezeTimeKill, sv_tdm_freeze_time_kill, 5, 5, 30, CFGFLAG_SERVER, "Specifies the time required for a frozen player to die")
+MACRO_CONFIG_INT(SvTDMFreezeTimeKill, sv_tdm_freeze_time_kill, 10, 1, 30, CFGFLAG_SERVER, "Specifies the time required for a frozen player to die")
 MACRO_CONFIG_INT(SvTDMWinnerExp, sv_tdm_winner_exp, 5, 0, 10000, CFGFLAG_SERVER, "Experience rewarded to each winning TDM participant")
 MACRO_CONFIG_INT(SvTDMWinnerBlockpoints, sv_tdm_winner_blockpoints, 25, 0, 100000, CFGFLAG_SERVER, "Blockpoints rewarded to winning TDM participants")
 

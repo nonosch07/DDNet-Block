@@ -29,6 +29,39 @@ void CPassiveZone::Tick()
 		bool InZone = IsInZone(pChar->m_Pos);
 		bool WasInZone = m_aWasInZone[i];
 
+		if(InZone && !WasInZone && pChar->Core()->m_Passive)
+		{
+			if(pChar->Core()->HookedPlayer() != -1)
+			{
+				pChar->ReleaseHook();
+			}
+			if(pChar->m_HookedBy >= 0 && pChar->m_HookedBy < MAX_CLIENTS)
+			{
+				if(CCharacter *pHooker = GameServer()->GetPlayerChar(pChar->m_HookedBy))
+				{
+					if(pHooker->Core()->HookedPlayer() == pChar->GetPlayer()->GetCid())
+						pHooker->ReleaseHook();
+				}
+			}
+		}
+
+		if(InZone && pChar->Core()->m_Passive)
+		{
+			const int myId = pChar->GetPlayer()->GetCid();
+			for(int h = 0; h < MAX_CLIENTS; ++h)
+			{
+				if(h == i)
+					continue;
+				CCharacter *pHooker = GameServer()->GetPlayerChar(h);
+				if(!pHooker)
+					continue;
+				if(pHooker->Core()->HookedPlayer() == myId)
+				{
+					pHooker->ReleaseHook();
+				}
+			}
+		}
+
 		// track how many ticks you've been frozen for (in a row)
 		if(InZone && pChar->m_FreezeTime)
 			m_aFreezedTicks[i]++;
