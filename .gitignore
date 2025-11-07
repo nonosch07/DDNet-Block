@@ -86,6 +86,7 @@ versionsrv
 generated
 target
 
+build.sh
 /build*
 /integration_test/*
 
