@@ -225,13 +225,18 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				pGameContext->ClearVotes(ClientId);
 				RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
 				return true;
-			case EActionKind::OpenProfile:
-				PushPage(ClientId, Page::PROFILE);
+			case EActionKind::OpenLeaderboards:
+				PushPage(ClientId, Page::LEADERBOARDS);
 				pGameContext->ClearVotes(ClientId);
 				RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
 				return true;
-			case EActionKind::OpenLeaderboards:
-				PushPage(ClientId, Page::LEADERBOARDS);
+			case EActionKind::OpenServerInfos:
+				PushPage(ClientId, Page::SERVER_INFOS);
+				pGameContext->ClearVotes(ClientId);
+				RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
+				return true;
+			case EActionKind::OpenServerInfosTopic:
+				PushPage(ClientId, Page::SERVER_INFOS_TOPIC, A.A); // A holds topic index
 				pGameContext->ClearVotes(ClientId);
 				RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
 				return true;
@@ -332,7 +337,8 @@ void CVoteManager::RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pS
 	case Page::RULES: BuildRules(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
 	case Page::LEADERBOARDS: BuildLeaderboards(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
 	case Page::LEADERBOARD_DETAIL: BuildLeaderboardDetail(pPlayer, ClientID, pServer, pGameContext, Current.Data, Labels, Actions); break;
-	case Page::PROFILE: BuildProfile(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
+	case Page::SERVER_INFOS: BuildServerInfos(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
+	case Page::SERVER_INFOS_TOPIC: BuildServerInfosTopic(pPlayer, ClientID, pServer, pGameContext, Current.Data, Labels, Actions); break;
 	case Page::COSMETICS_ROOT: BuildCosmeticsRoot(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
 	case Page::COSMETICS_CATEGORY: BuildCosmeticsCategory(pPlayer, ClientID, pServer, pGameContext, Current.Data, Labels, Actions); break;
 	}
@@ -360,20 +366,21 @@ void CVoteManager::RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pS
 		case Page::RULES: Title = "Rules"; break;
 		case Page::LEADERBOARD_DETAIL:
 		{
-			int Cat = Current.Data;
-			if(Cat == 0)
-				Title = "Top Level";
-			else if(Cat == 1)
-				Title = "Top Blockpoints";
-			else if(Cat == 2)
-				Title = "Top Killstreaks";
-			else if(Cat == 3)
-				Title = "Top Clans";
-			else
-				Title = "Leaderboard";
+			Title = "Leaderboard";
 			break;
 		}
-		case Page::PROFILE: Title = "Profile"; break;
+		case Page::SERVER_INFOS: Title = "Server Infos"; break;
+		case Page::SERVER_INFOS_TOPIC:
+		{
+			int Topic = Current.Data;
+			if(Topic == 0)
+				Title = "Account System";
+			else if(Topic == 1)
+				Title = "Clan System";
+			else
+				Title = "Info";
+			break;
+		}
 		case Page::COSMETICS_ROOT: Title = "Cosmetics"; break;
 		case Page::COSMETICS_CATEGORY:
 		{
@@ -392,7 +399,7 @@ void CVoteManager::RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pS
 		}
 		}
 		std::string Caps = SmallCaps(Title);
-		std::string Top = std::string("╭─ ") + Caps + " ─╮";
+		std::string Top = std::string("╭─ ") + Caps + " ─────────────────";
 		// Bottom dashes must match the runes between the header corners: "─ " + Title + " ─" => len = capsLen + 4
 		int capsLen = str_length(Caps.c_str());
 		int dashCount = capsLen + 4;
@@ -401,7 +408,7 @@ void CVoteManager::RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pS
 		std::string Bottom = "╰";
 		for(int i = 0; i < dashCount; ++i)
 			Bottom += "─";
-		Bottom += "╯";
+		Bottom += "────────────";
 
 		Labels.insert(Labels.begin(), Top);
 		Actions.insert(Actions.begin(), Action{EActionKind::None, -1, -1});
@@ -487,16 +494,16 @@ void CVoteManager::BuildRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, C
 		OutActions.emplace_back(Action{EActionKind::OpenLeaderboards});
 	}
 
+	// server infos (always available)
+	{
+		std::string label = SmallCaps("Server Infos");
+		label += " ›";
+		OutLabels.emplace_back(label);
+		OutActions.emplace_back(Action{EActionKind::OpenServerInfos});
+	}
+
 	if(pPlayer && pPlayer->IsLoggedIn())
 	{
-		// Profile page
-		{
-			std::string label = SmallCaps("Profile");
-			label += " ›";
-			OutLabels.emplace_back(label);
-			OutActions.emplace_back(Action{EActionKind::OpenProfile});
-		}
-
 		std::string label = SmallCaps("Cosmetics");
 		label += " ›";
 		OutLabels.emplace_back(label);
@@ -507,6 +514,8 @@ void CVoteManager::BuildRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, C
 		OutLabels.emplace_back(SmallCaps("/login to use cosmetics!"));
 		OutActions.emplace_back(Action{EActionKind::None});
 	}
+	OutLabels.emplace_back(SmallCaps("discord: dsc.gg/bw-tw"));
+	OutActions.emplace_back(Action{EActionKind::None});
 }
 
 void CVoteManager::BuildExtras(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions)
@@ -592,6 +601,96 @@ void CVoteManager::BuildLeaderboards(CPlayer *pPlayer, int ClientID, IServer *pS
 	}
 }
 
+void CVoteManager::BuildServerInfos(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions)
+{
+	// two subpages: Accounts, Clans
+	{
+		std::string label = SmallCaps("Accounts");
+		label += " ›";
+		OutLabels.emplace_back(label);
+		OutActions.emplace_back(Action{EActionKind::OpenServerInfosTopic, 0});
+	}
+	{
+		std::string label = SmallCaps("Clans");
+		label += " ›";
+		OutLabels.emplace_back(label);
+		OutActions.emplace_back(Action{EActionKind::OpenServerInfosTopic, 1});
+	}
+}
+
+void CVoteManager::BuildServerInfosTopic(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int TopicIndex, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions)
+{
+	if(TopicIndex == 0)
+	{
+		OutLabels.emplace_back("Accounts let you save your progress:");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("Level, EXP, Blockpoints, Cosmetics, Stats, and more.");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back(SmallCaps("Chat commands:"));
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("/register <name> <pass> — Create an account");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("/login <name> <pass> — Log in");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("/logout_account — Log out");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("/password <old> <new> — Change password");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("/exp — Show your EXP");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("/profile [name] — View a profile");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("/bp — Show your blockpoints");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("/give_bp <player> <amount> — Offer BP transfer");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("/accept_bp [player] | /decline_bp [player]");
+		OutActions.emplace_back(Action{EActionKind::None});
+	}
+	else if(TopicIndex == 1)
+	{
+		OutLabels.emplace_back("Clans let players team up and progress together:");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("Compete on leaderboards, share a name, and manage roles.");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back(SmallCaps("Member Commands:"));
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("/clan_create <name> — Create a new clan");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("/clan_leave — Leave your clan");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("/clan_accept | /clan_decline — Respond to invite");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("/clan_exp — Show clan EXP progress");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("/clan_list — List clan members");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back(SmallCaps("Co-Leader & Leader:"));
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("/clan_invite <player> — Invite a player");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("/clan_kick <player> — Kick a member");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back(SmallCaps("Leader Only:"));
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("/clan_role <player> <member|coleader> — Set role");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("/clan_rename <newname> — Rename clan");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("/clan_transfer <player> — Transfer clan leadership");
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back("/clan_delete — Delete your clan");
+		OutActions.emplace_back(Action{EActionKind::None});
+	}
+}
 void CVoteManager::BuildLeaderboardDetail(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int CategoryIndex, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions)
 {
 	const char *pTitle = "";
@@ -606,7 +705,7 @@ void CVoteManager::BuildLeaderboardDetail(CPlayer *pPlayer, int ClientID, IServe
 
 	// generate a symmetric inner box around the content
 	auto make_inner_top = [&](const char *pT) {
-		return std::string("  ╭─[ ") + SmallCaps(pT) + " ]─╮";
+		return std::string("  ╭─[ ") + SmallCaps(pT) + " ]──────";
 	};
 	auto make_inner_bottom = [&](const char *pT) {
 		// match the number of runes between the two corners in the header:
@@ -720,7 +819,7 @@ void CVoteManager::BuildLeaderboardDetail(CPlayer *pPlayer, int ClientID, IServe
 			break;
 		if(is_decor_header(pLine))
 			continue;
-		OutLabels.emplace_back(std::string("  │  ") + SmallCaps(pLine));
+		OutLabels.emplace_back(std::string("  │  ") + pLine);
 		OutActions.emplace_back(Action{EActionKind::None});
 	}
 
@@ -733,53 +832,6 @@ void CVoteManager::BuildLeaderboardDetail(CPlayer *pPlayer, int ClientID, IServe
 	OutActions.emplace_back(Action{EActionKind::None});
 }
 
-void CVoteManager::BuildProfile(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions)
-{
-	if(!(pPlayer && pPlayer->IsLoggedIn()))
-	{
-		OutLabels.emplace_back(SmallCaps("/login to view your profile."));
-		OutActions.emplace_back(Action{EActionKind::None});
-		return;
-	}
-
-	// Profile summary similar to /profile output, but inline in the menu
-	{
-		char aBuf[128];
-		str_format(aBuf, sizeof(aBuf), "Profile of %s", pPlayer->m_Account.m_aName);
-		OutLabels.emplace_back(SmallCaps(aBuf));
-		OutActions.emplace_back(Action{EActionKind::None});
-
-		OutLabels.emplace_back(SmallCaps("Global"));
-		OutActions.emplace_back(Action{EActionKind::None});
-
-		str_format(aBuf, sizeof(aBuf), "Kills: %d", pPlayer->m_Account.m_Kills);
-		OutLabels.emplace_back(SmallCaps(aBuf));
-		OutActions.emplace_back(Action{EActionKind::None});
-
-		str_format(aBuf, sizeof(aBuf), "Deaths: %d", pPlayer->m_Account.m_Deaths);
-		OutLabels.emplace_back(SmallCaps(aBuf));
-		OutActions.emplace_back(Action{EActionKind::None});
-
-		float KD = pPlayer->m_Account.m_Deaths > 0 ? (float)pPlayer->m_Account.m_Kills / pPlayer->m_Account.m_Deaths : (float)pPlayer->m_Account.m_Kills;
-		str_format(aBuf, sizeof(aBuf), "K/D: %.2f", KD);
-		OutLabels.emplace_back(SmallCaps(aBuf));
-		OutActions.emplace_back(Action{EActionKind::None});
-
-		str_format(aBuf, sizeof(aBuf), "Max Kill Streak: %d", pPlayer->m_Account.m_Killstreak);
-		OutLabels.emplace_back(SmallCaps(aBuf));
-		OutActions.emplace_back(Action{EActionKind::None});
-
-		str_format(aBuf, sizeof(aBuf), "LMB Wins: %d", pPlayer->m_Account.m_TourneyWin);
-		OutLabels.emplace_back(SmallCaps(aBuf));
-		OutActions.emplace_back(Action{EActionKind::None});
-
-		int Hours = pPlayer->m_Account.m_Playtime / 3600;
-		int Minutes = (pPlayer->m_Account.m_Playtime % 3600) / 60;
-		str_format(aBuf, sizeof(aBuf), "PlayTime: %d hours %d minutes", Hours, Minutes);
-		OutLabels.emplace_back(SmallCaps(aBuf));
-		OutActions.emplace_back(Action{EActionKind::None});
-	}
-}
 
 void CVoteManager::BuildCosmeticsRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions)
 {
@@ -839,6 +891,17 @@ void CVoteManager::BuildCosmeticsCategory(CPlayer *pPlayer, int ClientID, IServe
 	}
 	else if(CategoryIndex == 3)
 	{
+		// require player to be VIP
+		if(!(pPlayer->GetPlayerVip() || (pServer && pServer->ClientAuthed(pPlayer->GetCid()))))
+		{
+			OutLabels.emplace_back(SmallCaps("You are not VIP."));
+			OutActions.emplace_back(Action{EActionKind::None});
+			OutLabels.emplace_back("Contact an admin if you're interested in contributing!");
+			OutActions.emplace_back(Action{EActionKind::None});
+			OutLabels.emplace_back("discord: dsc.gg/bw-tw");
+			OutActions.emplace_back(Action{EActionKind::None});
+			return; // stop rendering items
+		}
 		static const char *s_Vip[] = {"Ball", "Crown", "Epic Circle", "Halo"};
 		ppNames = s_Vip;
 		Count = 4;
@@ -873,7 +936,8 @@ void CVoteManager::BuildCosmeticsCategory(CPlayer *pPlayer, int ClientID, IServe
 
 	if(Owned.empty())
 	{
-		OutLabels.emplace_back(SmallCaps("No owned items in this category."));
+		OutLabels.emplace_back(SmallCaps("No owned items."));
+		OutLabels.emplace_back(SmallCaps("Buy some in the store!"));
 		OutActions.emplace_back(Action{EActionKind::None});
 		return;
 	}

@@ -742,7 +742,7 @@ private:
 	static void ConClanDelete(IConsole::IResult *pResult, void *pUserData);
 	static void ConClanLeave(IConsole::IResult *pResult, void *pUserData);
 	static void ConClanRemove(IConsole::IResult *pResult, void *pUserData);
-	static void ConClanSetAuth(IConsole::IResult *pResult, void *pUserData);
+	static void ConClanRole(IConsole::IResult *pResult, void *pUserData); // new syntax: /clan_role <player> <member|coleader>
 	static void ConClanRename(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConClanInvite(IConsole::IResult *pResult, void *pUserData);

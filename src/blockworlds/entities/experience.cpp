@@ -41,6 +41,12 @@ void CExperience::Tick()
 
 	if(Distance < 24.0f)
 	{
+		if(!pChr->IsAlive())
+		{
+			m_MarkedForDestroy = true;
+			return;
+		}
+
 		GameServer()->CreateSound(m_Pos, SOUND_PICKUP_HEALTH, -1);
 		CPlayer *pPlayer = pChr->GetPlayer();
 

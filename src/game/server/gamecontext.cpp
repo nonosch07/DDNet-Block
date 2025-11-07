@@ -2913,9 +2913,11 @@ void CGameContext::OnSayNetMessage(const CNetMsg_Cl_Say *pMsg, int ClientId, con
 
 void CGameContext::OnCallVoteNetMessage(const CNetMsg_Cl_CallVote *pMsg, int ClientId)
 {
-	if(RateLimitPlayerVote(ClientId))
-		return;
+	// remove delay between navigating custom pages
 	if(HandleCosmeticsVote(pMsg, ClientId))
+		return;
+	// for real server votes, keep normal rate limiter
+	if(RateLimitPlayerVote(ClientId))
 		return;
 	if(m_VoteCloseTime)
 		return;
@@ -6227,7 +6229,7 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("clan_delete", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanDelete, this, "Delete your clan (leaders only).");
 	Console()->Register("clan_leave", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanLeave, this, "Leave your current clan.");
 	Console()->Register("clan_kick", "s[username]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanRemove, this, "Remove the specified user from your clan.");
-	Console()->Register("clan_setlevel", "s[username] i[level]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanSetAuth, this, "Assign a clan access level to a member (1: member, 2: co-leader).");
+	Console()->Register("clan_role", "s[username] s[role]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanRole, this, "Assign a clan role to a member (member | coleader). Leader transfer: /clan_transfer.");
 	Console()->Register("clan_rename", "s[newname]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanRename, this, "Rename your clan (leader only).");
 	Console()->Register("clan_transfer", "s[newname]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConClanTransfer, this, "Transfer leadership to another member.");
 

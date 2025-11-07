@@ -2006,60 +2006,6 @@ const char *CPlayer::GetPlayerSpecials()
 	return m_aSpecialsOwned;
 }
 
-const char *CPlayer::GetEffectiveKnockouts()
-{
-	// build a temporary buffer reflecting owned knockouts + VIP access
-	static thread_local char aBuf[256];
-	const char *p = m_Account.m_aKnockouts;
-	int len = sizeof(m_Account.m_aKnockouts);
-	for(int i = 0; i < len; ++i)
-		aBuf[i] = p[i];
-	aBuf[len - 1] = '\0';
-	// if VIP, set VIP splash
-	if(GetPlayerVip())
-	{
-		if((int)strlen(aBuf) > CCosmeticsHandler::KNOCKOUT_VIP_SPLASH)
-			aBuf[CCosmeticsHandler::KNOCKOUT_VIP_SPLASH] = '1';
-	}
-	return aBuf;
-}
-
-const char *CPlayer::GetEffectiveGundesign()
-{
-	static thread_local char aBuf[256];
-	const char *p = m_Account.m_aGundesign;
-	int len = sizeof(m_Account.m_aGundesign);
-	for(int i = 0; i < len; ++i)
-		aBuf[i] = p[i];
-	aBuf[len - 1] = '\0';
-	if(GetPlayerVip())
-	{
-		if((int)strlen(aBuf) > CCosmeticsHandler::GUNDESIGN_VIP_STARGUN)
-			aBuf[CCosmeticsHandler::GUNDESIGN_VIP_STARGUN] = '1';
-	}
-	return aBuf;
-}
-
-const char *CPlayer::GetEffectiveSkinmani()
-{
-	static thread_local char aBuf[256];
-	const char *p = m_Account.m_aSkinmani;
-	int len = sizeof(m_Account.m_aSkinmani);
-	for(int i = 0; i < len; ++i)
-		aBuf[i] = p[i];
-	aBuf[len - 1] = '\0';
-	if(GetPlayerVip())
-	{
-		if((int)strlen(aBuf) > CCosmeticsHandler::SKINMANI_VIP_RAINBOW)
-			aBuf[CCosmeticsHandler::SKINMANI_VIP_RAINBOW] = '1';
-		if((int)strlen(aBuf) > CCosmeticsHandler::SKINMANI_VIP_RAINBOW_EPI)
-			aBuf[CCosmeticsHandler::SKINMANI_VIP_RAINBOW_EPI] = '1';
-		if((int)strlen(aBuf) > CCosmeticsHandler::SKINMANI_VIP_HOOK_RAINBOW)
-			aBuf[CCosmeticsHandler::SKINMANI_VIP_HOOK_RAINBOW] = '1';
-	}
-	return aBuf;
-}
-
 bool CPlayer::ToggleSpecial(int SpecialIndex)
 {
 	if(SpecialIndex < 0 || SpecialIndex >= CCosmeticsHandler::NUM_SPECIALS)

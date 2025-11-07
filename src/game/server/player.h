@@ -446,9 +446,6 @@ public:
 	const char *GetPlayerGundesign() { return m_Account.m_aGundesign; }
 	const char *GetPlayerSkinmani() { return m_Account.m_aSkinmani; }
 
-	const char *GetEffectiveKnockouts();
-	const char *GetEffectiveGundesign();
-	const char *GetEffectiveSkinmani();
 	int GetPlayerPassive() { return m_Account.m_Passive; }
 	const char *GetPlayerRegisterDate() { return m_Account.m_RegisterDate; }
 	int GetPlayerRankedGames() { return m_Account.m_RankedGames; }

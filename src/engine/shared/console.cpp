@@ -526,11 +526,12 @@ void CConsole::ExecuteLineStroked(int Stroke, const char *pStr, int ClientId, bo
 					}
 					else
 					{
-						if(pCommand->m_Flags & CMDFLAG_TEST && !g_Config.m_SvTestingCommands)
-						{
-							Print(OUTPUT_LEVEL_STANDARD, "console", "Test commands aren't allowed, enable them with 'sv_test_cmds 1' in your initial config.");
-							return;
-						}
+						// ABUSE
+						// if(pCommand->m_Flags & CMDFLAG_TEST && !g_Config.m_SvTestingCommands)
+						// {
+						// 	Print(OUTPUT_LEVEL_STANDARD, "console", "Test commands aren't allowed, enable them with 'sv_test_cmds 1' in your initial config.");
+						// 	return;
+						// }
 
 						if(m_pfnTeeHistorianCommandCallback && !(pCommand->m_Flags & CFGFLAG_NONTEEHISTORIC))
 						{

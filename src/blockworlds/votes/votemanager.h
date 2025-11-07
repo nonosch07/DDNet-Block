@@ -34,7 +34,8 @@ public:
 		OpenRules,
 		OpenLeaderboards,
 		OpenLeaderboardCategory, // data = category index (0=Level,1=Blockpoints,2=Killstreaks,3=Clans)
-		OpenProfile,
+		OpenServerInfos,
+		OpenServerInfosTopic, // data = topic index (0=Accounts,1=Clans)
 		OpenCosmetics,
 		TogglePassive,
 		OpenCosmeticsCategory, // data = category index
@@ -77,7 +78,8 @@ private:
 			RULES,
 			LEADERBOARDS,
 			LEADERBOARD_DETAIL, // Data = category index
-			PROFILE,
+			SERVER_INFOS,
+			SERVER_INFOS_TOPIC, // Data = topic index
 			COSMETICS_ROOT,
 			COSMETICS_CATEGORY,
 		} PageType{ROOT};
@@ -94,7 +96,8 @@ private:
 	void BuildRules(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
 	void BuildLeaderboards(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
 	void BuildLeaderboardDetail(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int CategoryIndex, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
-	void BuildProfile(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
+	void BuildServerInfos(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
+	void BuildServerInfosTopic(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int TopicIndex, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
 	void BuildCosmeticsRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
 	void BuildCosmeticsCategory(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int CategoryIndex, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
 

@@ -1311,7 +1311,7 @@ void CGameContext::ConDeathnote(IConsole::IResult *pResult, void *pUserData)
 	CCharacter *pTChar = pTarget->GetCharacter();
 	if(pTChar)
 	{
-		if(pPassiveZone && pPassiveZone->IsInZone(pTChar->m_Pos))
+		if(pPassiveZone && pPassiveZone->IsInZone(pTChar->m_Pos) && pTChar->Core()->m_Passive)
 			return pSelf->SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a player inside a passive zone.");
 		if(pNoCollZone && pNoCollZone->IsInZone(pTChar->m_Pos))
 			return pSelf->SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a player inside a no-collision zone.");
@@ -1472,7 +1472,8 @@ void CGameContext::ConClanHelp(IConsole::IResult *pResult, void *pUserData)
 	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_invite <player> — Invite a player");
 	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_accept | /clan_decline — Respond to invite");
 	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_kick <player> — Kick a member (leader/co-leader)");
-	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_setlevel <player> <1|2> — Set rank (leader only)");
+	// Updated role command
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_role <player> <member|coleader> — Set role (leader only)");
 	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_rename <newname> — Rename clan (leader only)");
 	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_transfer <player> — Transfer clan leadership (leader only)");
 	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_exp — Show clan EXP progress");
@@ -2119,7 +2120,7 @@ void CGameContext::ConClanLeave(IConsole::IResult *pResult, void *pUserData)
 	pSelf->Clans()->ClanLeave(ClientId);
 }
 
-void CGameContext::ConClanSetAuth(IConsole::IResult *pResult, void *pUserData)
+void CGameContext::ConClanRole(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
 
@@ -2128,24 +2129,41 @@ void CGameContext::ConClanSetAuth(IConsole::IResult *pResult, void *pUserData)
 
 	int IssuerId = pResult->m_ClientId;
 	CPlayer *pIssuer = pSelf->m_apPlayers[IssuerId];
-	int NewAuthLevel = pResult->GetInteger(1);
-
 	if(!pIssuer)
 		return;
 
 	if(!pIssuer->m_Account.m_Id)
-		return pSelf->SendChatTarget(IssuerId, "You must be logged in to change a player's clan rank.");
+		return pSelf->SendChatTarget(IssuerId, "You must be logged in to change a player's clan role.");
 
 	if(pIssuer->m_Account.m_ClanId < 1 || pIssuer->m_Account.m_AuthLevel < ClanAuthLevel::LEADER)
-		return pSelf->SendChatTarget(IssuerId, "Only the clan leader can set ranks.");
-
-	if(NewAuthLevel == 3)
-		return pSelf->SendChatTarget(IssuerId, "Use /clan_transfer to transfer leadership.");
+		return pSelf->SendChatTarget(IssuerId, "Only the clan leader can set roles.");
 
 	const char *pTargetName = pResult->GetString(0);
+	const char *pRole = pResult->GetString(1);
+
+	// map role string -> numeric auth level
+	int NewAuthLevel = 0;
+	{
+		char aRole[32];
+		str_copy(aRole, pRole, sizeof(aRole));
+		// lowercase in-place
+		for(char *c = aRole; *c; ++c)
+		{
+			if(*c >= 'A' && *c <= 'Z')
+				*c = (char)(*c - 'A' + 'a');
+		}
+		if(!str_comp(aRole, "member"))
+			NewAuthLevel = 1;
+		else if(!str_comp(aRole, "coleader") || !str_comp(aRole, "co-leader") || !str_comp(aRole, "co_leader"))
+			NewAuthLevel = 2;
+		else if(!str_comp(aRole, "leader"))
+			return pSelf->SendChatTarget(IssuerId, "Use /clan_transfer to transfer leadership.");
+		else
+			return pSelf->SendChatTarget(IssuerId, "Invalid role. Allowed values: member | coleader");
+	}
+
 	bool FoundTarget = false;
 	int TargetClientId = -1;
-
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		if(pSelf->m_apPlayers[i] && !str_comp(pTargetName, pSelf->Server()->ClientName(i)))
@@ -2168,18 +2186,18 @@ void CGameContext::ConClanSetAuth(IConsole::IResult *pResult, void *pUserData)
 		return pSelf->SendChatTarget(IssuerId, "The target player is not in your clan.");
 
 	if(IssuerId == TargetClientId)
-		return pSelf->SendChatTarget(IssuerId, "You cannot change your own rank.");
+		return pSelf->SendChatTarget(IssuerId, "You cannot change your own role.");
 
 	if(NewAuthLevel < 1 || NewAuthLevel > 2)
-		return pSelf->SendChatTarget(IssuerId, "Invalid rank. Allowed values: 1 (Member), 2 (Co-Leader). Use /clan_transfer to transfer leadership!");
+		return pSelf->SendChatTarget(IssuerId, "Invalid role. Allowed values: member | coleader");
 
 	if(pTargetPlayer->m_Account.m_AuthLevel == ClanAuthLevel::LEADER)
-		return pSelf->SendChatTarget(IssuerId, "You cannot change the rank of the clan leader.");
+		return pSelf->SendChatTarget(IssuerId, "You cannot change the role of the clan leader.");
 
 	if(pTargetPlayer->m_Account.m_AuthLevel == static_cast<ClanAuthLevel>(NewAuthLevel))
-		return pSelf->SendChatTarget(IssuerId, "The player already has that rank.");
+		return pSelf->SendChatTarget(IssuerId, "The player already has that role.");
 
-	// use IssuerId as the client to create the SQL result and for permission checks
+	// Perform the change
 	pSelf->Clans()->SetAuthLevel(IssuerId, pTargetPlayer->m_Account.m_aName, NewAuthLevel, pIssuer->m_Account.m_ClanId);
 }
 
