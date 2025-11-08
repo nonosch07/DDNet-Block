@@ -39,6 +39,7 @@
 #include <blockworlds/components/oneonone_manager.h>
 #include <blockworlds/components/promises.h>
 #include <blockworlds/components/requests.h>
+#include <blockworlds/components/vpndetection/vpn_detection.h>
 
 #include <game/generated/protocol7.h>
 #include <game/generated/protocolglue.h>
@@ -165,6 +166,7 @@ void CGameContext::Construct(int Resetting)
 		g_ComponentRegistry.Register<CRequests>(CRequests::GetNameStatic());
 		g_ComponentRegistry.Register<CAiBotComponent>(CAiBotComponent::GetNameStatic());
 		g_ComponentRegistry.Register<CChatFilterComponent>(CChatFilterComponent::GetNameStatic());
+		g_ComponentRegistry.Register<CVpnDetectionComponent>(CVpnDetectionComponent::GetNameStatic());
 
 		g_ComponentRegistry.Create<COneOnOneManager>(this);
 	}
