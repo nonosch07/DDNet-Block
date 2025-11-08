@@ -504,6 +504,14 @@ void CVoteManager::BuildRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, C
 
 	if(pPlayer && pPlayer->IsLoggedIn())
 	{
+		// Profile page
+		{
+			std::string label = SmallCaps("Profile");
+			label += " ›";
+			OutLabels.emplace_back(label);
+			OutActions.emplace_back(Action{EActionKind::OpenProfile});
+		}
+
 		std::string label = SmallCaps("Cosmetics");
 		label += " ›";
 		OutLabels.emplace_back(label);

@@ -111,6 +111,8 @@ bool CBlockTracker::Blocked(int ClientID, int BlockerID)
 			CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
 			if(!pEv)
 				continue;
+			if(pEv->GetName() && str_comp(pEv->GetName(), "tdm") == 0)
+				continue;
 			const auto &parts = pEv->Participants();
 			if(std::find(parts.begin(), parts.end(), ClientID) != parts.end() || std::find(parts.begin(), parts.end(), BlockerID) != parts.end())
 			{
@@ -647,6 +649,8 @@ void CBlockTracker::OnPlayerImpacted(int ClientID, int InitiatorID)
 		{
 			CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
 			if(!pEv)
+				continue;
+			if(pEv->GetName() && str_comp(pEv->GetName(), "tdm") == 0)
 				continue;
 			const auto &parts = pEv->Participants();
 			if(std::find(parts.begin(), parts.end(), ClientID) != parts.end() || std::find(parts.begin(), parts.end(), InitiatorID) != parts.end())
