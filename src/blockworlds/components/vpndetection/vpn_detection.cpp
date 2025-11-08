@@ -277,10 +277,20 @@ void CVpnDetectionComponent::CheckClient(int ClientId, bool FullCheck)
 	
 	if(FullCheck)
 	{
-		std::lock_guard<std::mutex> Lock(m_Mutex);
-		for(auto &QueuePair : m_ServiceQueues)
+		// Collect service names while holding the lock, then release it
+		// before calling CheckClientService (which calls EnqueueRequest that needs the lock)
+		std::vector<std::string> ServiceNames;
 		{
-			CheckClientService(ClientId, QueuePair.first.c_str());
+			std::lock_guard<std::mutex> Lock(m_Mutex);
+			for(const auto &QueuePair : m_ServiceQueues)
+			{
+				ServiceNames.push_back(QueuePair.first);
+			}
+		}
+		
+		for(const auto &ServiceName : ServiceNames)
+		{
+			CheckClientService(ClientId, ServiceName.c_str());
 		}
 	}
 	else
