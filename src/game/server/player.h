@@ -552,6 +552,7 @@ public:
 	bool ToggleSpecial(int SpecialIndex);
 	char m_aSpecialsOwned[CCosmeticsHandler::NUM_SPECIALS + 1];
 	bool m_UsePassiveProtection = true;
+	bool m_PassivePendingEnable = false;
 
 	// Inline leaderboard capture for vote menu rendering
 	bool m_CaptureTopToMenu = false; // when true, next TOP_MESSAGES/DIRECT top list goes into buffer
@@ -563,10 +564,34 @@ public:
 
 	void TogglePassive()
 	{
-		m_UsePassiveProtection = !m_UsePassiveProtection;
+		if(m_UsePassiveProtection)
+		{
+			m_UsePassiveProtection = false;
+			m_PassivePendingEnable = false;
+			return;
+		}
+		if(GetCharacter())
+		{
+			if(m_PassivePendingEnable)
+				m_PassivePendingEnable = false;
+			else
+				m_PassivePendingEnable = true; // will activate after death
+			return;
+		}
+		m_UsePassiveProtection = true;
+		m_PassivePendingEnable = false;
 	}
 
 	bool IsUsingPassiveProtection() const { return m_UsePassiveProtection; }
+	bool IsPassivePendingEnable() const { return m_PassivePendingEnable; }
+	void PromotePassiveIfPending()
+	{
+		if(m_PassivePendingEnable)
+		{
+			m_UsePassiveProtection = true;
+			m_PassivePendingEnable = false;
+		}
+	}
 };
 
 #endif

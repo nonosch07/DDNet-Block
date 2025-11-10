@@ -276,7 +276,8 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				if(pPlayer)
 				{
 					pPlayer->TogglePassive();
-					pGameContext->SendChatTarget(ClientId, pPlayer->IsUsingPassiveProtection() ? "Passive protection enabled." : "Passive protection disabled.");
+					bool EnabledForMessage = pPlayer->IsUsingPassiveProtection() || pPlayer->IsPassivePendingEnable();
+					pGameContext->SendChatTarget(ClientId, EnabledForMessage ? "Passive protection enabled." : "Passive protection disabled.");
 					pGameContext->ClearVotes(ClientId);
 					RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
 				}
@@ -531,7 +532,11 @@ void CVoteManager::BuildExtras(CPlayer *pPlayer, int ClientID, IServer *pServer,
 		return;
 	}
 
-	std::string PassiveLine = std::string(pPlayer->IsUsingPassiveProtection() ? "☑ " : "☐ ") + SmallCaps("Passive Protection");
+	std::string PassiveLine;
+	if(pPlayer->IsUsingPassiveProtection() || pPlayer->IsPassivePendingEnable())
+		PassiveLine = std::string("☑ ") + SmallCaps("Passive Protection");
+	else
+		PassiveLine = std::string("☐ ") + SmallCaps("Passive Protection");
 	OutLabels.emplace_back(PassiveLine);
 	OutActions.emplace_back(Action{EActionKind::TogglePassive});
 }

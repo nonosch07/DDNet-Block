@@ -100,6 +100,10 @@ void CPassiveZone::OnCharacterDeath(CCharacter *pCharacter)
 	m_ProtectionUsed[ClientID] = false; // reset per life
 	m_aWasInZone[ClientID] = false;
 	pCharacter->Core()->m_Passive = false;
+	if(pCharacter->GetPlayer())
+	{
+		pCharacter->GetPlayer()->PromotePassiveIfPending();
+	}
 }
 
 void CPassiveZone::HandleProtection(int ClientID, CPlayer *pPlayer, CCharacter *pChar, bool InZone, bool WasInZone)
