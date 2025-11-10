@@ -60,6 +60,40 @@ std::mutex g_ClansDataMutex;
 std::unordered_map<int, CClansData> g_ClanIdMap;
 std::unordered_map<std::string, int> g_ClanNameToId;
 
+// save de-duplication state
+struct SClanSaveState
+{
+	bool m_Queued{false};
+	bool m_InFlight{false};
+	int m_LastEnqueueTick{0};
+};
+
+static std::unordered_map<int, SClanSaveState> g_ClanSaveState; // by clan id
+
+static bool TryMarkSaveQueued_Locked(int ClanId, int Now)
+{
+	SClanSaveState &St = g_ClanSaveState[ClanId];
+	if(St.m_Queued || St.m_InFlight)
+		return false;
+	St.m_Queued = true;
+	St.m_LastEnqueueTick = Now;
+	return true;
+}
+
+static void MarkSaveStarted_Locked(int ClanId)
+{
+	SClanSaveState &St = g_ClanSaveState[ClanId];
+	St.m_InFlight = true;
+	St.m_Queued = false;
+}
+
+static void MarkSaveFinished_Locked(int ClanId)
+{
+	SClanSaveState &St = g_ClanSaveState[ClanId];
+	St.m_InFlight = false;
+	St.m_Queued = false;
+}
+
 std::shared_ptr<CClanResult> CClanManager::NewSqlClanResult(int ClientId)
 {
 	CPlayer *pCurPlayer = GameServer()->m_apPlayers[ClientId];
@@ -138,11 +172,24 @@ void CClanManager::ClanLeave(int ClientId)
 
 void CClanManager::SaveClan(int ClientId, int ClanId)
 {
+	// de-dup saves: if a save is already queued or in-flight, skip enqueue
+	int Now = GameServer()->Server()->Tick();
+	{
+		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
+		if(!TryMarkSaveQueued_Locked(ClanId, Now))
+			return;
+	}
 	ExecClanThread(SaveClanThread, "save clan", ClientId, "", "", 0, ClanId);
 }
 
 void CClanManager::QueueBackgroundSave(int ClanId)
 {
+	int Now = GameServer()->Server()->Tick();
+	{
+		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
+		if(!TryMarkSaveQueued_Locked(ClanId, Now))
+			return; // already queued or saving
+	}
 	auto pResult = std::make_shared<CClanResult>();
 	auto pRequest = std::make_unique<CSqlClanRequest>(pResult, this);
 	pRequest->m_ClientId = -1;
@@ -1522,13 +1569,22 @@ bool CClanManager::SaveClanThread(IDbConnection *pSqlServer, const ISqlData *pGa
 	const CSqlClanRequest *pData = static_cast<const CSqlClanRequest *>(pGameData);
 	char aBuf[1024];
 
+	// mark start of save (prevent further enqueue) under mutex
+	{
+		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
+		MarkSaveStarted_Locked(pData->m_ClanId);
+	}
+
 	if(pData->m_ClanId < 1)
 	{
 		if(pError && ErrorSize > 0)
 			str_copy(pError, "Error: Couldn't retrieve clan ID!", ErrorSize);
 		return true;
 	}
-	str_format(aBuf, sizeof(aBuf), "UPDATE %s SET level = ?, experience = ? WHERE id = ?;", TBL_CLANS);
+	// only write if the incoming state is not older than the DB lol
+	str_format(aBuf, sizeof(aBuf),
+		"UPDATE %s SET level = ?, experience = ? WHERE id = ? AND (level < ? OR (level = ? AND experience <= ?));",
+		TBL_CLANS);
 
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -1556,6 +1612,9 @@ bool CClanManager::SaveClanThread(IDbConnection *pSqlServer, const ISqlData *pGa
 	pSqlServer->BindInt(1, ClanCopy.m_Level);
 	pSqlServer->BindInt(2, ClanCopy.m_Experience);
 	pSqlServer->BindInt(3, ClanCopy.m_Id);
+	pSqlServer->BindInt(4, ClanCopy.m_Level);
+	pSqlServer->BindInt(5, ClanCopy.m_Level);
+	pSqlServer->BindInt(6, ClanCopy.m_Experience);
 
 	int NumUpdated = 0;
 	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
@@ -1598,9 +1657,25 @@ bool CClanManager::SaveClanThread(IDbConnection *pSqlServer, const ISqlData *pGa
 			{
 				Clan.m_LastSavedTick = CurrentTick;
 				Clan.m_Dirty = false; // cleared after successful save attempt
+				// mark finished save state
+				MarkSaveFinished_Locked(Clan.m_Id);
 				break;
 			}
 		}
+		// keep the map entry in sync for snapshot-based reads
+		auto it = g_ClanIdMap.find(ClanCopy.m_Id);
+		if(it != g_ClanIdMap.end())
+		{
+			it->second.m_LastSavedTick = CurrentTick;
+			it->second.m_Dirty = false;
+		}
+	}
+
+	// if the clan became dirty again while saving (race), requeue a save
+	CClansData AfterCopy;
+	if(pData->m_pClanManager->GetClanSnapshotById(pData->m_ClanId, AfterCopy) && AfterCopy.m_Dirty)
+	{
+		pData->m_pClanManager->QueueBackgroundSave(pData->m_ClanId);
 	}
 
 	return false;
@@ -1779,14 +1854,21 @@ void CClanManager::AutosaveTick()
 		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
 		for(const auto &Clan : m_vClansData)
 		{
-			if(Clan.m_Dirty || (Clan.m_LastSavedTick + IntervalTicks < Now))
+			bool Due = Clan.m_Dirty || (Clan.m_LastSavedTick + IntervalTicks < Now);
+			if(Due)
 			{
-				ToSave.push_back(Clan.m_Id);
+				if(TryMarkSaveQueued_Locked(Clan.m_Id, Now))
+					ToSave.push_back(Clan.m_Id);
 			}
 		}
 	}
 	for(int id : ToSave)
 	{
-		QueueBackgroundSave(id);
+		// already marked queued; just enqueue the task
+		auto pResult = std::make_shared<CClanResult>();
+		auto pRequest = std::make_unique<CSqlClanRequest>(pResult, this);
+		pRequest->m_ClientId = -1;
+		pRequest->m_ClanId = id;
+		m_pPool->Execute(SaveClanThread, std::move(pRequest), "autosave clan");
 	}
 }
