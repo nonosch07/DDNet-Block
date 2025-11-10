@@ -4,6 +4,7 @@
 #include <base/system.h>
 #include <cstring>
 #include <engine/console.h>
+#include <engine/shared/config.h>
 
 #include <chrono>
 #include <iterator>
@@ -307,19 +308,22 @@ void CWorker::ProcessQueries()
 			{
 				if(m_pShared->m_Shutdown && !(pThreadData->m_pThreadData && pThreadData->m_pThreadData->m_Critical))
 				{
-					dbg_msg("sql", "[%i] %s dismissed read request during shutdown", JobNum, pThreadData->m_pName);
+					if(g_Config.m_SvDebugSql)
+						dbg_msg("sql", "[%i] %s dismissed read request during shutdown", JobNum, pThreadData->m_pName);
 					break;
 				}
 				if(FailMode && !(pThreadData->m_pThreadData && pThreadData->m_pThreadData->m_Critical))
 				{
-					dbg_msg("sql", "[%i] %s dismissed read request during FailMode", JobNum, pThreadData->m_pName);
+					if(g_Config.m_SvDebugSql)
+						dbg_msg("sql", "[%i] %s dismissed read request during FailMode", JobNum, pThreadData->m_pName);
 					break;
 				}
 				int CurServer = (ReadServer + i) % (int)m_vpReadConnections.size();
 				if(CDbConnectionPool::ExecSqlFunc(m_vpReadConnections[CurServer].get(), pThreadData.get(), Write::NORMAL))
 				{
 					ReadServer = CurServer;
-					dbg_msg("sql", "[%i] %s done on read database %d", JobNum, pThreadData->m_pName, CurServer);
+					if(g_Config.m_SvDebugSql)
+						dbg_msg("sql", "[%i] %s done on read database %d", JobNum, pThreadData->m_pName, CurServer);
 					Success = true;
 					break;
 				}
@@ -337,21 +341,25 @@ void CWorker::ProcessQueries()
 			{
 				if(m_pShared->m_Shutdown && m_pWriteBackup != nullptr)
 				{
-					dbg_msg("sql", "[%i] %s skipped to backup database during shutdown", JobNum, pThreadData->m_pName);
+					if(g_Config.m_SvDebugSql)
+						dbg_msg("sql", "[%i] %s skipped to backup database during shutdown", JobNum, pThreadData->m_pName);
 				}
 				else if(FailMode && m_pWriteBackup != nullptr)
 				{
-					dbg_msg("sql", "[%i] %s skipped to backup database during FailMode", JobNum, pThreadData->m_pName);
+					if(g_Config.m_SvDebugSql)
+						dbg_msg("sql", "[%i] %s skipped to backup database during FailMode", JobNum, pThreadData->m_pName);
 				}
 				else if(CDbConnectionPool::ExecSqlFunc(m_pWriteConnection.get(), pThreadData.get(), Write::NORMAL))
 				{
-					dbg_msg("sql", "[%i] %s done on write database", JobNum, pThreadData->m_pName);
+					if(g_Config.m_SvDebugSql)
+						dbg_msg("sql", "[%i] %s done on write database", JobNum, pThreadData->m_pName);
 					Success = true;
 				}
 			}
 			else if(CDbConnectionPool::ExecSqlFunc(m_pWriteConnection.get(), pThreadData.get(), Write::NORMAL))
 			{
-				dbg_msg("sql", "[%i] %s done on write database", JobNum, pThreadData->m_pName);
+				if(g_Config.m_SvDebugSql)
+					dbg_msg("sql", "[%i] %s done on write database", JobNum, pThreadData->m_pName);
 				Success = true;
 			}
 			// enter fail mode if not successful
@@ -359,7 +367,8 @@ void CWorker::ProcessQueries()
 			const Write w = Success ? Write::NORMAL_SUCCEEDED : Write::NORMAL_FAILED;
 			if(m_pWriteBackup && CDbConnectionPool::ExecSqlFunc(m_pWriteBackup.get(), pThreadData.get(), w))
 			{
-				dbg_msg("sql", "[%i] %s done move write on backup database to non-backup table", JobNum, pThreadData->m_pName);
+				if(g_Config.m_SvDebugSql)
+					dbg_msg("sql", "[%i] %s done move write on backup database to non-backup table", JobNum, pThreadData->m_pName);
 				Success = true;
 			}
 		}
@@ -410,7 +419,8 @@ void CWorker::ProcessQueries()
 			break;
 		}
 		if(!Success)
-			dbg_msg("sql", "[%i] %s failed on all databases", JobNum, pThreadData->m_pName);
+			if(g_Config.m_SvDebugSql)
+				dbg_msg("sql", "[%i] %s failed on all databases", JobNum, pThreadData->m_pName);
 		if(pThreadData->m_pThreadData != nullptr && pThreadData->m_pThreadData->m_pResult != nullptr)
 		{
 			pThreadData->m_pThreadData->m_pResult->m_Success = Success;

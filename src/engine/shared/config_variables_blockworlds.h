@@ -162,8 +162,8 @@ MACRO_CONFIG_INT(SvWhoisCooldownSec, sv_whois_cooldown_sec, 0, 0, 300, CFGFLAG_S
 MACRO_CONFIG_INT(SvShowAuthedUsers, sv_show_authed_users, 0, 0, 1, CFGFLAG_SERVER | CFGFLAG_GAME, "Show authed users (admin/mod) as green in the scoreboard")
 
 // rcon command sending performance tuning
-MACRO_CONFIG_INT(SvSendRconCmdsPerTick, sv_send_rcon_cmds_per_tick, 32, 1, 256, CFGFLAG_SERVER, "Number of rcon commands to send per tick per client")
-MACRO_CONFIG_INT(SvSendRconCmdsClientsPerTick, sv_send_rcon_cmds_clients_per_tick, 4, 1, MAX_CLIENTS, CFGFLAG_SERVER, "Number of clients to update with rcon commands per tick")
+MACRO_CONFIG_INT(SvSendRconCmdsPerTick, sv_send_rcon_cmds_per_tick, 64, 1, 256, CFGFLAG_SERVER, "Number of rcon commands to send per tick per client")
+MACRO_CONFIG_INT(SvSendRconCmdsClientsPerTick, sv_send_rcon_cmds_clients_per_tick, 16, 1, MAX_CLIENTS, CFGFLAG_SERVER, "Number of clients to update with rcon commands per tick")
 
 // chat filter settings
 MACRO_CONFIG_INT(SvChatfilterMuteHours, sv_chatfilter_mute_hours, 12, 0, 168, CFGFLAG_SERVER, "Hours to mute a player when a filtered word is used (0 = disable muting)")
@@ -172,3 +172,6 @@ MACRO_CONFIG_STR(SvChatfilterWordsFile, sv_chatfilter_words_file, 255, "data/cha
 // Map transfers
 MACRO_CONFIG_INT(SvBlmapV3RoyalPort, sv_blmap_v3_royal_port, 8305, 8303, 8310, CFGFLAG_SERVER, "Port for BlmapV3Royal map")
 MACRO_CONFIG_INT(SvStorePort, sv_store_port, 8306, 8303, 8310, CFGFLAG_SERVER, "Port for store map")
+
+// silence sql logs
+MACRO_CONFIG_INT(SvDebugSql, sv_debug_sql, 0, 0, 1, CFGFLAG_SERVER, "Enable verbose SQL debug logging (accounts, clans)")
