@@ -240,6 +240,20 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				pGameContext->ClearVotes(ClientId);
 				RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
 				return true;
+					case EActionKind::OpenMapTransfers:
+						PushPage(ClientId, Page::MAP_TRANSFERS);
+						pGameContext->ClearVotes(ClientId);
+						RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
+						return true;
+					case EActionKind::RedirectToPort:
+						if(pGameContext && pGameContext->Server())
+						{
+							int Port = A.A;
+							bool DoRedirect = true;
+							if(DoRedirect)
+								pGameContext->Server()->RedirectClient(ClientId, Port, true);
+						}
+						return true;
 			case EActionKind::OpenRules:
 				PushPage(ClientId, Page::RULES);
 				pGameContext->ClearVotes(ClientId);
@@ -340,6 +354,7 @@ void CVoteManager::RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pS
 	case Page::LEADERBOARD_DETAIL: BuildLeaderboardDetail(pPlayer, ClientID, pServer, pGameContext, Current.Data, Labels, Actions); break;
 	case Page::SERVER_INFOS: BuildServerInfos(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
 	case Page::SERVER_INFOS_TOPIC: BuildServerInfosTopic(pPlayer, ClientID, pServer, pGameContext, Current.Data, Labels, Actions); break;
+	case Page::MAP_TRANSFERS: BuildMapTransfers(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
 	case Page::COSMETICS_ROOT: BuildCosmeticsRoot(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
 	case Page::COSMETICS_CATEGORY: BuildCosmeticsCategory(pPlayer, ClientID, pServer, pGameContext, Current.Data, Labels, Actions); break;
 	}
@@ -382,6 +397,7 @@ void CVoteManager::RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pS
 				Title = "Info";
 			break;
 		}
+		case Page::MAP_TRANSFERS: Title = "Map Transfers"; break;
 		case Page::COSMETICS_ROOT: Title = "Cosmetics"; break;
 		case Page::COSMETICS_CATEGORY:
 		{
@@ -503,6 +519,13 @@ void CVoteManager::BuildRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, C
 		OutActions.emplace_back(Action{EActionKind::OpenServerInfos});
 	}
 
+	{
+		std::string label = SmallCaps("Map Transfers");
+		label += " ›";
+		OutLabels.emplace_back(label);
+		OutActions.emplace_back(Action{EActionKind::OpenMapTransfers});
+	}
+
 	if(pPlayer && pPlayer->IsLoggedIn())
 	{
 		std::string label = SmallCaps("Cosmetics");
@@ -517,6 +540,31 @@ void CVoteManager::BuildRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, C
 	}
 	OutLabels.emplace_back(SmallCaps("discord: dsc.gg/bw-tw"));
 	OutActions.emplace_back(Action{EActionKind::None});
+}
+
+void CVoteManager::BuildMapTransfers(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions)
+{
+	bool Any = false;
+
+	auto add_entry = [&](int Port, const char *pName) {
+		if(Port <= 0)
+			return;
+		Any = true;
+		char aBuf[128];
+		str_format(aBuf, sizeof(aBuf), "%s (:%d)", pName, Port);
+		std::string Line = SmallCaps(aBuf);
+		OutLabels.emplace_back(Line);
+		OutActions.emplace_back(Action{EActionKind::RedirectToPort, Port});
+	};
+
+	add_entry(g_Config.m_SvBlmapV3RoyalPort, "BlmapV3Royal");
+	add_entry(g_Config.m_SvStorePort, "Store");
+
+	if(!Any)
+	{
+		OutLabels.emplace_back(SmallCaps("No map transfers configured."));
+		OutActions.emplace_back(Action{EActionKind::None});
+	}
 }
 
 void CVoteManager::BuildExtras(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions)

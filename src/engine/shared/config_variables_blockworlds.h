@@ -87,7 +87,7 @@ MACRO_CONFIG_INT(SvShopServer, sv_shop_server, 0, 0, 1, CFGFLAG_SERVER, "Set to 
 
 // Clans settings:
 MACRO_CONFIG_INT(SvClanMinLevel, sv_clan_min_level, 25, 0, 100, CFGFLAG_SERVER, "Minimum player level required to create a clan.")
-MACRO_CONFIG_INT(SvClanSaveInterval, sv_clan_save_interval, 120, 1, 3600, CFGFLAG_SERVER, "Time delay (in seconds) between successive clan saves.")
+MACRO_CONFIG_INT(SvClanSaveInterval, sv_clan_save_interval, 600, 1, 3600, CFGFLAG_SERVER, "Time delay (in seconds) between successive clan saves.")
 MACRO_CONFIG_INT(SvClanMaxMembers, sv_clan_max_members, 25, 1, 1000, CFGFLAG_SERVER, "Maximum number of members per clan (including leaders & co-leaders).")
 MACRO_CONFIG_INT(SvClanConfirmExpiry, sv_clan_confirm_expiry, 15, 5, 600, CFGFLAG_SERVER, "Expiry time (in seconds) for clan confirmations like delete/kick/rename.")
 MACRO_CONFIG_INT(SvClanCreatePrice, sv_clan_create_price, 500, 0, 1000000, CFGFLAG_SERVER, "Blockpoints cost to create a clan (0 = free).")
@@ -168,3 +168,7 @@ MACRO_CONFIG_INT(SvSendRconCmdsClientsPerTick, sv_send_rcon_cmds_clients_per_tic
 // chat filter settings
 MACRO_CONFIG_INT(SvChatfilterMuteHours, sv_chatfilter_mute_hours, 12, 0, 168, CFGFLAG_SERVER, "Hours to mute a player when a filtered word is used (0 = disable muting)")
 MACRO_CONFIG_STR(SvChatfilterWordsFile, sv_chatfilter_words_file, 255, "data/chatfilter_words.txt", CFGFLAG_SERVER, "Path or filename of the chat filter word list (resolved relative to the executable directory)")
+
+// Map transfers
+MACRO_CONFIG_INT(SvBlmapV3RoyalPort, sv_blmap_v3_royal_port, 8305, 8303, 8310, CFGFLAG_SERVER, "Port for BlmapV3Royal map")
+MACRO_CONFIG_INT(SvStorePort, sv_store_port, 8306, 8303, 8310, CFGFLAG_SERVER, "Port for store map")
