@@ -680,9 +680,9 @@ bool CRequests::AcceptRequest(int RequestId)
 		if(GameServer()->Clans())
 		{
 			GameServer()->Clans()->RemoveFromClan(clientId, it->m_aUsername, clanId);
-			char aBuf[192];
-			str_format(aBuf, sizeof(aBuf), "Clan kick confirmed: '%s' will be removed.", it->m_aUsername);
-			GameServer()->SendChatTarget(clientId, aBuf);
+			// char aBuf[192];
+			// str_format(aBuf, sizeof(aBuf), "Clan kick confirmed: '%s' will be removed.", it->m_aUsername);
+			// GameServer()->SendChatTarget(clientId, aBuf);
 		}
 		m_Requests.erase(it);
 		return true;
@@ -714,13 +714,9 @@ bool CRequests::AcceptRequest(int RequestId)
 		}
 		if(GameServer()->Clans())
 		{
-			// promote target
-			GameServer()->Clans()->SetAuthLevel(clientId, it->m_aUsername, static_cast<int>(ClanAuthLevel::LEADER), clanId);
-
-			// demote issuer
-			GameServer()->Clans()->SetAuthLevel(clientId, pPl->m_Account.m_aName, static_cast<int>(ClanAuthLevel::COLEADER), clanId);
+			GameServer()->Clans()->TransferLeadership(clientId, it->m_aUsername, clanId);
 			char aBuf[256];
-			str_format(aBuf, sizeof(aBuf), "Clan transfer confirmed: '%s' is now the leader.", it->m_aUsername);
+			str_format(aBuf, sizeof(aBuf), "Clan transfer requested: '%s' will be made leader.", it->m_aUsername);
 			GameServer()->SendChatTarget(clientId, aBuf);
 		}
 		m_Requests.erase(it);

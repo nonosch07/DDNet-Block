@@ -1895,52 +1895,55 @@ void CGameContext::ConClanRemove(IConsole::IResult *pResult, void *pUserData)
 		return pSelf->SendChatTarget(ClientId, "You are not authorized to remove members from this clan.");
 
 	const char *pTargetName = pResult->GetString(0);
-	bool FoundTarget = false;
-	int TargetClientId = -1;
+	if(!pTargetName || pTargetName[0] == '\0')
+		return pSelf->SendChatTarget(ClientId, "Usage: /clan_kick <player>");
 
+	bool FoundOnline = false;
+	int TargetClientId = -1;
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		if(pSelf->m_apPlayers[i] && !str_comp(pTargetName, pSelf->Server()->ClientName(i)))
 		{
 			TargetClientId = i;
-			FoundTarget = true;
+			FoundOnline = true;
 			break;
 		}
 	}
 
-	if(!FoundTarget)
+	if(FoundOnline)
 	{
-		return pSelf->SendChatTarget(ClientId, "Player not found");
+		CPlayer *pTargetPlayer = pSelf->m_apPlayers[TargetClientId];
+		if(!pTargetPlayer || !pTargetPlayer->m_Account.m_Id)
+			return pSelf->SendChatTarget(ClientId, "The target player is not logged in.");
+		if(pPlayer->m_Account.m_ClanId != pTargetPlayer->m_Account.m_ClanId)
+			return pSelf->SendChatTarget(ClientId, "The target player is not in your clan.");
+		if(ClientId == TargetClientId)
+			return pSelf->SendChatTarget(ClientId, "You cannot remove yourself from the clan.");
+		if(pTargetPlayer->m_Account.m_AuthLevel >= ClanAuthLevel::COLEADER)
+			return pSelf->SendChatTarget(ClientId, "You cannot remove a leader or co-leader from the clan.");
+		if(auto requests = g_ComponentRegistry.Get<CRequests>())
+		{
+			requests->CreateClanKickConfirm(ClientId, pPlayer->m_Account.m_ClanId, pTargetPlayer->m_Account.m_aName, g_Config.m_SvClanConfirmExpiry);
+			return; // message sent by requests
+		}
+		return; // fallback (no requests component)
 	}
 
-	CPlayer *pTargetPlayer = pSelf->m_apPlayers[TargetClientId];
-
-	if(!pTargetPlayer->m_Account.m_Id)
-	{
-		return pSelf->SendChatTarget(ClientId, "The target player is not logged in.");
-	}
-
-	if(pPlayer->m_Account.m_ClanId != pTargetPlayer->m_Account.m_ClanId)
-	{
-		return pSelf->SendChatTarget(ClientId, "The target player is not in your clan.");
-	}
-
-	if(ClientId == TargetClientId)
-	{
+	// Offline target path: allow specifying an account name that is currently offline.
+	// We cannot fully verify membership/auth synchronously here; RemoveFromClanThread will do validation.
+	// Basic self-check to avoid kicking self by own account name.
+	if(!str_comp(pTargetName, pPlayer->m_Account.m_aName))
 		return pSelf->SendChatTarget(ClientId, "You cannot remove yourself from the clan.");
-	}
 
-	if(pTargetPlayer->m_Account.m_AuthLevel == ClanAuthLevel::LEADER)
-	{
-		return pSelf->SendChatTarget(ClientId, "You cannot remove a leader or co-leader from the clan.");
-	}
-
-	// confirmation
 	if(auto requests = g_ComponentRegistry.Get<CRequests>())
 	{
-		requests->CreateClanKickConfirm(ClientId, pPlayer->m_Account.m_ClanId, pTargetPlayer->m_Account.m_aName, g_Config.m_SvClanConfirmExpiry);
-		return; // message sent by requests
+		requests->CreateClanKickConfirm(ClientId, pPlayer->m_Account.m_ClanId, pTargetName, g_Config.m_SvClanConfirmExpiry);
+		char aBuf[160];
+		str_format(aBuf, sizeof(aBuf), "Kick confirmation for offline member '%s' created. Type /clan_yes to confirm.", pTargetName);
+		pSelf->SendChatTarget(ClientId, aBuf);
+		return;
 	}
+	return pSelf->SendChatTarget(ClientId, "Kick failed: request system unavailable.");
 }
 
 void CGameContext::ConClanTransfer(IConsole::IResult *pResult, void *pUserData)
@@ -2174,31 +2177,39 @@ void CGameContext::ConClanRole(IConsole::IResult *pResult, void *pUserData)
 		}
 	}
 
-	if(!FoundTarget)
-		return pSelf->SendChatTarget(IssuerId, "Player not found");
+	if(FoundTarget)
+	{
+		CPlayer *pTargetPlayer = pSelf->m_apPlayers[TargetClientId];
 
-	CPlayer *pTargetPlayer = pSelf->m_apPlayers[TargetClientId];
+		if(!pTargetPlayer->m_Account.m_Id)
+			return pSelf->SendChatTarget(IssuerId, "The target player is not logged in.");
 
-	if(!pTargetPlayer->m_Account.m_Id)
-		return pSelf->SendChatTarget(IssuerId, "The target player is not logged in.");
+		if(pIssuer->m_Account.m_ClanId != pTargetPlayer->m_Account.m_ClanId)
+			return pSelf->SendChatTarget(IssuerId, "The target player is not in your clan.");
 
-	if(pIssuer->m_Account.m_ClanId != pTargetPlayer->m_Account.m_ClanId)
-		return pSelf->SendChatTarget(IssuerId, "The target player is not in your clan.");
+		if(IssuerId == TargetClientId)
+			return pSelf->SendChatTarget(IssuerId, "You cannot change your own role.");
 
-	if(IssuerId == TargetClientId)
+		if(NewAuthLevel < 1 || NewAuthLevel > 2)
+			return pSelf->SendChatTarget(IssuerId, "Invalid role. Allowed values: member | coleader");
+
+		if(pTargetPlayer->m_Account.m_AuthLevel == ClanAuthLevel::LEADER)
+			return pSelf->SendChatTarget(IssuerId, "You cannot change the role of the clan leader.");
+
+		if(pTargetPlayer->m_Account.m_AuthLevel == static_cast<ClanAuthLevel>(NewAuthLevel))
+			return pSelf->SendChatTarget(IssuerId, "The player already has that role.");
+
+		pSelf->Clans()->SetAuthLevel(IssuerId, pTargetPlayer->m_Account.m_aName, NewAuthLevel, pIssuer->m_Account.m_ClanId);
+		return;
+	}
+
+	if(!str_comp(pTargetName, pIssuer->m_Account.m_aName))
 		return pSelf->SendChatTarget(IssuerId, "You cannot change your own role.");
 
 	if(NewAuthLevel < 1 || NewAuthLevel > 2)
 		return pSelf->SendChatTarget(IssuerId, "Invalid role. Allowed values: member | coleader");
 
-	if(pTargetPlayer->m_Account.m_AuthLevel == ClanAuthLevel::LEADER)
-		return pSelf->SendChatTarget(IssuerId, "You cannot change the role of the clan leader.");
-
-	if(pTargetPlayer->m_Account.m_AuthLevel == static_cast<ClanAuthLevel>(NewAuthLevel))
-		return pSelf->SendChatTarget(IssuerId, "The player already has that role.");
-
-	// Perform the change
-	pSelf->Clans()->SetAuthLevel(IssuerId, pTargetPlayer->m_Account.m_aName, NewAuthLevel, pIssuer->m_Account.m_ClanId);
+	pSelf->Clans()->SetAuthLevel(IssuerId, pTargetName, NewAuthLevel, pIssuer->m_Account.m_ClanId);
 }
 
 void CGameContext::ConClanRename(IConsole::IResult *pResult, void *pUserData)

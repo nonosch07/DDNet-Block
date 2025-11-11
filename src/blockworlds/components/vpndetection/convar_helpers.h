@@ -27,7 +27,7 @@ struct SConVarStringData
 inline void ConVarBoolCallback(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pData = static_cast<SConVarData<bool> *>(pUserData);
-	
+
 	if(pResult->NumArguments())
 	{
 		bool NewValue = pResult->GetInteger(0) != 0;
@@ -46,7 +46,7 @@ inline void ConVarBoolCallback(IConsole::IResult *pResult, void *pUserData)
 inline void ConVarIntCallback(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pData = static_cast<SConVarData<int> *>(pUserData);
-	
+
 	if(pResult->NumArguments())
 	{
 		int Value = pResult->GetInteger(0);
@@ -69,7 +69,7 @@ inline void ConVarIntCallback(IConsole::IResult *pResult, void *pUserData)
 inline void ConVarFloatCallback(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pData = static_cast<SConVarData<float> *>(pUserData);
-	
+
 	if(pResult->NumArguments())
 	{
 		float Value = pResult->GetFloat(0);
@@ -92,7 +92,7 @@ inline void ConVarFloatCallback(IConsole::IResult *pResult, void *pUserData)
 inline void ConVarStringCallback(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pData = static_cast<SConVarStringData *>(pUserData);
-	
+
 	if(pResult->NumArguments())
 	{
 		const char *pStr = pResult->GetString(0);
@@ -109,28 +109,27 @@ inline void ConVarStringCallback(IConsole::IResult *pResult, void *pUserData)
 }
 
 #define CONVAR_BOOL(var, def) \
-	new SConVarData<bool>{&var, false, true, def, Console(), nullptr}
+	new SConVarData<bool> { &var, false, true, def, Console(), nullptr }
 
 #define CONVAR_INT(var, def, min, max) \
-	new SConVarData<int>{&var, min, max, def, Console(), nullptr}
+	new SConVarData<int> { &var, min, max, def, Console(), nullptr }
 
 #define CONVAR_FLOAT(var, def, min, max) \
-	new SConVarData<float>{&var, min, max, def, Console(), nullptr}
+	new SConVarData<float> { &var, min, max, def, Console(), nullptr }
 
 #define CONVAR_STRING(var, def) \
-	new SConVarStringData{var, sizeof(var), def, Console(), nullptr}
+	new SConVarStringData { var, sizeof(var), def, Console(), nullptr }
 
 #define CONVAR_BOOL_ONCHANGE(var, def, callback) \
-	new SConVarData<bool>{&var, false, true, def, Console(), callback}
+	new SConVarData<bool> { &var, false, true, def, Console(), callback }
 
 #define CONVAR_INT_ONCHANGE(var, def, min, max, callback) \
-	new SConVarData<int>{&var, min, max, def, Console(), callback}
+	new SConVarData<int> { &var, min, max, def, Console(), callback }
 
 #define CONVAR_FLOAT_ONCHANGE(var, def, min, max, callback) \
-	new SConVarData<float>{&var, min, max, def, Console(), callback}
+	new SConVarData<float> { &var, min, max, def, Console(), callback }
 
 #define CONVAR_STRING_ONCHANGE(var, def, callback) \
-	new SConVarStringData{var, sizeof(var), def, Console(), callback}
+	new SConVarStringData { var, sizeof(var), def, Console(), callback }
 
 #endif // BLOCKWORLDS_COMPONENTS_VPN_CONVAR_HELPERS_H
-

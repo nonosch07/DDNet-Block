@@ -82,6 +82,7 @@ struct CClanResult : ISqlResult
 		ACTION_NONE = 0,
 		ACTION_UPDATE_PLAYER_BY_CLIENT, // update a specific client id's in-memory clan/auth
 		ACTION_UPDATE_PLAYER_BY_NAME, // update a player found by name
+		ACTION_UPDATE_TWO_PLAYERS, // update two players (one by client id, one by name) atomically
 		ACTION_RESET_CLAN_PLAYERS, // reset all players of a clan (set clan id to 0)
 		ACTION_NOTIFY_CLAN_RENAME // notify members of a clan rename (provide old/new names)
 	} m_Action = ACTION_NONE;
@@ -90,6 +91,9 @@ struct CClanResult : ISqlResult
 	int m_ActionNewClanId = 0; // target clan id for update actions
 	int m_ActionNewAuthLevel = 0; // auth level for update actions
 	char m_ActionPlayerName[64]; // for ACTION_UPDATE_PLAYER_BY_NAME
+	// used for ACTION_UPDATE_TWO_PLAYERS: m_ActionClientId / m_ActionNewAuthLevel apply to one player (by client id)
+	// while m_ActionPlayerName / m_ActionNewAuthLevel2 apply to the other (by name)
+	int m_ActionNewAuthLevel2 = 0;
 	int m_ActionResetClanId = 0; // for ACTION_RESET_CLAN_PLAYERS
 	char m_ActionOldClanName[33]{}; // for ACTION_NOTIFY_CLAN_RENAME
 	char m_ActionNewClanName[33]{}; // for ACTION_NOTIFY_CLAN_RENAME
@@ -146,6 +150,7 @@ class CClanManager
 	static bool RemoveFromClanThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool ClanLeaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool SetAuthLevelThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
+	static bool TransferLeadershipThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool RenameClanThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool SaveClanThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool ShowTopClansThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
@@ -165,6 +170,7 @@ public:
 	void RemoveFromClan(int ClientId, const char *AccountName, int ClanId);
 	void ClanLeave(int ClientId);
 	void SetAuthLevel(int ClientId, const char *AccountName, int NewAuthLevel, int ClanId);
+	void TransferLeadership(int ClientId, const char *AccountName, int ClanId);
 	void RenameClan(int ClientId, int ClanId, const char *pNewClanName);
 	void SaveClan(int ClientId, int ClanId);
 	void ShowTopClans(int ClientId);

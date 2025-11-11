@@ -471,7 +471,7 @@ void CTeamDeathmatchEvent::OnTick()
 
 		if(Server()->Tick() % Config()->m_SvTDMBroadcastRate == 0)
 		{
-			GameServer()->SendBroadcast(-1, "%s is about to start!\nRegister with /join\nTime left: %d seconds\n\nCandidates: %zd\n%s",
+			GameServer()->SendBroadcast(-1, "%s is about to start!\nRegister with /join\nTime left: %d seconds\n\nParticipants: %zd\n%s",
 				GetEventName(), (int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()),
 				Candidates().size(), PADDING);
 		}

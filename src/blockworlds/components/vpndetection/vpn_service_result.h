@@ -10,7 +10,7 @@
 struct IVpnServiceResult
 {
 	virtual ~IVpnServiceResult() = default;
-	
+
 	virtual const char *GetServiceName() const = 0;
 	virtual bool IsBadIP() const = 0;
 	virtual bool IsValid() const = 0;
@@ -38,15 +38,16 @@ struct CVpnServiceResult : public IVpnServiceResult
 	int m_RiskScore;
 	int m_ErrorCode;
 	int64_t m_Timestamp;
-	
+
 	CVpnServiceResult() :
 		m_IsBadIP(false),
 		m_IsValid(false),
 		m_RiskScore(-1),
 		m_ErrorCode(0),
 		m_Timestamp(0)
-	{}
-	
+	{
+	}
+
 	const char *GetServiceName() const override { return m_ServiceName.c_str(); }
 	const char *GetIpAddress() const override { return m_IpAddress.c_str(); }
 	const char *GetAsn() const override { return m_Asn.c_str(); }
@@ -60,4 +61,3 @@ struct CVpnServiceResult : public IVpnServiceResult
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_VPN_SERVICE_RESULT_H
-

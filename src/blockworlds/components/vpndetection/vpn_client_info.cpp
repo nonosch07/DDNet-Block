@@ -37,7 +37,7 @@ int CVpnClientInfo::GetAverageRiskScore() const
 {
 	int Total = 0;
 	int Count = 0;
-	
+
 	for(const auto &pResult : m_Results)
 	{
 		if(pResult && pResult->IsValid())
@@ -50,7 +50,6 @@ int CVpnClientInfo::GetAverageRiskScore() const
 			}
 		}
 	}
-	
+
 	return Count > 0 ? Total / Count : -1;
 }
-

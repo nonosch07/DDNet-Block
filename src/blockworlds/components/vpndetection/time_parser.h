@@ -24,4 +24,3 @@ bool ParseTimeString(const char *pTimeStr, int *pOutSeconds);
 bool ParseTimeStringMinutes(const char *pTimeStr, int *pOutMinutes);
 
 #endif // BLOCKWORLDS_COMPONENTS_VPN_TIME_PARSER_H
-

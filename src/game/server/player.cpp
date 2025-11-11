@@ -1608,6 +1608,64 @@ void CPlayer::BWProcessClansResult(CClanResult &Result)
 				}
 			}
 			break;
+		case CClanResult::ACTION_UPDATE_TWO_PLAYERS:
+		{
+			// update target by name
+			if(Result.m_ActionPlayerName[0] != '\0')
+			{
+				for(int i = 0; i < MAX_CLIENTS; ++i)
+				{
+					CPlayer *pTarget = GameServer()->m_apPlayers[i];
+					if(pTarget && pTarget->IsLoggedIn() && str_comp(pTarget->m_Account.m_aName, Result.m_ActionPlayerName) == 0)
+					{
+						int prevClan = pTarget->GetClanId();
+						const char *pPlayerName = pTarget->GetPlayerName();
+						pTarget->m_Account.m_ClanId = Result.m_ActionNewClanId;
+						pTarget->m_Account.m_AuthLevel = static_cast<ClanAuthLevel>(Result.m_ActionNewAuthLevel2);
+
+						// discord logging for promotion
+						if(discordConfigured && Result.m_Success)
+						{
+							if(Result.m_ActionNewClanId > 0 && prevClan == 0 && Result.m_ActionNewAuthLevel2 == static_cast<int>(ClanAuthLevel::LEADER))
+							{
+								std::string clanName = GameServer()->Clans()->GetClanNameCopy(Result.m_ActionNewClanId);
+								char aMsg[512];
+								str_format(aMsg, sizeof(aMsg), "[CLAN] Transferred: %s is now leader of '%s' (id=%d)", pPlayerName, clanName.c_str(), Result.m_ActionNewClanId);
+								CDiscordWebhook::SSendOptions Opt;
+								Opt.m_pWebhookUrl = pLogsUrl;
+								Discord.Send(aMsg, Opt);
+							}
+						}
+						break;
+					}
+				}
+			}
+
+			// update issuer by client id
+			if(Result.m_ActionClientId >= 0 && Result.m_ActionClientId < MAX_CLIENTS)
+			{
+				CPlayer *pIssuer = GameServer()->m_apPlayers[Result.m_ActionClientId];
+				if(pIssuer)
+				{
+					pIssuer->m_Account.m_ClanId = Result.m_ActionNewClanId;
+					pIssuer->m_Account.m_AuthLevel = static_cast<ClanAuthLevel>(Result.m_ActionNewAuthLevel);
+
+					// discord logging for demotion
+					if(discordConfigured && Result.m_Success)
+					{
+						if(Result.m_ActionNewClanId > 0 && Result.m_ActionNewAuthLevel == static_cast<int>(ClanAuthLevel::COLEADER))
+						{
+							char aMsg[512];
+							str_format(aMsg, sizeof(aMsg), "[CLAN] Transferred: %s was demoted to co-leader of clan id %d", pIssuer->GetPlayerName(), Result.m_ActionNewClanId);
+							CDiscordWebhook::SSendOptions Opt;
+							Opt.m_pWebhookUrl = pLogsUrl;
+							Discord.Send(aMsg, Opt);
+						}
+					}
+				}
+			}
+			break;
+		}
 		case CClanResult::ACTION_RESET_CLAN_PLAYERS:
 			if(Result.m_ActionResetClanId > 0)
 			{
