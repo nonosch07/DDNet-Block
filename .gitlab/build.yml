@@ -43,7 +43,7 @@ build_cmake_release:
 
 package_main:
   stage: Build docker image and deploy
-  image: docker:24.0.6-alpine3.18
+  image: docker:29.0.0-alpine3.22
   services:
     - docker:dind
   variables:
@@ -60,7 +60,7 @@ package_main:
 
 package_test:
   stage: Build docker image and deploy
-  image: docker:24.0.6-alpine3.18
+  image: docker:29.0.0-alpine3.22
   services:
     - docker:dind
   variables:
