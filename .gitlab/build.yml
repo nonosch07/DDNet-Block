@@ -17,6 +17,9 @@ build_cmake_release:
       libcurl4-openssl-dev
       libssl-dev
       zlib1g-dev
+      libsqlite3-dev
+      sqlite3
+      libpng-dev
       valgrind -y
   script:
     # Build Release
