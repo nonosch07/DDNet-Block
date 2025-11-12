@@ -1,6 +1,7 @@
 #include "chat_filter.h"
 
 #include <algorithm>
+#include <regex>
 
 #include <base/logger.h>
 #include <base/math.h>
@@ -17,7 +18,8 @@
 static const char *DEFAULT_CHATFILTER_FILENAME = "data/chatfilter_words.txt";
 
 CChatFilterComponent::CChatFilterComponent(CGameContext *pGameServer) :
-	CComponent(pGameServer)
+	CComponent(pGameServer),
+	m_NWordRegex("\\b(n+[i1!l][gq9]{2}[a@4]+|n+[i1!l]+[gq9]{2}[e3]+r+|n[i1!l]gg[a@4]|n[i1!l]gg[e3]r)\\b", std::regex_constants::icase)
 {
 	Load();
 }
@@ -101,54 +103,69 @@ bool CChatFilterComponent::CheckAndMaybeMute(int ClientId, const char *pMessage)
 	if(pMessage[0] == '/')
 		return false;
 
-	// quick check: case-insensitive substring find for each word
-	std::lock_guard<std::mutex> lock(m_Mutex);
-	for(const auto &w : m_Words)
+	bool FoundBadWord = false;
+	if(std::regex_search(pMessage, m_NWordRegex))
 	{
-		if(!w.empty() && str_utf8_find_nocase(pMessage, w.c_str()))
+		FoundBadWord = true;
+	}
+	else
+	{
+		// quick check: case-insensitive substring find for each word
+		std::lock_guard<std::mutex> lock(m_Mutex);
+		for(const auto &w : m_Words)
 		{
-			// found bad word
-			int Hours = clamp(g_Config.m_SvChatfilterMuteHours, 0, 24 * 30);
-			if(Hours > 0)
+			if(!w.empty() && str_utf8_find_nocase(pMessage, w.c_str()))
 			{
-				const int Secs = Hours * 3600;
-				NETADDR Addr;
-				GameServer()->Server()->GetClientAddr(ClientId, &Addr);
+				FoundBadWord = true;
+				break;
+			}
+		}
+	}
 
-				int Remaining = GameServer()->GetRemainingMuteSecondsPublic(ClientId);
+	if(FoundBadWord)
+	{
+		// found bad word
+		int Hours = clamp(g_Config.m_SvChatfilterMuteHours, 0, 24 * 30);
+		if(Hours > 0)
+		{
+			const int Secs = Hours * 3600;
+			NETADDR Addr;
+			GameServer()->Server()->GetClientAddr(ClientId, &Addr);
 
-				GameServer()->AddIpMuteSilent(&Addr, Secs, "Chat filter violation");
+			int Remaining = GameServer()->GetRemainingMuteSecondsPublic(ClientId);
 
-				CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
-				const char *pUrl = g_Config.m_SvDiscordWebhookUrlChatFilter[0] ? g_Config.m_SvDiscordWebhookUrlChatFilter : nullptr;
-				if(Discord.IsConfigured(pUrl))
-				{
-					char aMsg[1024];
-					const char *pName = GameServer()->Server()->ClientName(ClientId);
-					str_format(aMsg, sizeof(aMsg), "[chat-filter] '%s' (id=%d) was muted for %d hours, Message: '%s'", pName, ClientId, Hours, pMessage);
-					CDiscordWebhook::SSendOptions Opt;
-					Opt.m_pWebhookUrl = pUrl;
-					Discord.Send(aMsg, Opt);
-				}
+			GameServer()->AddIpMuteSilent(&Addr, Secs, "Chat filter violation");
 
-				if(Remaining > 0)
-				{
-					GameServer()->SendChatTarget(ClientId, "Your message was blocked by the chat filter. You are already muted.");
-				}
-				else
-				{
-					char aBuf[128];
-					str_format(aBuf, sizeof(aBuf), "You have been muted for %d hour%s due to chat filter violation.", Hours, Hours == 1 ? "" : "s");
-					GameServer()->SendChatTarget(ClientId, aBuf);
-				}
+			CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
+			const char *pUrl = g_Config.m_SvDiscordWebhookUrlChatFilter[0] ? g_Config.m_SvDiscordWebhookUrlChatFilter : nullptr;
+			if(Discord.IsConfigured(pUrl))
+			{
+				char aMsg[1024];
+				const char *pName = GameServer()->Server()->ClientName(ClientId);
+				str_format(aMsg, sizeof(aMsg), "[chat-filter] '%s' (id=%d) was muted for %d hours, Message: '%s'", pName, ClientId, Hours, pMessage);
+				CDiscordWebhook::SSendOptions Opt;
+				Opt.m_pWebhookUrl = pUrl;
+				Discord.Send(aMsg, Opt);
+			}
+
+			if(Remaining > 0)
+			{
+				GameServer()->SendChatTarget(ClientId, "Your message was blocked by the chat filter. You are already muted.");
 			}
 			else
 			{
-				GameServer()->SendChatTarget(ClientId, "Your message was blocked by the chat filter.");
+				char aBuf[128];
+				str_format(aBuf, sizeof(aBuf), "You have been muted for %d hour%s due to chat filter violation.", Hours, Hours == 1 ? "" : "s");
+				GameServer()->SendChatTarget(ClientId, aBuf);
 			}
-			return true;
 		}
+		else
+		{
+			GameServer()->SendChatTarget(ClientId, "Your message was blocked by the chat filter.");
+		}
+		return true;
 	}
+
 	return false;
 }
 

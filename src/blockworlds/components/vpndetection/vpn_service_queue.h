@@ -17,10 +17,10 @@ struct SVpnServiceQueue
 	std::deque<std::shared_ptr<IVpnServiceRequest>> m_RequestQueue;
 	int64_t m_LastRequestTime;
 	int m_RateLimitMs;
-	
+
 	SVpnServiceQueue();
 	SVpnServiceQueue(const char *pServiceName, int RateLimitMs = 100);
-	
+
 	bool CanProcessRequest() const;
 	void EnqueueRequest(std::shared_ptr<IVpnServiceRequest> pRequest);
 	std::shared_ptr<IVpnServiceRequest> DequeueRequest();
@@ -29,4 +29,3 @@ struct SVpnServiceQueue
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_VPN_SERVICE_QUEUE_H
-

@@ -3,101 +3,100 @@
 #include <base/system.h>
 #include <ctype.h>
 
-namespace
+namespace {
+struct STimeUnitPattern
 {
-	struct STimeUnitPattern
-	{
-		const char *pPattern;
-		ETimeUnit Unit;
-		int MinLength;
-	};
+	const char *pPattern;
+	ETimeUnit Unit;
+	int MinLength;
+};
 
-	static const STimeUnitPattern s_aTimeUnits[] = {
-		{"day", TIME_UNIT_DAY, 3},
-		{"hour", TIME_UNIT_HOUR, 4},
-		{"hr", TIME_UNIT_HOUR, 2},
-		{"minute", TIME_UNIT_MINUTE, 6},
-		{"min", TIME_UNIT_MINUTE, 3},
-		{"second", TIME_UNIT_SECOND, 6},
-		{"sec", TIME_UNIT_SECOND, 3},
-	};
+static const STimeUnitPattern s_aTimeUnits[] = {
+	{"day", TIME_UNIT_DAY, 3},
+	{"hour", TIME_UNIT_HOUR, 4},
+	{"hr", TIME_UNIT_HOUR, 2},
+	{"minute", TIME_UNIT_MINUTE, 6},
+	{"min", TIME_UNIT_MINUTE, 3},
+	{"second", TIME_UNIT_SECOND, 6},
+	{"sec", TIME_UNIT_SECOND, 3},
+};
 
-	const char *SkipWhitespace(const char *p)
-	{
-		while(*p && (*p == ' ' || *p == '\t'))
-			p++;
-		return p;
-	}
-
-	bool MatchPrefixIgnoreCase(const char *pStr, const char *pPattern, int MinLen)
-	{
-		for(int i = 0; i < MinLen; i++)
-		{
-			if(tolower(pStr[i]) != tolower(pPattern[i]))
-				return false;
-		}
-		return true;
-	}
-
-	bool ParseNumber(const char **ppStr, int *pOutNumber)
-	{
-		const char *p = *ppStr;
-		if(!isdigit(*p))
-			return false;
-
-		int Number = 0;
-		while(isdigit(*p))
-		{
-			Number = Number * 10 + (*p - '0');
-			p++;
-		}
-
-		*pOutNumber = Number;
-		*ppStr = p;
-		return true;
-	}
-
-	ETimeUnit ParseTimeUnit(const char **ppStr)
-	{
-		const char *p = SkipWhitespace(*ppStr);
-		char c = tolower(*p);
-
-		if(c == 'd')
-		{
-			*ppStr = p + 1;
-			return TIME_UNIT_DAY;
-		}
-		else if(c == 'h')
-		{
-			*ppStr = p + 1;
-			return TIME_UNIT_HOUR;
-		}
-		else if(c == 'm')
-		{
-			*ppStr = p + 1;
-			return TIME_UNIT_MINUTE;
-		}
-		else if(c == 's')
-		{
-			*ppStr = p + 1;
-			return TIME_UNIT_SECOND;
-		}
-
-		for(const auto &Pattern : s_aTimeUnits)
-		{
-			if(MatchPrefixIgnoreCase(p, Pattern.pPattern, Pattern.MinLength))
-			{
-				p += Pattern.MinLength;
-				if(*p == 's')
-					p++;
-				*ppStr = p;
-				return Pattern.Unit;
-			}
-		}
-
-		return TIME_UNIT_NONE;
-	}
+const char *SkipWhitespace(const char *p)
+{
+	while(*p && (*p == ' ' || *p == '\t'))
+		p++;
+	return p;
 }
+
+bool MatchPrefixIgnoreCase(const char *pStr, const char *pPattern, int MinLen)
+{
+	for(int i = 0; i < MinLen; i++)
+	{
+		if(tolower(pStr[i]) != tolower(pPattern[i]))
+			return false;
+	}
+	return true;
+}
+
+bool ParseNumber(const char **ppStr, int *pOutNumber)
+{
+	const char *p = *ppStr;
+	if(!isdigit(*p))
+		return false;
+
+	int Number = 0;
+	while(isdigit(*p))
+	{
+		Number = Number * 10 + (*p - '0');
+		p++;
+	}
+
+	*pOutNumber = Number;
+	*ppStr = p;
+	return true;
+}
+
+ETimeUnit ParseTimeUnit(const char **ppStr)
+{
+	const char *p = SkipWhitespace(*ppStr);
+	char c = tolower(*p);
+
+	if(c == 'd')
+	{
+		*ppStr = p + 1;
+		return TIME_UNIT_DAY;
+	}
+	else if(c == 'h')
+	{
+		*ppStr = p + 1;
+		return TIME_UNIT_HOUR;
+	}
+	else if(c == 'm')
+	{
+		*ppStr = p + 1;
+		return TIME_UNIT_MINUTE;
+	}
+	else if(c == 's')
+	{
+		*ppStr = p + 1;
+		return TIME_UNIT_SECOND;
+	}
+
+	for(const auto &Pattern : s_aTimeUnits)
+	{
+		if(MatchPrefixIgnoreCase(p, Pattern.pPattern, Pattern.MinLength))
+		{
+			p += Pattern.MinLength;
+			if(*p == 's')
+				p++;
+			*ppStr = p;
+			return Pattern.Unit;
+		}
+	}
+
+	return TIME_UNIT_NONE;
+}
+} // namespace
 
 bool ParseTimeString(const char *pTimeStr, int *pOutSeconds)
 {
@@ -162,4 +161,3 @@ bool ParseTimeStringMinutes(const char *pTimeStr, int *pOutMinutes)
 	*pOutMinutes = Seconds / 60;
 	return true;
 }
-

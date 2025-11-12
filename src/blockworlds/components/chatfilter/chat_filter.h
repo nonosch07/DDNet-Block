@@ -5,6 +5,7 @@
 #include <engine/console.h>
 
 #include <mutex>
+#include <regex>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -38,6 +39,7 @@ private:
 
 private:
 	std::unordered_set<std::string> m_Words; // stored as-is, case-insensitive search is used at runtime
+	std::regex m_NWordRegex;
 	std::mutex m_Mutex;
 };
 

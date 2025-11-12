@@ -15,7 +15,7 @@ class IVpnService;
 struct IVpnServiceRequest
 {
 	virtual ~IVpnServiceRequest() = default;
-	
+
 	virtual const char *GetServiceName() const = 0;
 	virtual const char *GetIpAddress() const = 0;
 	virtual int GetClientId() const = 0;
@@ -33,19 +33,18 @@ struct CVpnServiceRequest : public IVpnServiceRequest
 	int m_ClientId;
 	CVpnDetectionComponent *m_pComponent;
 	IVpnService *m_pService;
-	
+
 	CVpnServiceRequest(
 		const char *pServiceName,
 		const char *pIpAddress,
 		int ClientId,
 		CVpnDetectionComponent *pComponent,
-		IVpnService *pService
-	);
-	
+		IVpnService *pService);
+
 	const char *GetServiceName() const override { return m_ServiceName.c_str(); }
 	const char *GetIpAddress() const override { return m_IpAddress.c_str(); }
 	int GetClientId() const override { return m_ClientId; }
-	
+
 	std::shared_ptr<IVpnServiceResult> Execute() override;
 
 private:
@@ -53,4 +52,3 @@ private:
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_VPN_SERVICE_REQUEST_H
-

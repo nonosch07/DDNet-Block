@@ -13,17 +13,15 @@ class CIPQueryService : public IVpnService
 {
 public:
 	const char *GetServiceName() const override { return "ipquery"; }
-	
+
 	std::string GetEndpoint(const char *pIpAddress) const override;
-	
+
 	std::shared_ptr<IVpnServiceResult> ParseResponse(
 		const char *pIpAddress,
 		const char *pResponseBody,
-		int ResponseCode
-	) override;
-	
+		int ResponseCode) override;
+
 	bool RequiresAuth() const override { return false; }
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_IPQUERY_SERVICE_H
-

@@ -42,31 +42,31 @@ public:
 	explicit CVpnDetectionComponent(class CGameContext *pGameServer);
 	const char *GetName() const override { return GetNameStatic(); }
 	bool IsDebug() const override;
-	
+
 	void OnConsoleInit() override;
 	void OnConsoleTerminate() override;
 	void OnShutdown() override;
 	void OnTick() override;
 	void OnPlayerEnter(int ClientId) override;
 	void OnPlayerDrop(int ClientId) override;
-	
+
 	/**
 	 * Initiates VPN check for a client
 	 * @param ClientId The client to check
 	 * @param FullCheck If true, queries all services; if false, uses main service only
 	 */
 	void CheckClient(int ClientId, bool FullCheck = false);
-	
+
 	/**
 	 * Checks a client using a specific service
 	 * @param ClientId The client to check
 	 * @param pServiceName Name of the service to use
 	 */
 	void CheckClientService(int ClientId, const char *pServiceName);
-	
+
 	CVpnClientInfo *GetClientInfo(int ClientId);
 	const CVpnClientInfo *GetClientInfo(int ClientId) const;
-	
+
 	/**
 	 * Registers a VPN detection service
 	 * @param pServiceName Unique service identifier
@@ -74,23 +74,23 @@ public:
 	 * @param RateLimitMs Minimum milliseconds between requests
 	 */
 	void RegisterService(const char *pServiceName, IVpnService *pService, int RateLimitMs = 100);
-	
+
 	SVpnServiceQueue *GetServiceQueue(const char *pServiceName);
 	IVpnService *GetService(const char *pServiceName);
-	
+
 	/**
 	 * Sets the default service used for automatic checks
 	 */
 	void SetDefaultService(const char *pServiceName);
 	const char *GetDefaultService() const { return m_DefaultService.c_str(); }
-	
+
 	/**
 	 * Processes and caches a VPN check result
 	 * @param ClientId Client ID or -1 for manual tests
 	 * @param pResult The result to process
 	 */
 	void ProcessResult(int ClientId, std::shared_ptr<IVpnServiceResult> pResult);
-	
+
 	bool IsEnabled() const { return m_Enabled; }
 	void SetEnabled(bool Enabled) { m_Enabled = Enabled; }
 	bool IsBanEnabled() const { return m_BanEnabled; }
@@ -101,16 +101,16 @@ public:
 	const std::unordered_map<std::string, SVpnServiceQueue> &GetServiceQueues() const { return m_ServiceQueues; }
 	void CheckAllClientsDefaultService();
 	CVpnCache *GetCache() { return &m_Cache; }
-	
+
 	IConsole *GetConsole() const { return Console(); }
 	IServer *GetServer() const { return Server(); }
 	CGameContext *GetGameServer() const { return GameServer(); }
-	
+
 	/**
 	 * Queues a message for thread-safe asynchronous RCON output on next tick
 	 */
 	void QueueConsoleMessage(const char *pMessage);
-	
+
 	char m_aGetipintelContact[128];
 	char m_aBanTimeString[VPN_BAN_TIME_STRING_MAX];
 	float m_GetipintelThreshold;
@@ -131,17 +131,17 @@ private:
 	int m_RateLimitGetipintel;
 	std::mutex m_Mutex;
 	std::string m_DefaultService;
-	
+
 	std::vector<void *> m_ConVarCallbacks;
-	
+
 	CVpnClientInfo m_aClientInfo[MAX_VPN_CLIENTS];
 	std::unordered_map<std::string, SVpnServiceQueue> m_ServiceQueues;
 	std::unordered_map<std::string, std::unique_ptr<IVpnService>> m_Services;
 	CVpnCache m_Cache;
-	
+
 	std::vector<std::thread> m_RequestThreads;
 	std::mutex m_ThreadMutex;
-	
+
 	struct SPendingMessage
 	{
 		std::string m_Message;

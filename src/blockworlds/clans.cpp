@@ -221,6 +221,16 @@ void CClanManager::SetAuthLevel(int ClientId, const char *AccountName, int NewAu
 	ExecClanThread(SetAuthLevelThread, "auth level thread", ClientId, "", AccountName, pPlayer->GetAccId(), ClanId, NewAuthLevel);
 }
 
+void CClanManager::TransferLeadership(int ClientId, const char *AccountName, int ClanId)
+{
+	if(RateLimitPlayer(ClientId))
+		return;
+	CPlayer *pPlayer = GameServer()->m_apPlayers[ClientId];
+	if(!pPlayer)
+		return;
+	ExecClanThread(TransferLeadershipThread, "transfer leadership", ClientId, "", AccountName, pPlayer->GetAccId(), ClanId);
+}
+
 void CClanManager::RenameClan(int ClientId, int ClanId, const char *pNewClanName)
 {
 	if(RateLimitPlayer(ClientId))
@@ -856,10 +866,32 @@ bool CClanManager::RemoveFromClanThread(IDbConnection *pSqlServer, const ISqlDat
 	char aBuf[1024];
 	pResult->SetVariant(CClanResult::DIRECT);
 
-	if(!CheckClanPermission(pSqlServer, pData->m_AccountId, pData->m_ClanId, 2, pError, ErrorSize))
+	// get kicker's auth level
+	str_format(aBuf, sizeof(aBuf), "SELECT auth_level FROM %s WHERE account_id = ? AND clanID = ?;", TBL_ACCOUNTS_PROGRESS);
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
-		str_copy(pResult->m_aaMessages[0], pError, sizeof(pResult->m_aaMessages[0]));
+		str_copy(pResult->m_aaMessages[0], "Error 310: Failed to get kicker's auth level.", sizeof(pResult->m_aaMessages[0]));
 		return true;
+	}
+	pSqlServer->BindInt(1, pData->m_AccountId);
+	pSqlServer->BindInt(2, pData->m_ClanId);
+	bool EndKicker = false;
+	if(pSqlServer->Step(&EndKicker, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Error 311: Failed to get kicker's auth level (step).", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	if(EndKicker)
+	{
+		str_copy(pResult->m_aaMessages[0], "You are not in this clan.", sizeof(pResult->m_aaMessages[0]));
+		return false;
+	}
+	int KickerAuth = pSqlServer->GetInt(1);
+
+	if(KickerAuth < (int)ClanAuthLevel::COLEADER)
+	{
+		str_copy(pResult->m_aaMessages[0], "You don't have permission to kick members.", sizeof(pResult->m_aaMessages[0]));
+		return false;
 	}
 
 	if(pSqlServer->PrepareStatement("BEGIN;", pError, ErrorSize) || pSqlServer->ExecuteUpdate(nullptr, pError, ErrorSize))
@@ -886,29 +918,21 @@ bool CClanManager::RemoveFromClanThread(IDbConnection *pSqlServer, const ISqlDat
 		return false;
 	}
 	int TargetAuth = pSqlServer->GetInt(1);
-	if(TargetAuth == (int)ClanAuthLevel::LEADER)
+
+	if(KickerAuth == (int)ClanAuthLevel::LEADER)
 	{
-		str_format(aBuf, sizeof(aBuf), "SELECT COUNT(*) FROM %s WHERE clanID = ? AND auth_level = 3;", TBL_ACCOUNTS_PROGRESS);
-		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+		if(TargetAuth >= (int)ClanAuthLevel::LEADER)
 		{
-			str_copy(pResult->m_aaMessages[0], "Error 322: Failed to count leaders.", sizeof(pResult->m_aaMessages[0]));
-			return true;
+			str_copy(pResult->m_aaMessages[0], "You cannot kick other leaders.", sizeof(pResult->m_aaMessages[0]));
+			return false;
 		}
-		pSqlServer->BindInt(1, pData->m_ClanId);
-		bool EndCount = false;
-		if(pSqlServer->Step(&EndCount, pError, ErrorSize))
+	}
+	else if(KickerAuth == (int)ClanAuthLevel::COLEADER)
+	{
+		if(TargetAuth >= (int)ClanAuthLevel::COLEADER)
 		{
-			str_copy(pResult->m_aaMessages[0], "Error 323: Failed to count leaders (step).", sizeof(pResult->m_aaMessages[0]));
-			return true;
-		}
-		if(!EndCount)
-		{
-			int LeaderCount = pSqlServer->GetInt(1);
-			if(LeaderCount <= 1)
-			{
-				str_copy(pResult->m_aaMessages[0], "You cannot kick the only leader. Transfer leadership or delete clan.", sizeof(pResult->m_aaMessages[0]));
-				return false;
-			}
+			str_copy(pResult->m_aaMessages[0], "Co-leaders cannot kick other co-leaders or leaders.", sizeof(pResult->m_aaMessages[0]));
+			return false;
 		}
 	}
 
@@ -1233,7 +1257,7 @@ bool CClanManager::SetAuthLevelThread(IDbConnection *pSqlServer, const ISqlData 
 	{
 		if(pError && ErrorSize > 0)
 			str_copy(pError, "Error 503: Set auth level failed. No rows updated.", ErrorSize);
-		str_copy(pResult->m_aaMessages[0], "Error 503: Unable to set auth level.", sizeof(pResult->m_aaMessages[0]));
+		str_copy(pResult->m_aaMessages[0], "Error 503: Unable to set role (maybe because target already has that role).", sizeof(pResult->m_aaMessages[0]));
 		return true;
 	}
 
@@ -1269,6 +1293,118 @@ bool CClanManager::SetAuthLevelThread(IDbConnection *pSqlServer, const ISqlData 
 	}
 	str_copy(pResult->m_aaMessages[0], aMessage, sizeof(pResult->m_aaMessages[0]));
 	pResult->m_Success = true;
+
+	return false;
+}
+
+bool CClanManager::TransferLeadershipThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
+{
+	const CSqlClanRequest *pData = static_cast<const CSqlClanRequest *>(pGameData);
+	CClanResult *pResult = static_cast<CClanResult *>(pGameData->m_pResult.get());
+	char aBuf[1024];
+
+	pResult->SetVariant(CClanResult::CLAN);
+
+	if(pSqlServer->PrepareStatement("BEGIN;", pError, ErrorSize) || pSqlServer->ExecuteUpdate(nullptr, pError, ErrorSize))
+		return true;
+	bool TxErr = false;
+
+	// ensure caller is leader
+	if(!CheckClanPermission(pSqlServer, pData->m_AccountId, pData->m_ClanId, (int)ClanAuthLevel::LEADER, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], pError, sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+
+	// find target account id and validate membership
+	str_format(aBuf, sizeof(aBuf), "SELECT p.account_id FROM %s c JOIN %s p ON c.id=p.account_id WHERE c.name = ? AND p.clanID = ? LIMIT 1;", TBL_ACCOUNTS_CORE, TBL_ACCOUNTS_PROGRESS);
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Error TL01: Failed to validate target account.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	pSqlServer->BindString(1, pData->m_aUsername);
+	pSqlServer->BindInt(2, pData->m_ClanId);
+	bool End = false;
+	if(pSqlServer->Step(&End, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Error TL02: Failed to validate target account (step).", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	if(End)
+	{
+		str_copy(pResult->m_aaMessages[0], "Target player not found in this clan.", sizeof(pResult->m_aaMessages[0]));
+		return false;
+	}
+
+	// promote target to leader
+	str_format(aBuf, sizeof(aBuf), "UPDATE %s p JOIN %s c ON p.account_id=c.id SET p.auth_level = %d WHERE c.name = ? AND p.clanID = ?;", TBL_ACCOUNTS_PROGRESS, TBL_ACCOUNTS_CORE, (int)ClanAuthLevel::LEADER);
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Error TL03: Failed to prepare promote statement.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	pSqlServer->BindString(1, pData->m_aUsername);
+	pSqlServer->BindInt(2, pData->m_ClanId);
+	int NumUpdated = 0;
+	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Error TL04: Failed to execute promote statement.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	if(NumUpdated != 1)
+	{
+		str_copy(pResult->m_aaMessages[0], "Error TL05: Promote failed. Target may not exist or is not in the clan.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+
+	// demote issuer to co-leader
+	str_format(aBuf, sizeof(aBuf), "UPDATE %s SET auth_level = %d WHERE account_id = ? AND clanID = ?;", TBL_ACCOUNTS_PROGRESS, (int)ClanAuthLevel::COLEADER);
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Error TL06: Failed to prepare demote statement.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	pSqlServer->BindInt(1, pData->m_AccountId);
+	pSqlServer->BindInt(2, pData->m_ClanId);
+	NumUpdated = 0;
+	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Error TL07: Failed to execute demote statement.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	if(NumUpdated != 1)
+	{
+		str_copy(pResult->m_aaMessages[0], "Error TL08: Demote failed. Issuer may not be in the clan.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+
+	// prepare main-thread action to update both players in memory
+	if(pData->m_pClanManager && pData->m_ClientId >= 0)
+	{
+		pResult->m_Action = CClanResult::ACTION_UPDATE_TWO_PLAYERS;
+		pResult->m_ActionClientId = pData->m_ClientId; // issuer client id
+		pResult->m_ActionNewClanId = pData->m_ClanId;
+		pResult->m_ActionNewAuthLevel = static_cast<int>(ClanAuthLevel::COLEADER); // issuer new level
+		str_copy(pResult->m_ActionPlayerName, pData->m_aUsername, sizeof(pResult->m_ActionPlayerName)); // target name
+		pResult->m_ActionNewAuthLevel2 = static_cast<int>(ClanAuthLevel::LEADER); // target new level
+	}
+
+	str_copy(pResult->m_aaMessages[0], "Clan ownership transferred successfully.", sizeof(pResult->m_aaMessages[0]));
+	pResult->m_Success = true;
+
+	if(!TxErr)
+	{
+		if(pSqlServer->PrepareStatement("COMMIT;", pError, ErrorSize) || pSqlServer->ExecuteUpdate(nullptr, pError, ErrorSize))
+			TxErr = true;
+	}
+	if(TxErr)
+	{
+		if(pSqlServer->PrepareStatement("ROLLBACK;", nullptr, 0) == 0)
+			pSqlServer->ExecuteUpdate(nullptr, nullptr, 0);
+		str_copy(pResult->m_aaMessages[0], "Error TL09: Transaction failed.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
 
 	return false;
 }

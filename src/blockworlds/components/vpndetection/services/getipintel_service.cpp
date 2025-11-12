@@ -40,57 +40,56 @@ std::string CGetIPIntelService::GetEndpoint(const char *pIpAddress) const
 	Endpoint += pIpAddress;
 	Endpoint += "&contact=";
 	Endpoint += m_ContactEmail;
-	
+
 	if(!m_Flags.empty())
 	{
 		Endpoint += "&flags=";
 		Endpoint += m_Flags;
 	}
-	
+
 	if(!m_OutputFlags.empty())
 	{
 		Endpoint += "&oflags=";
 		Endpoint += m_OutputFlags;
 	}
-	
+
 	Endpoint += "&format=json";
-	
+
 	return Endpoint;
 }
 
 std::shared_ptr<IVpnServiceResult> CGetIPIntelService::ParseResponse(
 	const char *pIpAddress,
 	const char *pResponseBody,
-	int ResponseCode
-)
+	int ResponseCode)
 {
 	auto pResult = std::make_shared<CVpnServiceResult>();
 	pResult->m_ServiceName = GetServiceName();
 	pResult->m_IpAddress = pIpAddress;
 	pResult->m_Timestamp = time_get();
 	pResult->m_IsValid = false;
-	
+
 	if(!pResponseBody || pResponseBody[0] == '\0')
 	{
 		pResult->m_ErrorMessage = "Empty response from API";
 		pResult->m_ErrorCode = -999;
 		return pResult;
 	}
-	
+
 	if(ResponseCode == 429)
 	{
 		pResult->m_ErrorMessage = "Rate limit exceeded (HTTP 429)";
 		pResult->m_ErrorCode = -429;
 		return pResult;
 	}
-	
+
 	if(ResponseCode == 400)
 	{
 		pResult->m_ErrorMessage = "Bad request (HTTP 400)";
 		pResult->m_ErrorCode = -400;
 		return pResult;
 	}
-	
+
 	if(ResponseCode != 200)
 	{
 		char aErrorBuf[128];
@@ -99,10 +98,10 @@ std::shared_ptr<IVpnServiceResult> CGetIPIntelService::ParseResponse(
 		pResult->m_ErrorCode = -ResponseCode;
 		return pResult;
 	}
-	
+
 	bool IsJson = str_find(pResponseBody, "{") != nullptr;
 	float Probability = -1.0f;
-	
+
 	if(IsJson)
 	{
 		char aStatus[32];
@@ -115,53 +114,53 @@ std::shared_ptr<IVpnServiceResult> CGetIPIntelService::ParseResponse(
 					pResult->m_ErrorMessage = aMessage;
 				else
 					pResult->m_ErrorMessage = "Unknown API error";
-				
+
 				char aResultStr[16];
 				if(JsonHelpers::ParseString(pResponseBody, "result", aResultStr, sizeof(aResultStr)))
 				{
 					int ErrorCode = str_toint(aResultStr);
 					pResult->m_ErrorCode = ErrorCode;
-					
+
 					switch(ErrorCode)
 					{
-						case -1:
-							if(pResult->m_ErrorMessage.empty())
-								pResult->m_ErrorMessage = "Invalid IP address or no input provided";
-							break;
-						case -2:
-							if(pResult->m_ErrorMessage.empty())
-								pResult->m_ErrorMessage = "Invalid IP address format";
-							break;
-						case -3:
-							if(pResult->m_ErrorMessage.empty())
-								pResult->m_ErrorMessage = "Unroutable or private IP address";
-							break;
-						case -4:
-							if(pResult->m_ErrorMessage.empty())
-								pResult->m_ErrorMessage = "Database temporarily unavailable (maintenance)";
-							break;
-						case -5:
-							if(pResult->m_ErrorMessage.empty())
-								pResult->m_ErrorMessage = "Access denied: IP banned or query limit exceeded";
-							break;
-						case -6:
-							if(pResult->m_ErrorMessage.empty())
-								pResult->m_ErrorMessage = "Invalid or missing contact email";
-							break;
-						default:
-							if(pResult->m_ErrorMessage.empty())
-							{
-								char aUnknownError[128];
-								str_format(aUnknownError, sizeof(aUnknownError), "Unknown error code: %d", ErrorCode);
-								pResult->m_ErrorMessage = aUnknownError;
-							}
-							break;
+					case -1:
+						if(pResult->m_ErrorMessage.empty())
+							pResult->m_ErrorMessage = "Invalid IP address or no input provided";
+						break;
+					case -2:
+						if(pResult->m_ErrorMessage.empty())
+							pResult->m_ErrorMessage = "Invalid IP address format";
+						break;
+					case -3:
+						if(pResult->m_ErrorMessage.empty())
+							pResult->m_ErrorMessage = "Unroutable or private IP address";
+						break;
+					case -4:
+						if(pResult->m_ErrorMessage.empty())
+							pResult->m_ErrorMessage = "Database temporarily unavailable (maintenance)";
+						break;
+					case -5:
+						if(pResult->m_ErrorMessage.empty())
+							pResult->m_ErrorMessage = "Access denied: IP banned or query limit exceeded";
+						break;
+					case -6:
+						if(pResult->m_ErrorMessage.empty())
+							pResult->m_ErrorMessage = "Invalid or missing contact email";
+						break;
+					default:
+						if(pResult->m_ErrorMessage.empty())
+						{
+							char aUnknownError[128];
+							str_format(aUnknownError, sizeof(aUnknownError), "Unknown error code: %d", ErrorCode);
+							pResult->m_ErrorMessage = aUnknownError;
+						}
+						break;
 					}
 				}
 				return pResult;
 			}
 		}
-		
+
 		char aResultStr[32];
 		if(!JsonHelpers::ParseString(pResponseBody, "result", aResultStr, sizeof(aResultStr)))
 		{
@@ -169,13 +168,13 @@ std::shared_ptr<IVpnServiceResult> CGetIPIntelService::ParseResponse(
 			pResult->m_ErrorCode = -998;
 			return pResult;
 		}
-		
+
 		Probability = str_tofloat(aResultStr);
-		
+
 		char aAsn[64];
 		if(JsonHelpers::ParseString(pResponseBody, "asn", aAsn, sizeof(aAsn)))
 			pResult->m_Asn = aAsn;
-		
+
 		char aCountry[64];
 		if(JsonHelpers::ParseString(pResponseBody, "country", aCountry, sizeof(aCountry)))
 			pResult->m_Isp = aCountry;
@@ -184,46 +183,46 @@ std::shared_ptr<IVpnServiceResult> CGetIPIntelService::ParseResponse(
 	{
 		Probability = str_tofloat(pResponseBody);
 	}
-	
+
 	if(Probability < 0.0f)
 	{
 		int ErrorCode = (int)Probability;
 		pResult->m_ErrorCode = ErrorCode;
-		
+
 		switch(ErrorCode)
 		{
-			case -1:
-				pResult->m_ErrorMessage = "Invalid IP address or no input provided";
-				break;
-			case -2:
-				pResult->m_ErrorMessage = "Invalid IP address format";
-				break;
-			case -3:
-				pResult->m_ErrorMessage = "Unroutable or private IP address";
-				break;
-			case -4:
-				pResult->m_ErrorMessage = "Database temporarily unavailable (maintenance)";
-				break;
-			case -5:
-				pResult->m_ErrorMessage = "Access denied: IP banned or query limit exceeded";
-				break;
-			case -6:
-				pResult->m_ErrorMessage = "Invalid or missing contact email";
-				break;
-			default:
-			{
-				char aUnknownError[128];
-				str_format(aUnknownError, sizeof(aUnknownError), "Unknown error code: %d", ErrorCode);
-				pResult->m_ErrorMessage = aUnknownError;
-				break;
-			}
+		case -1:
+			pResult->m_ErrorMessage = "Invalid IP address or no input provided";
+			break;
+		case -2:
+			pResult->m_ErrorMessage = "Invalid IP address format";
+			break;
+		case -3:
+			pResult->m_ErrorMessage = "Unroutable or private IP address";
+			break;
+		case -4:
+			pResult->m_ErrorMessage = "Database temporarily unavailable (maintenance)";
+			break;
+		case -5:
+			pResult->m_ErrorMessage = "Access denied: IP banned or query limit exceeded";
+			break;
+		case -6:
+			pResult->m_ErrorMessage = "Invalid or missing contact email";
+			break;
+		default:
+		{
+			char aUnknownError[128];
+			str_format(aUnknownError, sizeof(aUnknownError), "Unknown error code: %d", ErrorCode);
+			pResult->m_ErrorMessage = aUnknownError;
+			break;
+		}
 		}
 		return pResult;
 	}
-	
+
 	pResult->m_RiskScore = (int)(Probability * 100.0f);
 	pResult->m_IsBadIP = (Probability >= m_Threshold);
 	pResult->m_IsValid = true;
-	
+
 	return pResult;
 }

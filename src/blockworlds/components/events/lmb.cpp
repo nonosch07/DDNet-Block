@@ -55,13 +55,13 @@ void CLastManBlockingEvent::OnTick()
 			str_format(aMsg, sizeof(aMsg), "%s is about to start!\n"
 						       "Register with /join\n"
 						       "Time left: %d seconds\n\n"
-						       "Candidates: %" PRIzu "\n\n"
+						       "Participants: %" PRIzu "\n\n"
 						       "%s\n"
 						       "%s",
 				GetEventName(),
 				(int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()),
 				Candidates().size(),
-				(int)Candidates().size() < Config()->m_SvLMBMinimumCandidates ? "Not enough candidates!" : "",
+				(int)Candidates().size() < Config()->m_SvLMBMinimumCandidates ? "Not enough Participants!" : "",
 				"                                                                                     "
 				"                                                                                     "
 				"                                                                                     ");
@@ -265,7 +265,7 @@ void CLastManBlockingEvent::FinishEvent()
 	else if(m_FinishingReason == NOT_ENOUGH_CANDIDATES)
 	{
 		char aBuf[256];
-		str_format(aBuf, sizeof(aBuf), "Not enough candidates joined %s", GetEventName());
+		str_format(aBuf, sizeof(aBuf), "Not enough participants joined %s", GetEventName());
 		GameServer()->SendChatTarget(-1, aBuf);
 		GameServer()->SendBroadcast(-1, aBuf, false);
 
@@ -274,7 +274,7 @@ void CLastManBlockingEvent::FinishEvent()
 		{
 			CDiscordWebhook::SSendOptions Opt;
 			Opt.m_pWebhookUrl = g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr;
-			Discord.Send("LMB cancelled: Not enough candidates", Opt);
+			Discord.Send("LMB cancelled: Not enough participants", Opt);
 		}
 	}
 	else if(m_FinishingReason == EMERGENCY)

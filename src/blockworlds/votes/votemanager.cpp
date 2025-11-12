@@ -240,20 +240,20 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				pGameContext->ClearVotes(ClientId);
 				RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
 				return true;
-					case EActionKind::OpenMapTransfers:
-						PushPage(ClientId, Page::MAP_TRANSFERS);
-						pGameContext->ClearVotes(ClientId);
-						RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
-						return true;
-					case EActionKind::RedirectToPort:
-						if(pGameContext && pGameContext->Server())
-						{
-							int Port = A.A;
-							bool DoRedirect = true;
-							if(DoRedirect)
-								pGameContext->Server()->RedirectClient(ClientId, Port, true);
-						}
-						return true;
+			case EActionKind::OpenMapTransfers:
+				PushPage(ClientId, Page::MAP_TRANSFERS);
+				pGameContext->ClearVotes(ClientId);
+				RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
+				return true;
+			case EActionKind::RedirectToPort:
+				if(pGameContext && pGameContext->Server())
+				{
+					int Port = A.A;
+					bool DoRedirect = true;
+					if(DoRedirect)
+						pGameContext->Server()->RedirectClient(ClientId, Port, true);
+				}
+				return true;
 			case EActionKind::OpenRules:
 				PushPage(ClientId, Page::RULES);
 				pGameContext->ClearVotes(ClientId);
@@ -885,7 +885,6 @@ void CVoteManager::BuildLeaderboardDetail(CPlayer *pPlayer, int ClientID, IServe
 	OutActions.emplace_back(Action{EActionKind::None});
 }
 
-
 void CVoteManager::BuildCosmeticsRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions)
 {
 	// guard: only for logged-in players
@@ -992,7 +991,7 @@ void CVoteManager::BuildCosmeticsCategory(CPlayer *pPlayer, int ClientID, IServe
 		OutLabels.emplace_back(SmallCaps("No owned items."));
 		OutLabels.emplace_back(SmallCaps("Buy some in the store!"));
 		OutActions.emplace_back(Action{EActionKind::None});
-		return;
+		OutActions.emplace_back(Action{EActionKind::None});
 	}
 
 	for(int i = 0; i < Count; ++i)

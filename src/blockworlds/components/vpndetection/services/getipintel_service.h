@@ -34,16 +34,15 @@ class CGetIPIntelService : public IVpnService
 public:
 	CGetIPIntelService();
 	explicit CGetIPIntelService(const char *pContactEmail);
-	
+
 	const char *GetServiceName() const override { return "getipintel"; }
 	std::string GetEndpoint(const char *pIpAddress) const override;
 	std::shared_ptr<IVpnServiceResult> ParseResponse(
 		const char *pIpAddress,
 		const char *pResponseBody,
-		int ResponseCode
-	) override;
+		int ResponseCode) override;
 	bool RequiresAuth() const override { return false; }
-	
+
 	void SetContactEmail(const char *pEmail);
 	void SetFlags(const char *pFlags);
 	void SetOutputFlags(const char *pOFlags);
@@ -57,4 +56,3 @@ private:
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_GETIPINTEL_SERVICE_H
-

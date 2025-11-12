@@ -13,22 +13,28 @@ build_cmake_release:
       pkg-config
       clang rustc
       cargo cmake ninja-build
-      libfreetype6-dev libnotify-dev libsdl2-dev libsqlite3-dev libvulkan-dev
-      glslang-tools spirv-tools libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev
-      libx264-dev libpng-dev libmariadb-dev
-      libcurl4 libcurl3-gnutls libcurl4-openssl-dev libcurlpp-dev
-      libogg-dev libopus-dev libopusfile-dev
+      libmariadb-dev
+      libcurl4-openssl-dev
+      libssl-dev
+      zlib1g-dev
+      libsqlite3-dev
+      sqlite3
+      libpng-dev
       valgrind -y
   script:
     # Build Release
     - mkdir build && cd build
-    - cmake -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=OFF ..
-    - make -j$(nproc) game-server
+    - export CC=clang
+    - export CXX=clang++
+    - cmake -GNinja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=OFF -DUPNP=OFF -DWEBSOCKETS=OFF -DVULKAN=OFF -DGFX=OFF ..
+    - ninja game-server
     - cp DDNet-Server ../blockworlds
     # Build Debug
     - rm -rf *
-    - cmake -DCMAKE_BUILD_TYPE=Debug -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=OFF ..
-    - make -j$(nproc) game-server
+    - export CC=clang
+    - export CXX=clang++
+    - cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=OFF -DUPNP=OFF -DWEBSOCKETS=OFF -DVULKAN=OFF -DGFX=OFF ..
+    - ninja game-server
     - cp DDNet-Server ../blockworlds_d
 
   artifacts:
@@ -43,7 +49,7 @@ build_cmake_release:
 
 package_main:
   stage: Build docker image and deploy
-  image: docker:24.0.6-alpine3.18
+  image: docker:29.0.0-alpine3.22
   services:
     - docker:dind
   variables:
@@ -60,7 +66,7 @@ package_main:
 
 package_test:
   stage: Build docker image and deploy
-  image: docker:24.0.6-alpine3.18
+  image: docker:29.0.0-alpine3.22
   services:
     - docker:dind
   variables:
