@@ -13,22 +13,21 @@ build_cmake_release:
       pkg-config
       clang rustc
       cargo cmake ninja-build
-      libfreetype6-dev libnotify-dev libsdl2-dev libsqlite3-dev libvulkan-dev
-      glslang-tools spirv-tools libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev
-      libx264-dev libpng-dev libmariadb-dev
-      libcurl4 libcurl3-gnutls libcurl4-openssl-dev libcurlpp-dev
-      libogg-dev libopus-dev libopusfile-dev
+      libmariadb-dev
+      libcurl4-openssl-dev
+      libssl-dev
+      zlib1g-dev
       valgrind -y
   script:
     # Build Release
     - mkdir build && cd build
-    - cmake -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=OFF ..
-    - make -j$(nproc) game-server
+    - cmake -GNinja -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=OFF -DUPNP=OFF -DWEBSOCKETS=OFF -DVULKAN=OFF -DGFX=OFF ..
+    - ninja game-server
     - cp DDNet-Server ../blockworlds
     # Build Debug
     - rm -rf *
-    - cmake -DCMAKE_BUILD_TYPE=Debug -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=OFF ..
-    - make -j$(nproc) game-server
+    - cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=OFF -DUPNP=OFF -DWEBSOCKETS=OFF -DVULKAN=OFF -DGFX=OFF ..
+    - ninja game-server
     - cp DDNet-Server ../blockworlds_d
 
   artifacts:
