@@ -175,7 +175,10 @@ bool CAccounts::RateLimitPlayer(int ClientId)
 	auto it = s_LastPlayerActionTick.find(ClientId);
 	if(it != s_LastPlayerActionTick.end())
 	{
-		if(Now - it->second < PLAYER_ACTION_COOLDOWN_TICKS)
+		int64_t Delta = Now - it->second;
+		if(Delta < 0)
+			s_LastPlayerActionTick.erase(it);
+		else if(Delta < PLAYER_ACTION_COOLDOWN_TICKS)
 		{
 			if(GameServer()->m_apPlayers[ClientId])
 				GameServer()->SendChatTarget(ClientId, "Please wait a moment before trying again.");
