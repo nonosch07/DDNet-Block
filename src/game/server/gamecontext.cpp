@@ -2902,27 +2902,9 @@ void CGameContext::OnSayNetMessage(const CNetMsg_Cl_Say *pMsg, int ClientId, con
 			const char *pChatUrl = g_Config.m_SvDiscordWebhookUrlChat[0] ? g_Config.m_SvDiscordWebhookUrlChat : nullptr;
 			if(Discord.IsConfigured(pChatUrl))
 			{
-				char aSanitizedMessage[1024];
-				int j = 0;
-				for(int i = 0; aCensoredMessage[i] != '\0' && j < (int)sizeof(aSanitizedMessage) - 4; ++i)
-				{
-					if(aCensoredMessage[i] == '@')
-					{
-						aSanitizedMessage[j++] = '@';
-						aSanitizedMessage[j++] = '\xE2';
-						aSanitizedMessage[j++] = '\x80';
-						aSanitizedMessage[j++] = '\x8B';
-					}
-					else
-					{
-						aSanitizedMessage[j++] = aCensoredMessage[i];
-					}
-				}
-				aSanitizedMessage[j] = '\0';
-
 				char aMsg[600];
 				const char *pName = Server()->ClientName(ClientId);
-				str_format(aMsg, sizeof(aMsg), "[%s]: %s", pName ? pName : "<unknown>", aSanitizedMessage);
+				str_format(aMsg, sizeof(aMsg), "[%s]: %s", pName ? pName : "<unknown>", aCensoredMessage);
 				CDiscordWebhook::SSendOptions Opt;
 				Opt.m_pWebhookUrl = pChatUrl;
 				Discord.Send(aMsg, Opt);

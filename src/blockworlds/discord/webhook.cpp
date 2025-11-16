@@ -36,6 +36,47 @@ static std::vector<std::string> ChunkMessage(const char *pMsg)
 	}
 	return v;
 }
+
+static std::string SanitizeMentions(const char *pMsg)
+{
+	if(!pMsg)
+		return std::string();
+	std::string s(pMsg);
+	const std::string ZWSP = "\xE2\x80\x8B"; // zero width space
+	auto replace_all = [](std::string &str, const char *needle, const std::string &replacement) {
+		if(!needle || !needle[0])
+			return;
+		size_t pos = 0;
+		size_t nlen = strlen(needle);
+		while((pos = str.find(needle, pos)) != std::string::npos)
+		{
+			str.replace(pos, nlen, replacement);
+			pos += replacement.size();
+		}
+	};
+	replace_all(s, "@everyone", std::string("@") + ZWSP + "everyone");
+	replace_all(s, "@here", std::string("@") + ZWSP + "here");
+	for(size_t i = 0; i < s.size(); ++i)
+	{
+		if(s[i] == '<' && i + 2 < s.size() && s[i + 1] == '@')
+		{
+			if(s.compare(i + 2, ZWSP.size(), ZWSP) != 0)
+			{
+				s.insert(i + 2, ZWSP);
+				i += ZWSP.size() + 2;
+			}
+		}
+		else if(s[i] == '@')
+		{
+			if(i + 1 < s.size() && (isalnum((unsigned char)s[i + 1]) || s[i + 1] == '&' || s[i + 1] == '!'))
+			{
+				s.insert(i + 1, ZWSP);
+				i += ZWSP.size() + 1;
+			}
+		}
+	}
+	return s;
+}
 } // namespace
 
 class CDiscordWebhook::CSendJob : public IJob
@@ -152,7 +193,8 @@ void CDiscordWebhook::Send(const char *pContent, const SSendOptions *pOpt)
 		log_debug("discord", "webhook not configured (sv_discord_enabled=1 and per-feature webhook url required)");
 		return;
 	}
-	auto vChunks = ChunkMessage(pContent);
+	std::string sanitized = SanitizeMentions(pContent);
+	auto vChunks = ChunkMessage(sanitized.c_str());
 	auto pJob = std::make_shared<CSendJob>(m_pHttp, pUrl, vChunks, pOpt);
 	m_pEngine->AddJob(pJob);
 }
