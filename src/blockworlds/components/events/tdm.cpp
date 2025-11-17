@@ -775,6 +775,62 @@ void CTeamDeathmatchEvent::FinishEvent()
 	else
 		GameServer()->SendBroadcast(-1, "TDM ended in a tie %d - %d", m_ScoreTeam[0], m_ScoreTeam[1]);
 
+	struct Ranked
+	{
+		int ClientId;
+		int Kills;
+	};
+	std::vector<Ranked> blue, red;
+	for(int pid : m_Participants)
+	{
+		int side = GetSideOf(pid);
+		int kills = 0;
+		auto it = m_PlayerStats.find(pid);
+		if(it != m_PlayerStats.end())
+			kills = it->second.Kills;
+		Ranked r{pid, kills};
+		if(side == 0)
+			blue.push_back(r);
+		else if(side == 1)
+			red.push_back(r);
+	}
+	auto cmp = [](const Ranked &a, const Ranked &b) { return a.Kills > b.Kills; };
+	std::sort(blue.begin(), blue.end(), cmp);
+	std::sort(red.begin(), red.end(), cmp);
+
+	int winBP[3] = {Config()->m_SvTDMWinBP1, Config()->m_SvTDMWinBP2, Config()->m_SvTDMWinBP3};
+	int loseBP[3] = {Config()->m_SvTDMLoseBP1, Config()->m_SvTDMLoseBP2, Config()->m_SvTDMLoseBP3};
+	bool blueWin = m_ScoreTeam[0] > m_ScoreTeam[1];
+	bool redWin = m_ScoreTeam[1] > m_ScoreTeam[0];
+
+	auto award = [&](const std::vector<Ranked> &team, bool isWinner) {
+		for(int i = 0; i < 3 && i < (int)team.size(); ++i)
+		{
+			int bp = isWinner ? winBP[i] : loseBP[i];
+			if(bp > 0)
+			{
+				if(auto *pPlayer = GameServer()->GetPlayer(team[i].ClientId))
+				{
+					pPlayer->SetPlayerBlockpoints(pPlayer->GetPlayerBlockpoints() + bp);
+					GameServer()->Accounts()->Save(team[i].ClientId, &pPlayer->m_Account);
+					char aBuf[128];
+					str_format(aBuf, sizeof(aBuf), "You received %d BP for your performance in TDM.", bp);
+					GameServer()->SendChatTarget(team[i].ClientId, aBuf);
+				}
+			}
+		}
+	};
+	if(blueWin)
+	{
+		award(blue, true);
+		award(red, false);
+	}
+	else if(redWin)
+	{
+		award(red, true);
+		award(blue, false);
+	}
+
 	// announce per-team best players and summary stats in chat
 	AnnounceResults();
 
@@ -958,6 +1014,23 @@ bool CTeamDeathmatchEvent::Leave(int ClientId)
 	if(itIn == Participants().end())
 		return false;
 	m_Participants.erase(itIn);
+
+	if(GetState() == CEventComponent::EEventState::Active)
+	{
+		int penalty = Config()->m_SvTDMLeavePenaltyBP;
+		if(penalty > 0)
+		{
+			if(auto *pPlayer = GameServer()->GetPlayer(ClientId))
+			{
+				int bp = pPlayer->GetPlayerBlockpoints();
+				pPlayer->SetPlayerBlockpoints(std::max(0, bp - penalty));
+				GameServer()->Accounts()->Save(ClientId, &pPlayer->m_Account);
+				char aBuf[128];
+				str_format(aBuf, sizeof(aBuf), "You lost %d BP for leaving TDM early.", penalty);
+				GameServer()->SendChatTarget(ClientId, aBuf);
+			}
+		}
+	}
 
 	// reset team mapping and visuals
 	GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, 0);

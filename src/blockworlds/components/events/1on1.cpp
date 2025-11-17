@@ -710,14 +710,12 @@ void COneOnOneEvent::FinishEvent()
 		{
 			char aMsg[512];
 			const char *pMap = Server()->GetMapName();
-			if(m_Wager > 0)
-			{
-				str_format(aMsg, sizeof(aMsg), "1on1 finished on %s: %s (%d) vs %s (%d) → Winner: %s | Score %d-%d | Wager: %d", pMap ? pMap : "<map>", pName1, m_Score1.load(), pName2, m_Score2.load(), pWinnerName, m_Score1.load(), m_Score2.load(), m_Wager);
-			}
-			else
-			{
-				str_format(aMsg, sizeof(aMsg), "1on1 finished on %s: %s (%d) vs %s (%d) → Winner: %s | Score %d-%d", pMap ? pMap : "<map>", pName1, m_Score1.load(), pName2, m_Score2.load(), pWinnerName, m_Score1.load(), m_Score2.load());
-			}
+			int winnerScore = (winnerCid == m_Player1ID) ? m_Score1.load() : m_Score2.load();
+			int loserScore = (winnerCid == m_Player1ID) ? m_Score2.load() : m_Score1.load();
+			int bp = m_Wager > 0 ? m_Wager : 0;
+			const char *pWinnerBracket = pWinnerName;
+			const char *pLoserName = (winnerCid == m_Player1ID) ? pName2 : pName1;
+			str_format(aMsg, sizeof(aMsg), "[**%s**]  %d : %d  [%s]  ->  BP: %d (**%s**)", pWinnerBracket, winnerScore, loserScore, pLoserName, bp, pMap ? pMap : "<invalid>");
 			CDiscordWebhook::SSendOptions Opt;
 			Opt.m_pWebhookUrl = p1on1Url;
 			Discord.Send(aMsg, Opt);
