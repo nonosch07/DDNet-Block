@@ -123,9 +123,15 @@ MACRO_CONFIG_INT(SvTDMMinimumCandidates, sv_tdm_minimum_candidates, 8, 2, MAX_CL
 MACRO_CONFIG_INT(SvTDMMaximumCandidates, sv_tdm_maximum_candidates, 16, 2, MAX_CLIENTS, CFGFLAG_SERVER, "Maximum amount of participants for TDM")
 MACRO_CONFIG_INT(SvTDMBroadcastRate, sv_tdm_broadcast_rate, 10, 1, 500, CFGFLAG_SERVER, "Rate at which TDM information broadcasts will be sent (ticks)")
 MACRO_CONFIG_INT(SvTDMFreezeTime, sv_tdm_freeze_time, 3, 5, 30, CFGFLAG_SERVER, "Specifies the time required for a player to be frozen in order to die")
-MACRO_CONFIG_INT(SvTDMFreezeTimeKill, sv_tdm_freeze_time_kill, 10, 1, 30, CFGFLAG_SERVER, "Specifies the time required for a frozen player to die")
-MACRO_CONFIG_INT(SvTDMWinnerExp, sv_tdm_winner_exp, 5, 0, 10000, CFGFLAG_SERVER, "Experience rewarded to each winning TDM participant")
-MACRO_CONFIG_INT(SvTDMWinnerBlockpoints, sv_tdm_winner_blockpoints, 25, 0, 100000, CFGFLAG_SERVER, "Blockpoints rewarded to winning TDM participants")
+MACRO_CONFIG_INT(SvTDMFreezeTimeKill, sv_tdm_freeze_time_kill, 5, 1, 30, CFGFLAG_SERVER, "Specifies the time required for a frozen player to die")
+
+MACRO_CONFIG_INT(SvTDMLeavePenaltyBP, sv_tdm_leave_penalty_bp, 75, 0, 1000, CFGFLAG_SERVER, "Blockpoints lost when leaving TDM event early")
+MACRO_CONFIG_INT(SvTDMWinBP1, sv_tdm_win_bp_1, 100, 0, 10000, CFGFLAG_SERVER, "Winning team 1st place BP reward")
+MACRO_CONFIG_INT(SvTDMWinBP2, sv_tdm_win_bp_2, 75, 0, 10000, CFGFLAG_SERVER, "Winning team 2nd place BP reward")
+MACRO_CONFIG_INT(SvTDMWinBP3, sv_tdm_win_bp_3, 50, 0, 10000, CFGFLAG_SERVER, "Winning team 3rd place BP reward")
+MACRO_CONFIG_INT(SvTDMLoseBP1, sv_tdm_lose_bp_1, 75, 0, 10000, CFGFLAG_SERVER, "Losing team 1st place BP reward")
+MACRO_CONFIG_INT(SvTDMLoseBP2, sv_tdm_lose_bp_2, 50, 0, 10000, CFGFLAG_SERVER, "Losing team 2nd place BP reward")
+MACRO_CONFIG_INT(SvTDMLoseBP3, sv_tdm_lose_bp_3, 25, 0, 10000, CFGFLAG_SERVER, "Losing team 3rd place BP reward")
 
 // 1on1 draw detection settings
 MACRO_CONFIG_INT(Sv1on1DrawFreezeGrace, sv_1on1_draw_freeze_grace, 3, 0, 120, CFGFLAG_SERVER, "1on1: Grace period after round start before counting simultaneous freeze (seconds)")

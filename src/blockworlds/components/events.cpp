@@ -8,9 +8,6 @@
 #include <blockworlds/utils/memory.h>
 
 #include <blockworlds/components/core/component_registry.h>
-#if 0 // 1on1 moved out of the single-active events system; handled by oneonone_manager
-#include <blockworlds/components/events/1on1.h>
-#endif
 #include <blockworlds/components/events/clanwar.h>
 #include <blockworlds/components/events/colorsoldiers.h>
 #include <blockworlds/components/events/event.h>
@@ -18,6 +15,7 @@
 #include <blockworlds/components/events/priv_tdm.h>
 #include <blockworlds/components/events/tdm.h>
 #include <blockworlds/components/events/zcatch.h>
+#include <blockworlds/components/oneonone_manager.h>
 
 CEvents::CEvents(CGameContext *pGameServer) :
 	CComponent(pGameServer), m_pActiveEvent(nullptr), m_pEventToDelete(nullptr)
@@ -233,6 +231,16 @@ void CEvents::ConEventsForceEnd(IConsole::IResult *pResult, void *pUserData)
 void CEvents::ConJoin(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pThis = (CEvents *)pUserData;
+
+	if(auto oneOnOneMgr = g_ComponentRegistry.Get<COneOnOneManager>(); oneOnOneMgr)
+	{
+		auto match = oneOnOneMgr->GetMatchForPlayer(pResult->m_ClientId);
+		if(match && match->GetState() == COneOnOneEvent::EEventState::Active)
+		{
+			pThis->GameServer()->SendChatTarget(pResult->m_ClientId, "You are currently in a 1on1, finish it before joining an event.");
+			return;
+		}
+	}
 
 	if(pThis->m_pActiveEvent)
 	{

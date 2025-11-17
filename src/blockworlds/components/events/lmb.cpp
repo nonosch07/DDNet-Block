@@ -220,7 +220,9 @@ void CLastManBlockingEvent::FinishEvent()
 			{
 				char aMsg[512];
 				const char *pMap = Server()->GetMapName();
-				str_format(aMsg, sizeof(aMsg), "LMB finished on %s: Winner **%s**", pMap ? pMap : "<map>", Server()->ClientName(m_Winner));
+				const char *pWinnerName = Server()->ClientName(m_Winner);
+				const char *pMapName = pMap ? pMap : "<map>";
+				str_format(aMsg, sizeof(aMsg), "[ %s ] won the tournament on **%s** (%s)!", pWinnerName, pMapName, pMapName);
 				CDiscordWebhook::SSendOptions Opt;
 				Opt.m_pWebhookUrl = g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr;
 				Discord.Send(aMsg, Opt);
@@ -268,14 +270,6 @@ void CLastManBlockingEvent::FinishEvent()
 		str_format(aBuf, sizeof(aBuf), "Not enough participants joined %s", GetEventName());
 		GameServer()->SendChatTarget(-1, aBuf);
 		GameServer()->SendBroadcast(-1, aBuf, false);
-
-		CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
-		if(Discord.IsConfigured(g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr))
-		{
-			CDiscordWebhook::SSendOptions Opt;
-			Opt.m_pWebhookUrl = g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr;
-			Discord.Send("LMB cancelled: Not enough participants", Opt);
-		}
 	}
 	else if(m_FinishingReason == EMERGENCY)
 	{
