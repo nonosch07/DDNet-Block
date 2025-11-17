@@ -743,6 +743,18 @@ int64_t time_freq();
 int64_t time_timestamp();
 
 /**
+ * Cross-platform safe localtime function.
+ * 
+ * @ingroup Time
+ * 
+ * @param time_data Pointer to time_t to convert
+ * @param result Pointer to tm struct to store the result
+ * 
+ * @return Pointer to the result tm struct on success, nullptr on failure
+ */
+struct tm *time_localtime_safe(const time_t *time_data, struct tm *result);
+
+/**
  * Retrieves the hours since midnight (0..23)
  *
  * @ingroup Time

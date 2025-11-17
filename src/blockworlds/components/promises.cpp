@@ -26,7 +26,7 @@ const SPromise *CPromises::AddPromise(int ExecuteTick, std::weak_ptr<void> pUser
 	NewPromise.m_Callback = std::move(FnCallback);
 	m_Promises.push_back(NewPromise);
 	LogDebug("Promise Created. Execution: %d, Callback: %" PRIzu, NewPromise.m_ExecuteTick, GetCallbackHash(NewPromise.m_Callback));
-	return (m_Promises.cend() - 1).base();
+	return &m_Promises.back();
 }
 
 void CPromises::OnTick()

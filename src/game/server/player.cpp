@@ -2123,7 +2123,7 @@ void CPlayer::AddPlayerExp(int Amount, bool ApplyMultiplier)
 	{
 		time_t t = time(nullptr);
 		struct tm tmres;
-		localtime_r(&t, &tmres);
+		time_localtime_safe(&t, &tmres);
 		int wday = tmres.tm_wday; // 0=Sunday, 6=Saturday
 		if(wday == 0 || wday == 6)
 		{

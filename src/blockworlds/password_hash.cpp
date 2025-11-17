@@ -7,7 +7,17 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+#if defined(CONF_FAMILY_WINDOWS)
+	#include <io.h>
+	#include <Windows.h>
+	#include <wincrypt.h>
+#else
+	#include <unistd.h>
+#endif
+
+#if defined(CONF_FAMILY_WINDOWS)
+	#define strtok_r strtok_s
+#endif
 
 // Internal constants
 static const int SALT_BYTES = 16;
@@ -145,6 +155,24 @@ int pw_hash_generate(const char *pPassword, char *pOut, int OutSize, int Iterati
 		return -1;
 	Iterations = effective_iterations(Iterations);
 	unsigned char salt[SALT_BYTES];
+	
+#if defined(CONF_FAMILY_WINDOWS)
+	HCRYPTPROV hProv = 0;
+	if(CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
+	{
+		if(!CryptGenRandom(hProv, SALT_BYTES, salt))
+		{
+			for(size_t i = 0; i < sizeof(salt); ++i)
+				salt[i] = (unsigned char)(rand() % 256);
+		}
+		CryptReleaseContext(hProv, 0);
+	}
+	else
+	{
+		for(size_t i = 0; i < sizeof(salt); ++i)
+			salt[i] = (unsigned char)(rand() % 256);
+	}
+#else
 	int fd = open("/dev/urandom", O_RDONLY);
 	if(fd >= 0)
 	{
@@ -163,6 +191,7 @@ int pw_hash_generate(const char *pPassword, char *pOut, int OutSize, int Iterati
 		for(size_t i = 0; i < sizeof(salt); ++i)
 			salt[i] = (unsigned char)(rand() % 256);
 	}
+#endif
 	unsigned char dk[DK_BYTES];
 	pbkdf2_hmac_sha256(pPassword, salt, SALT_BYTES, Iterations, dk, DK_BYTES);
 	char salt_hex[SALT_BYTES * 2 + 1];

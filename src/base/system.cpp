@@ -2602,6 +2602,17 @@ int64_t time_timestamp()
 	return time(0);
 }
 
+struct tm *time_localtime_safe(const time_t *time_data, struct tm *result)
+{
+#if defined(CONF_FAMILY_WINDOWS)
+	// on winshit localtime_s is the safe function
+	errno_t err = localtime_s(result, time_data);
+	return (err == 0) ? result : nullptr;
+#else
+	return localtime_r(time_data, result);
+#endif
+}
+
 static struct tm *time_localtime_threadlocal(time_t *time_data)
 {
 #if defined(CONF_FAMILY_WINDOWS)

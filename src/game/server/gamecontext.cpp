@@ -6,6 +6,10 @@
 #include <algorithm>
 #include <vector>
 
+#if defined(CONF_FAMILY_WINDOWS)
+	#include <intrin.h>  // For _ReadWriteBarrier
+#endif
+
 #include "blockworlds/cosmetics/cosmetics.h"
 #include "game/server/gameworld.h"
 #include "teeinfo.h"
@@ -1932,7 +1936,7 @@ void CGameContext::OnClientEnter(int ClientId)
 		{
 			time_t t = time(nullptr);
 			struct tm tmres;
-			localtime_r(&t, &tmres);
+			time_localtime_safe(&t, &tmres);
 			int wday = tmres.tm_wday; // 0=Sun,6=Sat
 			if(wday == 0 || wday == 6)
 			{
@@ -5455,7 +5459,11 @@ void CGameContext::PreShutdownFlush()
 		}
 		for(int spin = 0; spin < 2000; ++spin)
 		{
+#if defined(CONF_FAMILY_WINDOWS)
+			_ReadWriteBarrier();
+#else
 			asm volatile("");
+#endif
 		}
 		thread_yield();
 	}

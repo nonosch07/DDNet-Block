@@ -433,7 +433,7 @@ float CBlockTracker::DailySoftCapScale(int KillerID)
 	SKillerRecent &KS = m_aKillerStats[KillerID];
 	time_t t = time(nullptr);
 	struct tm tmres;
-	localtime_r(&t, &tmres);
+	time_localtime_safe(&t, &tmres);
 	int yyyymmdd = (tmres.tm_year + 1900) * 10000 + (tmres.tm_mon + 1) * 100 + tmres.tm_mday;
 	if(KS.m_TodayDate != yyyymmdd)
 	{

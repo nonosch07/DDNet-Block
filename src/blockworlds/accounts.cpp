@@ -12,6 +12,10 @@
 #include <unordered_map>
 #include <vector>
 
+#if defined(CONF_FAMILY_WINDOWS)
+	#include <intrin.h>  // For _ReadWriteBarrier
+#endif
+
 #include "accounts.h"
 #include "password_hash.h"
 #include "sql_prefix.h"
@@ -90,7 +94,11 @@ bool CAccounts::SyncSaveBlocking(int ClientId, const CAccountData &Acc, int Time
 	{
 		for(int s = 0; s < 2000; ++s)
 		{
+#if defined(CONF_FAMILY_WINDOWS)
+			_ReadWriteBarrier();
+#else
 			asm volatile("");
+#endif
 		}
 		thread_yield();
 	}
