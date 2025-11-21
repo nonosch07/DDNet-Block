@@ -222,7 +222,7 @@ void CLastManBlockingEvent::FinishEvent()
 				const char *pMap = Server()->GetMapName();
 				const char *pWinnerName = Server()->ClientName(m_Winner);
 				const char *pMapName = pMap ? pMap : "<map>";
-				str_format(aMsg, sizeof(aMsg), "[ %s ] won the tournament on **%s** (%s)!", pWinnerName, pMapName, pMapName);
+				str_format(aMsg, sizeof(aMsg), "[ %s ] won the tournament on **%s**!", pWinnerName, pMapName);
 				CDiscordWebhook::SSendOptions Opt;
 				Opt.m_pWebhookUrl = g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr;
 				Discord.Send(aMsg, Opt);
