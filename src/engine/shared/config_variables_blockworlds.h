@@ -181,3 +181,6 @@ MACRO_CONFIG_INT(SvStorePort, sv_store_port, 8306, 8303, 8310, CFGFLAG_SERVER, "
 
 // silence sql logs
 MACRO_CONFIG_INT(SvDebugSql, sv_debug_sql, 0, 0, 1, CFGFLAG_SERVER, "Enable verbose SQL debug logging (accounts, clans)")
+
+// global show ips
+MACRO_CONFIG_INT(SvShowIps, sv_show_ips, 0, 0, 1, CFGFLAG_SERVER, "Global switch to always show IP addresses in rcon commands (1 = on, 0 = off)")
