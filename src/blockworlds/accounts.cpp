@@ -550,6 +550,61 @@ void CAccounts::ChangePasswordAdmin(int AdminClientId, const char *pUsername, co
 	m_pPool->Execute(ChangePasswordAdminThread, std::move(Tmp), "admin change password");
 }
 
+void CAccounts::SetVipByNameAdmin(int AdminClientId, const char *pUsername, int Vip)
+{
+	if(RateLimitPlayer(AdminClientId))
+		return;
+	auto pResult = NewSqlAdminCommandResult(AdminClientId);
+	if(!pResult)
+		return;
+	auto Tmp = std::make_unique<CSqlAdminCommandRequest>(pResult);
+	Tmp->m_AdminClientId = AdminClientId;
+	Tmp->m_TargetAccountId = 0;
+	Tmp->m_State = Vip ? 1 : 0;
+	Tmp->m_Type = CAdminCommandResult::DIRECT;
+	str_copy(Tmp->m_aUsername, pUsername, sizeof(Tmp->m_aUsername));
+	Tmp->m_aPassword[0] = '\0';
+	m_pPool->Execute(SetVipByNameAdminThread, std::move(Tmp), "admin set vip by name");
+}
+
+bool CAccounts::SetVipByNameAdminThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
+{
+	const CSqlAdminCommandRequest *pData = dynamic_cast<const CSqlAdminCommandRequest *>(pGameData);
+	CAdminCommandResult *pResult = dynamic_cast<CAdminCommandResult *>(pGameData->m_pResult.get());
+	if(!pResult || !pData)
+		return true;
+	pResult->SetVariant(CAdminCommandResult::DIRECT, pData);
+
+	char aBuf[256];
+	str_format(aBuf, sizeof(aBuf), "UPDATE %s i JOIN %s c ON i.account_id = c.id SET i.vip = ? WHERE c.name = ?;", TBL_ACCOUNTS_INVENTORY, TBL_ACCOUNTS_CORE);
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Failed to prepare set VIP statement.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+	pSqlServer->BindInt(1, pData->m_State);
+	pSqlServer->BindString(2, pData->m_aUsername);
+	int NumUpdated = 0;
+	if(pSqlServer->ExecuteUpdate(&NumUpdated, pError, ErrorSize))
+	{
+		str_copy(pResult->m_aaMessages[0], "Failed to execute set VIP statement.", sizeof(pResult->m_aaMessages[0]));
+		return true;
+	}
+
+	if(NumUpdated == 1)
+	{
+		str_format(pResult->m_aaMessages[0], sizeof(pResult->m_aaMessages[0]), "VIP set to %d for account '%s'.", pData->m_State, pData->m_aUsername);
+		pResult->m_Success = true;
+	}
+	else
+	{
+		str_copy(pResult->m_aaMessages[0], "No account found with that name.", sizeof(pResult->m_aaMessages[0]));
+		pResult->m_Success = false;
+	}
+
+	return false;
+}
+
 bool CAccounts::ChangePasswordAdminThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
 {
 	const CSqlAdminCommandRequest *pData = dynamic_cast<const CSqlAdminCommandRequest *>(pGameData);

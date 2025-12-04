@@ -168,6 +168,7 @@ class CGameContext : public IGameServer
 	static void ConDumpLog(IConsole::IResult *pResult, void *pUserData);
 	static void ConSetWeaponkits(IConsole::IResult *pResult, void *pUserData);
 	static void ConSetVip(IConsole::IResult *pResult, void *pUserData);
+	static void ConSetVipAccount(IConsole::IResult *pResult, void *pUserData);
 
 	void Construct(int Resetting);
 	void Destruct(int Resetting);

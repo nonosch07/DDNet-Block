@@ -367,6 +367,8 @@ class CAccounts
 	static bool LogoutThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool ExecuteSqlThread(IDbConnection *pSqlServer, const ISqlData *pGameData, Write w, char *pError, int ErrorSize);
 
+	static bool SetVipByNameAdminThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
+
 	// returns new SqlResult bound to the player, if no current Thread is active for this player
 	std::shared_ptr<CAccountResult> NewSqlAccountResult(int ClientId);
 	std::shared_ptr<CAdminCommandResult> NewSqlAdminCommandResult(int ClientId);
@@ -410,6 +412,8 @@ public:
 	void ChangePassword(int ClientId, const char *pUsername, const char *pOldPassword, const char *pNewPassword);
 	// Admin: change password by account name
 	void ChangePasswordAdmin(int AdminClientId, const char *pUsername, const char *pNewPassword);
+	// Admin: set VIP by account name (works for offline accounts)
+	void SetVipByNameAdmin(int AdminClientId, const char *pUsername, int Vip);
 	void ExecuteSql(const char *pQuery);
 
 	bool SyncSaveBlocking(int ClientId, const CAccountData &Acc, int TimeoutMs = 500);

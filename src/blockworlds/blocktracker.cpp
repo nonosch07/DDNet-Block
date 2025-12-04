@@ -695,7 +695,7 @@ bool CBlockTracker::OnPlayerKill(int ClientID)
 	if(pVictimPlayer)
 		VictimWasAfk = pVictimPlayer->IsAfk() || pVictimPlayer->IsPaused();
 
-	Blocked(ClientID, Player.m_ImpactedClientID); // this will award exp if valid
+	const bool ExpKillMsgSent = Blocked(ClientID, Player.m_ImpactedClientID);
 
 	// record kill stats regardless of EXP (for detection)
 	RecordKill(Player.m_ImpactedClientID, ClientID, VictimWasAfk, m_pGameContext->Server()->Tick());
@@ -708,7 +708,7 @@ bool CBlockTracker::OnPlayerKill(int ClientID)
 		pPlayer->SetPlayerDeaths(pPlayer->GetPlayerDeaths() + 1);
 	}
 
-	return true;
+	return ExpKillMsgSent;
 }
 
 void CBlockTracker::OnPlayerDeath(int ClientID)

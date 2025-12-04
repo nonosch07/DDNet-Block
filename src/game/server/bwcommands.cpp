@@ -1084,6 +1084,51 @@ void CGameContext::ConSetVip(IConsole::IResult *pResult, void *pUserData)
 	pSelf->SendChatTarget(Target, aBuf);
 }
 
+void CGameContext::ConSetVipAccount(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	if(pResult->NumArguments() < 2)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Usage: vip_account <account_name> <0|1>");
+		return;
+	}
+
+	const char *pAccountName = pResult->GetString(0);
+	int Vip = pResult->GetInteger(1) ? 1 : 0;
+
+	if(str_length(pAccountName) == 0)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Account name must be non-empty");
+		return;
+	}
+
+	pSelf->Accounts()->SetVipByNameAdmin(pResult->m_ClientId, pAccountName, Vip);
+
+	// iff the player is currently online and logged in under that account, also update in-memory shittery
+	for(int i = 0; i < MAX_CLIENTS; ++i)
+	{
+		CPlayer *p = pSelf->m_apPlayers[i];
+		if(!p)
+			continue;
+		if(!p->IsLoggedIn())
+			continue;
+		if(str_comp(p->GetPlayerName(), pAccountName) == 0 || str_comp(p->m_Account.m_aName, pAccountName) == 0)
+		{
+			p->SetPlayerVip(Vip);
+			pSelf->Accounts()->Save(i, &p->m_Account);
+			char aBuf[128];
+			str_format(aBuf, sizeof(aBuf), "Your VIP status was %s by an admin.", Vip ? "enabled" : "disabled");
+			pSelf->SendChatTarget(i, aBuf);
+			break;
+		}
+	}
+
+	char aBuf[160];
+	str_format(aBuf, sizeof(aBuf), "Queued VIP=%d for account '%s' (offline-capable)", Vip, pAccountName);
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+}
+
 void CGameContext::ConAdminSetPassword(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
