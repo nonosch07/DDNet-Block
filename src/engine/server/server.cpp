@@ -1365,13 +1365,13 @@ void CServer::SendRconLogLine(int ClientId, const CLogMessage *pMessage)
 		for(int i = 0; i < MAX_CLIENTS; i++)
 		{
 			if(m_aClients[i].m_State != CClient::STATE_EMPTY && m_aClients[i].m_Authed >= AUTHED_ADMIN)
-				SendRconLine(i, m_aClients[i].m_ShowIps ? pLine : pLineWithoutIps);
+				SendRconLine(i, (g_Config.m_SvShowIps || m_aClients[i].m_ShowIps) ? pLine : pLineWithoutIps);
 		}
 	}
 	else
 	{
 		if(m_aClients[ClientId].m_State != CClient::STATE_EMPTY)
-			SendRconLine(ClientId, m_aClients[ClientId].m_ShowIps ? pLine : pLineWithoutIps);
+			SendRconLine(ClientId, (g_Config.m_SvShowIps || m_aClients[ClientId].m_ShowIps) ? pLine : pLineWithoutIps);
 	}
 }
 

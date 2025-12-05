@@ -37,6 +37,7 @@
 
 #include <blockworlds/components/ai/ai_bot.h>
 #include <blockworlds/components/chatfilter/chat_filter.h>
+#include <blockworlds/components/clientdetect/client_detect.h>
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
 #include <blockworlds/components/events/tdm.h>
@@ -170,6 +171,7 @@ void CGameContext::Construct(int Resetting)
 		g_ComponentRegistry.Register<CRequests>(CRequests::GetNameStatic());
 		g_ComponentRegistry.Register<CAiBotComponent>(CAiBotComponent::GetNameStatic());
 		g_ComponentRegistry.Register<CChatFilterComponent>(CChatFilterComponent::GetNameStatic());
+		g_ComponentRegistry.Register<CClientDetectComponent>(CClientDetectComponent::GetNameStatic());
 		g_ComponentRegistry.Register<CVpnDetectionComponent>(CVpnDetectionComponent::GetNameStatic());
 
 		g_ComponentRegistry.Create<COneOnOneManager>(this);
