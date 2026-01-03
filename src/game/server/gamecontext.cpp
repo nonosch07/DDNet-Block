@@ -2180,13 +2180,17 @@ void CGameContext::ConWhoisIp(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
 	int ClientId = pResult->m_ClientId;
-	if(pSelf->Server()->GetAuthedState(ClientId) <= 0)
+	if(ClientId < 0)
+	{
+		// econ
+	}
+	else if(pSelf->Server()->GetAuthedState(ClientId) <= 0)
 	{
 		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "Permission denied");
 		return;
 	}
 	int64_t Now = pSelf->Server()->Tick();
-	if(pSelf->m_aWhoisCooldown[ClientId] && Now < pSelf->m_aWhoisCooldown[ClientId])
+	if(ClientId >= 0 && pSelf->m_aWhoisCooldown[ClientId] && Now < pSelf->m_aWhoisCooldown[ClientId])
 	{
 		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "Please wait before using whois again");
 		return;
@@ -2234,6 +2238,7 @@ void CGameContext::ConWhoisIp(IConsole::IResult *pResult, void *pUserData)
 	str_copy(pRes->m_aTag, "whois", sizeof(pRes->m_aTag));
 	pSelf->m_vWhoisResults.push_back(pRes);
 	pSelf->m_pWhoIs->CmdWhoisStr(ClientId, /*Mode=*/0, Cutoff, pIp, pRes);
+	if(ClientId >= 0)
 	{
 		int Sec = clamp(g_Config.m_SvWhoisCooldownSec, 0, 300);
 		pSelf->m_aWhoisCooldown[ClientId] = Sec > 0 ? Now + Sec * pSelf->Server()->TickSpeed() : 0;
@@ -2245,13 +2250,17 @@ void CGameContext::ConWhoisId(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
 	int ClientId = pResult->m_ClientId;
-	if(pSelf->Server()->GetAuthedState(ClientId) <= 0)
+	if(ClientId < 0)
+	{
+		// econ
+	}
+	else if(pSelf->Server()->GetAuthedState(ClientId) <= 0)
 	{
 		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "Permission denied");
 		return;
 	}
 	int64_t Now = pSelf->Server()->Tick();
-	if(pSelf->m_aWhoisCooldown[ClientId] && Now < pSelf->m_aWhoisCooldown[ClientId])
+	if(ClientId >= 0 && pSelf->m_aWhoisCooldown[ClientId] && Now < pSelf->m_aWhoisCooldown[ClientId])
 	{
 		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "Please wait before using whois again");
 		return;
@@ -2314,6 +2323,7 @@ void CGameContext::ConWhoisId(IConsole::IResult *pResult, void *pUserData)
 	str_copy(pRes->m_aTag, "whois", sizeof(pRes->m_aTag));
 	pSelf->m_vWhoisResults.push_back(pRes);
 	pSelf->m_pWhoIs->CmdWhoisStr(ClientId, /*Mode=*/0, Cutoff, aIp, pRes);
+	if(ClientId >= 0)
 	{
 		int Sec = clamp(g_Config.m_SvWhoisCooldownSec, 0, 300);
 		pSelf->m_aWhoisCooldown[ClientId] = Sec > 0 ? Now + Sec * pSelf->Server()->TickSpeed() : 0;
@@ -2325,13 +2335,17 @@ void CGameContext::ConWhoisName(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
 	int ClientId = pResult->m_ClientId;
-	if(pSelf->Server()->GetAuthedState(ClientId) <= 0)
+	if(ClientId < 0)
+	{
+		// econ, no cooldown (sry pac)
+	}
+	else if(pSelf->Server()->GetAuthedState(ClientId) <= 0)
 	{
 		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "Permission denied");
 		return;
 	}
 	int64_t Now = pSelf->Server()->Tick();
-	if(pSelf->m_aWhoisCooldown[ClientId] && Now < pSelf->m_aWhoisCooldown[ClientId])
+	if(ClientId >= 0 && pSelf->m_aWhoisCooldown[ClientId] && Now < pSelf->m_aWhoisCooldown[ClientId])
 	{
 		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "Please wait before using whois again");
 		return;
@@ -2358,6 +2372,7 @@ void CGameContext::ConWhoisName(IConsole::IResult *pResult, void *pUserData)
 	pSelf->m_vWhoisResults.push_back(pRes);
 	// Mode=1 for name
 	pSelf->m_pWhoIs->CmdWhoisStr(ClientId, /*Mode=*/1, /*Cutoff=*/0, pName, pRes);
+	if(ClientId >= 0)
 	{
 		int Sec = clamp(g_Config.m_SvWhoisCooldownSec, 0, 300);
 		pSelf->m_aWhoisCooldown[ClientId] = Sec > 0 ? Now + Sec * pSelf->Server()->TickSpeed() : 0;
@@ -2903,6 +2918,7 @@ void CGameContext::OnSayNetMessage(const CNetMsg_Cl_Say *pMsg, int ClientId, con
 		SendChat(ClientId, Team, aCensoredMessage, ClientId);
 
 		// relay chat to Discord (public chat only)
+		if(str_comp_num(aCensoredMessage, pMsg->m_pMessage, str_length(aCensoredMessage)) == 0)
 		{
 			CDiscordWebhook Discord(Engine(), Http());
 			const char *pChatUrl = g_Config.m_SvDiscordWebhookUrlChat[0] ? g_Config.m_SvDiscordWebhookUrlChat : nullptr;
@@ -4622,8 +4638,8 @@ void CGameContext::RegisterChatCommands()
 	Console()->Register("converse", "r[message]", CFGFLAG_CHAT | CFGFLAG_SERVER | CFGFLAG_NONTEEHISTORIC, ConConverse, this, "Converse with the last person you whispered to (private message)");
 	Console()->Register("pause", "?r[player name]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConTogglePause, this, "Toggles pause");
 	Console()->Register("spec", "?r[player name]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConToggleSpec, this, "Toggles spec (if not available behaves as /pause)");
-	Console()->Register("pausevoted", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConTogglePauseVoted, this, "Toggles pause on the currently voted player");
-	Console()->Register("specvoted", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConToggleSpecVoted, this, "Toggles spec on the currently voted player");
+	// Console()->Register("pausevoted", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConTogglePauseVoted, this, "Toggles pause on the currently voted player");
+	// Console()->Register("specvoted", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConToggleSpecVoted, this, "Toggles spec on the currently voted player");
 	Console()->Register("dnd", "?i['0'|'1']", CFGFLAG_CHAT | CFGFLAG_SERVER | CFGFLAG_NONTEEHISTORIC, ConDND, this, "Toggle Do Not Disturb (no chat and server messages)");
 	Console()->Register("whispers", "?i['0'|'1']", CFGFLAG_CHAT | CFGFLAG_SERVER | CFGFLAG_NONTEEHISTORIC, ConWhispers, this, "Toggle receiving whispers");
 	// Console()->Register("mapinfo", "?r[map]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConMapInfo, this, "Show info about the map with name r gives (current map by default)");
@@ -4642,7 +4658,7 @@ void CGameContext::RegisterChatCommands()
 	// Console()->Register("top5team", "?s[player name] ?i[rank to start with]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConTeamTop5, this, "Shows five team ranks of the ladder or of a player beginning with rank i (1 by default, -1 for worst)");
 	// Console()->Register("teamtop5", "?s[player name] ?i[rank to start with]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConTeamTop5, this, "Shows five team ranks of the ladder or of a player beginning with rank i (1 by default, -1 for worst)");
 	// Console()->Register("top", "?i[rank to start with]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConTop, this, "Shows the top ranks of the global and regional ladder beginning with rank i (1 by default, -1 for worst)");
-	// Console()->Register("top5", "?i[rank to start with]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConTop, this, "Shows the top ranks of the global and regional ladder beginning with rank i (1 by default, -1 for worst)");
+	Console()->Register("top5", "?i[rank to start with]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConTop, this, "Shows the top ranks of the global and regional ladder beginning with rank i (1 by default, -1 for worst)");
 	// Console()->Register("times", "?s[player name] ?i[number of times to skip]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConTimes, this, "/times ?s?i shows last 5 times of the server or of a player beginning with name s starting with time i (i = 1 by default, -1 for first)");
 	// Console()->Register("points", "?r[player name]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConPoints, this, "Shows the global points of a player beginning with name r (your rank by default)");
 	// Console()->Register("top5points", "?i[number]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConTopPoints, this, "Shows five points of the global point ladder beginning with rank i (1 by default)");
