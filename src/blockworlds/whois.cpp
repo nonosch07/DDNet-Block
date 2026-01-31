@@ -124,6 +124,7 @@ private:
 			else
 			{
 				dbg_msg("sql", "whois worker: failed to open sqlite: %s", aErr[0] ? aErr : "unknown error");
+				task(nullptr);
 			}
 		}
 	}
@@ -811,6 +812,11 @@ void CWhoIs::LogJoin(int ClientId)
 	str_copy(pReq->m_aSource, "join", sizeof(pReq->m_aSource));
 	auto *pRaw = pReq.release();
 	m_pWorker->Enqueue([pRaw](IDbConnection *pSql) {
+		if(!pSql)
+		{
+			delete pRaw;
+			return;
+		}
 		char aErr[256] = {0};
 		RunLog(pSql, pRaw, aErr, sizeof(aErr));
 		delete pRaw;
@@ -839,6 +845,11 @@ void CWhoIs::LogLeave(int ClientId)
 	str_copy(pReq->m_aSource, "leave", sizeof(pReq->m_aSource));
 	auto *pRaw = pReq.release();
 	m_pWorker->Enqueue([pRaw](IDbConnection *pSql) {
+		if(!pSql)
+		{
+			delete pRaw;
+			return;
+		}
 		char aErr[256] = {0};
 		RunLog(pSql, pRaw, aErr, sizeof(aErr));
 		delete pRaw;
@@ -865,6 +876,15 @@ void CWhoIs::SnapshotTick()
 			pRes->m_SendToChat = false;
 			m_vInternalResults.push_back(pRes);
 			m_pWorker->Enqueue([pRes, Months](IDbConnection *pSql) {
+				if(!pSql)
+				{
+					char aLine[192];
+					str_format(aLine, sizeof(aLine), "whois purge failed: database unavialable");
+					pRes->m_vLines.emplace_back(aLine);
+					pRes->m_Success = false;
+					pRes->m_Completed.store(true, std::memory_order_release);
+					return;
+				}
 				char aStmt[512];
 				char aErr[256] = {0};
 				bool Failed = false;
@@ -936,6 +956,11 @@ void CWhoIs::SnapshotTick()
 			str_copy(pReq->m_aSource, "snapshot", sizeof(pReq->m_aSource));
 			auto *pRaw = pReq.release();
 			m_pWorker->Enqueue([pRaw](IDbConnection *pSql) {
+				if(!pSql)
+				{
+					delete pRaw;
+					return;
+				}
 				char aErr[256] = {0};
 				RunLog(pSql, pRaw, aErr, sizeof(aErr));
 				delete pRaw;
@@ -951,6 +976,39 @@ void CWhoIs::CmdWhoisStr(int RequesterId, int Mode, int Cutoff, const char *pSea
 	pRes->m_TargetClientId = RequesterId; // retained for potential future use
 	str_copy(pRes->m_aTag, TAG, sizeof(pRes->m_aTag));
 	pRes->m_SendToChat = false; // enforce no chat output
+	// needs to be synchronous for econ otherwise the result wont be shown
+	if(RequesterId < 0)
+	{
+		CSqlWhoIsQuery Req(pRes);
+		Req.m_Mode = Mode;
+		Req.m_Cutoff = Cutoff;
+		str_copy(Req.m_aSearch, pSearch, sizeof(Req.m_aSearch));
+		std::unique_ptr<IDbConnection> pConn = CreateSqliteConnection(m_aDbPath, false);
+		char aErr[256] = {0};
+		bool Failed = false;
+		if(!pConn || pConn->Connect(aErr, sizeof(aErr)))
+		{
+			pRes->m_vLines.emplace_back("whois failed: database unavailable");
+			pRes->m_Success = false;
+			pRes->m_Completed.store(true, std::memory_order_release);
+			PrintLines(GameServer(), RequesterId, pRes->m_vLines, pRes->m_aTag, pRes->m_SendToChat);
+			pRes->m_vLines.clear();
+			return;
+		}
+		Failed = RunQuery(pConn.get(), &Req, pRes, aErr, sizeof(aErr));
+		pConn->Disconnect();
+		if(Failed && !pRes->m_Completed.load(std::memory_order_acquire))
+		{
+			char aLine[256];
+			str_format(aLine, sizeof(aLine), "whois failed: %s", aErr[0] ? aErr : "unknown error");
+			pRes->m_vLines.emplace_back(aLine);
+			pRes->m_Success = false;
+			pRes->m_Completed.store(true, std::memory_order_release);
+		}
+		PrintLines(GameServer(), RequesterId, pRes->m_vLines, pRes->m_aTag, pRes->m_SendToChat);
+		pRes->m_vLines.clear();
+		return;
+	}
 	auto pReq = std::make_unique<CSqlWhoIsQuery>(pRes);
 	pReq->m_Mode = Mode;
 	pReq->m_Cutoff = Cutoff;
@@ -959,7 +1017,23 @@ void CWhoIs::CmdWhoisStr(int RequesterId, int Mode, int Cutoff, const char *pSea
 	m_pWorker->Enqueue([pRaw](IDbConnection *pSql) {
 		char aErr[256] = {0};
 		auto pResLocal = std::static_pointer_cast<CWhoIsResult>(pRaw->m_pResult);
-		RunQuery(pSql, pRaw, pResLocal, aErr, sizeof(aErr));
+		if(!pSql)
+		{
+			pResLocal->m_vLines.emplace_back("whois failed: database unavailable");
+			pResLocal->m_Success = false;
+			pResLocal->m_Completed.store(true, std::memory_order_release);
+			delete pRaw;
+			return;
+		}
+		bool Failed = RunQuery(pSql, pRaw, pResLocal, aErr, sizeof(aErr));
+		if(Failed && !pResLocal->m_Completed.load(std::memory_order_acquire))
+		{
+			char aLine[256];
+			str_format(aLine, sizeof(aLine), "whois failed: %s", aErr[0] ? aErr : "unknown error");
+			pResLocal->m_vLines.emplace_back(aLine);
+			pResLocal->m_Success = false;
+			pResLocal->m_Completed.store(true, std::memory_order_release);
+		}
 		delete pRaw;
 	});
 }
@@ -989,6 +1063,18 @@ void CWhoIs::PurgeNow(int RetentionMonths, bool Silent)
 	if(pRes)
 		m_vInternalResults.push_back(pRes);
 	m_pWorker->Enqueue([this, pRes, Months](IDbConnection *pSql) {
+		if(!pSql)
+		{
+			if(pRes)
+			{
+				char aLine[192];
+				str_format(aLine, sizeof(aLine), "whois purge failed: database unavalable");
+				pRes->m_vLines.emplace_back(aLine);
+				pRes->m_Success = false;
+				pRes->m_Completed.store(true, std::memory_order_release);
+			}
+			return;
+		}
 		char aStmt[512];
 		char aErr[256] = {0};
 		bool Failed = false;
