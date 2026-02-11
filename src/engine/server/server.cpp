@@ -1435,6 +1435,32 @@ void CServer::UpdateClientRconCommands()
 	}
 }
 
+void CServer::RefreshRconCommands()
+{
+	for(int ClientId = 0; ClientId < MAX_CLIENTS; ++ClientId)
+	{
+		if(m_aClients[ClientId].m_State == CClient::STATE_EMPTY || !m_aClients[ClientId].m_Authed)
+			continue;
+
+		// if already streaming then we need to skip it
+		if(m_aClients[ClientId].m_pRconCmdToSend != nullptr)
+			continue;
+
+		int ConsoleAccessLevel = GetConsoleAccessLevel(ClientId);
+		m_aClients[ClientId].m_pRconCmdToSend = Console()->FirstCommandInfo(ConsoleAccessLevel, CFGFLAG_SERVER);
+
+		CMsgPacker MsgStart(NETMSG_RCON_CMD_GROUP_START, true);
+		MsgStart.AddInt(NumRconCommands(ClientId));
+		SendMsg(&MsgStart, MSGFLAG_VITAL, ClientId);
+
+		if(m_aClients[ClientId].m_pRconCmdToSend == nullptr)
+		{
+			CMsgPacker MsgEnd(NETMSG_RCON_CMD_GROUP_END, true);
+			SendMsg(&MsgEnd, MSGFLAG_VITAL, ClientId);
+		}
+	}
+}
+
 static inline int MsgFromSixup(int Msg, bool System)
 {
 	if(System)

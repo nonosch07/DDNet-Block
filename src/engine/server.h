@@ -298,6 +298,9 @@ public:
 	//Blockworlds
 
 	virtual bool IsClientsSameAddr(int FirstClientID, int SecondClientID) = 0;
+
+
+	virtual void RefreshRconCommands() = 0;
 };
 
 class IGameServer : public IInterface

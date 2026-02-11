@@ -13,6 +13,7 @@
 
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -129,6 +130,7 @@ private:
 	int m_BanTimeMinutes;
 	int m_RateLimitIpquery;
 	int m_RateLimitGetipintel;
+	int m_RateLimitIphub;
 	std::mutex m_Mutex;
 	std::string m_DefaultService;
 
@@ -141,6 +143,8 @@ private:
 
 	std::vector<std::thread> m_RequestThreads;
 	std::mutex m_ThreadMutex;
+	std::set<std::thread::id> m_FinishedThreadIds;
+	std::mutex m_FinishedMutex;
 
 	struct SPendingMessage
 	{

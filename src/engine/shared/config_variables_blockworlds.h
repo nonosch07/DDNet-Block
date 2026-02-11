@@ -184,3 +184,6 @@ MACRO_CONFIG_INT(SvDebugSql, sv_debug_sql, 0, 0, 1, CFGFLAG_SERVER, "Enable verb
 
 // global show ips
 MACRO_CONFIG_INT(SvShowIps, sv_show_ips, 0, 0, 1, CFGFLAG_SERVER, "Global switch to always show IP addresses in rcon commands (1 = on, 0 = off)")
+
+// VPN detection
+MACRO_CONFIG_STR(SvVpnIphubApiKey, sv_vpn_iphub_api_key, 128, "", CFGFLAG_SERVER, "API key for IPHub.info VPN detetion service")

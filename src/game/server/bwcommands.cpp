@@ -2678,13 +2678,17 @@ void CGameContext::ConComponentPlug(IConsole::IResult *pResult, void *pUserData)
 	str_copy(aName, pResult->GetString(0));
 	str_clean_whitespaces(aName);
 
-	auto pComponent = g_ComponentRegistry.Create(aName, (CGameContext *)pUserData);
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	auto pComponent = g_ComponentRegistry.Create(aName, pSelf);
 	if(!pComponent)
 	{
 		dbg_msg("Components", "Component creation failed");
 		return;
 	}
 	dbg_msg("Components", "Component created: %s (%p)", pComponent->GetName(), &*pComponent);
+
+	// refresh rcon cmd list
+	pSelf->Server()->RefreshRconCommands();
 }
 
 void CGameContext::ConComponentUnPlug(IConsole::IResult *pResult, void *pUserData)
@@ -2693,10 +2697,14 @@ void CGameContext::ConComponentUnPlug(IConsole::IResult *pResult, void *pUserDat
 	str_copy(aName, pResult->GetString(0));
 	str_clean_whitespaces(aName);
 
+	CGameContext *pSelf = (CGameContext *)pUserData;
 	bool Removed = g_ComponentRegistry.Remove(aName);
 	if(Removed)
 	{
 		dbg_msg("Components", "Component removed: %s", aName);
+
+		// we also need to refresh
+		pSelf->Server()->RefreshRconCommands();
 		return;
 	}
 	dbg_msg("Components", "Component removal failed");

@@ -342,6 +342,7 @@ public:
 	int GetConsoleAccessLevel(int ClientId);
 	int NumRconCommands(int ClientId);
 	void UpdateClientRconCommands();
+	void RefreshRconCommands() override;
 
 	bool CheckReservedSlotAuth(int ClientId, const char *pPassword);
 	void ProcessClientPacket(CNetChunk *pPacket);

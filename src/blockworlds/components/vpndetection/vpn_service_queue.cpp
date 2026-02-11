@@ -21,9 +21,10 @@ bool SVpnServiceQueue::CanProcessRequest() const
 		return false;
 
 	int64_t Now = time_get();
-	int64_t TimeSinceLastRequest = (Now - m_LastRequestTime) / time_freq() * 1000; // Convert to ms
+	// no integer truncation losing sub-second precision
+	int64_t ElapsedMs = (Now - m_LastRequestTime) * 1000 / time_freq();
 
-	return TimeSinceLastRequest >= m_RateLimitMs;
+	return ElapsedMs >= m_RateLimitMs;
 }
 
 void SVpnServiceQueue::EnqueueRequest(std::shared_ptr<IVpnServiceRequest> pRequest)

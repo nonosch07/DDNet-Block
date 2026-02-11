@@ -1,6 +1,7 @@
 #include "vpn_detection.h"
 #include "convar_helpers.h"
 #include "services/getipintel_service.h"
+#include "services/iphub_service.h"
 #include "services/ipquery_service.h"
 #include "time_parser.h"
 #include "vpn_commands.h"
@@ -26,6 +27,7 @@ CVpnDetectionComponent::CVpnDetectionComponent(CGameContext *pGameServer) :
 	m_BanTimeMinutes(60),
 	m_RateLimitIpquery(100),
 	m_RateLimitGetipintel(4000),
+	m_RateLimitIphub(500),
 	m_DefaultService("")
 {
 	m_aGetipintelContact[0] = '\0';
@@ -53,6 +55,14 @@ CVpnDetectionComponent::CVpnDetectionComponent(CGameContext *pGameServer) :
 	Log("VPN service registered: getipintel | API: https://getipintel.net/ | Contact: %s | Threshold: %.2f%% | Rate limit: %dms",
 		m_aGetipintelContact[0] ? m_aGetipintelContact : "(not set)",
 		m_GetipintelThreshold, m_RateLimitGetipintel);
+
+	auto pIPHub = new CIPHubService();
+	pIPHub->SetApiKey(Config()->m_SvVpnIphubApiKey);
+	RegisterService("iphub", pIPHub, m_RateLimitIphub);
+
+	Log("VPN service registered: iphub | API: https://v2.api.iphub.info/ | API key: %s | Rate limit: %dms",
+		Config()->m_SvVpnIphubApiKey[0] ? "(set)" : "(not set)",
+		m_RateLimitIphub);
 }
 
 #define LIST_OF_ALL_COMMANDS(DEF) \
@@ -143,6 +153,20 @@ void CVpnDetectionComponent::OnConsoleInit()
 	Console()->Register("vpn_service_getipintel_threshold", "?f[value]", CFGFLAG_SERVER, ConVarFloatCallback, m_ConVarCallbacks.back(),
 		"Probability threshold (0.00-100.00) for marking IP as bad (default: 99.00, min: 0.00, max: 100.00)");
 
+	m_ConVarCallbacks.push_back(CONVAR_STRING_ONCHANGE(Config()->m_SvVpnIphubApiKey, "",
+		[this](const char *pKey) {
+			auto *pService = dynamic_cast<CIPHubService *>(GetService("iphub"));
+			if(pService)
+				pService->SetApiKey(pKey);
+		}));
+	Console()->Register("vpn_service_iphub_key", "?r[value]", CFGFLAG_SERVER, ConVarStringCallback, m_ConVarCallbacks.back(),
+		"API key for IPHub.info service (required for service to work) (default: \"\")");
+
+	m_ConVarCallbacks.push_back(CONVAR_INT_ONCHANGE(m_RateLimitIphub, 500, 100, 10000,
+		[this](int Value) { SetServiceRateLimit("iphub", Value); }));
+	Console()->Register("vpn_ratelimit_iphub", "?i[value]", CFGFLAG_SERVER, ConVarIntCallback, m_ConVarCallbacks.back(),
+		"Rate limit in milliseconds for iphub service API requests (default: 500, min: 100, max: 10000)");
+
 	if(m_Cache.Load("data/vpn_cache.json"))
 	{
 		Log("VPN cache loaded successfully | Entries: %d", m_Cache.GetEntryCount());
@@ -204,6 +228,8 @@ void CVpnDetectionComponent::OnConsoleTerminate()
 	Console()->Deregister("vpn_ratelimit_getipintel");
 	Console()->Deregister("vpn_service_getipintel_contact");
 	Console()->Deregister("vpn_service_getipintel_threshold");
+	Console()->Deregister("vpn_service_iphub_key");
+	Console()->Deregister("vpn_ratelimit_iphub");
 
 	for(void *pCallback : m_ConVarCallbacks)
 		delete static_cast<char *>(pCallback);
@@ -530,26 +556,40 @@ void CVpnDetectionComponent::AsyncExecuteRequest(std::shared_ptr<IVpnServiceRequ
 		{
 			ProcessResult(pRequest->GetClientId(), pResult);
 		}
+
+		// Mark this thread as finished so CleanupFinishedThreads can join it
+		{
+			std::lock_guard<std::mutex> FinishLock(m_FinishedMutex);
+			m_FinishedThreadIds.insert(std::this_thread::get_id());
+		}
 	});
 }
 
 void CVpnDetectionComponent::CleanupFinishedThreads()
 {
-	std::lock_guard<std::mutex> Lock(m_ThreadMutex);
+	// Collect finished thread IDs under the finished-mutex
+	std::set<std::thread::id> FinishedIds;
+	{
+		std::lock_guard<std::mutex> Lock(m_FinishedMutex);
+		if(m_FinishedThreadIds.empty())
+			return;
+		FinishedIds.swap(m_FinishedThreadIds);
+	}
 
+	// Now join and remove finished threads under the thread-mutex
+	std::lock_guard<std::mutex> Lock(m_ThreadMutex);
 	m_RequestThreads.erase(
 		std::remove_if(m_RequestThreads.begin(), m_RequestThreads.end(),
-			[](std::thread &t) {
-				if(t.joinable())
+			[&FinishedIds](std::thread &t) {
+				if(FinishedIds.count(t.get_id()))
 				{
-					t.detach();
+					if(t.joinable())
+						t.join();
 					return true;
 				}
 				return false;
 			}),
 		m_RequestThreads.end());
-
-	m_RequestThreads.clear();
 }
 
 void CVpnDetectionComponent::QueueConsoleMessage(const char *pMessage)
