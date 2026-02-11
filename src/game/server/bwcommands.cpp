@@ -1360,6 +1360,8 @@ void CGameContext::ConDeathnote(IConsole::IResult *pResult, void *pUserData)
 			return pSelf->SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a player inside a passive zone.");
 		if(pNoCollZone && pNoCollZone->IsInZone(pTChar->m_Pos))
 			return pSelf->SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a player inside a no-collision zone.");
+		if (pTChar->Core()->m_Solo)
+			return pSelf->SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a solo player."); // bad mapper
 	}
 
 	// consume a page and apply kill
