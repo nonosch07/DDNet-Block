@@ -164,8 +164,25 @@ bool COneOnOneEvent::StartEvent()
 	std::vector<vec2> spawnPosition;
 	int spawncount = GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), spawnPosition);
 
-	m_SpawnReservation.pos1Idx = (spawncount > 0) ? 0 : -1;
-	m_SpawnReservation.pos2Idx = (spawncount > 1) ? 1 : (spawncount > 0 ? 0 : -1);
+	if(spawncount <= 0)
+	{
+		m_SpawnReservation.pos1Idx = -1;
+		m_SpawnReservation.pos2Idx = -1;
+	}
+	else if(spawncount == 1)
+	{
+		m_SpawnReservation.pos1Idx = 0;
+		m_SpawnReservation.pos2Idx = 0;
+	}
+	else
+	{
+		int idx1 = secure_rand_below(spawncount);
+		int idx2 = secure_rand_below(spawncount - 1);
+		if(idx2 >= idx1)
+			idx2++;
+		m_SpawnReservation.pos1Idx = idx1;
+		m_SpawnReservation.pos2Idx = idx2;
+	}
 
 	if(p1 && p1->GetCharacter())
 		p1->KillCharacter(WEAPON_WORLD, false);

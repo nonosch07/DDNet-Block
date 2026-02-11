@@ -980,12 +980,13 @@ CCharacter *CPlayer::ForceSpawn(vec2 Pos, bool doEvent)
 			auto parts = match->Participants();
 			if(std::find(parts.begin(), parts.end(), GetCid()) != parts.end())
 			{
-				const auto &reservation = match->GetSpawnReservation();
 				std::vector<vec2> spawnPositions;
 				GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), spawnPositions);
-				int idx = (GetCid() == parts[0]) ? reservation.pos1Idx : reservation.pos2Idx;
-				if(idx >= 0 && idx < (int)spawnPositions.size())
+				if(!spawnPositions.empty())
+				{
+					int idx = secure_rand_below((int)spawnPositions.size());
 					Pos = spawnPositions[idx];
+				}
 			}
 		}
 	}
@@ -1091,12 +1092,11 @@ void CPlayer::TryRespawn()
 			auto parts = match->Participants();
 			if(std::find(parts.begin(), parts.end(), GetCid()) != parts.end())
 			{
-				const auto &reservation = match->GetSpawnReservation();
 				std::vector<vec2> spawnPositions;
 				GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), spawnPositions);
-				int idx = (GetCid() == parts[0]) ? reservation.pos1Idx : reservation.pos2Idx;
-				if(idx >= 0 && idx < (int)spawnPositions.size())
+				if(!spawnPositions.empty())
 				{
+					int idx = secure_rand_below((int)spawnPositions.size());
 					SpawnPos = spawnPositions[idx];
 					used1on1 = true;
 				}
