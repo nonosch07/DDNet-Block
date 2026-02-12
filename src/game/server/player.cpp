@@ -972,24 +972,6 @@ void CPlayer::Respawn(bool WeakHook)
 
 CCharacter *CPlayer::ForceSpawn(vec2 Pos, bool doEvent)
 {
-	// check for active 1on1 match via manager and override spawn position
-	if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>(); mgr)
-	{
-		if(auto match = mgr->GetMatchForPlayer(GetCid()); match && match->GetState() == COneOnOneEvent::EEventState::Active)
-		{
-			auto parts = match->Participants();
-			if(std::find(parts.begin(), parts.end(), GetCid()) != parts.end())
-			{
-				std::vector<vec2> spawnPositions;
-				GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), spawnPositions);
-				if(!spawnPositions.empty())
-				{
-					int idx = secure_rand_below((int)spawnPositions.size());
-					Pos = spawnPositions[idx];
-				}
-			}
-		}
-	}
 	m_Spawning = false;
 
 	if(m_pCharacter)
@@ -1096,8 +1078,14 @@ void CPlayer::TryRespawn()
 				GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), spawnPositions);
 				if(!spawnPositions.empty())
 				{
-					int idx = secure_rand_below((int)spawnPositions.size());
-					SpawnPos = spawnPositions[idx];
+					// Use the match's coordinated spawn reservation so both players
+					// are guaranteed to land on different tiles.
+					auto &res = match->GetSpawnReservation();
+					int idx = (GetCid() == match->m_Player1ID) ? res.pos1Idx : res.pos2Idx;
+					if(idx >= 0 && idx < (int)spawnPositions.size())
+						SpawnPos = spawnPositions[idx];
+					else
+						SpawnPos = spawnPositions[0];
 					used1on1 = true;
 				}
 			}

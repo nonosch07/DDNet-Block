@@ -228,22 +228,29 @@ void CLastManBlockingEvent::FinishEvent()
 				Discord.Send(aMsg, Opt);
 			}
 
-			int BlockpointsReward = Config()->m_SvLMBBlockpointsReward;
-			int PagesReward = Config()->m_SvLMBPagesReward;
 			CPlayer *pWinner = GameServer()->GetPlayer(m_Winner);
 			if(pWinner)
 			{
-				pWinner->SetPlayerBlockpoints(pWinner->GetPlayerBlockpoints() + BlockpointsReward);
-				pWinner->SetPlayerPages(pWinner->GetPlayerPages() + PagesReward);
-				pWinner->SetPlayerTourneyWins(pWinner->GetPlayerTourneyWin() + 1);
-				str_format(aBuf, sizeof(aBuf), "You've received %d blockpoints and %d pages for winning!", BlockpointsReward, PagesReward);
-				GameServer()->SendChatTarget(m_Winner, aBuf);
-			}
+				if(pWinner->IsLoggedIn())
+				{
+					int BlockpointsReward = Config()->m_SvLMBBlockpointsReward;
+					int PagesReward = Config()->m_SvLMBPagesReward;
+					pWinner->SetPlayerBlockpoints(pWinner->GetPlayerBlockpoints() + BlockpointsReward);
+					pWinner->SetPlayerPages(pWinner->GetPlayerPages() + PagesReward);
+					pWinner->SetPlayerTourneyWins(pWinner->GetPlayerTourneyWin() + 1);
+					str_format(aBuf, sizeof(aBuf), "You've received %d blockpoints and %d pages for winning!", BlockpointsReward, PagesReward);
+					GameServer()->SendChatTarget(m_Winner, aBuf);
 
-			GameServer()->GetPlayer(m_Winner)->AddExpMultiplier(Config()->m_SvLMBWinnerExpMultiplier, Config()->m_SvLMBWinnerExpMultiplierDuration);
-			str_format(aBuf, sizeof(aBuf), "%d%% experience bonus enabled for %d minutes!", Config()->m_SvLMBWinnerExpMultiplier, Config()->m_SvLMBWinnerExpMultiplierDuration);
-			GameServer()->GetPlayer(m_Winner)->GiveFlag(Config()->m_SvLMBWinnerExpMultiplierDuration);
-			GameServer()->SendChatTarget(m_Winner, aBuf);
+					pWinner->AddExpMultiplier(Config()->m_SvLMBWinnerExpMultiplier, Config()->m_SvLMBWinnerExpMultiplierDuration);
+					str_format(aBuf, sizeof(aBuf), "%d%% experience bonus enabled for %d minutes!", Config()->m_SvLMBWinnerExpMultiplier, Config()->m_SvLMBWinnerExpMultiplierDuration);
+					GameServer()->SendChatTarget(m_Winner, aBuf);
+					pWinner->GiveFlag(Config()->m_SvLMBWinnerExpMultiplierDuration);
+				}
+				else
+				{
+					GameServer()->SendChatTarget(m_Winner, "You must be logged in to receive rewards.");
+				}
+			}
 		}
 		else
 		{
@@ -352,13 +359,9 @@ bool CLastManBlockingEvent::Register(int ClientId)
 		GameServer()->SendChatTarget(ClientId, "Registration phase is over!");
 		return false;
 	}
-	// only logged-in players can join
 	CPlayer *pPlayer = GameServer()->GetPlayer(ClientId);
-	if(!pPlayer || !pPlayer->IsLoggedIn())
-	{
-		GameServer()->SendChatTarget(ClientId, "You must be logged in to join this event.");
+	if(!pPlayer)
 		return false;
-	}
 	if(IsCandidate(ClientId))
 	{
 		GameServer()->SendChatTarget(ClientId, "You already registered to participate.");

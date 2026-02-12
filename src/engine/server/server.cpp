@@ -1447,6 +1447,13 @@ void CServer::RefreshRconCommands()
 			continue;
 
 		int ConsoleAccessLevel = GetConsoleAccessLevel(ClientId);
+
+		for(const IConsole::CCommandInfo *pCmd = Console()->FirstCommandInfo(ConsoleAccessLevel, CFGFLAG_SERVER);
+			pCmd; pCmd = pCmd->NextCommandInfo(ConsoleAccessLevel, CFGFLAG_SERVER))
+		{
+			SendRconCmdRem(pCmd, ClientId);
+		}
+
 		m_aClients[ClientId].m_pRconCmdToSend = Console()->FirstCommandInfo(ConsoleAccessLevel, CFGFLAG_SERVER);
 
 		CMsgPacker MsgStart(NETMSG_RCON_CMD_GROUP_START, true);

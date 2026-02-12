@@ -811,6 +811,11 @@ void CTeamDeathmatchEvent::FinishEvent()
 			{
 				if(auto *pPlayer = GameServer()->GetPlayer(team[i].ClientId))
 				{
+					if(!pPlayer->IsLoggedIn())
+					{
+						GameServer()->SendChatTarget(team[i].ClientId, "You must be logged in to receive rewards.");
+						continue;
+					}
 					pPlayer->SetPlayerBlockpoints(pPlayer->GetPlayerBlockpoints() + bp);
 					GameServer()->Accounts()->Save(team[i].ClientId, &pPlayer->m_Account);
 					char aBuf[128];
@@ -948,11 +953,8 @@ bool CTeamDeathmatchEvent::Register(int ClientId)
 		GameServer()->SendChatTarget(ClientId, "Registration phase is over!");
 		return false;
 	}
-	if(auto *pPlayer = GameServer()->GetPlayer(ClientId); !pPlayer || !pPlayer->IsLoggedIn())
-	{
-		GameServer()->SendChatTarget(ClientId, "You must be logged in to join this event.");
+	if(!GameServer()->GetPlayer(ClientId))
 		return false;
-	}
 	if(IsCandidate(ClientId))
 	{
 		GameServer()->SendChatTarget(ClientId, "You already registered to participate.");
@@ -1022,12 +1024,15 @@ bool CTeamDeathmatchEvent::Leave(int ClientId)
 		{
 			if(auto *pPlayer = GameServer()->GetPlayer(ClientId))
 			{
-				int bp = pPlayer->GetPlayerBlockpoints();
-				pPlayer->SetPlayerBlockpoints(std::max(0, bp - penalty));
-				GameServer()->Accounts()->Save(ClientId, &pPlayer->m_Account);
-				char aBuf[128];
-				str_format(aBuf, sizeof(aBuf), "You lost %d BP for leaving TDM early.", penalty);
-				GameServer()->SendChatTarget(ClientId, aBuf);
+				if(pPlayer->IsLoggedIn())
+				{
+					int bp = pPlayer->GetPlayerBlockpoints();
+					pPlayer->SetPlayerBlockpoints(std::max(0, bp - penalty));
+					GameServer()->Accounts()->Save(ClientId, &pPlayer->m_Account);
+					char aBuf[128];
+					str_format(aBuf, sizeof(aBuf), "You lost %d BP for leaving TDM early.", penalty);
+					GameServer()->SendChatTarget(ClientId, aBuf);
+				}
 			}
 		}
 	}

@@ -654,6 +654,23 @@ void COneOnOneEvent::RestartRoundAfterDraw()
 
 	std::vector<vec2> startPositions;
 	GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), startPositions);
+
+	int spawncount = (int)startPositions.size();
+	if(spawncount >= 2)
+	{
+		int idx1 = secure_rand_below(spawncount);
+		int idx2 = secure_rand_below(spawncount - 1);
+		if(idx2 >= idx1)
+			idx2++;
+		m_SpawnReservation.pos1Idx = idx1;
+		m_SpawnReservation.pos2Idx = idx2;
+	}
+	else if(spawncount == 1)
+	{
+		m_SpawnReservation.pos1Idx = 0;
+		m_SpawnReservation.pos2Idx = 0;
+	}
+
 	CPlayer *p1 = GameServer()->GetPlayer(m_Player1ID);
 	CPlayer *p2 = GameServer()->GetPlayer(m_Player2ID);
 
