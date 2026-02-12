@@ -3,23 +3,16 @@
 
 #include <base/system.h>
 
-CIPHubService::CIPHubService()
+CIPHubService::CIPHubService() :
+	m_pApiKey(nullptr)
 {
-	m_aApiKey[0] = '\0';
-}
-
-void CIPHubService::SetApiKey(const char *pKey)
-{
-	if(pKey && pKey[0])
-		str_copy(m_aApiKey, pKey, sizeof(m_aApiKey));
-	else
-		m_aApiKey[0] = '\0';
 }
 
 std::string CIPHubService::GetAuthHeader() const
 {
 	std::string Header = "X-Key: ";
-	Header += m_aApiKey;
+	if(m_pApiKey)
+		Header += m_pApiKey;
 	return Header;
 }
 

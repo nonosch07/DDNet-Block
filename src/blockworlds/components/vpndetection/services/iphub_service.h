@@ -39,11 +39,11 @@ public:
 	bool RequiresAuth() const override { return true; }
 	std::string GetAuthHeader() const override;
 
-	void SetApiKey(const char *pKey);
-	const char *GetApiKey() const { return m_aApiKey; }
+
+	void SetApiKeyPtr(const char *pKeyBuffer) { m_pApiKey = pKeyBuffer; }
 
 private:
-	char m_aApiKey[128];
+	const char *m_pApiKey;
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_IPHUB_SERVICE_H

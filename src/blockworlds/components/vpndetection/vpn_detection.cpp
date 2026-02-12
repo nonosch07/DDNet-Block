@@ -57,7 +57,7 @@ CVpnDetectionComponent::CVpnDetectionComponent(CGameContext *pGameServer) :
 		m_GetipintelThreshold, m_RateLimitGetipintel);
 
 	auto pIPHub = new CIPHubService();
-	pIPHub->SetApiKey(Config()->m_SvVpnIphubApiKey);
+	pIPHub->SetApiKeyPtr(Config()->m_SvVpnIphubApiKey);
 	RegisterService("iphub", pIPHub, m_RateLimitIphub);
 
 	Log("VPN service registered: iphub | API: https://v2.api.iphub.info/ | API key: %s | Rate limit: %dms",
@@ -153,15 +153,6 @@ void CVpnDetectionComponent::OnConsoleInit()
 	Console()->Register("vpn_service_getipintel_threshold", "?f[value]", CFGFLAG_SERVER, ConVarFloatCallback, m_ConVarCallbacks.back(),
 		"Probability threshold (0.00-100.00) for marking IP as bad (default: 99.00, min: 0.00, max: 100.00)");
 
-	m_ConVarCallbacks.push_back(CONVAR_STRING_ONCHANGE(Config()->m_SvVpnIphubApiKey, "",
-		[this](const char *pKey) {
-			auto *pService = dynamic_cast<CIPHubService *>(GetService("iphub"));
-			if(pService)
-				pService->SetApiKey(pKey);
-		}));
-	Console()->Register("vpn_service_iphub_key", "?r[value]", CFGFLAG_SERVER, ConVarStringCallback, m_ConVarCallbacks.back(),
-		"API key for IPHub.info service (required for service to work) (default: \"\")");
-
 	m_ConVarCallbacks.push_back(CONVAR_INT_ONCHANGE(m_RateLimitIphub, 500, 100, 10000,
 		[this](int Value) { SetServiceRateLimit("iphub", Value); }));
 	Console()->Register("vpn_ratelimit_iphub", "?i[value]", CFGFLAG_SERVER, ConVarIntCallback, m_ConVarCallbacks.back(),
@@ -241,7 +232,6 @@ void CVpnDetectionComponent::OnConsoleTerminate()
 	Console()->Deregister("vpn_ratelimit_getipintel");
 	Console()->Deregister("vpn_service_getipintel_contact");
 	Console()->Deregister("vpn_service_getipintel_threshold");
-	Console()->Deregister("vpn_service_iphub_key");
 	Console()->Deregister("vpn_ratelimit_iphub");
 
 	for(void *pCallback : m_ConVarCallbacks)
