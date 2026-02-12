@@ -112,6 +112,12 @@ public:
 	 */
 	void QueueConsoleMessage(const char *pMessage);
 
+	/**
+	 * Queues a result for thread-safe processing on the main thread tick.
+	 * Must be used instead of ProcessResult when calling from background threads.
+	 */
+	void QueueResult(int ClientId, std::shared_ptr<IVpnServiceResult> pResult);
+
 	char m_aGetipintelContact[128];
 	char m_aBanTimeString[VPN_BAN_TIME_STRING_MAX];
 	float m_GetipintelThreshold;
@@ -153,6 +159,14 @@ private:
 	};
 	std::vector<SPendingMessage> m_PendingMessages;
 	std::mutex m_MessageMutex;
+
+	struct SPendingResult
+	{
+		int m_ClientId;
+		std::shared_ptr<IVpnServiceResult> m_pResult;
+	};
+	std::vector<SPendingResult> m_PendingResults;
+	std::mutex m_ResultMutex;
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_VPN_DETECTION_H

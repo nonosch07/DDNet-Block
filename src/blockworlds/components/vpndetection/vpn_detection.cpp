@@ -188,6 +188,19 @@ void CVpnDetectionComponent::OnTick()
 		m_PendingMessages.clear();
 	}
 
+	// process results queued by async threads (must run on main thread cuz ProcessResult cahnges m_aClientInfo and may ban ppl)
+	{
+		std::vector<SPendingResult> Results;
+		{
+			std::lock_guard<std::mutex> Lock(m_ResultMutex);
+			Results.swap(m_PendingResults);
+		}
+		for(const auto &Pending : Results)
+		{
+			ProcessResult(Pending.m_ClientId, Pending.m_pResult);
+		}
+	}
+
 	CleanupFinishedThreads();
 	ProcessRequestQueues();
 }
@@ -448,18 +461,23 @@ IVpnService *CVpnDetectionComponent::GetService(const char *pServiceName)
 
 void CVpnDetectionComponent::SetDefaultService(const char *pServiceName)
 {
-	std::lock_guard<std::mutex> Lock(m_Mutex);
-
-	if(m_ServiceQueues.find(pServiceName) == m_ServiceQueues.end())
+	bool ShouldCheckAll = false;
 	{
-		Log("ERROR: Cannot set default service | Service: %s | Reason: Not registered", pServiceName);
-		return;
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+
+		if(m_ServiceQueues.find(pServiceName) == m_ServiceQueues.end())
+		{
+			Log("ERROR: Cannot set default service | Service: %s | Reason: Not registered", pServiceName);
+			return;
+		}
+
+		m_DefaultService = pServiceName;
+		Log("Default service configured | Service: %s", pServiceName);
+
+		ShouldCheckAll = m_Enabled;
 	}
 
-	m_DefaultService = pServiceName;
-	Log("Default service configured | Service: %s", pServiceName);
-
-	if(m_Enabled)
+	if(ShouldCheckAll)
 	{
 		LogDebug("Initiating VPN checks for all connected clients with default service");
 		CheckAllClientsDefaultService();
@@ -553,9 +571,7 @@ void CVpnDetectionComponent::AsyncExecuteRequest(std::shared_ptr<IVpnServiceRequ
 	m_RequestThreads.emplace_back([this, pRequest]() {
 		auto pResult = pRequest->Execute();
 		if(pResult)
-		{
-			ProcessResult(pRequest->GetClientId(), pResult);
-		}
+			QueueResult(pRequest->GetClientId(), pResult);
 
 		// Mark this thread as finished so CleanupFinishedThreads can join it
 		{
@@ -599,6 +615,14 @@ void CVpnDetectionComponent::QueueConsoleMessage(const char *pMessage)
 	Msg.m_Message = pMessage;
 	Msg.m_Timestamp = time_get();
 	m_PendingMessages.push_back(Msg);
+}
+
+void CVpnDetectionComponent::QueueResult(int ClientId, std::shared_ptr<IVpnServiceResult> pResult)
+{
+	if(!pResult)
+		return;
+	std::lock_guard<std::mutex> Lock(m_ResultMutex);
+	m_PendingResults.push_back({ClientId, pResult});
 }
 
 void CVpnDetectionComponent::EnqueueRequest(std::shared_ptr<IVpnServiceRequest> pRequest)

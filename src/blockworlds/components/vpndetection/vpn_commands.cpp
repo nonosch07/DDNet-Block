@@ -449,7 +449,7 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 
 							if(pApiResult && pApiResult->IsValid())
 							{
-								pSelf->ProcessResult(-1, pApiResult);
+								pSelf->QueueResult(-1, pApiResult);
 
 								char aResultBuf[512];
 								str_format(aResultBuf, sizeof(aResultBuf),
@@ -541,7 +541,7 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 
 							if(pApiResult && pApiResult->IsValid())
 							{
-								pSelf->ProcessResult(-1, pApiResult);
+								pSelf->QueueResult(-1, pApiResult);
 
 								char aResultBuf[512];
 								str_format(aResultBuf, sizeof(aResultBuf),
@@ -633,19 +633,21 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 			ClientId, pSelf->GetServer()->ClientName(ClientId), pIpAddress, pServiceName);
 		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 
-		std::thread([pSelf, pRequest, ClientId, pIpAddress, pServiceName]() {
+		std::string IpCopy(pIpAddress);
+		std::string ServiceCopy(pServiceName);
+		std::thread([pSelf, pRequest, ClientId, IpCopy, ServiceCopy]() {
 			auto pApiResult = pRequest->Execute();
 
 			if(pApiResult && pApiResult->IsValid())
 			{
-				pSelf->ProcessResult(-1, pApiResult);
+				pSelf->QueueResult(-1, pApiResult);
 
 				char aResultBuf[512];
 				str_format(aResultBuf, sizeof(aResultBuf),
 					"Client %d | IP: %s | Service: %s | Bad IP: %s | Risk: %d%s%s%s%s",
 					ClientId,
-					pIpAddress,
-					pServiceName,
+					IpCopy.c_str(),
+					ServiceCopy.c_str(),
 					pApiResult->IsBadIP() ? "true" : "false",
 					pApiResult->GetRiskScore(),
 					pApiResult->GetAsn()[0] ? " | ASN: " : "",
@@ -665,8 +667,8 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 				str_format(aErrorBuf, sizeof(aErrorBuf),
 					"Client %d | IP: %s | Service: %s | Error: %s",
 					ClientId,
-					pIpAddress,
-					pServiceName,
+					IpCopy.c_str(),
+					ServiceCopy.c_str(),
 					pErrorMsg);
 
 				pSelf->QueueConsoleMessage(aErrorBuf);
@@ -746,7 +748,7 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 
 							if(pApiResult && pApiResult->IsValid())
 							{
-								pSelf->ProcessResult(-1, pApiResult);
+								pSelf->QueueResult(-1, pApiResult);
 
 								char aResultBuf[512];
 								str_format(aResultBuf, sizeof(aResultBuf),
@@ -833,7 +835,7 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 
 							if(pApiResult && pApiResult->IsValid())
 							{
-								pSelf->ProcessResult(-1, pApiResult);
+								pSelf->QueueResult(-1, pApiResult);
 
 								char aResultBuf[512];
 								str_format(aResultBuf, sizeof(aResultBuf),
@@ -920,18 +922,20 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 		str_format(aBuf, sizeof(aBuf), "Testing IP '%s' with service '%s'...", pIpAddress, pServiceName);
 		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 
-		std::thread([pSelf, pRequest, pIpAddress, pServiceName]() {
+		std::string IpCopy(pIpAddress);
+		std::string ServiceCopy(pServiceName);
+		std::thread([pSelf, pRequest, IpCopy, ServiceCopy]() {
 			auto pApiResult = pRequest->Execute();
 
 			if(pApiResult && pApiResult->IsValid())
 			{
-				pSelf->ProcessResult(-1, pApiResult);
+				pSelf->QueueResult(-1, pApiResult);
 
 				char aResultBuf[512];
 				str_format(aResultBuf, sizeof(aResultBuf),
 					"IP: %s | Service: %s | Bad IP: %s | Risk: %d%s%s%s%s",
-					pIpAddress,
-					pServiceName,
+					IpCopy.c_str(),
+					ServiceCopy.c_str(),
 					pApiResult->IsBadIP() ? "true" : "false",
 					pApiResult->GetRiskScore(),
 					pApiResult->GetAsn()[0] ? " | ASN: " : "",
@@ -950,8 +954,8 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 
 				str_format(aErrorBuf, sizeof(aErrorBuf),
 					"IP: %s | Service: %s | Error: %s",
-					pIpAddress,
-					pServiceName,
+					IpCopy.c_str(),
+					ServiceCopy.c_str(),
 					pErrorMsg);
 
 				pSelf->QueueConsoleMessage(aErrorBuf);

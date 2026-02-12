@@ -129,7 +129,9 @@ bool CVpnServiceRequest::PerformHttpRequest(const char *pUrl, std::string &Respo
 		}
 	}
 
-	return ResponseCode == 200;
+	// Return true whenever curl succeeded — let ParseResponse handle
+	// non-200 codes (401, 403, 429, etc.) with service-specific messages
+	return true;
 }
 
 std::shared_ptr<IVpnServiceResult> CVpnServiceRequest::Execute()
@@ -165,12 +167,14 @@ std::shared_ptr<IVpnServiceResult> CVpnServiceRequest::Execute()
 		pResult->m_ServiceName = m_ServiceName;
 		pResult->m_IpAddress = m_IpAddress;
 		pResult->m_IsValid = false;
-		pResult->m_ErrorMessage = "HTTP request failed";
+		pResult->m_ErrorMessage = "HTTP request failed (connection error)";
 		pResult->m_ErrorCode = -996;
 		pResult->m_Timestamp = time_get();
 		return pResult;
 	}
 
+	// Let ParseResponse handle ALL HTTP response codes (including
+	// non-200) so services can provide specific error messages
 	auto pResult = m_pService->ParseResponse(m_IpAddress.c_str(), ResponseBody.c_str(), ResponseCode);
 
 	if(pResult && m_pComponent)
