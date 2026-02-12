@@ -343,6 +343,8 @@ public:
 	int NumRconCommands(int ClientId);
 	void UpdateClientRconCommands();
 	void RefreshRconCommands() override;
+	void BroadcastNewRconCmd(const char *pName) override;
+	void BroadcastRemovedRconCmd(const char *pName) override;
 
 	bool CheckReservedSlotAuth(int ClientId, const char *pPassword);
 	void ProcessClientPacket(CNetChunk *pPacket);

@@ -301,6 +301,8 @@ public:
 
 
 	virtual void RefreshRconCommands() = 0;
+	virtual void BroadcastNewRconCmd(const char *pName) = 0;
+	virtual void BroadcastRemovedRconCmd(const char *pName) = 0;
 };
 
 class IGameServer : public IInterface

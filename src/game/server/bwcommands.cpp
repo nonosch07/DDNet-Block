@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <blockworlds/zones/zone.h>
+#include <set>
 #include <string>
 #include <unordered_map>
 
@@ -2679,6 +2680,15 @@ void CGameContext::ConComponentPlug(IConsole::IResult *pResult, void *pUserData)
 	str_clean_whitespaces(aName);
 
 	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	// snapshot cmd names before creation
+	std::set<std::string> setBefore;
+	for(const IConsole::CCommandInfo *pCmd = pSelf->Console()->FirstCommandInfo(IConsole::ACCESS_LEVEL_ADMIN, CFGFLAG_SERVER);
+		pCmd; pCmd = pCmd->NextCommandInfo(IConsole::ACCESS_LEVEL_ADMIN, CFGFLAG_SERVER))
+	{
+		setBefore.insert(pCmd->m_pName);
+	}
+
 	auto pComponent = g_ComponentRegistry.Create(aName, pSelf);
 	if(!pComponent)
 	{
@@ -2687,8 +2697,13 @@ void CGameContext::ConComponentPlug(IConsole::IResult *pResult, void *pUserData)
 	}
 	dbg_msg("Components", "Component created: %s (%p)", pComponent->GetName(), &*pComponent);
 
-	// refresh rcon cmd list
-	pSelf->Server()->RefreshRconCommands();
+	// send targeted RCON_CMD_ADD only for newly registered commands
+	for(const IConsole::CCommandInfo *pCmd = pSelf->Console()->FirstCommandInfo(IConsole::ACCESS_LEVEL_ADMIN, CFGFLAG_SERVER);
+		pCmd; pCmd = pCmd->NextCommandInfo(IConsole::ACCESS_LEVEL_ADMIN, CFGFLAG_SERVER))
+	{
+		if(setBefore.find(pCmd->m_pName) == setBefore.end())
+			pSelf->Server()->BroadcastNewRconCmd(pCmd->m_pName);
+	}
 }
 
 void CGameContext::ConComponentUnPlug(IConsole::IResult *pResult, void *pUserData)
@@ -2698,13 +2713,32 @@ void CGameContext::ConComponentUnPlug(IConsole::IResult *pResult, void *pUserDat
 	str_clean_whitespaces(aName);
 
 	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	// Snapshot command names before removal
+	std::set<std::string> setBefore;
+	for(const IConsole::CCommandInfo *pCmd = pSelf->Console()->FirstCommandInfo(IConsole::ACCESS_LEVEL_ADMIN, CFGFLAG_SERVER);
+		pCmd; pCmd = pCmd->NextCommandInfo(IConsole::ACCESS_LEVEL_ADMIN, CFGFLAG_SERVER))
+	{
+		setBefore.insert(pCmd->m_pName);
+	}
+
 	bool Removed = g_ComponentRegistry.Remove(aName);
 	if(Removed)
 	{
 		dbg_msg("Components", "Component removed: %s", aName);
 
-		// we also need to refresh
-		pSelf->Server()->RefreshRconCommands();
+		// Snapshot after removal, send targeted RCON_CMD_REM for commands that disappeared
+		std::set<std::string> setAfter;
+		for(const IConsole::CCommandInfo *pCmd = pSelf->Console()->FirstCommandInfo(IConsole::ACCESS_LEVEL_ADMIN, CFGFLAG_SERVER);
+			pCmd; pCmd = pCmd->NextCommandInfo(IConsole::ACCESS_LEVEL_ADMIN, CFGFLAG_SERVER))
+		{
+			setAfter.insert(pCmd->m_pName);
+		}
+		for(const auto &name : setBefore)
+		{
+			if(setAfter.find(name) == setAfter.end())
+				pSelf->Server()->BroadcastRemovedRconCmd(name.c_str());
+		}
 		return;
 	}
 	dbg_msg("Components", "Component removal failed");

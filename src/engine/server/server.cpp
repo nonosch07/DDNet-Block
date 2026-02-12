@@ -1447,13 +1447,6 @@ void CServer::RefreshRconCommands()
 			continue;
 
 		int ConsoleAccessLevel = GetConsoleAccessLevel(ClientId);
-
-		for(const IConsole::CCommandInfo *pCmd = Console()->FirstCommandInfo(ConsoleAccessLevel, CFGFLAG_SERVER);
-			pCmd; pCmd = pCmd->NextCommandInfo(ConsoleAccessLevel, CFGFLAG_SERVER))
-		{
-			SendRconCmdRem(pCmd, ClientId);
-		}
-
 		m_aClients[ClientId].m_pRconCmdToSend = Console()->FirstCommandInfo(ConsoleAccessLevel, CFGFLAG_SERVER);
 
 		CMsgPacker MsgStart(NETMSG_RCON_CMD_GROUP_START, true);
@@ -1465,6 +1458,44 @@ void CServer::RefreshRconCommands()
 			CMsgPacker MsgEnd(NETMSG_RCON_CMD_GROUP_END, true);
 			SendMsg(&MsgEnd, MSGFLAG_VITAL, ClientId);
 		}
+	}
+}
+
+void CServer::BroadcastNewRconCmd(const char *pName)
+{
+	const IConsole::CCommandInfo *pInfo = Console()->GetCommandInfo(pName, CFGFLAG_SERVER, false);
+	if(!pInfo)
+		return;
+
+	for(int ClientId = 0; ClientId < MAX_CLIENTS; ++ClientId)
+	{
+		if(m_aClients[ClientId].m_State == CClient::STATE_EMPTY || !m_aClients[ClientId].m_Authed)
+			continue;
+		if(m_aClients[ClientId].m_pRconCmdToSend != nullptr)
+			continue; // still streaming initial set, will include the new cmd
+
+		int ConsoleAccessLevel = GetConsoleAccessLevel(ClientId);
+		if(pInfo->GetAccessLevel() < ConsoleAccessLevel)
+			continue; // client's auth level can't see this command
+
+		SendRconCmdAdd(pInfo, ClientId);
+	}
+}
+
+void CServer::BroadcastRemovedRconCmd(const char *pName)
+{
+	for(int ClientId = 0; ClientId < MAX_CLIENTS; ++ClientId)
+	{
+		if(m_aClients[ClientId].m_State == CClient::STATE_EMPTY || !m_aClients[ClientId].m_Authed)
+			continue;
+		if(m_aClients[ClientId].m_pRconCmdToSend != nullptr)
+			continue;
+
+		// Send REM by name; client's DeregisterTemp is a no-op for
+		// commands the client doesn't have, so this is safe.
+		CMsgPacker Msg(NETMSG_RCON_CMD_REM, true);
+		Msg.AddString(pName, 256);
+		SendMsg(&Msg, MSGFLAG_VITAL, ClientId);
 	}
 }
 
