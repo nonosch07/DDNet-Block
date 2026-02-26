@@ -668,7 +668,7 @@ void CGameContext::CallVote(int ClientId, const char *pDesc, const char *pCmd, c
 
 		if(pCmd && (str_find(pCmd, "events_start lmb") != nullptr || str_find(pCmd, "events_start tdm") != nullptr))
 		{
-			int64_t Cooldown = Server()->TickSpeed() * 60 * g_Config.m_SvEventVoteCoolDown; // shared global cooldown for events
+			int64_t Cooldown = (int64_t)Server()->TickSpeed() * g_Config.m_SvEventVoteCoolDown; // shared global cooldown for events (config is in seconds)
 			if(m_LastGlobalEventVoteCall && Now < m_LastGlobalEventVoteCall + Cooldown)
 			{
 				int64_t Remaining = (m_LastGlobalEventVoteCall + Cooldown - Now + Server()->TickSpeed() - 1) / Server()->TickSpeed();
@@ -1739,7 +1739,7 @@ const CVoteOptionServer *CGameContext::GetVoteOption(int Index) const
 	return pCurrent;
 }
 
-void CGameContext::ProgressVoteOptions(int ClientId)
+void CGameContext::ProgressVoteOptions(int ClientId, bool FlushAll)
 {
 	CPlayer *pPl = m_apPlayers[ClientId];
 
@@ -1755,7 +1755,7 @@ void CGameContext::ProgressVoteOptions(int ClientId)
 		return;
 
 	int VotesLeft = m_NumVoteOptions - pPl->m_SendVoteIndex;
-	int NumVotesToSend = minimum(g_Config.m_SvSendVotesPerTick, VotesLeft);
+	int NumVotesToSend = FlushAll ? VotesLeft : minimum(g_Config.m_SvSendVotesPerTick, VotesLeft);
 
 	if(!VotesLeft)
 	{
@@ -1814,9 +1814,7 @@ void CGameContext::ProgressVoteOptions(int ClientId)
 	// send msg
 	if(pPl->m_SendVoteIndex == 0)
 	{
-		// Prepend a stripline header to separate server votes in the combined list.
-		char aHeader[128];
-		CreateStripline(aHeader, sizeof(aHeader), "Server Votes");
+		const char *aHeader = "╭─ ꜱᴇʀᴠᴇʀ ᴠᴏᴛᴇꜱ ─────────────────";
 		{
 			int idx = 0;
 			CNetMsg_Sv_VoteOptionListAdd HeaderMsg;
@@ -1836,7 +1834,7 @@ void CGameContext::ProgressVoteOptions(int ClientId)
 			HeaderMsg.m_pDescription13 = "";
 			HeaderMsg.m_pDescription14 = "";
 			SetVoteDescriptionAtIndex(&idx, aHeader, &HeaderMsg);
-			HeaderMsg.m_NumOptions = 1;
+			HeaderMsg.m_NumOptions = idx;
 			Server()->SendPackMsg(&HeaderMsg, MSGFLAG_VITAL, ClientId);
 		}
 		CNetMsg_Sv_VoteOptionGroupStart StartMsg;

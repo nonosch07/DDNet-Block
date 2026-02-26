@@ -673,12 +673,6 @@ void CPlayer::Snap(int SnappingClient)
 			case 1: // Blockpoints
 				m_Score = Score = GetPlayerBlockpoints();
 				break;
-			case 2: // DDRace time
-				if(m_Score.has_value() && m_Score.value() != 0)
-					Score = -m_Score.value();
-				else
-					Score = -9999;
-				break;
 			default: // 0 = Level
 				m_Score = Score = GetPlayerLevel();
 				break;

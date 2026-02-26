@@ -173,6 +173,8 @@ void CVoteManager::SendOptions(CPlayer *pPlayer, int ClientID, IServer *pServer,
 		m_PageStack[ClientID].clear();
 		PushPage(ClientID, Page::ROOT);
 	}
+	if(IsAtRoot(ClientID))
+		pGameContext->ProgressVoteOptions(ClientID, true);
 	RenderCurrentPage(pPlayer, ClientID, pServer, pGameContext);
 }
 
@@ -198,7 +200,7 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 					pGameContext->ClearVotes(ClientId);
 					// make sure server votes are always listed above bw menu when returning to ROOT
 					if(IsAtRoot(ClientId))
-						pGameContext->ProgressVoteOptions(ClientId);
+						pGameContext->ProgressVoteOptions(ClientId, true);
 					RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
 					return true;
 				}
@@ -211,7 +213,7 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				Stack.push_back(Page{Page::ROOT, -1});
 				pGameContext->ClearVotes(ClientId);
 				// ensure server votes are on top at root
-				pGameContext->ProgressVoteOptions(ClientId);
+				pGameContext->ProgressVoteOptions(ClientId, true);
 				RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
 				return true;
 			}
@@ -335,7 +337,7 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				if(pPlayer)
 				{
 					pPlayer->m_ScoreDisplayMode = A.A;
-					const char *apModes[] = {"Level", "Blockpoints", "Time (DDRace)"};
+					const char *apModes[] = {"Level", "Blockpoints"};
 					char aMsg[128];
 					str_format(aMsg, sizeof(aMsg), "Scoreboard now shows: %s", apModes[A.A]);
 					pGameContext->SendChatTarget(ClientId, aMsg);
@@ -536,15 +538,15 @@ void CVoteManager::BuildRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, C
 	// Score display mode
 	if(pPlayer)
 	{
-		const char *apModes[] = {"Level", "Blockpoints", "Time"};
+		const char *apModes[] = {"Level", "Blockpoints"};
 		int Mode = pPlayer->m_ScoreDisplayMode;
-		if(Mode < 0 || Mode > 2)
+		if(Mode < 0 || Mode > 1)
 			Mode = 0;
 		char aModeLabel[64];
 		str_format(aModeLabel, sizeof(aModeLabel), "Score: %s", apModes[Mode]);
 		OutLabels.emplace_back(SmallCaps(aModeLabel));
 		// cycle to next mode
-		OutActions.emplace_back(Action{EActionKind::SetScoreMode, (Mode + 1) % 3});
+		OutActions.emplace_back(Action{EActionKind::SetScoreMode, (Mode + 1) % 2});
 	}
 
 	// ─── separator ───

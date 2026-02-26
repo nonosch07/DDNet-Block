@@ -327,7 +327,7 @@ public:
 	void SendTuningParams(int ClientId, int Zone = 0);
 
 	const CVoteOptionServer *GetVoteOption(int Index) const;
-	void ProgressVoteOptions(int ClientId);
+	void ProgressVoteOptions(int ClientId, bool FlushAll = false);
 
 	//
 	void LoadMapSettings();

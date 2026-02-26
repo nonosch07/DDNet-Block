@@ -90,8 +90,6 @@ void COneOnOneManager::OnTick()
 
 void COneOnOneManager::OnSnap(int SnappingClient)
 {
-	if(!Config()->m_SvPauseable)
-		return;
 
 	std::vector<std::shared_ptr<COneOnOneEvent>> snapshot;
 	{
@@ -109,10 +107,6 @@ void COneOnOneManager::OnSnap(int SnappingClient)
 		for(const auto &[Cid, pSavedTee] : match->m_pSavedPlayers)
 		{
 			if(Cid < 0 || !pSavedTee)
-				continue;
-
-			// Don't snap the ghost for the participant themselves
-			if(SnappingClient == Cid)
 				continue;
 
 			int SnapId = Cid;

@@ -112,7 +112,7 @@ MACRO_CONFIG_INT(SvLMBPagesReward, sv_lmb_pages_reward, 3, 1, 15, CFGFLAG_SERVER
 MACRO_CONFIG_INT(SvWeaponkitsAllowed, sv_weaponkits_allowed, 1, 0, 1, CFGFLAG_SERVER, "Allow (1) or disable (0) weaponkits on the server.")
 
 MACRO_CONFIG_INT(SvWeaponkitsVoteCoolDown, sv_weaponkits_vote_cooldown, 15, 1, 60, CFGFLAG_SERVER, "Cooldown time (in minutes) a player must wait before reusing the weaponkits vote.")
-MACRO_CONFIG_INT(SvEventVoteCoolDown, sv_lmb_vote_cooldown, 30, 1, 99999, CFGFLAG_SERVER, "Cooldown time (in minutes) a player must wait before starting an event vote (LMB/TDM).")
+MACRO_CONFIG_INT(SvEventVoteCoolDown, sv_lmb_vote_cooldown, 1800, 1, 86400, CFGFLAG_SERVER, "Cooldown time (in seconds) before another event vote (LMB/TDM) can be called.")
 
 MACRO_CONFIG_INT(SvNoHammerOnUnfreeze, sv_no_hammer_on_unfreeze, 1, 0, 1, CFGFLAG_SERVER, "Prevent instant hammer fire immediately after unfreeze (1=on, 0=off)")
 

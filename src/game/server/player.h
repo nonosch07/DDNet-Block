@@ -533,7 +533,7 @@ public:
 	bool m_IsDummy = false;
 	bool m_HideInfoInScoreboard;
 
-	// Scoring mode: 0=level (default), 1=blockpoints, 2=time (ddrace)
+	// Scoring mode: 0=level (default), 1=blockpoints
 	int m_ScoreDisplayMode = 0;
 
 	// Hide other players' cosmetics
