@@ -67,6 +67,9 @@ struct CAccountProgress
 	int m_TourneyWin;
 	long long m_Playtime;
 	int m_Killstreak;
+	int m_WeeklyDay;
+	int m_WeeklyLastClaim;
+	long long m_WeeklyExpBoostUntil;
 };
 struct CAccountInventory
 {
@@ -116,6 +119,9 @@ struct CAccountData
 	int m_TourneyWin;
 	long long m_Playtime;
 	int m_Killstreak;
+	int m_WeeklyDay;
+	int m_WeeklyLastClaim;
+	long long m_WeeklyExpBoostUntil;
 	char m_aLastName[17];
 	char m_aLastSkin[33];
 	int m_LastBodyColor;
@@ -134,7 +140,7 @@ struct CAccountData
 };
 
 inline CAccountData::CAccountData() :
-	m_ClientId(-1), m_Id(0), m_Vip(0), m_Pages(0), m_Level(1), m_Experience(0), m_Weaponkits(0), m_Ranking(0), m_ClanId(0), m_AuthLevel(ClanAuthLevel::NONE), m_Blockpoints(0), m_Passive(0), m_RankedGames(0), m_RankedKills(0), m_RankedDeaths(0), m_RankedWins(0), m_Kills(0), m_Deaths(0), m_TourneyWin(0), m_Playtime(0), m_Killstreak(0), m_LastBodyColor(0), m_LastFeetColor(0)
+	m_ClientId(-1), m_Id(0), m_Vip(0), m_Pages(0), m_Level(1), m_Experience(0), m_Weaponkits(0), m_Ranking(0), m_ClanId(0), m_AuthLevel(ClanAuthLevel::NONE), m_Blockpoints(0), m_Passive(0), m_RankedGames(0), m_RankedKills(0), m_RankedDeaths(0), m_RankedWins(0), m_Kills(0), m_Deaths(0), m_TourneyWin(0), m_Playtime(0), m_Killstreak(0), m_WeeklyDay(0), m_WeeklyLastClaim(0), m_WeeklyExpBoostUntil(0), m_LastBodyColor(0), m_LastFeetColor(0)
 {
 	m_aName[0] = m_aPassword[0] = m_aAddress[0] = m_aKnockouts[0] = m_aGundesign[0] = m_aSkinmani[0] = m_RegisterDate[0] = m_aLastName[0] = m_aLastSkin[0] = '\0';
 }
@@ -151,7 +157,7 @@ inline CAccountCore CAccountData::ToCore() const
 	c.m_LastFeetColor = m_LastFeetColor;
 	return c;
 }
-inline CAccountProgress CAccountData::ToProgress() const { return CAccountProgress{m_Level, m_Experience, m_Ranking, m_ClanId, m_AuthLevel, m_Blockpoints, m_Passive, m_Kills, m_Deaths, m_TourneyWin, m_Playtime, m_Killstreak}; }
+inline CAccountProgress CAccountData::ToProgress() const { return CAccountProgress{m_Level, m_Experience, m_Ranking, m_ClanId, m_AuthLevel, m_Blockpoints, m_Passive, m_Kills, m_Deaths, m_TourneyWin, m_Playtime, m_Killstreak, m_WeeklyDay, m_WeeklyLastClaim, m_WeeklyExpBoostUntil}; }
 inline CAccountInventory CAccountData::ToInventory() const
 {
 	CAccountInventory inv{m_Vip, m_Pages, m_Weaponkits, {0}, {0}, {0}};

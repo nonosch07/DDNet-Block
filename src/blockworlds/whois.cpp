@@ -798,7 +798,7 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 	return false;
 }
 
-void CWhoIs::LogJoin(int ClientId)
+void CWhoIs::LogJoin(int ClientId, const char *pSource)
 {
 	char aIp[48] = {0}, aName[24] = {0}, aAcc[16] = {0};
 	int AccId = 0;
@@ -809,7 +809,7 @@ void CWhoIs::LogJoin(int ClientId)
 	str_copy(pReq->m_aName, aName, sizeof(pReq->m_aName));
 	pReq->m_AccountId = AccId;
 	str_copy(pReq->m_aAccountName, aAcc, sizeof(pReq->m_aAccountName));
-	str_copy(pReq->m_aSource, "join", sizeof(pReq->m_aSource));
+	str_copy(pReq->m_aSource, pSource, sizeof(pReq->m_aSource));
 	auto *pRaw = pReq.release();
 	m_pWorker->Enqueue([pRaw](IDbConnection *pSql) {
 		if(!pSql)

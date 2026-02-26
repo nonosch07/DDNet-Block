@@ -319,6 +319,9 @@ public:
 	}
 	void SetPlayerBlockpoints(int Blockpoints)
 	{
+		int Delta = Blockpoints - m_Account.m_Blockpoints;
+		if(Delta > 0)
+			m_SessionBlockpoints += Delta;
 		m_Account.m_Blockpoints = Blockpoints;
 		m_Account.m_DirtyProgress = true;
 	}
@@ -365,11 +368,17 @@ public:
 	}
 	void SetPlayerKills(int Kills)
 	{
+		int Delta = Kills - m_Account.m_Kills;
+		if(Delta > 0)
+			m_SessionKills += Delta;
 		m_Account.m_Kills = Kills;
 		m_Account.m_DirtyProgress = true;
 	}
 	void SetPlayerDeaths(int Deaths)
 	{
+		int Delta = Deaths - m_Account.m_Deaths;
+		if(Delta > 0)
+			m_SessionDeaths += Delta;
 		m_Account.m_Deaths = Deaths;
 		m_Account.m_DirtyProgress = true;
 	}
@@ -385,7 +394,24 @@ public:
 	}
 	void SetPlayerKillstreak(int Killstreak)
 	{
+		if(Killstreak > m_SessionBestKillstreak)
+			m_SessionBestKillstreak = Killstreak;
 		m_Account.m_Killstreak = Killstreak;
+		m_Account.m_DirtyProgress = true;
+	}
+	void SetWeeklyDay(int Day)
+	{
+		m_Account.m_WeeklyDay = Day;
+		m_Account.m_DirtyProgress = true;
+	}
+	void SetWeeklyLastClaim(int Date)
+	{
+		m_Account.m_WeeklyLastClaim = Date;
+		m_Account.m_DirtyProgress = true;
+	}
+	void SetWeeklyExpBoostUntil(long long Until)
+	{
+		m_Account.m_WeeklyExpBoostUntil = Until;
 		m_Account.m_DirtyProgress = true;
 	}
 	void SetPlayerTourneyWins(int TourneyWins)
@@ -457,6 +483,9 @@ public:
 	int GetPlayerTourneyWin() { return m_Account.m_TourneyWin; }
 	long long GetPlayerPlaytime() { return m_Account.m_Playtime; }
 	int GetPlayerKillstreak() { return m_Account.m_Killstreak; }
+	int GetWeeklyDay() { return m_Account.m_WeeklyDay; }
+	int GetWeeklyLastClaim() { return m_Account.m_WeeklyLastClaim; }
+	long long GetWeeklyExpBoostUntil() { return m_Account.m_WeeklyExpBoostUntil; }
 	const char *GetPlayerLastName() { return m_Account.m_aLastName; }
 	const char *GetPlayerLastSkin() { return m_Account.m_aLastSkin; }
 	int GetPlayerLastBodyColor() { return m_Account.m_LastBodyColor; }
@@ -483,6 +512,7 @@ private:
 
 public:
 	void AddPlayerExp(int Amount, bool ApplyMultiplier = true);
+	void ProcessWeeklyReward();
 	float GetExpMultiplier() const { return m_CurrentExpMultiplier; }
 	void AddExpMultiplier(int ModifierPercent, int Duration);
 
@@ -502,6 +532,20 @@ public:
 	int m_EventWTick = -1;
 	bool m_IsDummy = false;
 	bool m_HideInfoInScoreboard;
+
+	// Scoring mode: 0=level (default), 1=blockpoints, 2=time (ddrace)
+	int m_ScoreDisplayMode = 0;
+
+	// Hide other players' cosmetics
+	bool m_HideCosmetics = false;
+
+	// --- Live session stats (reset on disconnect, not saved to DB) ---
+	int m_SessionKills = 0;
+	int m_SessionDeaths = 0;
+	int m_SessionExpGained = 0;
+	int m_SessionBestKillstreak = 0;
+	int m_SessionBlockpoints = 0;
+
 	// 0 = not in TDM, 1 = inside TDM, 2 has sent an invite (only leaders can), 3 received leader invite, 4 received clan user invite, 5 accepted & waiting
 	int s_TDM;
 	int s_TDM_team;

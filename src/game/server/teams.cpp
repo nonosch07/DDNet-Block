@@ -717,6 +717,13 @@ void CGameTeams::OnFinish(CPlayer *Player, int TimeTicks, const char *pTimestamp
 	if(!Player || !Player->IsPlaying())
 		return;
 
+	// Award 10 EXP for finishing the race (only for logged-in players)
+	if(Player->IsLoggedIn())
+	{
+		Player->AddPlayerExp(10);
+		GameServer()->SendChatTarget(Player->GetCid(), "+10 EXP for finishing the race!");
+	}
+
 	float Time = TimeTicks / (float)Server()->TickSpeed();
 
 	// TODO:DDRace:btd: this ugly

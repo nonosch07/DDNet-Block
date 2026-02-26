@@ -1,5 +1,10 @@
 #include "oneonone_manager.h"
 #include <base/system.h>
+#include <engine/server.h>
+#include <engine/shared/config.h>
+#include <game/generated/protocol.h>
+#include <game/server/player.h>
+#include <game/server/save.h>
 
 #include <algorithm>
 
@@ -80,6 +85,49 @@ void COneOnOneManager::OnTick()
 			return !m || m->GetState() == COneOnOneEvent::EEventState::Finished;
 		}),
 			m_Matches.end());
+	}
+}
+
+void COneOnOneManager::OnSnap(int SnappingClient)
+{
+	if(!Config()->m_SvPauseable)
+		return;
+
+	std::vector<std::shared_ptr<COneOnOneEvent>> snapshot;
+	{
+		std::lock_guard<std::mutex> g(m_Mutex);
+		snapshot = m_Matches;
+	}
+
+	for(const auto &match : snapshot)
+	{
+		if(!match || match->GetState() == COneOnOneEvent::EEventState::Finished ||
+			match->GetState() == COneOnOneEvent::EEventState::Created)
+			continue;
+
+		std::lock_guard<std::mutex> matchLock(match->m_Mutex);
+		for(const auto &[Cid, pSavedTee] : match->m_pSavedPlayers)
+		{
+			if(Cid < 0 || !pSavedTee)
+				continue;
+
+			// Don't snap the ghost for the participant themselves
+			if(SnappingClient == Cid)
+				continue;
+
+			int SnapId = Cid;
+			if(!Server()->Translate(SnapId, SnappingClient))
+				continue;
+
+			vec2 SavedPos = pSavedTee->GetPos();
+
+			CNetObj_SpecChar *pSpecChar = Server()->SnapNewItem<CNetObj_SpecChar>(SnapId);
+			if(!pSpecChar)
+				continue;
+
+			pSpecChar->m_X = (int)SavedPos.x;
+			pSpecChar->m_Y = (int)SavedPos.y;
+		}
 	}
 }
 

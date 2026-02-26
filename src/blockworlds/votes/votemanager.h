@@ -42,6 +42,8 @@ public:
 		TogglePassive,
 		OpenCosmeticsCategory, // data = category index
 		ToggleCosmeticItem, // data = (category index, item index)
+		ToggleHideCosmetics,
+		SetScoreMode, // data = mode (0=level, 1=blockpoints, 2=time)
 	};
 
 	struct Action

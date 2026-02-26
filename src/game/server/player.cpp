@@ -23,6 +23,7 @@
 #include <blockworlds/clans.h>
 #include <blockworlds/common.h>
 #include <blockworlds/discord/webhook.h>
+#include <blockworlds/whois.h>
 
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
@@ -534,7 +535,18 @@ void CPlayer::Snap(int SnappingClient)
 	}
 
 	if(GetSkinMani() != -1)
-		GameServer()->Cosmetics()->SnapSkinmani(m_ClientId, m_DieTick, pClientInfo);
+	{
+		// Skip skin manipulation if snapping client hides cosmetics (and it's not their own)
+		bool bHideSkinMani = false;
+		if(SnappingClient != SERVER_DEMO_CLIENT && SnappingClient != m_ClientId)
+		{
+			CPlayer *pSnap = GameServer()->m_apPlayers[SnappingClient];
+			if(pSnap && pSnap->m_HideCosmetics)
+				bHideSkinMani = true;
+		}
+		if(!bHideSkinMani)
+			GameServer()->Cosmetics()->SnapSkinmani(m_ClientId, m_DieTick, pClientInfo);
+	}
 
 	for(const auto &Component : g_ComponentRegistry.Active())
 		Component->OnSnapClientInfo(GetCid(), SnappingClient, pClientInfo);
@@ -656,7 +668,21 @@ void CPlayer::Snap(int SnappingClient)
 	{
 		if(IsLoggedIn())
 		{
-			m_Score = Score = GetPlayerLevel();
+			switch(m_ScoreDisplayMode)
+			{
+			case 1: // Blockpoints
+				m_Score = Score = GetPlayerBlockpoints();
+				break;
+			case 2: // DDRace time
+				if(m_Score.has_value() && m_Score.value() != 0)
+					Score = -m_Score.value();
+				else
+					Score = -9999;
+				break;
+			default: // 0 = Level
+				m_Score = Score = GetPlayerLevel();
+				break;
+			}
 			Server()->SetClientScore(m_ClientId, Score);
 		}
 		else
@@ -1850,6 +1876,10 @@ void CPlayer::OnPlayerLogin()
 	// KillCharacter(); - no need to kill since we allow using /login only at spawn
 	GameServer()->SendChatTarget(m_ClientId, "Login successfully");
 
+	// Log account info to whois now that we have it (join event fires before login)
+	if(GameServer()->WhoIs())
+		GameServer()->WhoIs()->LogJoin(m_ClientId, "login");
+
 	GameServer()->ClearVotes(GetCid());
 	GameServer()->ProgressVoteOptions(GetCid());
 	GameServer()->SendCosmeticsVoteOptions(GetCid());
@@ -1859,6 +1889,33 @@ void CPlayer::OnPlayerLogin()
 		for(int i = 0; i < CCosmeticsHandler::NUM_SPECIALS; ++i)
 		{
 			m_aSpecialsOwned[i] = '1';
+		}
+	}
+
+	// --- Weekly rewards ---
+	ProcessWeeklyReward();
+
+	// --- Apply stored x2 EXP boost if still active ---
+	if(m_Account.m_WeeklyExpBoostUntil > 0)
+	{
+		long long NowPlaytime = m_Account.m_Playtime;
+		if(NowPlaytime < m_Account.m_WeeklyExpBoostUntil)
+		{
+			// Remaining boost in seconds of playtime
+			int RemainingSeconds = (int)(m_Account.m_WeeklyExpBoostUntil - NowPlaytime);
+			int RemainingMinutes = RemainingSeconds / 60;
+			if(RemainingMinutes > 0)
+			{
+				AddExpMultiplier(200, RemainingMinutes);
+				char aBuf[128];
+				str_format(aBuf, sizeof(aBuf), "[Weekly] x2 EXP boost active! %dh %dm remaining (ingame time)", RemainingMinutes / 60, RemainingMinutes % 60);
+				GameServer()->SendChatTarget(m_ClientId, aBuf);
+			}
+		}
+		else
+		{
+			// Boost expired, clear it
+			SetWeeklyExpBoostUntil(0);
 		}
 	}
 
@@ -2101,6 +2158,113 @@ bool CPlayer::ToggleSpecial(int SpecialIndex)
 	return true;
 }
 
+void CPlayer::ProcessWeeklyReward()
+{
+	if(!IsLoggedIn())
+		return;
+
+	time_t t = time(nullptr);
+	struct tm tmres;
+	time_localtime_safe(&t, &tmres);
+	int TodayDate = (tmres.tm_year + 1900) * 10000 + (tmres.tm_mon + 1) * 100 + tmres.tm_mday;
+
+	int LastClaim = GetWeeklyLastClaim();
+
+	// Already claimed today
+	if(LastClaim == TodayDate)
+		return;
+
+	// Check if streak is broken (more than 1 day gap)
+	int Day = GetWeeklyDay();
+	if(LastClaim > 0)
+	{
+		// Calculate day difference (approximate, works for consecutive days)
+		int LastYear = LastClaim / 10000;
+		int LastMonth = (LastClaim / 100) % 100;
+		int LastDay = LastClaim % 100;
+
+		struct tm tmLast = {};
+		tmLast.tm_year = LastYear - 1900;
+		tmLast.tm_mon = LastMonth - 1;
+		tmLast.tm_mday = LastDay;
+		tmLast.tm_hour = 12;
+		time_t tLast = mktime(&tmLast);
+
+		struct tm tmToday = {};
+		tmToday.tm_year = tmres.tm_year;
+		tmToday.tm_mon = tmres.tm_mon;
+		tmToday.tm_mday = tmres.tm_mday;
+		tmToday.tm_hour = 12;
+		time_t tToday = mktime(&tmToday);
+
+		double diffDays = difftime(tToday, tLast) / 86400.0;
+		if(diffDays > 1.5) // More than 1 day gap -> reset streak
+			Day = 0;
+	}
+	else
+	{
+		Day = 0; // First ever claim
+	}
+
+	// day is 0-indexed (0=day1, 1=day2, ..., 6=day7)
+	// After day 7 (index 6), cycle back to day 0
+	if(Day >= 7)
+		Day = 0;
+
+	// Grant the reward for current day
+	char aBuf[256];
+	switch(Day)
+	{
+	case 0: // Day 1: 15 BP
+		SetPlayerBlockpoints(GetPlayerBlockpoints() + 15);
+		str_format(aBuf, sizeof(aBuf), "[Weekly Day 1/7] +15 Blockpoints! Come back tomorrow for more!");
+		break;
+	case 1: // Day 2: 30 BP
+		SetPlayerBlockpoints(GetPlayerBlockpoints() + 30);
+		str_format(aBuf, sizeof(aBuf), "[Weekly Day 2/7] +30 Blockpoints!");
+		break;
+	case 2: // Day 3: 3 weaponkits
+		SetPlayerWeaponkits(GetPlayerWeaponkits() + 3);
+		str_format(aBuf, sizeof(aBuf), "[Weekly Day 3/7] +3 Weaponkits!");
+		break;
+	case 3: // Day 4: 50 BP
+		SetPlayerBlockpoints(GetPlayerBlockpoints() + 50);
+		str_format(aBuf, sizeof(aBuf), "[Weekly Day 4/7] +50 Blockpoints!");
+		break;
+	case 4: // Day 5: 5 weaponkits
+		SetPlayerWeaponkits(GetPlayerWeaponkits() + 5);
+		str_format(aBuf, sizeof(aBuf), "[Weekly Day 5/7] +5 Weaponkits!");
+		break;
+	case 5: // Day 6: 2 hours of passive time
+	{
+		int PassiveSeconds = 2 * 3600; // 2 hours in seconds
+		SetPlayerPassive(GetPlayerPassive() + PassiveSeconds);
+		str_format(aBuf, sizeof(aBuf), "[Weekly Day 6/7] +2 hours of Passive Protection!");
+		break;
+	}
+	case 6: // Day 7: 500 BP + x2 EXP for 48h of ingame time
+	{
+		SetPlayerBlockpoints(GetPlayerBlockpoints() + 500);
+		// x2 EXP boost for 48h of account playtime (in seconds)
+		long long BoostEndPlaytime = GetPlayerPlaytime() + 48LL * 3600;
+		SetWeeklyExpBoostUntil(BoostEndPlaytime);
+		// Activate the multiplier for 48h of real playtime (2880 minutes)
+		AddExpMultiplier(200, 2880);
+		str_format(aBuf, sizeof(aBuf), "[Weekly Day 7/7] +500 Blockpoints + x2 EXP for 48h (ingame time)! Streak complete!");
+		break;
+	}
+	default:
+		return;
+	}
+
+	GameServer()->SendChatTarget(m_ClientId, aBuf);
+
+	// Advance day and save
+	SetWeeklyDay(Day + 1);
+	SetWeeklyLastClaim(TodayDate);
+	OnPlayerSave(false);
+}
+
 void CPlayer::AddPlayerExp(int Amount, bool ApplyMultiplier)
 {
 	// apply player-specific multipliers and optional weekend bonus
@@ -2122,6 +2286,7 @@ void CPlayer::AddPlayerExp(int Amount, bool ApplyMultiplier)
 		}
 	}
 	Amount = (int)((float)Amount * TotalMult);
+	m_SessionExpGained += Amount;
 	m_Account.m_Experience += Amount;
 
 	m_Account.m_DirtyProgress = true;

@@ -21,6 +21,7 @@ public:
 
 	// forwarding hooks
 	void OnTick() override;
+	void OnSnap(int SnappingClient) override;
 	void OnPlayerDropping(int ClientId) override;
 	void OnCharacterSpawn(int ClientId, vec2 SpawnPos) override;
 	void OnCharacterDeath(int KillerId, int ClientId, int Weapon) override;

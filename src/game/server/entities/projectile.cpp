@@ -321,8 +321,19 @@ void CProjectile::Snap(int SnappingClient)
 			return;
 	}
 
-	if(m_Type == WEAPON_GUN && GameServer()->Cosmetics()->SnapGundesign(m_Owner, GetPos(Ct), m_Direction, GetId(), SnappingClient))
-		return;
+	if(m_Type == WEAPON_GUN)
+	{
+		// Skip gun design cosmetic if snapping client hides cosmetics
+		bool bHideGun = false;
+		if(SnappingClient != SERVER_DEMO_CLIENT && m_Owner != SnappingClient)
+		{
+			CPlayer *pSnap = GameServer()->m_apPlayers[SnappingClient];
+			if(pSnap && pSnap->m_HideCosmetics)
+				bHideGun = true;
+		}
+		if(!bHideGun && GameServer()->Cosmetics()->SnapGundesign(m_Owner, GetPos(Ct), m_Direction, GetId(), SnappingClient))
+			return;
+	}
 
 	CCharacter *pOwnerChar = 0;
 	CClientMask TeamMask = CClientMask().set();

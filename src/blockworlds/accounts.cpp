@@ -432,7 +432,8 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 		"SELECT c.id, c.name, c.password, c.address, i.vip, i.pages, p.level, p.experience, i.weaponkits, p.ranking, "
 		"p.clanID, p.auth_level, p.blockpoints, i.knockouts, i.gundesign, i.skinmani, p.passive, c.registerdate, r.ranked_games, "
 		"r.ranked_kills, r.ranked_deaths, r.ranked_wins, p.kills, p.deaths, p.tourney_win, p.playtime, p.killstreak, "
-		"c.last_name, c.last_skin, c.last_body_color, c.last_feet_color FROM %s c "
+		"c.last_name, c.last_skin, c.last_body_color, c.last_feet_color, "
+		"COALESCE(p.weekly_day, 0), COALESCE(p.weekly_last_claim, 0), COALESCE(p.weekly_exp_boost_until, 0) FROM %s c "
 		"JOIN %s p ON c.id=p.account_id "
 		"JOIN %s i ON c.id=i.account_id "
 		"JOIN %s r ON c.id=r.account_id WHERE c.id = ?;",
@@ -494,6 +495,9 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 	SQL_GET_STRING(Index++, pResult->m_Account.m_aLastSkin);
 	SQL_GET_INT(Index++, pResult->m_Account.m_LastBodyColor);
 	SQL_GET_INT(Index++, pResult->m_Account.m_LastFeetColor);
+	SQL_GET_INT(Index++, pResult->m_Account.m_WeeklyDay);
+	SQL_GET_INT(Index++, pResult->m_Account.m_WeeklyLastClaim);
+	SQL_GET_INT64(Index++, pResult->m_Account.m_WeeklyExpBoostUntil);
 
 #undef SQL_GET_INT
 #undef SQL_GET_INT64
@@ -871,7 +875,7 @@ bool CAccounts::SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData,
 	}
 	if(DoProg)
 	{
-		str_format(aBuf, sizeof(aBuf), "UPDATE %s SET level=?, experience=?, ranking=?, clanID=?, auth_level=?, blockpoints=?, passive=?, kills=?, deaths=?, tourney_win=?, playtime=?, killstreak=? WHERE account_id=?;", TBL_ACCOUNTS_PROGRESS);
+		str_format(aBuf, sizeof(aBuf), "UPDATE %s SET level=?, experience=?, ranking=?, clanID=?, auth_level=?, blockpoints=?, passive=?, kills=?, deaths=?, tourney_win=?, playtime=?, killstreak=?, weekly_day=?, weekly_last_claim=?, weekly_exp_boost_until=? WHERE account_id=?;", TBL_ACCOUNTS_PROGRESS);
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 			goto fail;
 		pSqlServer->BindInt(1, Acc.m_Level);
@@ -886,7 +890,10 @@ bool CAccounts::SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData,
 		pSqlServer->BindInt(10, Acc.m_TourneyWin);
 		pSqlServer->BindInt64(11, Acc.m_Playtime);
 		pSqlServer->BindInt(12, Acc.m_Killstreak);
-		pSqlServer->BindInt(13, Acc.m_Id);
+		pSqlServer->BindInt(13, Acc.m_WeeklyDay);
+		pSqlServer->BindInt(14, Acc.m_WeeklyLastClaim);
+		pSqlServer->BindInt64(15, Acc.m_WeeklyExpBoostUntil);
+		pSqlServer->BindInt(16, Acc.m_Id);
 		if(pSqlServer->ExecuteUpdate(&Affected, pError, ErrorSize))
 			goto fail;
 	}

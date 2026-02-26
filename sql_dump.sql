@@ -85,7 +85,10 @@ CREATE TABLE `Blockworlds_accounts_progress` (
   `deaths` int(11) DEFAULT 0,
   `tourney_win` int(11) DEFAULT 0,
   `playtime` bigint(20) DEFAULT 0,
-  `killstreak` int(11) DEFAULT 0
+  `killstreak` int(11) DEFAULT 0,
+  `weekly_day` int(11) DEFAULT 0,
+  `weekly_last_claim` int(11) DEFAULT 0,
+  `weekly_exp_boost_until` bigint(20) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- --------------------------------------------------------

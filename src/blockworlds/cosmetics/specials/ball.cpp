@@ -77,6 +77,14 @@ void CBall::Snap(int SnappingClient)
 	if(NetworkClipped(SnappingClient))
 		return;
 
+	// hide cosmetics for snapping client
+	if(SnappingClient != SERVER_DEMO_CLIENT && m_Owner != SnappingClient)
+	{
+		CPlayer *pSnap = GameServer()->GetPlayer(SnappingClient);
+		if(pSnap && pSnap->m_HideCosmetics)
+			return;
+	}
+
 	CClientMask TeamMask = CClientMask().set();
 	// derive visibility from player team when possible so effect persists while player is connected
 	if(m_Owner >= 0)

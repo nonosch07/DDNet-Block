@@ -57,6 +57,14 @@ void CEpicCircle::Snap(int SnappingClient)
 		return;
 	}
 
+	// hide cosmetics for snapping client
+	if(SnappingClient != SERVER_DEMO_CLIENT && m_Owner != SnappingClient)
+	{
+		CPlayer *pSnap = GameServer()->GetPlayer(SnappingClient);
+		if(pSnap && pSnap->m_HideCosmetics)
+			return;
+	}
+
 	CClientMask TeamMask = CClientMask().set();
 	if(m_Owner >= 0)
 	{

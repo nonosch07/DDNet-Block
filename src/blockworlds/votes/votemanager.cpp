@@ -322,6 +322,27 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 					}
 				}
 				return true;
+			case EActionKind::ToggleHideCosmetics:
+				if(pPlayer)
+				{
+					pPlayer->m_HideCosmetics = !pPlayer->m_HideCosmetics;
+					pGameContext->SendChatTarget(ClientId, pPlayer->m_HideCosmetics ? "Cosmetics hidden." : "Cosmetics visible.");
+					pGameContext->ClearVotes(ClientId);
+					RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
+				}
+				return true;
+			case EActionKind::SetScoreMode:
+				if(pPlayer)
+				{
+					pPlayer->m_ScoreDisplayMode = A.A;
+					const char *apModes[] = {"Level", "Blockpoints", "Time (DDRace)"};
+					char aMsg[128];
+					str_format(aMsg, sizeof(aMsg), "Scoreboard now shows: %s", apModes[A.A]);
+					pGameContext->SendChatTarget(ClientId, aMsg);
+					pGameContext->ClearVotes(ClientId);
+					RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
+				}
+				return true;
 			case EActionKind::None:
 			default:
 				return true;
@@ -485,6 +506,51 @@ void CVoteManager::RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pS
 
 void CVoteManager::BuildRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions)
 {
+	if(pPlayer)
+	{
+		bool hasPassive = (pPlayer->m_LocalPassiveDuration > 0) || (pPlayer->IsLoggedIn() && pPlayer->GetPlayerPassive() > 0);
+		if(hasPassive)
+		{
+			std::string PassiveLine;
+			if(pPlayer->IsUsingPassiveProtection() || pPlayer->IsPassivePendingEnable())
+				PassiveLine = std::string("☑ ") + SmallCaps("Passive");
+			else
+				PassiveLine = std::string("☐ ") + SmallCaps("Passive");
+			OutLabels.emplace_back(PassiveLine);
+			OutActions.emplace_back(Action{EActionKind::TogglePassive});
+		}
+	}
+
+	// Hide cosmetics toggle
+	if(pPlayer)
+	{
+		std::string HideLine;
+		if(pPlayer->m_HideCosmetics)
+			HideLine = std::string("☑ ") + SmallCaps("Hide Cosmetics");
+		else
+			HideLine = std::string("☐ ") + SmallCaps("Hide Cosmetics");
+		OutLabels.emplace_back(HideLine);
+		OutActions.emplace_back(Action{EActionKind::ToggleHideCosmetics});
+	}
+
+	// Score display mode
+	if(pPlayer)
+	{
+		const char *apModes[] = {"Level", "Blockpoints", "Time"};
+		int Mode = pPlayer->m_ScoreDisplayMode;
+		if(Mode < 0 || Mode > 2)
+			Mode = 0;
+		char aModeLabel[64];
+		str_format(aModeLabel, sizeof(aModeLabel), "Score: %s", apModes[Mode]);
+		OutLabels.emplace_back(SmallCaps(aModeLabel));
+		// cycle to next mode
+		OutActions.emplace_back(Action{EActionKind::SetScoreMode, (Mode + 1) % 3});
+	}
+
+	// ─── separator ───
+	OutLabels.emplace_back(SmallCaps("───────────"));
+	OutActions.emplace_back(Action{EActionKind::None});
+
 	// extras page (if eligible)
 	bool extrasEligible = pPlayer && ((pPlayer->m_LocalPassiveDuration > 0) || (pPlayer->IsLoggedIn() && pPlayer->GetPlayerPassive() > 0));
 	if(extrasEligible)

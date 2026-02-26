@@ -283,6 +283,7 @@ public:
 
 	int64_t m_LastGlobalWeaponkitsVoteCall = 0;
 	int64_t m_LastGlobalEventVoteCall = 0;
+	int64_t m_LastBestPlayerBroadcast = 0; // tick of last hourly best-player summary
 
 	// helper functions
 	void CreateDamageInd(vec2 Pos, float AngleMod, int Amount, CClientMask Mask = CClientMask().set());

@@ -72,7 +72,7 @@ public:
 	CWhoIs(CGameContext *pGameServer, CDbConnectionPool *pPool);
 
 	// event logging
-	void LogJoin(int ClientId);
+	void LogJoin(int ClientId, const char *pSource = "join");
 	void LogLeave(int ClientId);
 	void SnapshotTick(); // periodically snapshot all connected players
 
