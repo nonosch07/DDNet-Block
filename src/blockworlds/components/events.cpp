@@ -235,7 +235,7 @@ void CEvents::ConJoin(IConsole::IResult *pResult, void *pUserData)
 	if(auto oneOnOneMgr = g_ComponentRegistry.Get<COneOnOneManager>(); oneOnOneMgr)
 	{
 		auto match = oneOnOneMgr->GetMatchForPlayer(pResult->m_ClientId);
-		if(match && match->GetState() == COneOnOneEvent::EEventState::Active)
+		if(match && (match->GetState() == COneOnOneEvent::EEventState::Active || match->GetState() == COneOnOneEvent::EEventState::Preparation))
 		{
 			pThis->GameServer()->SendChatTarget(pResult->m_ClientId, "You are currently in a 1on1, finish it before joining an event.");
 			return;

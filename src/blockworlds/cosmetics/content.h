@@ -60,19 +60,14 @@ public:
 
 	void Snap(int SnappingClient) override
 	{
+		int SnappingClientVersion = GameServer()->GetClientVersion(SnappingClient);
+		bool Sixup = Server()->IsSixup(SnappingClient);
 		for(int i = 0; i < NUM; i++)
 		{
 			if(m_Spawned[i] == false)
 				continue;
 
-			CNetObj_Pickup *pP = static_cast<CNetObj_Pickup *>(Server()->SnapNewItem(NETOBJTYPE_PICKUP, m_IDs[i], sizeof(CNetObj_Pickup)));
-			if(pP)
-			{
-				pP->m_X = (int)m_Pos[i].x;
-				pP->m_Y = (int)m_Pos[i].y;
-				pP->m_Type = POWERUP_HEALTH;
-				pP->m_Subtype = 0;
-			}
+			GameServer()->SnapPickup(CSnapContext(SnappingClientVersion, Sixup), m_IDs[i], m_Pos[i], POWERUP_HEALTH, 0, 0, PICKUPFLAG_NO_PREDICT);
 		}
 	}
 

@@ -4619,6 +4619,7 @@ void CGameContext::RegisterDDRaceCommands()
 
 	Console()->Register("telekinesis", "", CFGFLAG_SERVER, ConTelekinesis, this, "Toggle telekinesis mode: hold fire to grab and move players with your cursor");
 	Console()->Register("knockout", "?r[name|id]", CFGFLAG_SERVER, ConKnockout, this, "Trigger a knockout effect at your cursor position (no args to list all)");
+	Console()->Register("whois_account", "r[account name]", CFGFLAG_SERVER, ConWhoisAccount, this, "Look up an online player by account name and show account details");
 }
 
 void CGameContext::RegisterChatCommands()
@@ -6282,6 +6283,7 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("1on1", "s[player name] ?i[wager]", CFGFLAG_CHAT, Con1on1, this, "Fight against another player");
 	Console()->Register("accept", "?r[player name]", CFGFLAG_CHAT, Con1on1Accept, this, "Accept the 1vs1 request from player r");
 	Console()->Register("decline", "?r[player name]", CFGFLAG_CHAT, Con1on1Decline, this, "Decline the 1vs1 request from player r");
+	Console()->Register("ready", "", CFGFLAG_CHAT, Con1on1Ready, this, "Ready up for 1on1 match during warmup");
 	Console()->Register("sub", "", CFGFLAG_CHAT, ConJoinEvent, this, "Join the current ongoing event");
 	Console()->Register("leave", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConLeaveEvent, this, "Leave current event");
 

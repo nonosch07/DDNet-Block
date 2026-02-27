@@ -1,6 +1,9 @@
 // page-based, safe voting manager implementation - Nouaa
 #include "votemanager.h"
 
+#include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/components/events/1on1.h>
+#include <blockworlds/components/oneonone_manager.h>
 #include <blockworlds/cosmetics/cosmetics.h>
 #include <blockworlds/shop/storemanager.h>
 #include <engine/shared/config.h>
@@ -373,6 +376,159 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 					}
 				}
 				return true;
+			case EActionKind::DuelSetPoints:
+			{
+				auto mgr = g_ComponentRegistry.Get<COneOnOneManager>();
+				auto match = mgr ? mgr->GetMatchForPlayer(ClientId) : nullptr;
+				if(match && match->IsInConfigPhase())
+				{
+					match->m_Config.m_PointsLimit = A.A;
+					match->m_aReady[0] = false;
+					match->m_aReady[1] = false;
+					// re-render for both players
+					for(int cid : {match->m_Player1ID, match->m_Player2ID})
+					{
+						CPlayer *pP = pGameContext->GetPlayer(cid);
+						if(pP)
+						{
+							pGameContext->ClearVotes(cid);
+							RenderCurrentPage(pP, cid, pGameContext->Server(), pGameContext);
+						}
+					}
+				}
+				return true;
+			}
+			case EActionKind::DuelToggleWeapon:
+			{
+				auto mgr = g_ComponentRegistry.Get<COneOnOneManager>();
+				auto match = mgr ? mgr->GetMatchForPlayer(ClientId) : nullptr;
+				if(match && match->IsInConfigPhase())
+				{
+					int w = A.A;
+					if(w >= 0 && w < 6)
+					{
+						match->m_Config.m_aWeapons[w] = !match->m_Config.m_aWeapons[w];
+						// ensure at least one weapon stays enabled
+						bool anyEnabled = false;
+						for(int i = 0; i < 6; i++)
+							if(match->m_Config.m_aWeapons[i])
+								anyEnabled = true;
+						if(!anyEnabled)
+							match->m_Config.m_aWeapons[w] = true; // revert
+					}
+					match->m_aReady[0] = false;
+					match->m_aReady[1] = false;
+					for(int cid : {match->m_Player1ID, match->m_Player2ID})
+					{
+						CPlayer *pP = pGameContext->GetPlayer(cid);
+						if(pP)
+						{
+							pGameContext->ClearVotes(cid);
+							RenderCurrentPage(pP, cid, pGameContext->Server(), pGameContext);
+						}
+					}
+				}
+				return true;
+			}
+			case EActionKind::DuelToggleEndlessHook:
+			{
+				auto mgr = g_ComponentRegistry.Get<COneOnOneManager>();
+				auto match = mgr ? mgr->GetMatchForPlayer(ClientId) : nullptr;
+				if(match && match->IsInConfigPhase())
+				{
+					match->m_Config.m_EndlessHook = !match->m_Config.m_EndlessHook;
+					match->m_aReady[0] = false;
+					match->m_aReady[1] = false;
+					for(int cid : {match->m_Player1ID, match->m_Player2ID})
+					{
+						CPlayer *pP = pGameContext->GetPlayer(cid);
+						if(pP)
+						{
+							pGameContext->ClearVotes(cid);
+							RenderCurrentPage(pP, cid, pGameContext->Server(), pGameContext);
+						}
+					}
+				}
+				return true;
+			}
+			case EActionKind::DuelSetTimeLimit:
+			{
+				auto mgr = g_ComponentRegistry.Get<COneOnOneManager>();
+				auto match = mgr ? mgr->GetMatchForPlayer(ClientId) : nullptr;
+				if(match && match->IsInConfigPhase())
+				{
+					match->m_Config.m_TimeLimit = A.A;
+					match->m_aReady[0] = false;
+					match->m_aReady[1] = false;
+					for(int cid : {match->m_Player1ID, match->m_Player2ID})
+					{
+						CPlayer *pP = pGameContext->GetPlayer(cid);
+						if(pP)
+						{
+							pGameContext->ClearVotes(cid);
+							RenderCurrentPage(pP, cid, pGameContext->Server(), pGameContext);
+						}
+					}
+				}
+				return true;
+			}
+			case EActionKind::DuelToggleSpawnMode:
+			{
+				auto mgr = g_ComponentRegistry.Get<COneOnOneManager>();
+				auto match = mgr ? mgr->GetMatchForPlayer(ClientId) : nullptr;
+				if(match && match->IsInConfigPhase())
+				{
+					match->m_Config.m_SpawnMode = match->m_Config.m_SpawnMode == 0 ? 1 : 0;
+					match->m_aReady[0] = false;
+					match->m_aReady[1] = false;
+					for(int cid : {match->m_Player1ID, match->m_Player2ID})
+					{
+						CPlayer *pP = pGameContext->GetPlayer(cid);
+						if(pP)
+						{
+							pGameContext->ClearVotes(cid);
+							RenderCurrentPage(pP, cid, pGameContext->Server(), pGameContext);
+						}
+					}
+				}
+				return true;
+			}
+			case EActionKind::DuelReady:
+			{
+				auto mgr = g_ComponentRegistry.Get<COneOnOneManager>();
+				auto match = mgr ? mgr->GetMatchForPlayer(ClientId) : nullptr;
+				if(match && match->IsInConfigPhase())
+				{
+					int idx = (ClientId == match->m_Player1ID) ? 0 : 1;
+					match->m_aReady[idx] = !match->m_aReady[idx];
+					if(match->m_aReady[0] && match->m_aReady[1])
+					{
+						// both ready — clear vote pages and start the match
+						for(int cid : {match->m_Player1ID, match->m_Player2ID})
+						{
+							auto &Stack = m_PageStack[cid];
+							Stack.clear();
+							Stack.push_back(Page{Page::ROOT, -1});
+							pGameContext->ClearVotes(cid);
+						}
+						match->StartMatchFromConfig();
+					}
+					else
+					{
+						// re-render for both players to show updated ready state
+						for(int cid : {match->m_Player1ID, match->m_Player2ID})
+						{
+							CPlayer *pP = pGameContext->GetPlayer(cid);
+							if(pP)
+							{
+								pGameContext->ClearVotes(cid);
+								RenderCurrentPage(pP, cid, pGameContext->Server(), pGameContext);
+							}
+						}
+					}
+				}
+				return true;
+			}
 			case EActionKind::None:
 			default:
 				return true;
@@ -409,15 +565,16 @@ void CVoteManager::RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pS
 	case Page::COSMETICS_CATEGORY: BuildCosmeticsCategory(pPlayer, ClientID, pServer, pGameContext, Current.Data, Labels, Actions); break;
 	case Page::SHOP: BuildShop(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
 	case Page::SHOP_CATEGORY: BuildShopCategory(pPlayer, ClientID, pServer, pGameContext, Current.Data, Labels, Actions); break;
+	case Page::DUEL_CONFIG: BuildDuelConfig(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
 	}
 
-	// add nav ctrls
-	if(Current.PageType != Page::ROOT)
+	// add nav ctrls (skip for DUEL_CONFIG — players can't leave config phase)
+	if(Current.PageType != Page::ROOT && Current.PageType != Page::DUEL_CONFIG)
 	{
 		Labels.insert(Labels.begin(), SmallCaps("« Back"));
 		Actions.insert(Actions.begin(), Action{EActionKind::Back, -1, -1});
 	}
-	if(Current.PageType != Page::ROOT)
+	if(Current.PageType != Page::ROOT && Current.PageType != Page::DUEL_CONFIG)
 	{
 		Labels.push_back(SmallCaps("× Main Page"));
 		Actions.push_back(Action{EActionKind::Close, -1, -1});
@@ -481,6 +638,9 @@ void CVoteManager::RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pS
 				Title = "Shop";
 			break;
 		}
+		case Page::DUEL_CONFIG:
+			Title = "1on1 Config";
+			break;
 		}
 		std::string Caps = SmallCaps(Title);
 		std::string Top = std::string("╭─ ") + Caps + " ─────────────────";
@@ -1292,4 +1452,159 @@ bool CVoteManager::IsAtRoot(int ClientId)
 	if(it == m_PageStack.end() || it->second.empty())
 		return true;
 	return it->second.back().PageType == Page::ROOT;
+}
+
+void CVoteManager::BuildDuelConfig(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions)
+{
+	auto mgr = g_ComponentRegistry.Get<COneOnOneManager>();
+	auto match = mgr ? mgr->GetMatchForPlayer(ClientID) : nullptr;
+	if(!match || !match->IsInConfigPhase())
+	{
+		OutLabels.emplace_back(SmallCaps("No active duel config."));
+		OutActions.emplace_back(Action{EActionKind::None});
+		return;
+	}
+
+	const SMatchConfig &cfg = match->m_Config;
+	int myIdx = (ClientID == match->m_Player1ID) ? 0 : 1;
+
+	// opponent name
+	int opponentId = (ClientID == match->m_Player1ID) ? match->m_Player2ID : match->m_Player1ID;
+	const char *pOpponentName = pServer->ClientName(opponentId);
+	{
+		char aBuf[128];
+		str_format(aBuf, sizeof(aBuf), "vs %s", pOpponentName);
+		OutLabels.emplace_back(SmallCaps(aBuf));
+		OutActions.emplace_back(Action{EActionKind::None});
+	}
+
+	// warmup timer
+	if(match->m_ConfigStartTick > 0)
+	{
+		int elapsed = (int)((pServer->Tick() - match->m_ConfigStartTick) / pServer->TickSpeed());
+		int remaining = 30 - elapsed;
+		if(remaining < 0)
+			remaining = 0;
+		char aBuf[64];
+		str_format(aBuf, sizeof(aBuf), "Warmup: %ds", remaining);
+		OutLabels.emplace_back(SmallCaps(aBuf));
+		OutActions.emplace_back(Action{EActionKind::None});
+	}
+
+	// separator
+	OutLabels.emplace_back(SmallCaps("───────────"));
+	OutActions.emplace_back(Action{EActionKind::None});
+
+	// ── Points Limit ──
+	{
+		static const int s_PointOptions[] = {3, 5, 7, 10};
+		static const int s_NumOptions = 4;
+
+		// find current option index
+		int curIdx = 1; // default to 5
+		for(int i = 0; i < s_NumOptions; i++)
+			if(s_PointOptions[i] == cfg.m_PointsLimit)
+				curIdx = i;
+
+		// cycle to next on click
+		int nextIdx = (curIdx + 1) % s_NumOptions;
+		int nextVal = s_PointOptions[nextIdx];
+
+		char aBuf[64];
+		str_format(aBuf, sizeof(aBuf), "Points: First to %d", cfg.m_PointsLimit);
+		OutLabels.emplace_back(SmallCaps(aBuf));
+		OutActions.emplace_back(Action{EActionKind::DuelSetPoints, nextVal});
+	}
+
+	// ── Time Limit ──
+	{
+		static const int s_TimeOptions[] = {0, 120, 300, 600};
+		static const char *s_TimeNames[] = {"No Limit", "2 min", "5 min", "10 min"};
+		static const int s_NumOptions = 4;
+
+		int curIdx = 0;
+		for(int i = 0; i < s_NumOptions; i++)
+			if(s_TimeOptions[i] == cfg.m_TimeLimit)
+				curIdx = i;
+
+		int nextIdx = (curIdx + 1) % s_NumOptions;
+		int nextVal = s_TimeOptions[nextIdx];
+
+		char aBuf[64];
+		str_format(aBuf, sizeof(aBuf), "Time: %s", s_TimeNames[curIdx]);
+		OutLabels.emplace_back(SmallCaps(aBuf));
+		OutActions.emplace_back(Action{EActionKind::DuelSetTimeLimit, nextVal});
+	}
+
+	// ── Endless Hook ──
+	{
+		std::string line = std::string(cfg.m_EndlessHook ? "☑ " : "☐ ") + SmallCaps("Endless Hook");
+		OutLabels.emplace_back(line);
+		OutActions.emplace_back(Action{EActionKind::DuelToggleEndlessHook});
+	}
+
+	// ── Spawn Mode ──
+	{
+		const char *pModeName = cfg.m_SpawnMode == 0 ? "Normal" : "Random";
+		char aBuf[64];
+		str_format(aBuf, sizeof(aBuf), "Spawns: %s", pModeName);
+		OutLabels.emplace_back(SmallCaps(aBuf));
+		OutActions.emplace_back(Action{EActionKind::DuelToggleSpawnMode});
+	}
+
+	// separator
+	OutLabels.emplace_back(SmallCaps("───────────"));
+	OutActions.emplace_back(Action{EActionKind::None});
+
+	// ── Weapons ──
+	OutLabels.emplace_back(SmallCaps("Weapons:"));
+	OutActions.emplace_back(Action{EActionKind::None});
+
+	static const char *s_WeaponNames[] = {"Hammer", "Gun", "Shotgun", "Grenade", "Laser", "Ninja"};
+	for(int w = 0; w < 6; w++)
+	{
+		std::string line = std::string(cfg.m_aWeapons[w] ? "  ☑ " : "  ☐ ") + SmallCaps(s_WeaponNames[w]);
+		OutLabels.emplace_back(line);
+		OutActions.emplace_back(Action{EActionKind::DuelToggleWeapon, w});
+	}
+
+	// separator
+	OutLabels.emplace_back(SmallCaps("───────────"));
+	OutActions.emplace_back(Action{EActionKind::None});
+
+	// ── Ready status ──
+	{
+		// show both players' ready status
+		const char *pP1Name = pServer->ClientName(match->m_Player1ID);
+		const char *pP2Name = pServer->ClientName(match->m_Player2ID);
+
+		char aBuf[128];
+		str_format(aBuf, sizeof(aBuf), "%s: %s", pP1Name, match->m_aReady[0] ? "Ready" : "Not Ready");
+		OutLabels.emplace_back(SmallCaps(aBuf));
+		OutActions.emplace_back(Action{EActionKind::None});
+
+		str_format(aBuf, sizeof(aBuf), "%s: %s", pP2Name, match->m_aReady[1] ? "Ready" : "Not Ready");
+		OutLabels.emplace_back(SmallCaps(aBuf));
+		OutActions.emplace_back(Action{EActionKind::None});
+	}
+
+	// ── Ready button ──
+	{
+		bool amReady = match->m_aReady[myIdx];
+		std::string label = amReady ? SmallCaps("✓ Ready") : SmallCaps("▶ Ready Up");
+		OutLabels.emplace_back(label);
+		OutActions.emplace_back(Action{EActionKind::DuelReady});
+	}
+}
+
+void CVoteManager::ForceDuelConfigPage(int ClientId, CPlayer *pPlayer, IServer *pServer, CGameContext *pGameContext)
+{
+	// replace entire page stack with DUEL_CONFIG
+	auto &Stack = m_PageStack[ClientId];
+	Stack.clear();
+	Stack.push_back(Page{Page::DUEL_CONFIG, -1});
+
+	// clear and re-render
+	pGameContext->ClearVotes(ClientId);
+	RenderCurrentPage(pPlayer, ClientId, pServer, pGameContext);
 }

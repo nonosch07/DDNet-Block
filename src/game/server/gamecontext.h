@@ -765,6 +765,7 @@ private:
 	static void Con1on1(IConsole::IResult *pResult, void *pUserData);
 	static void Con1on1Accept(IConsole::IResult *pResult, void *pUserData);
 	static void Con1on1Decline(IConsole::IResult *pResult, void *pUserData);
+	static void Con1on1Ready(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConJoinEvent(IConsole::IResult *pResult, void *pUserData);
 	static void ConCreateTDM(IConsole::IResult *pResult, void *pUserData);
@@ -785,6 +786,7 @@ private:
 	static void ConSetPassive(IConsole::IResult *pResult, void *pUserData);
 	static void ConTelekinesis(IConsole::IResult *pResult, void *pUserData);
 	static void ConKnockout(IConsole::IResult *pResult, void *pUserData);
+	static void ConWhoisAccount(IConsole::IResult *pResult, void *pUserData);
 
 public:
 	template<typename... TArgs>

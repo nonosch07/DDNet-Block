@@ -46,6 +46,13 @@ public:
 		OpenShop,
 		OpenShopCategory, // data = shop category index (0=skinmani, 1=gundesign, 2=knockout, 3=utility)
 		BuyShopItem, // data = A(category), B(item index)
+		// 1on1 duel config actions
+		DuelSetPoints, // data = A(new points limit)
+		DuelToggleWeapon, // data = A(weapon index 0..5)
+		DuelToggleEndlessHook,
+		DuelSetTimeLimit, // data = A(new time limit in seconds)
+		DuelToggleSpawnMode,
+		DuelReady,
 	};
 
 	struct Action
@@ -69,6 +76,10 @@ public:
 	// query helpers
 	bool IsAtRoot(int ClientId);
 
+	// force a client onto the DUEL_CONFIG page (used when entering 1on1 config phase)
+	void ForceDuelConfigPage(int ClientId, CPlayer *pPlayer, IServer *pServer, CGameContext *pGameContext);
+	void RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext);
+
 private:
 	// exact option text => action mapping for last sent menu for that client
 	std::unordered_map<int, std::vector<std::pair<std::string, Action>>> m_MapByClient;
@@ -90,6 +101,7 @@ private:
 			COSMETICS_CATEGORY,
 			SHOP,
 			SHOP_CATEGORY, // Data = shop category index
+			DUEL_CONFIG, // 1on1 match configuration dashboard
 		} PageType{ROOT};
 		int Data{-1};
 	};
@@ -98,7 +110,6 @@ private:
 
 private:
 	// rendering helpers
-	void RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext);
 	void BuildRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
 	void BuildRules(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
 	void BuildLeaderboards(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
@@ -110,11 +121,13 @@ private:
 	void BuildCosmeticsCategory(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int CategoryIndex, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
 	void BuildShop(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
 	void BuildShopCategory(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int CategoryIndex, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
+	void BuildDuelConfig(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
 
 	// nav helpers
 	void PushPage(int ClientID, Page::Type T, int Data = -1);
 	bool PopPage(int ClientID);
 	const std::vector<Page> &GetStack(int ClientID);
+	std::vector<Page> &GetPageStackMut(int ClientID) { return m_PageStack[ClientID]; }
 };
 
 extern CVoteManager g_VoteManager;

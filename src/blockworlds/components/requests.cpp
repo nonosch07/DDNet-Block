@@ -604,8 +604,8 @@ bool CRequests::AcceptRequest(int RequestId)
 		}
 		if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>(); mgr)
 		{
-			// create a new independent 1on1 match via manager (allows multiple concurrent matches)
-			auto match = mgr->CreateMatch(from, to, wager);
+			// create a new independent 1on1 match via manager with config phase
+			auto match = mgr->CreateMatchWithConfig(from, to, wager);
 			if(!match)
 			{
 				if(CheckClientId(from) && GameServer()->m_apPlayers[from])

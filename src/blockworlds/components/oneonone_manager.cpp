@@ -6,6 +6,8 @@
 #include <game/server/player.h>
 #include <game/server/save.h>
 
+#include <blockworlds/votes/votemanager.h>
+
 #include <algorithm>
 
 COneOnOneManager::COneOnOneManager(CGameContext *pGameServer) :
@@ -41,6 +43,38 @@ std::shared_ptr<COneOnOneEvent> COneOnOneManager::CreateMatch(int Player1ID, int
 		std::lock_guard<std::mutex> g(m_Mutex);
 		m_Matches.erase(std::remove_if(m_Matches.begin(), m_Matches.end(), [&](const std::shared_ptr<COneOnOneEvent> &m) { return m == match; }), m_Matches.end());
 		dbg_msg("oneonone", "CreateMatch failed: Initialize returned false for players %d vs %d", Player1ID, Player2ID);
+		return nullptr;
+	}
+
+	return match;
+}
+
+std::shared_ptr<COneOnOneEvent> COneOnOneManager::CreateMatchWithConfig(int Player1ID, int Player2ID, int Wager)
+{
+	if(!GameServer()->GetPlayer(Player1ID) || !GameServer()->GetPlayer(Player2ID))
+	{
+		dbg_msg("oneonone", "CreateMatchWithConfig failed: one or both players not present (p1=%d p2=%d)", Player1ID, Player2ID);
+		return nullptr;
+	}
+
+	if(GetMatchForPlayer(Player1ID) || GetMatchForPlayer(Player2ID))
+	{
+		dbg_msg("oneonone", "CreateMatchWithConfig failed: one or both players already in an active match (p1=%d p2=%d)", Player1ID, Player2ID);
+		return nullptr;
+	}
+
+	auto match = std::make_shared<COneOnOneEvent>(GameServer());
+	{
+		std::lock_guard<std::mutex> g(m_Mutex);
+		m_Matches.push_back(match);
+	}
+
+	bool ok = match->InitializeConfigPhase(Player1ID, Player2ID, Wager);
+	if(!ok)
+	{
+		std::lock_guard<std::mutex> g(m_Mutex);
+		m_Matches.erase(std::remove_if(m_Matches.begin(), m_Matches.end(), [&](const std::shared_ptr<COneOnOneEvent> &m) { return m == match; }), m_Matches.end());
+		dbg_msg("oneonone", "CreateMatchWithConfig failed: InitializeConfigPhase returned false for players %d vs %d", Player1ID, Player2ID);
 		return nullptr;
 	}
 
@@ -135,12 +169,33 @@ void COneOnOneManager::OnPlayerDropping(int ClientId)
 
 	for(const auto &m : snapshot)
 	{
-		if(m && m->GetState() == COneOnOneEvent::EEventState::Active)
+		if(m && (m->GetState() == COneOnOneEvent::EEventState::Active || m->GetState() == COneOnOneEvent::EEventState::Preparation))
 		{
 			auto parts = m->Participants();
 			if(std::find(parts.begin(), parts.end(), ClientId) != parts.end())
 			{
-				m->OnPlayerDropping(ClientId);
+				if(m->GetState() == COneOnOneEvent::EEventState::Preparation)
+				{
+					// player dropped during config phase — abort with full cleanup
+					int otherCid = (ClientId == m->m_Player1ID) ? m->m_Player2ID : m->m_Player1ID;
+					GameServer()->SendChatTarget(otherCid, "[1on1] Opponent disconnected during warmup. Match cancelled.");
+
+					// clear duel config vote pages
+					extern CVoteManager g_VoteManager;
+					for(int cid : {m->m_Player1ID, m->m_Player2ID})
+					{
+						auto &Stack = g_VoteManager.GetPageStackMut(cid);
+						Stack.clear();
+						Stack.push_back(CVoteManager::Page{CVoteManager::Page::ROOT, -1});
+						GameServer()->ClearVotes(cid);
+					}
+
+					m->AbortAndRefund(nullptr);
+				}
+				else
+				{
+					m->OnPlayerDropping(ClientId);
+				}
 			}
 		}
 	}
@@ -156,7 +211,7 @@ void COneOnOneManager::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 
 	for(const auto &m : snapshot)
 	{
-		if(m && m->GetState() == COneOnOneEvent::EEventState::Active)
+		if(m && (m->GetState() == COneOnOneEvent::EEventState::Active || m->GetState() == COneOnOneEvent::EEventState::Preparation))
 		{
 			auto parts = m->Participants();
 			if(std::find(parts.begin(), parts.end(), ClientId) != parts.end())

@@ -13,6 +13,16 @@
 #include <memory>
 #include <mutex>
 
+// match configuration set during the Preparation (config) phase
+struct SMatchConfig
+{
+	int m_PointsLimit = 10; // first to X wins (3, 5, 7, 10)
+	int m_TimeLimit = 0; // seconds (0=unlimited, 120=2min, 300=5min, 600=10min)
+	bool m_EndlessHook = false;
+	bool m_aWeapons[6] = {true, true, false, false, false, false}; // HAMMER..NINJA (default: hammer+gun only)
+	int m_SpawnMode = 0; // 0=normal (fixed tiles), 1=random (pick from all 1on1 tiles)
+};
+
 class COneOnOneEvent : public CComponent
 {
 public:
@@ -31,6 +41,15 @@ public:
 	bool Leave(int ClientId);
 
 	bool Initialize(int Player1ID, int Player2ID, int Wager = 0);
+
+	// configuration phase: after acceptance, enter Preparation state for config
+	bool InitializeConfigPhase(int Player1ID, int Player2ID, int Wager = 0);
+	void StartMatchFromConfig(); // called when both players click Ready
+	bool IsInConfigPhase() const { return GetState() == EEventState::Preparation; }
+
+	SMatchConfig m_Config;
+	bool m_aReady[2] = {false, false}; // ready state for both players (index 0=P1, 1=P2)
+	int m_ConfigStartTick = -1; // tick when config phase started
 
 	void OnTick() override;
 	void OnCharacterSpawn(int ClientId, vec2 SpawnPos) override;
@@ -119,6 +138,9 @@ public:
 	// deferred scoring to avoid wrong awards on same-tick or near-tick dual deaths
 	int m_PendingAwardTo = 0; // 0 none, 1 award to P1, 2 award to P2
 	int m_PendingAwardTick = -1; // tick when pending award was set
+
+	// match time limit tracking (set from m_Config.m_TimeLimit when match starts)
+	int m_MatchStartTick = -1; // tick when Active phase began (for time limit)
 
 	// perma-freeze tracking (in-freeze tiles) to evaluate draw-at-death consistently
 	bool m_P1InFreezeTile = false;

@@ -17,6 +17,9 @@
 
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
+#include <blockworlds/components/events/1on1.h>
+#include <blockworlds/components/oneonone_manager.h>
+#include <blockworlds/votes/votemanager.h>
 
 #include <algorithm>
 #include <blockworlds/zones/zone.h>
@@ -977,6 +980,70 @@ void CGameContext::ConKnockout(IConsole::IResult *pResult, void *pUserData)
 	char aBuf[128];
 	str_format(aBuf, sizeof(aBuf), "Triggered '%s' at (%.0f, %.0f)", CCosmeticsHandler::ms_KnockoutNames[Effect], MousePos.x, MousePos.y);
 	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+}
+
+void CGameContext::ConWhoisAccount(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	const char *pName = pResult->GetString(0);
+	if(!pName || !pName[0])
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "Usage: whois_account <account name>");
+		return;
+	}
+
+	// search online players for matching account name
+	CPlayer *pFound = nullptr;
+	int FoundClientId = -1;
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		CPlayer *pPlayer = pSelf->m_apPlayers[i];
+		if(!pPlayer || !pPlayer->IsLoggedIn())
+			continue;
+		if(str_comp_nocase(pPlayer->GetPlayerName(), pName) == 0)
+		{
+			pFound = pPlayer;
+			FoundClientId = i;
+			break;
+		}
+	}
+
+	if(!pFound)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "No online player found with that account name.");
+		return;
+	}
+
+	char aBuf[256];
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "--- Account Info ---");
+	str_format(aBuf, sizeof(aBuf), "Client ID: %d | Tee Name: %s", FoundClientId, pSelf->Server()->ClientName(FoundClientId));
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", aBuf);
+	str_format(aBuf, sizeof(aBuf), "Account: %s (ID: %d)", pFound->GetPlayerName(), pFound->GetAccId());
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", aBuf);
+	str_format(aBuf, sizeof(aBuf), "Level: %d | EXP: %d | Ranking: %d", pFound->GetPlayerLevel(), pFound->GetPlayerExperience(), pFound->GetPlayerRanking());
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", aBuf);
+	str_format(aBuf, sizeof(aBuf), "Blockpoints: %d | Kills: %d | Deaths: %d | K/D: %.2f",
+		pFound->GetPlayerBlockpoints(), pFound->GetPlayerKills(), pFound->GetPlayerDeaths(),
+		pFound->GetPlayerDeaths() > 0 ? (float)pFound->GetPlayerKills() / (float)pFound->GetPlayerDeaths() : (float)pFound->GetPlayerKills());
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", aBuf);
+	str_format(aBuf, sizeof(aBuf), "VIP: %s | Pages: %d | Weaponkits: %d", pFound->GetPlayerVip() ? "Yes" : "No", pFound->GetPlayerPages(), pFound->GetPlayerWeaponkits());
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", aBuf);
+	str_format(aBuf, sizeof(aBuf), "Killstreak: %d | Tourney Wins: %d", pFound->GetPlayerKillstreak(), pFound->GetPlayerTourneyWin());
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", aBuf);
+	str_format(aBuf, sizeof(aBuf), "Ranked: %d games | %d wins | %d kills | %d deaths",
+		pFound->GetPlayerRankedGames(), pFound->GetPlayerRankedWins(), pFound->GetPlayerRankedKills(), pFound->GetPlayerRankedDeaths());
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", aBuf);
+
+	long long pt = pFound->GetPlayerPlaytime();
+	int hours = (int)(pt / 3600);
+	int mins = (int)((pt % 3600) / 60);
+	str_format(aBuf, sizeof(aBuf), "Playtime: %dh %dm | Passive: %ds | Clan ID: %d", hours, mins, pFound->GetPlayerPassive(), pFound->GetClanId());
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", aBuf);
+	str_format(aBuf, sizeof(aBuf), "Address: %s | Registered: %s", pFound->GetPlayerAddress(), pFound->GetPlayerRegisterDate());
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", aBuf);
+	str_format(aBuf, sizeof(aBuf), "Last Skin: %s | Last Name: %s", pFound->GetPlayerLastSkin(), pFound->GetPlayerLastName());
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", aBuf);
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "--------------------");
 }
 
 void CGameContext::ConGiveLevel(IConsole::IResult *pResult, void *pUserData)
@@ -2628,6 +2695,73 @@ void CGameContext::Con1on1Decline(IConsole::IResult *pResult, void *pUserData)
 	pSelf->SendChatTarget(pResult->m_ClientId, "Request subsystem is not available.");
 }
 
+void CGameContext::Con1on1Ready(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	if(!g_Config.m_SvAccountsystem)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+
+	if(!g_Config.m_Sv1on1system)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "1on1 matches are currently disabled.");
+
+	auto mgr = g_ComponentRegistry.Get<COneOnOneManager>();
+	if(!mgr)
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "1on1 system is not available.");
+		return;
+	}
+
+	auto match = mgr->GetMatchForPlayer(pResult->m_ClientId);
+	if(!match || !match->IsInConfigPhase())
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "You are not in a 1on1 warmup phase.");
+		return;
+	}
+
+	int myIdx = (pResult->m_ClientId == match->m_Player1ID) ? 0 : 1;
+	match->m_aReady[myIdx] = !match->m_aReady[myIdx];
+
+	if(match->m_aReady[myIdx])
+	{
+		pSelf->SendChatTarget(match->m_Player1ID, "[1on1] %s is ready!", pSelf->Server()->ClientName(pResult->m_ClientId));
+		pSelf->SendChatTarget(match->m_Player2ID, "[1on1] %s is ready!", pSelf->Server()->ClientName(pResult->m_ClientId));
+	}
+	else
+	{
+		pSelf->SendChatTarget(match->m_Player1ID, "[1on1] %s is no longer ready.", pSelf->Server()->ClientName(pResult->m_ClientId));
+		pSelf->SendChatTarget(match->m_Player2ID, "[1on1] %s is no longer ready.", pSelf->Server()->ClientName(pResult->m_ClientId));
+	}
+
+	if(match->m_aReady[0] && match->m_aReady[1])
+	{
+		// both ready — clear vote pages and start
+		extern CVoteManager g_VoteManager;
+		for(int cid : {match->m_Player1ID, match->m_Player2ID})
+		{
+			auto &Stack = g_VoteManager.GetPageStackMut(cid);
+			Stack.clear();
+			Stack.push_back(CVoteManager::Page{CVoteManager::Page::ROOT, -1});
+			pSelf->ClearVotes(cid);
+		}
+		match->StartMatchFromConfig();
+	}
+	else
+	{
+		// re-render vote menu for both players to show updated ready state
+		extern CVoteManager g_VoteManager;
+		for(int cid : {match->m_Player1ID, match->m_Player2ID})
+		{
+			CPlayer *pP = pSelf->GetPlayer(cid);
+			if(pP)
+			{
+				pSelf->ClearVotes(cid);
+				g_VoteManager.RenderCurrentPage(pP, cid, pSelf->Server(), pSelf);
+			}
+		}
+	}
+}
+
 void CGameContext::ConJoinEvent(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
@@ -2693,6 +2827,42 @@ void CGameContext::ConLeaveEvent(IConsole::IResult *pResult, void *pUserData)
 
 	if(!pPlayer)
 		return;
+
+	// check if player is in a 1on1 match (any phase)
+	if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>(); mgr)
+	{
+		auto match = mgr->GetMatchForPlayer(pResult->m_ClientId);
+		if(match)
+		{
+			auto state = match->GetState();
+			if(state == COneOnOneEvent::EEventState::Preparation)
+			{
+				// during warmup/config phase — cancel without penalty, no escrow was collected
+				int otherCid = (pResult->m_ClientId == match->m_Player1ID) ? match->m_Player2ID : match->m_Player1ID;
+				pSelf->SendChatTarget(pResult->m_ClientId, "[1on1] You left the warmup. Match cancelled.");
+				pSelf->SendChatTarget(otherCid, "[1on1] Your opponent left during warmup. Match cancelled.");
+
+				// clear duel config vote pages for both
+				extern CVoteManager g_VoteManager;
+				for(int cid : {match->m_Player1ID, match->m_Player2ID})
+				{
+					auto &Stack = g_VoteManager.GetPageStackMut(cid);
+					Stack.clear();
+					Stack.push_back(CVoteManager::Page{CVoteManager::Page::ROOT, -1});
+					pSelf->ClearVotes(cid);
+				}
+
+				match->AbortAndRefund(nullptr);
+				return;
+			}
+			else if(state == COneOnOneEvent::EEventState::Active)
+			{
+				// during active match — leave counts as ragequit (opponent wins)
+				match->Leave(pResult->m_ClientId);
+				return;
+			}
+		}
+	}
 
 	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
 	{

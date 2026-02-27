@@ -17,6 +17,7 @@ public:
 	[[nodiscard]] const char *GetName() const override { return GetNameStatic(); }
 
 	std::shared_ptr<COneOnOneEvent> CreateMatch(int Player1ID, int Player2ID, int Wager = 0);
+	std::shared_ptr<COneOnOneEvent> CreateMatchWithConfig(int Player1ID, int Player2ID, int Wager = 0);
 	std::shared_ptr<COneOnOneEvent> GetMatchForPlayer(int ClientId) const;
 
 	// forwarding hooks

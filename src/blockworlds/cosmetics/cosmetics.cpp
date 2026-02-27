@@ -30,8 +30,6 @@ const char *CCosmeticsHandler::ms_KnockoutNames[NUM_KNOCKOUTS] = {
 	"KO PRO",
 
 	"Sorry c: (Teemo)",
-	"Tornado",
-	"Skull",
 	"GG",
 	"Lightning",
 	"Splash (VIP)",
@@ -51,6 +49,7 @@ const char *CCosmeticsHandler::ms_GundesignNames[NUM_GUNDESIGNS] = {
 	"1337 gun",
 	"Shuriken",
 	"Sparkler",
+	"Laser Dots",
 	"Stargun (VIP)",
 };
 
@@ -266,18 +265,6 @@ void CCosmeticsHandler::DoKnockoutEffectRaw(vec2 Pos, int Effect)
 		GameServer()->Animations()->Laserwrite("PRO", Pos + vec2(0, 10.0f), 10.0f, Server()->TickSpeed() * 0.7f);
 	else if(Effect == KNOCKOUT_VIP_SPLASH)
 		GameServer()->Animations()->DoAnimation(Pos, CAnimationHandler::ANIMATION_SPLASH);
-	else if(Effect == KNOCKOUT_TORNADO)
-	{
-		for(int i = 0; i < 16; i++)
-		{
-			float a = (float)i / 16.0f * 4.0f * pi;
-			float dist = 10.0f + (float)i * 5.0f;
-			GameServer()->CreateDamageInd(Pos + direction(a) * dist, a + pi, 1);
-		}
-		GameServer()->CreateSound(Pos, SOUND_PLAYER_AIRJUMP);
-	}
-	else if(Effect == KNOCKOUT_SKULL)
-		GameServer()->Animations()->Laserwrite("🕱", Pos + vec2(0, 10.0f), 10.0f, Server()->TickSpeed() * 0.7f);
 	else if(Effect == KNOCKOUT_GG)
 		GameServer()->Animations()->Laserwrite("GG", Pos + vec2(0, 10.0f), 10.0f, Server()->TickSpeed() * 0.7f);
 	else if(Effect == KNOCKOUT_LIGHTNING)
@@ -450,6 +437,15 @@ bool CCosmeticsHandler::DoGundesignRaw(vec2 Pos, int Effect, vec2 Direction)
 			GameServer()->CreateDamageInd(Pos + direction(a) * dist, a, 1);
 		}
 	}
+	else if(Effect == GUNDESIGN_LASERDOTS)
+	{
+		// scatter of small laser-like damage indicators
+		for(int i = 0; i < 5; i++)
+		{
+			float a = ((float)i / 5.0f) * 2.0f * pi;
+			GameServer()->CreateDamageInd(Pos + direction(a) * 20.0f, a + pi, 1);
+		}
+	}
 	else
 		return false;
 
@@ -555,6 +551,17 @@ bool CCosmeticsHandler::SnapGundesignRaw(vec2 Pos, vec2 Dir, int Effect, int Ent
 		float a = ((float)(Server()->Tick() * 7 % 31)) / 31.0f * 2.0f * pi;
 		float dist = 12.0f + ((Server()->Tick() * 13 % 17) / 17.0f) * 20.0f;
 		GameServer()->CreateDamageInd(Pos + direction(a) * dist, a + pi, 1, CClientMask().set(SnappingClient));
+		return false; // show normal bullet too
+	}
+	else if(Effect == GUNDESIGN_LASERDOTS)
+	{
+		// two laser-like dots orbiting the bullet
+		float BaseAngle = (float)(Server()->Tick() % 12) / 12.0f * 2.0f * pi;
+		for(int i = 0; i < 2; i++)
+		{
+			float a = BaseAngle + pi * i;
+			GameServer()->CreateDamageInd(Pos + direction(a) * 14.0f, a + pi, 1, CClientMask().set(SnappingClient));
+		}
 		return false; // show normal bullet too
 	}
 
@@ -947,6 +954,13 @@ bool CCosmeticsHandler::ShopInfoGundesign(int Index, int &Price, int &Level, vec
 		PreviewPos = vec2(6862.0f, 3729.0f);
 		return true;
 	}
+	else if(Index == CCosmeticsHandler::GUNDESIGN_LASERDOTS)
+	{
+		Price = 6000;
+		Level = 360;
+		PreviewPos = vec2(6478.0f, 3729.0f);
+		return true;
+	}
 	else
 	{
 		return false;
@@ -1025,24 +1039,10 @@ bool CCosmeticsHandler::ShopInfoKnockout(int Index, int &Price, int &Level, vec2
 		PreviewPos = vec2(6478.0f, 5265.0f);
 		return true;
 	}
-	else if(Index == CCosmeticsHandler::KNOCKOUT_TORNADO)
+	else if(Index == CCosmeticsHandler::KNOCKOUT_GG)
 	{
 		Price = 5000;
 		Level = 330;
-		PreviewPos = vec2(6862.0f, 5265.0f);
-		return true;
-	}
-	else if(Index == CCosmeticsHandler::KNOCKOUT_SKULL)
-	{
-		Price = 5500;
-		Level = 350;
-		PreviewPos = vec2(7246.0f, 5265.0f);
-		return true;
-	}
-	else if(Index == CCosmeticsHandler::KNOCKOUT_GG)
-	{
-		Price = 6000;
-		Level = 370;
 		PreviewPos = vec2(7630.0f, 5265.0f);
 		return true;
 	}

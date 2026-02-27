@@ -241,6 +241,15 @@ void CProjectile::Tick()
 		}
 		else if(m_Type == WEAPON_GUN)
 		{
+			// trigger emote on target tee for certain gundesigns
+			if(pTargetChr && m_Owner >= 0 && GameServer()->m_apPlayers[m_Owner])
+			{
+				int GD = GameServer()->m_apPlayers[m_Owner]->GetGunDesign();
+				if(GD == CCosmeticsHandler::GUNDESIGN_LASERDOTS)
+					GameServer()->SendEmoticon(pTargetChr->GetPlayer()->GetCid(), EMOTICON_GHOST, -1);
+				else if(GD == CCosmeticsHandler::GUNDESIGN_HEART)
+					GameServer()->SendEmoticon(pTargetChr->GetPlayer()->GetCid(), EMOTICON_HEARTS, -1);
+			}
 			if(!GameServer()->Cosmetics()->DoGundesign(m_Owner, CurPos, m_Direction))
 				GameServer()->CreateDamageInd(CurPos, -std::atan2(m_Direction.x, m_Direction.y), 10, (m_Owner != -1) ? TeamMask : CClientMask().set());
 			m_MarkedForDestroy = true;
