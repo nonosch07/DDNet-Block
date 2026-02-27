@@ -969,6 +969,14 @@ void CCharacter::TickDeferred()
 	bool StuckAfterQuant = Collision()->TestBox(m_Core.m_Pos, CCharacterCore::PhysicalSizeVec2());
 	m_Pos = m_Core.m_Pos;
 
+	if(m_TelekinesisHeld)
+	{
+		m_Core.m_Pos = m_TelekinesisTargetPos;
+		m_Core.m_Vel = vec2(0, 0);
+		m_Pos = m_TelekinesisTargetPos;
+		m_TelekinesisHeld = false;
+	}
+
 	if(!StuckBefore && (StuckAfterMove || StuckAfterQuant))
 	{
 		// Hackish solution to get rid of strict-aliasing warning
@@ -2324,6 +2332,15 @@ void CCharacter::DDRaceTick()
 	}
 
 	HandleTuneLayer(); // need this before coretick
+
+	// Telekinesis: zero gravity and freeze input while held
+	if(m_TelekinesisHeld)
+	{
+		m_Core.m_Tuning.m_Gravity = 0.0f;
+		m_Input.m_Direction = 0;
+		m_Input.m_Jump = 0;
+		m_Input.m_Hook = 0;
+	}
 
 	// check if the tee is in any type of freeze
 	int Index = Collision()->GetPureMapIndex(m_Pos);

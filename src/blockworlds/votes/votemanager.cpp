@@ -296,6 +296,8 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 					bool EnabledForMessage = pPlayer->IsUsingPassiveProtection() || pPlayer->IsPassivePendingEnable();
 					pGameContext->SendChatTarget(ClientId, EnabledForMessage ? "Passive protection enabled." : "Passive protection disabled.");
 					pGameContext->ClearVotes(ClientId);
+					if(IsAtRoot(ClientId))
+						pGameContext->ProgressVoteOptions(ClientId, true);
 					RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
 				}
 				return true;
@@ -331,6 +333,8 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 					pPlayer->m_HideCosmetics = !pPlayer->m_HideCosmetics;
 					pGameContext->SendChatTarget(ClientId, pPlayer->m_HideCosmetics ? "Cosmetics hidden." : "Cosmetics visible.");
 					pGameContext->ClearVotes(ClientId);
+					if(IsAtRoot(ClientId))
+						pGameContext->ProgressVoteOptions(ClientId, true);
 					RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
 				}
 				return true;
@@ -343,6 +347,8 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 					str_format(aMsg, sizeof(aMsg), "Scoreboard now shows: %s", apModes[A.A]);
 					pGameContext->SendChatTarget(ClientId, aMsg);
 					pGameContext->ClearVotes(ClientId);
+					if(IsAtRoot(ClientId))
+						pGameContext->ProgressVoteOptions(ClientId, true);
 					RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
 				}
 				return true;
@@ -359,15 +365,16 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 			case EActionKind::BuyShopItem:
 				if(pPlayer && pGameContext)
 				{
-					CCharacter *pChar = pPlayer->GetCharacter();
-					if(!pChar)
+					if(!pPlayer->IsLoggedIn())
 					{
-						pGameContext->SendChatTarget(ClientId, "You need to be alive to buy items.");
+						pGameContext->SendChatTarget(ClientId, "You need to be logged in to make purchases.");
 					}
 					else
 					{
-						// create a purchase offer (player confirms with /yes)
-						new CShop(pGameContext, pPlayer, A.A, A.B, 15);
+						CShop::InstantPurchase(pGameContext, pPlayer, A.A, A.B);
+						// Re-render the current shop category page so the item shows as "Owned"
+						pGameContext->ClearVotes(ClientId);
+						RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
 					}
 				}
 				return true;

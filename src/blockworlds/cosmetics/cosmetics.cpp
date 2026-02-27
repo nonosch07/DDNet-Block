@@ -50,7 +50,7 @@ const char *CCosmeticsHandler::ms_GundesignNames[NUM_GUNDESIGNS] = {
 
 	"1337 gun",
 	"Shuriken",
-	"Zigzag",
+	"Pathfinder",
 	"Sparkler",
 	"Stargun (VIP)",
 };
@@ -376,6 +376,10 @@ bool CCosmeticsHandler::HasGundesign(int ClientID, int Index)
 		(Index == GUNDESIGN_VIP_STARGUN))
 		return true;
 
+	// Pathfinder is authed-only (already covered by the ClientAuthed check above)
+	if(Index == GUNDESIGN_PATHFINDER)
+		return false;
+
 	return GameServer()->GetPlayer(ClientID)->GetPlayerGundesign()[Index] == '1';
 }
 
@@ -441,13 +445,15 @@ bool CCosmeticsHandler::DoGundesignRaw(vec2 Pos, int Effect, vec2 Direction)
 			GameServer()->CreateDamageInd(Pos + direction(a) * 24.0f, a + pi, 1);
 		}
 	}
-	else if(Effect == GUNDESIGN_ZIGZAG)
+	else if(Effect == GUNDESIGN_PATHFINDER)
 	{
-		// alternating offset damage indicators
+		// show 3 converging waypoint arrows toward the hit position
 		float BaseAngle = angle(Direction);
-		float Perp = BaseAngle + pi / 2.0f;
-		GameServer()->CreateDamageInd(Pos + direction(Perp) * 20.0f, BaseAngle + pi, 1);
-		GameServer()->CreateDamageInd(Pos - direction(Perp) * 20.0f, BaseAngle + pi, 1);
+		for(int i = -1; i <= 1; i++)
+		{
+			float a = BaseAngle + (float)i * 0.4f;
+			GameServer()->CreateDamageInd(Pos - direction(a) * 32.0f, a, 1);
+		}
 	}
 	else if(Effect == GUNDESIGN_SPARKLER)
 	{
@@ -558,17 +564,39 @@ bool CCosmeticsHandler::SnapGundesignRaw(vec2 Pos, vec2 Dir, int Effect, int Ent
 		}
 		return false;
 	}
-	else if(Effect == GUNDESIGN_ZIGZAG)
+	else if(Effect == GUNDESIGN_PATHFINDER)
 	{
-		// offset the bullet left/right each tick
-		float Perp = angle(Dir) + pi / 2.0f;
-		float Offset = (Server()->Tick() % 2 == 0) ? 14.0f : -14.0f;
-		vec2 ZigPos = Pos + direction(Perp) * Offset;
-		// trail spark at opposite side
-		GameServer()->CreateDamageInd(Pos - direction(Perp) * Offset, angle(Dir) + pi, 1, CClientMask().set(SnappingClient));
-		// snap the bullet at zigzag position
-		GameServer()->SnapPickup(CSnapContext(SnappingClientVersion, Sixup), EntityID, ZigPos, POWERUP_ARMOR, 0, 0, PICKUPFLAG_NO_PREDICT);
-		return true;
+		// Lightweight pathfinder: cast rays to show waypoints that navigate around walls
+		CCollision *pCol = GameServer()->Collision();
+		float BaseAngle = angle(Dir);
+		vec2 Cur = Pos;
+		float StepLen = 48.0f;
+		int NumWaypoints = 3;
+
+		for(int w = 0; w < NumWaypoints; w++)
+		{
+			// Try forward first, then slight turns
+			static const float Offsets[] = {0.0f, 0.35f, -0.35f, 0.7f, -0.7f};
+			bool Found = false;
+			for(float Off : Offsets)
+			{
+				float TryAngle = BaseAngle + Off;
+				vec2 TryEnd = Cur + direction(TryAngle) * StepLen;
+				vec2 CollisionPoint;
+				if(!pCol->IntersectLine(Cur, TryEnd, &CollisionPoint, nullptr))
+				{
+					// Path is clear — place a waypoint
+					GameServer()->CreateDamageInd(TryEnd, TryAngle + pi, 1, CClientMask().set(SnappingClient));
+					Cur = TryEnd;
+					BaseAngle = TryAngle; // continue in the new direction
+					Found = true;
+					break;
+				}
+			}
+			if(!Found)
+				break; // boxed in
+		}
+		return false; // show normal bullet too
 	}
 	else if(Effect == GUNDESIGN_SPARKLER)
 	{
@@ -961,12 +989,10 @@ bool CCosmeticsHandler::ShopInfoGundesign(int Index, int &Price, int &Level, vec
 		PreviewPos = vec2(6094.0f, 3729.0f);
 		return true;
 	}
-	else if(Index == CCosmeticsHandler::GUNDESIGN_ZIGZAG)
+	else if(Index == CCosmeticsHandler::GUNDESIGN_PATHFINDER)
 	{
-		Price = 6000;
-		Level = 350;
-		PreviewPos = vec2(6478.0f, 3729.0f);
-		return true;
+		// authed-only, not sold in shop
+		return false;
 	}
 	else if(Index == CCosmeticsHandler::GUNDESIGN_SPARKLER)
 	{

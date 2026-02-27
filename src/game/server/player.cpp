@@ -384,7 +384,9 @@ void CPlayer::Tick()
 				CCharacter *pTarget = GameServer()->GetPlayerChar(m_TelekinesisTarget);
 				if(pTarget && pTarget->IsAlive())
 				{
-					// smoothly move the target towards cursor position
+					// mark target as held; gravity=0 + position override happen in Character tick
+					pTarget->m_TelekinesisHeld = true;
+					pTarget->m_TelekinesisTargetPos = CursorWorldPos;
 					pTarget->Core()->m_Pos = CursorWorldPos;
 					pTarget->Core()->m_Vel = vec2(0, 0);
 					pTarget->m_Pos = CursorWorldPos;

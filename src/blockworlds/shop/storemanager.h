@@ -36,6 +36,10 @@ public:
 	void Purchase();
 	void Decline();
 
+	// Instant purchase: validates and buys in one call, no /yes /no.
+	// Returns true if the purchase succeeded.
+	static bool InstantPurchase(CGameContext *pGameContext, CPlayer *pOwner, int Category, int Cosmetics);
+
 	CGameContext *GameServer() { return m_pGameContext; }
 	CCosmeticsHandler *CosmeticsHandler() { return m_pCosmeticsHandler; }
 };

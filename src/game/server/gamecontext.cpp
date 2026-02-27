@@ -3338,6 +3338,19 @@ void CGameContext::OnShowDistanceNetMessage(const CNetMsg_Cl_ShowDistance *pMsg,
 {
 	CPlayer *pPlayer = m_apPlayers[ClientId];
 	pPlayer->m_ShowDistance = vec2(pMsg->m_X, pMsg->m_Y);
+
+	// Compute zoom level from screen dimensions
+	// CalcScreenParams: W_base * H_base = 1150000 (before WMax/HMax clamp)
+	if(pMsg->m_X > 0 && pMsg->m_Y > 0)
+	{
+		float Aspect = (float)pMsg->m_X / (float)pMsg->m_Y;
+		float f = std::sqrt(1150.0f * 1000.0f / Aspect);
+		float BaseH = f;
+		float BaseW = f * Aspect;
+		if(BaseW > 1500.0f) { BaseW = 1500.0f; BaseH = BaseW / Aspect; }
+		if(BaseH > 1050.0f) { BaseH = 1050.0f; }
+		pPlayer->m_Zoom = (float)pMsg->m_Y / BaseH;
+	}
 }
 
 void CGameContext::OnSetSpectatorModeNetMessage(const CNetMsg_Cl_SetSpectatorMode *pMsg, int ClientId)

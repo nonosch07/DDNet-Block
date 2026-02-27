@@ -285,3 +285,133 @@ void CShop::Decline()
 {
 	Destroy(false);
 }
+
+bool CShop::InstantPurchase(CGameContext *pGameContext, CPlayer *pOwner, int Category, int Cosmetics)
+{
+	if(!pGameContext || !pOwner)
+		return false;
+
+	CCosmeticsHandler *pCosmetics = pGameContext->Cosmetics();
+	if(!pCosmetics)
+		return false;
+
+	int ClientId = pOwner->GetCid();
+
+	if(!pOwner->IsLoggedIn())
+	{
+		pGameContext->SendChatTarget(ClientId, "You need to be logged in to make purchases.");
+		return false;
+	}
+
+	// Validate index
+	bool ValidIndex = false;
+	switch(Category)
+	{
+	case CATEGORY_GUNDESIGN: ValidIndex = (Cosmetics >= 0 && Cosmetics < CCosmeticsHandler::NUM_GUNDESIGNS); break;
+	case CATEGORY_KNOCKOUT: ValidIndex = (Cosmetics >= 0 && Cosmetics < CCosmeticsHandler::NUM_KNOCKOUTS); break;
+	case CATEGORY_SKINMANI: ValidIndex = (Cosmetics >= 0 && Cosmetics < CCosmeticsHandler::NUM_SKINMANIS); break;
+	case CATEGORY_UTILITY: ValidIndex = (Cosmetics >= 0 && Cosmetics < CCosmeticsHandler::NUM_UTILITY_ITEMS); break;
+	default: break;
+	}
+	if(!ValidIndex)
+	{
+		pGameContext->SendChatTarget(ClientId, "Invalid cosmetic selection.");
+		return false;
+	}
+
+	// Check already owned
+	bool HasCosmetic = false;
+	switch(Category)
+	{
+	case CATEGORY_GUNDESIGN: HasCosmetic = (pOwner->GetPlayerGundesign()[Cosmetics] == '1'); break;
+	case CATEGORY_KNOCKOUT: HasCosmetic = (pOwner->GetPlayerKnockouts()[Cosmetics] == '1'); break;
+	case CATEGORY_SKINMANI: HasCosmetic = (pOwner->GetPlayerSkinmani()[Cosmetics] == '1'); break;
+	case CATEGORY_UTILITY: break;
+	default: break;
+	}
+	if(HasCosmetic)
+	{
+		pGameContext->SendChatTarget(ClientId, "You already own this cosmetic.");
+		return false;
+	}
+
+	// Get price/level info
+	int Price = 0, Level = 0;
+	vec2 PreviewPos;
+	const char *pName = "<unknown>";
+	bool InfoOk = false;
+	switch(Category)
+	{
+	case CATEGORY_SKINMANI:
+		InfoOk = pCosmetics->ShopInfoSkinmani(Cosmetics, Price, Level, PreviewPos);
+		if(InfoOk && Cosmetics < CCosmeticsHandler::NUM_SKINMANIS)
+			pName = CCosmeticsHandler::ms_SkinmaniNames[Cosmetics];
+		break;
+	case CATEGORY_KNOCKOUT:
+		InfoOk = pCosmetics->ShopInfoKnockout(Cosmetics, Price, Level, PreviewPos);
+		if(InfoOk && Cosmetics < CCosmeticsHandler::NUM_KNOCKOUTS)
+			pName = CCosmeticsHandler::ms_KnockoutNames[Cosmetics];
+		break;
+	case CATEGORY_GUNDESIGN:
+		InfoOk = pCosmetics->ShopInfoGundesign(Cosmetics, Price, Level, PreviewPos);
+		if(InfoOk && Cosmetics < CCosmeticsHandler::NUM_GUNDESIGNS)
+			pName = CCosmeticsHandler::ms_GundesignNames[Cosmetics];
+		break;
+	case CATEGORY_UTILITY:
+		InfoOk = pCosmetics->ShopInfoUtility(Cosmetics, Price, Level, PreviewPos);
+		if(InfoOk)
+		{
+			if(Cosmetics == 0) pName = "Weapon Kit";
+			else if(Cosmetics == 1) pName = "Deathnote Page";
+			else pName = "Utility Item";
+		}
+		break;
+	default: break;
+	}
+	if(!InfoOk || Price <= 0)
+	{
+		pGameContext->SendChatTarget(ClientId, "Could not retrieve product info or invalid price.");
+		return false;
+	}
+
+	// Check balance
+	if(Price > pOwner->GetPlayerBlockpoints())
+	{
+		char aBuf[256];
+		str_format(aBuf, sizeof(aBuf), "You need %d blockpoints, but you only have %d bp.", Price, pOwner->GetPlayerBlockpoints());
+		pGameContext->SendChatTarget(ClientId, aBuf);
+		return false;
+	}
+
+	// Check level
+	if(Level > pOwner->GetPlayerLevel())
+	{
+		char aBuf[256];
+		str_format(aBuf, sizeof(aBuf), "You need to be at least level %d to purchase this item.", Level);
+		pGameContext->SendChatTarget(ClientId, aBuf);
+		return false;
+	}
+
+	// Deduct and grant
+	pOwner->SetPlayerBlockpoints(pOwner->GetPlayerBlockpoints() - Price);
+
+	char aBuf[256];
+	str_format(aBuf, sizeof(aBuf), "You have successfully bought '%s'.", pName);
+	pGameContext->SendChatTarget(ClientId, aBuf);
+
+	switch(Category)
+	{
+	case CATEGORY_KNOCKOUT: pOwner->SetPlayerKnockouts(Cosmetics, '1'); break;
+	case CATEGORY_GUNDESIGN: pOwner->SetPlayerGundesign(Cosmetics, '1'); break;
+	case CATEGORY_SKINMANI: pOwner->SetPlayerSkinmani(Cosmetics, '1'); break;
+	case CATEGORY_UTILITY:
+		if(Cosmetics == 0)
+			pOwner->SetPlayerWeaponkits(pOwner->GetPlayerWeaponkits() + 1);
+		else if(Cosmetics == 1)
+			pOwner->SetPlayerPages(pOwner->GetPlayerPages() + 1);
+		break;
+	default: break;
+	}
+
+	return true;
+}

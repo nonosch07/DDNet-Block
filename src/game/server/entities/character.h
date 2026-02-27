@@ -300,6 +300,9 @@ public:
 	CShop *m_PendingPurchase = nullptr;
 	int64_t m_LastShopTick = 0;
 
+	bool m_TelekinesisHeld = false;
+	vec2 m_TelekinesisTargetPos = vec2(0, 0);
+
 	// legacy clan requests removed; use centralized CRequests component instead
 	// CClanRequests *m_PendingClanRequests = nullptr;
 };
