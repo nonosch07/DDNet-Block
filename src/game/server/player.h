@@ -197,7 +197,6 @@ public:
 	int m_ShowOthers;
 	bool m_ShowAll;
 	vec2 m_ShowDistance;
-	float m_Zoom = 1.0f;
 	bool m_SpecTeam;
 	bool m_NinjaJetpack;
 

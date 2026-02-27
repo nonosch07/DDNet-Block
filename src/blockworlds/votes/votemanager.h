@@ -30,7 +30,6 @@ public:
 		None = 0,
 		Back,
 		Close,
-		OpenExtras,
 		OpenRules,
 		OpenLeaderboards,
 		OpenLeaderboardCategory, // data = category index (0=Level,1=Blockpoints,2=Killstreaks,3=Clans)
@@ -74,14 +73,13 @@ private:
 	// exact option text => action mapping for last sent menu for that client
 	std::unordered_map<int, std::vector<std::pair<std::string, Action>>> m_MapByClient;
 
-	// page stack: 0=root, 1=extras, 2=cosmetics-root, >=3=cosmetics-category (value stores category index)
+	// page stack: 0=root, 1=cosmetics-root, >=2=cosmetics-category (value stores category index)
 	struct Page
 	{
 		// type encodes which builder to use; data holds category index for cosmetics pages.
 		enum Type
 		{
 			ROOT = 0,
-			EXTRAS,
 			RULES,
 			LEADERBOARDS,
 			LEADERBOARD_DETAIL, // Data = category index
@@ -102,7 +100,6 @@ private:
 	// rendering helpers
 	void RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext);
 	void BuildRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
-	void BuildExtras(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
 	void BuildRules(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
 	void BuildLeaderboards(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
 	void BuildLeaderboardDetail(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int CategoryIndex, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);

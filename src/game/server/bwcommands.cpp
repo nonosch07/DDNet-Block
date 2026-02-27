@@ -921,6 +921,64 @@ void CGameContext::ConTelekinesis(IConsole::IResult *pResult, void *pUserData)
 	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
 }
 
+void CGameContext::ConKnockout(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int ClientId = pResult->m_ClientId;
+	if(!CheckClientId(ClientId))
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Invalid client id");
+		return;
+	}
+	CPlayer *pPlayer = pSelf->m_apPlayers[ClientId];
+	if(!pPlayer)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Player not found");
+		return;
+	}
+	CCharacter *pChr = pPlayer->GetCharacter();
+	if(!pChr)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "You must be alive to use this command");
+		return;
+	}
+
+	const char *pName = pResult->GetString(0);
+	if(!pName || !pName[0])
+	{
+		// list available knockouts
+		char aBuf[256];
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Available knockouts:");
+		for(int i = 0; i < CCosmeticsHandler::NUM_KNOCKOUTS; i++)
+		{
+			str_format(aBuf, sizeof(aBuf), "  %d: %s", i, CCosmeticsHandler::ms_KnockoutNames[i]);
+			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+		}
+		return;
+	}
+
+	// try parsing as number first, then as name
+	int Effect = -1;
+	if(pName[0] >= '0' && pName[0] <= '9')
+		Effect = str_toint(pName);
+	if(Effect < 0 || Effect >= CCosmeticsHandler::NUM_KNOCKOUTS)
+		Effect = pSelf->Cosmetics()->FindKnockoutEffect(pName);
+
+	if(Effect < 0 || Effect >= CCosmeticsHandler::NUM_KNOCKOUTS)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Unknown knockout. Use 'knockout' without arguments to list all.");
+		return;
+	}
+
+	const CNetObj_PlayerInput &Input = pChr->GetLatestInput();
+	vec2 MousePos = pChr->m_Pos + vec2(Input.m_TargetX, Input.m_TargetY);
+	pSelf->Cosmetics()->DoKnockoutEffectRaw(MousePos, Effect);
+
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "Triggered '%s' at (%.0f, %.0f)", CCosmeticsHandler::ms_KnockoutNames[Effect], MousePos.x, MousePos.y);
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+}
+
 void CGameContext::ConGiveLevel(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;

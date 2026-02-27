@@ -50,7 +50,6 @@ const char *CCosmeticsHandler::ms_GundesignNames[NUM_GUNDESIGNS] = {
 
 	"1337 gun",
 	"Shuriken",
-	"Pathfinder",
 	"Sparkler",
 	"Stargun (VIP)",
 };
@@ -376,10 +375,6 @@ bool CCosmeticsHandler::HasGundesign(int ClientID, int Index)
 		(Index == GUNDESIGN_VIP_STARGUN))
 		return true;
 
-	// Pathfinder is authed-only (already covered by the ClientAuthed check above)
-	if(Index == GUNDESIGN_PATHFINDER)
-		return false;
-
 	return GameServer()->GetPlayer(ClientID)->GetPlayerGundesign()[Index] == '1';
 }
 
@@ -443,16 +438,6 @@ bool CCosmeticsHandler::DoGundesignRaw(vec2 Pos, int Effect, vec2 Direction)
 		{
 			float a = BaseAngle + (pi / 2.0f) * i;
 			GameServer()->CreateDamageInd(Pos + direction(a) * 24.0f, a + pi, 1);
-		}
-	}
-	else if(Effect == GUNDESIGN_PATHFINDER)
-	{
-		// show 3 converging waypoint arrows toward the hit position
-		float BaseAngle = angle(Direction);
-		for(int i = -1; i <= 1; i++)
-		{
-			float a = BaseAngle + (float)i * 0.4f;
-			GameServer()->CreateDamageInd(Pos - direction(a) * 32.0f, a, 1);
 		}
 	}
 	else if(Effect == GUNDESIGN_SPARKLER)
@@ -563,40 +548,6 @@ bool CCosmeticsHandler::SnapGundesignRaw(vec2 Pos, vec2 Dir, int Effect, int Ent
 			GameServer()->CreateDamageInd(Pos + direction(a) * 18.0f, a + pi, 1, CClientMask().set(SnappingClient));
 		}
 		return false;
-	}
-	else if(Effect == GUNDESIGN_PATHFINDER)
-	{
-		// Lightweight pathfinder: cast rays to show waypoints that navigate around walls
-		CCollision *pCol = GameServer()->Collision();
-		float BaseAngle = angle(Dir);
-		vec2 Cur = Pos;
-		float StepLen = 48.0f;
-		int NumWaypoints = 3;
-
-		for(int w = 0; w < NumWaypoints; w++)
-		{
-			// Try forward first, then slight turns
-			static const float Offsets[] = {0.0f, 0.35f, -0.35f, 0.7f, -0.7f};
-			bool Found = false;
-			for(float Off : Offsets)
-			{
-				float TryAngle = BaseAngle + Off;
-				vec2 TryEnd = Cur + direction(TryAngle) * StepLen;
-				vec2 CollisionPoint;
-				if(!pCol->IntersectLine(Cur, TryEnd, &CollisionPoint, nullptr))
-				{
-					// Path is clear — place a waypoint
-					GameServer()->CreateDamageInd(TryEnd, TryAngle + pi, 1, CClientMask().set(SnappingClient));
-					Cur = TryEnd;
-					BaseAngle = TryAngle; // continue in the new direction
-					Found = true;
-					break;
-				}
-			}
-			if(!Found)
-				break; // boxed in
-		}
-		return false; // show normal bullet too
 	}
 	else if(Effect == GUNDESIGN_SPARKLER)
 	{
@@ -988,11 +939,6 @@ bool CCosmeticsHandler::ShopInfoGundesign(int Index, int &Price, int &Level, vec
 		Level = 320;
 		PreviewPos = vec2(6094.0f, 3729.0f);
 		return true;
-	}
-	else if(Index == CCosmeticsHandler::GUNDESIGN_PATHFINDER)
-	{
-		// authed-only, not sold in shop
-		return false;
 	}
 	else if(Index == CCosmeticsHandler::GUNDESIGN_SPARKLER)
 	{

@@ -218,11 +218,6 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
 				return true;
 			}
-			case EActionKind::OpenExtras:
-				PushPage(ClientId, Page::EXTRAS);
-				pGameContext->ClearVotes(ClientId);
-				RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
-				return true;
 			case EActionKind::OpenCosmetics:
 				PushPage(ClientId, Page::COSMETICS_ROOT);
 				pGameContext->ClearVotes(ClientId);
@@ -404,7 +399,6 @@ void CVoteManager::RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pS
 	switch(Current.PageType)
 	{
 	case Page::ROOT: BuildRoot(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
-	case Page::EXTRAS: BuildExtras(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
 	case Page::RULES: BuildRules(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
 	case Page::LEADERBOARDS: BuildLeaderboards(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
 	case Page::LEADERBOARD_DETAIL: BuildLeaderboardDetail(pPlayer, ClientID, pServer, pGameContext, Current.Data, Labels, Actions); break;
@@ -435,7 +429,6 @@ void CVoteManager::RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pS
 		switch(Current.PageType)
 		{
 		case Page::ROOT: Title = "Blockworlds Menu"; break;
-		case Page::EXTRAS: Title = "Extras"; break;
 		case Page::LEADERBOARDS: Title = "Leaderboards"; break;
 		case Page::RULES: Title = "Rules"; break;
 		case Page::LEADERBOARD_DETAIL:
@@ -566,9 +559,9 @@ void CVoteManager::BuildRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, C
 		{
 			std::string PassiveLine;
 			if(pPlayer->IsUsingPassiveProtection() || pPlayer->IsPassivePendingEnable())
-				PassiveLine = std::string("☑ ") + SmallCaps("Passive");
+				PassiveLine = std::string("☑ ") + SmallCaps("Wayblock Protection");
 			else
-				PassiveLine = std::string("☐ ") + SmallCaps("Passive");
+				PassiveLine = std::string("☐ ") + SmallCaps("Wayblock Protection");
 			OutLabels.emplace_back(PassiveLine);
 			OutActions.emplace_back(Action{EActionKind::TogglePassive});
 		}
@@ -613,16 +606,6 @@ void CVoteManager::BuildRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, C
 	// ─── separator ───
 	OutLabels.emplace_back(SmallCaps("───────────"));
 	OutActions.emplace_back(Action{EActionKind::None});
-
-	// extras page (if eligible)
-	bool extrasEligible = pPlayer && ((pPlayer->m_LocalPassiveDuration > 0) || (pPlayer->IsLoggedIn() && pPlayer->GetPlayerPassive() > 0));
-	if(extrasEligible)
-	{
-		std::string label = SmallCaps("Extras");
-		label += " ›";
-		OutLabels.emplace_back(label);
-		OutActions.emplace_back(Action{EActionKind::OpenExtras});
-	}
 
 	// rules (always available)
 	{
@@ -703,28 +686,6 @@ void CVoteManager::BuildMapTransfers(CPlayer *pPlayer, int ClientID, IServer *pS
 		OutLabels.emplace_back(SmallCaps("No map transfers configured."));
 		OutActions.emplace_back(Action{EActionKind::None});
 	}
-}
-
-void CVoteManager::BuildExtras(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions)
-{
-	if(!pPlayer)
-		return;
-
-	bool extrasEligible = (pPlayer->m_LocalPassiveDuration > 0) || (pPlayer->IsLoggedIn() && pPlayer->GetPlayerPassive() > 0);
-	if(!extrasEligible)
-	{
-		OutLabels.emplace_back(SmallCaps("No extras available."));
-		OutActions.emplace_back(Action{EActionKind::None});
-		return;
-	}
-
-	std::string PassiveLine;
-	if(pPlayer->IsUsingPassiveProtection() || pPlayer->IsPassivePendingEnable())
-		PassiveLine = std::string("☑ ") + SmallCaps("Passive Protection");
-	else
-		PassiveLine = std::string("☐ ") + SmallCaps("Passive Protection");
-	OutLabels.emplace_back(PassiveLine);
-	OutActions.emplace_back(Action{EActionKind::TogglePassive});
 }
 
 void CVoteManager::BuildRules(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions)

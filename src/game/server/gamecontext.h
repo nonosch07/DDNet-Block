@@ -784,6 +784,7 @@ private:
 	static void ConSetBlockpoints(IConsole::IResult *pResult, void *pUserData);
 	static void ConSetPassive(IConsole::IResult *pResult, void *pUserData);
 	static void ConTelekinesis(IConsole::IResult *pResult, void *pUserData);
+	static void ConKnockout(IConsole::IResult *pResult, void *pUserData);
 
 public:
 	template<typename... TArgs>

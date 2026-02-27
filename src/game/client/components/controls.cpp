@@ -416,8 +416,7 @@ void CControls::ClampMousePos()
 	else
 	{
 		const float MouseMin = GetMinMouseDistance();
-		const float Zoom = m_pClient->m_Camera.m_Zoom;
-		const float MouseMax = GetMaxMouseDistance() * maximum(1.0f, Zoom);
+		const float MouseMax = GetMaxMouseDistance();
 
 		float MouseDistance = length(m_aMousePos[g_Config.m_ClDummy]);
 		if(MouseDistance < 0.001f)
