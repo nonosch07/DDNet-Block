@@ -899,6 +899,28 @@ void CGameContext::ConSetPassive(IConsole::IResult *pResult, void *pUserData)
 	pSelf->SendChatTarget(Target, aBuf);
 }
 
+void CGameContext::ConTelekinesis(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int ClientId = pResult->m_ClientId;
+	if(!CheckClientId(ClientId))
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Invalid client id");
+		return;
+	}
+	CPlayer *pPlayer = pSelf->m_apPlayers[ClientId];
+	if(!pPlayer)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Player not found");
+		return;
+	}
+	pPlayer->m_TelekinesisEnabled = !pPlayer->m_TelekinesisEnabled;
+	pPlayer->m_TelekinesisTarget = -1;
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "Telekinesis %s.", pPlayer->m_TelekinesisEnabled ? "enabled" : "disabled");
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+}
+
 void CGameContext::ConGiveLevel(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;

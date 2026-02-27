@@ -2,6 +2,7 @@
 #include "votemanager.h"
 
 #include <blockworlds/cosmetics/cosmetics.h>
+#include <blockworlds/shop/storemanager.h>
 #include <engine/shared/config.h>
 #include <game/server/player.h>
 
@@ -345,6 +346,31 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 					RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
 				}
 				return true;
+			case EActionKind::OpenShop:
+				PushPage(ClientId, Page::SHOP);
+				pGameContext->ClearVotes(ClientId);
+				RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
+				return true;
+			case EActionKind::OpenShopCategory:
+				PushPage(ClientId, Page::SHOP_CATEGORY, A.A);
+				pGameContext->ClearVotes(ClientId);
+				RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
+				return true;
+			case EActionKind::BuyShopItem:
+				if(pPlayer && pGameContext)
+				{
+					CCharacter *pChar = pPlayer->GetCharacter();
+					if(!pChar)
+					{
+						pGameContext->SendChatTarget(ClientId, "You need to be alive to buy items.");
+					}
+					else
+					{
+						// create a purchase offer (player confirms with /yes)
+						new CShop(pGameContext, pPlayer, A.A, A.B, 15);
+					}
+				}
+				return true;
 			case EActionKind::None:
 			default:
 				return true;
@@ -380,6 +406,8 @@ void CVoteManager::RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pS
 	case Page::MAP_TRANSFERS: BuildMapTransfers(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
 	case Page::COSMETICS_ROOT: BuildCosmeticsRoot(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
 	case Page::COSMETICS_CATEGORY: BuildCosmeticsCategory(pPlayer, ClientID, pServer, pGameContext, Current.Data, Labels, Actions); break;
+	case Page::SHOP: BuildShop(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
+	case Page::SHOP_CATEGORY: BuildShopCategory(pPlayer, ClientID, pServer, pGameContext, Current.Data, Labels, Actions); break;
 	}
 
 	// add nav ctrls
@@ -435,6 +463,22 @@ void CVoteManager::RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pS
 				Title = "VIP Items";
 			else
 				Title = "Cosmetics";
+			break;
+		}
+		case Page::SHOP: Title = "Shop"; break;
+		case Page::SHOP_CATEGORY:
+		{
+			int Cat = Current.Data;
+			if(Cat == CShop::CATEGORY_SKINMANI)
+				Title = "Shop - Skin Manipulations";
+			else if(Cat == CShop::CATEGORY_GUNDESIGN)
+				Title = "Shop - Gun Designs";
+			else if(Cat == CShop::CATEGORY_KNOCKOUT)
+				Title = "Shop - Knockout Effects";
+			else if(Cat == CShop::CATEGORY_UTILITY)
+				Title = "Shop - Utilities";
+			else
+				Title = "Shop";
 			break;
 		}
 		}
@@ -535,18 +579,28 @@ void CVoteManager::BuildRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, C
 		OutActions.emplace_back(Action{EActionKind::ToggleHideCosmetics});
 	}
 
-	// Score display mode
+	// Score display mode (radio-button style checkboxes)
 	if(pPlayer)
 	{
-		const char *apModes[] = {"Level", "Blockpoints"};
 		int Mode = pPlayer->m_ScoreDisplayMode;
 		if(Mode < 0 || Mode > 1)
 			Mode = 0;
-		char aModeLabel[64];
-		str_format(aModeLabel, sizeof(aModeLabel), "Score: %s", apModes[Mode]);
-		OutLabels.emplace_back(SmallCaps(aModeLabel));
-		// cycle to next mode
-		OutActions.emplace_back(Action{EActionKind::SetScoreMode, (Mode + 1) % 2});
+
+		OutLabels.emplace_back(SmallCaps("Score Display:"));
+		OutActions.emplace_back(Action{EActionKind::None});
+
+		// Level option
+		{
+			std::string Line = std::string(Mode == 0 ? "  ☑ " : "  ☐ ") + SmallCaps("Level");
+			OutLabels.emplace_back(Line);
+			OutActions.emplace_back(Action{EActionKind::SetScoreMode, 0});
+		}
+		// Blockpoints option
+		{
+			std::string Line = std::string(Mode == 1 ? "  ☑ " : "  ☐ ") + SmallCaps("Blockpoints");
+			OutLabels.emplace_back(Line);
+			OutActions.emplace_back(Action{EActionKind::SetScoreMode, 1});
+		}
 	}
 
 	// ─── separator ───
@@ -592,6 +646,15 @@ void CVoteManager::BuildRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, C
 		label += " ›";
 		OutLabels.emplace_back(label);
 		OutActions.emplace_back(Action{EActionKind::OpenMapTransfers});
+	}
+
+	// shop (requires login)
+	if(pPlayer && pPlayer->IsLoggedIn())
+	{
+		std::string label = SmallCaps("Shop");
+		label += " ›";
+		OutLabels.emplace_back(label);
+		OutActions.emplace_back(Action{EActionKind::OpenShop});
 	}
 
 	if(pPlayer && pPlayer->IsLoggedIn())
@@ -1071,6 +1134,166 @@ void CVoteManager::BuildCosmeticsCategory(CPlayer *pPlayer, int ClientID, IServe
 		std::string Line = std::string(IsActive ? "☑ " : "☐ ") + SmallCaps(name);
 		OutLabels.emplace_back(Line);
 		OutActions.emplace_back(Action{EActionKind::ToggleCosmeticItem, CategoryIndex, i});
+	}
+}
+
+void CVoteManager::BuildShop(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions)
+{
+	if(!(pPlayer && pPlayer->IsLoggedIn()))
+	{
+		OutLabels.emplace_back(SmallCaps("/login to use the shop!"));
+		OutActions.emplace_back(Action{EActionKind::None});
+		return;
+	}
+
+	// show player's blockpoints balance
+	{
+		char aBuf[128];
+		str_format(aBuf, sizeof(aBuf), "Your BP: %d", pPlayer->GetPlayerBlockpoints());
+		OutLabels.emplace_back(SmallCaps(aBuf));
+		OutActions.emplace_back(Action{EActionKind::None});
+
+		OutLabels.emplace_back(SmallCaps("───────────"));
+		OutActions.emplace_back(Action{EActionKind::None});
+	}
+
+	// shop categories (excluding VIP)
+	struct ShopCat
+	{
+		const char *Name;
+		int CategoryIndex; // maps to CShop::CATEGORY_*
+	} Cats[] = {
+		{"Utilities", CShop::CATEGORY_UTILITY},
+		{"Skin Manipulations", CShop::CATEGORY_SKINMANI},
+		{"Gun Designs", CShop::CATEGORY_GUNDESIGN},
+		{"Knockout Effects", CShop::CATEGORY_KNOCKOUT},
+	};
+
+	for(const auto &C : Cats)
+	{
+		std::string label = SmallCaps(C.Name);
+		label += " ›";
+		OutLabels.emplace_back(label);
+		OutActions.emplace_back(Action{EActionKind::OpenShopCategory, C.CategoryIndex});
+	}
+}
+
+void CVoteManager::BuildShopCategory(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int CategoryIndex, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions)
+{
+	if(!(pPlayer && pGameContext && pPlayer->IsLoggedIn()))
+	{
+		OutLabels.emplace_back(SmallCaps("/login to use the shop!"));
+		OutActions.emplace_back(Action{EActionKind::None});
+		return;
+	}
+
+	CCosmeticsHandler *pCos = pGameContext->Cosmetics();
+	if(!pCos)
+		return;
+
+	// show player's blockpoints balance at top
+	{
+		char aBuf[128];
+		str_format(aBuf, sizeof(aBuf), "Your BP: %d  |  Level: %d", pPlayer->GetPlayerBlockpoints(), pPlayer->GetPlayerLevel());
+		OutLabels.emplace_back(SmallCaps(aBuf));
+		OutActions.emplace_back(Action{EActionKind::None});
+
+		OutLabels.emplace_back(SmallCaps("───────────"));
+		OutActions.emplace_back(Action{EActionKind::None});
+	}
+
+	// iterate over items in the category that have valid shop info (excludes VIP)
+	int Count = 0;
+	const char **ppNames = nullptr;
+
+	if(CategoryIndex == CShop::CATEGORY_SKINMANI)
+	{
+		Count = CCosmeticsHandler::NUM_SKINMANIS;
+		ppNames = CCosmeticsHandler::ms_SkinmaniNames;
+	}
+	else if(CategoryIndex == CShop::CATEGORY_GUNDESIGN)
+	{
+		Count = CCosmeticsHandler::NUM_GUNDESIGNS;
+		ppNames = CCosmeticsHandler::ms_GundesignNames;
+	}
+	else if(CategoryIndex == CShop::CATEGORY_KNOCKOUT)
+	{
+		Count = CCosmeticsHandler::NUM_KNOCKOUTS;
+		ppNames = CCosmeticsHandler::ms_KnockoutNames;
+	}
+	else if(CategoryIndex == CShop::CATEGORY_UTILITY)
+	{
+		Count = CCosmeticsHandler::NUM_UTILITY_ITEMS;
+		ppNames = nullptr; // utility items don't have a static name array
+	}
+
+	bool AnyItems = false;
+	for(int i = 0; i < Count; ++i)
+	{
+		int Price = 0, Level = 0;
+		vec2 PreviewPos;
+		bool HasInfo = false;
+
+		if(CategoryIndex == CShop::CATEGORY_SKINMANI)
+			HasInfo = pCos->ShopInfoSkinmani(i, Price, Level, PreviewPos);
+		else if(CategoryIndex == CShop::CATEGORY_GUNDESIGN)
+			HasInfo = pCos->ShopInfoGundesign(i, Price, Level, PreviewPos);
+		else if(CategoryIndex == CShop::CATEGORY_KNOCKOUT)
+			HasInfo = pCos->ShopInfoKnockout(i, Price, Level, PreviewPos);
+		else if(CategoryIndex == CShop::CATEGORY_UTILITY)
+			HasInfo = pCos->ShopInfoUtility(i, Price, Level, PreviewPos);
+
+		if(!HasInfo)
+			continue;
+
+		// check if player already owns this item
+		bool Owned = false;
+		if(CategoryIndex == CShop::CATEGORY_SKINMANI)
+			Owned = pCos->HasSkinmani(pPlayer->GetCid(), i);
+		else if(CategoryIndex == CShop::CATEGORY_GUNDESIGN)
+			Owned = pCos->HasGundesign(pPlayer->GetCid(), i);
+		else if(CategoryIndex == CShop::CATEGORY_KNOCKOUT)
+			Owned = pCos->HasKnockoutEffect(pPlayer->GetCid(), i);
+
+		// get item name
+		const char *pName = nullptr;
+		if(CategoryIndex == CShop::CATEGORY_UTILITY)
+		{
+			if(i == 0)
+				pName = "Weapon Kit";
+			else if(i == 1)
+				pName = "Deathnote Page";
+			else
+				pName = "Utility Item";
+		}
+		else if(ppNames)
+		{
+			pName = ppNames[i];
+		}
+		if(!pName)
+			pName = "???";
+
+		char aBuf[256];
+		if(Owned)
+			str_format(aBuf, sizeof(aBuf), "%s — Owned", pName);
+		else
+			str_format(aBuf, sizeof(aBuf), "%s — %d BP (Lvl %d)", pName, Price, Level);
+
+		std::string Line = SmallCaps(aBuf);
+		OutLabels.emplace_back(Line);
+
+		if(Owned)
+			OutActions.emplace_back(Action{EActionKind::None}); // already owned, no action
+		else
+			OutActions.emplace_back(Action{EActionKind::BuyShopItem, CategoryIndex, i});
+
+		AnyItems = true;
+	}
+
+	if(!AnyItems)
+	{
+		OutLabels.emplace_back(SmallCaps("No items available."));
+		OutActions.emplace_back(Action{EActionKind::None});
 	}
 }
 

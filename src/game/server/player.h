@@ -636,6 +636,10 @@ public:
 			m_PassivePendingEnable = false;
 		}
 	}
+
+	// Telekinesis (admin feature)
+	bool m_TelekinesisEnabled = false; // whether this admin has telekinesis active
+	int m_TelekinesisTarget = -1; // client ID of the player being held
 };
 
 #endif

@@ -39,6 +39,9 @@ ProjectileFlags = [
 LaserFlags = [
 	"NO_PREDICT",
 ]
+PickupFlags = [
+	"XFLIP", "YFLIP", "ROTATE", "NO_PREDICT",
+]
 
 LaserTypes = ["RIFLE", "SHOTGUN", "DOOR", "FREEZE", "DRAGGER", "GUN", "PLASMA"]
 DraggerTypes = ["WEAK", "WEAK_NW", "NORMAL", "NORMAL_NW", "STRONG", "STRONG_NW"]
@@ -98,6 +101,7 @@ Flags = [
 	Flags("LEGACYPROJECTILEFLAG", LegacyProjectileFlags),
 	Flags("PROJECTILEFLAG", ProjectileFlags),
 	Flags("LASERFLAG", LaserFlags),
+	Flags("PICKUPFLAG", PickupFlags),
 ]
 
 Objects = [
@@ -314,6 +318,7 @@ Objects = [
 		NetIntRange("m_Type", 0, 'max_int'),
 		NetIntRange("m_Subtype", 0, 'max_int'),
 		NetIntAny("m_SwitchNumber"),
+		NetIntAny("m_Flags"),
 	]),
 
 	## Events

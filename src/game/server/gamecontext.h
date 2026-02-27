@@ -298,7 +298,7 @@ public:
 
 	void SnapSwitchers(int SnappingClient);
 	bool SnapLaserObject(const CSnapContext &Context, int SnapId, const vec2 &To, const vec2 &From, int StartTick, int Owner = -1, int LaserType = -1, int Subtype = -1, int SwitchNumber = -1) const;
-	bool SnapPickup(const CSnapContext &Context, int SnapId, const vec2 &Pos, int Type, int SubType, int SwitchNumber) const;
+	bool SnapPickup(const CSnapContext &Context, int SnapId, const vec2 &Pos, int Type, int SubType, int SwitchNumber, int Flags = 0) const;
 
 	enum
 	{
@@ -783,6 +783,7 @@ private:
 	static void ConSetWeaponkitsAdmin(IConsole::IResult *pResult, void *pUserData);
 	static void ConSetBlockpoints(IConsole::IResult *pResult, void *pUserData);
 	static void ConSetPassive(IConsole::IResult *pResult, void *pUserData);
+	static void ConTelekinesis(IConsole::IResult *pResult, void *pUserData);
 
 public:
 	template<typename... TArgs>

@@ -583,7 +583,7 @@ bool CGameContext::SnapLaserObject(const CSnapContext &Context, int SnapId, cons
 	return true;
 }
 
-bool CGameContext::SnapPickup(const CSnapContext &Context, int SnapId, const vec2 &Pos, int Type, int SubType, int SwitchNumber) const
+bool CGameContext::SnapPickup(const CSnapContext &Context, int SnapId, const vec2 &Pos, int Type, int SubType, int SwitchNumber, int Flags) const
 {
 	if(Context.IsSixup())
 	{
@@ -606,6 +606,7 @@ bool CGameContext::SnapPickup(const CSnapContext &Context, int SnapId, const vec
 		pPickup->m_Type = Type;
 		pPickup->m_Subtype = SubType;
 		pPickup->m_SwitchNumber = SwitchNumber;
+		pPickup->m_Flags = Flags;
 	}
 	else
 	{
@@ -4615,6 +4616,8 @@ void CGameContext::RegisterDDRaceCommands()
 	Console()->Register("set_weaponkits", "v[id] i[amount]", CFGFLAG_SERVER, ConSetWeaponkitsAdmin, this, "Set weaponkits for player id");
 	Console()->Register("set_blockpoints", "v[id] i[amount]", CFGFLAG_SERVER, ConSetBlockpoints, this, "Set blockpoints for player id");
 	Console()->Register("set_passive", "v[id] i[seconds]", CFGFLAG_SERVER, ConSetPassive, this, "Set passive seconds for player id");
+
+	Console()->Register("telekinesis", "", CFGFLAG_SERVER, ConTelekinesis, this, "Toggle telekinesis mode: hold fire to grab and move players with your cursor");
 }
 
 void CGameContext::RegisterChatCommands()

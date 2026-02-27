@@ -344,6 +344,69 @@ void CPlayer::Tick()
 		m_OverrideEmoteReset = -1;
 	}
 
+	if(m_TelekinesisEnabled && m_pCharacter && m_pCharacter->IsAlive())
+	{
+		CNetObj_PlayerInput *pInput = &m_pCharacter->m_LatestInput;
+		bool Firing = (pInput->m_Fire & 1) != 0;
+
+		if(Firing)
+		{
+			// cursor position in world coordinates
+			vec2 CursorWorldPos = m_pCharacter->m_Pos + vec2(pInput->m_TargetX, pInput->m_TargetY);
+
+			if(m_TelekinesisTarget == -1)
+			{
+				// try to grab a player near cursor
+				float ClosestDist = 32.0f;
+				int ClosestId = -1;
+				for(int i = 0; i < MAX_CLIENTS; i++)
+				{
+					if(i == m_ClientId)
+						continue;
+					CCharacter *pChar = GameServer()->GetPlayerChar(i);
+					if(!pChar || !pChar->IsAlive())
+						continue;
+					float Dist = distance(CursorWorldPos, pChar->m_Pos);
+					if(Dist < ClosestDist)
+					{
+						ClosestDist = Dist;
+						ClosestId = i;
+					}
+				}
+				if(ClosestId != -1)
+				{
+					m_TelekinesisTarget = ClosestId;
+				}
+			}
+
+			if(m_TelekinesisTarget != -1)
+			{
+				CCharacter *pTarget = GameServer()->GetPlayerChar(m_TelekinesisTarget);
+				if(pTarget && pTarget->IsAlive())
+				{
+					// smoothly move the target towards cursor position
+					pTarget->Core()->m_Pos = CursorWorldPos;
+					pTarget->Core()->m_Vel = vec2(0, 0);
+					pTarget->m_Pos = CursorWorldPos;
+				}
+				else
+				{
+					// target died or disconnected
+					m_TelekinesisTarget = -1;
+				}
+			}
+		}
+		else
+		{
+			// fire released: drop the target
+			m_TelekinesisTarget = -1;
+		}
+	}
+	else if(m_TelekinesisEnabled && !m_pCharacter) // ?
+	{
+		m_TelekinesisTarget = -1;
+	}
+
 	if(m_Halloween && m_pCharacter && !m_pCharacter->IsPaused())
 	{
 		if(1200 - ((Server()->Tick() - m_pCharacter->GetLastAction()) % (1200)) < 5)
@@ -2236,15 +2299,15 @@ void CPlayer::ProcessWeeklyReward()
 		str_format(aBuf, sizeof(aBuf), "[Weekly Day 6/7] +2 hours of Passive Protection!");
 		break;
 	}
-	case 6: // Day 7: 500 BP + x2 EXP for 48h of ingame time
+	case 6: // Day 7: 150 BP + x2 EXP for 48h of ingame time
 	{
-		SetPlayerBlockpoints(GetPlayerBlockpoints() + 500);
+		SetPlayerBlockpoints(GetPlayerBlockpoints() + 150);
 		// x2 EXP boost for 48h of account playtime (in seconds)
 		long long BoostEndPlaytime = GetPlayerPlaytime() + 48LL * 3600;
 		SetWeeklyExpBoostUntil(BoostEndPlaytime);
 		// Activate the multiplier for 48h of real playtime (2880 minutes)
 		AddExpMultiplier(200, 2880);
-		str_format(aBuf, sizeof(aBuf), "[Weekly Day 7/7] +500 Blockpoints + x2 EXP for 48h (ingame time)! Streak complete!");
+		str_format(aBuf, sizeof(aBuf), "[Weekly Day 7/7] +150 Blockpoints + x2 EXP for 48h (ingame time)! Streak complete!");
 		break;
 	}
 	default:

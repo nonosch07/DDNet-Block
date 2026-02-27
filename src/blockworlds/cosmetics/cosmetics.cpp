@@ -30,6 +30,10 @@ const char *CCosmeticsHandler::ms_KnockoutNames[NUM_KNOCKOUTS] = {
 	"KO PRO",
 
 	"Sorry c: (Teemo)",
+	"Tornado",
+	"Skull",
+	"GG",
+	"Lightning",
 	"Splash (VIP)",
 };
 
@@ -45,6 +49,9 @@ const char *CCosmeticsHandler::ms_GundesignNames[NUM_GUNDESIGNS] = {
 	"Pew",
 
 	"1337 gun",
+	"Shuriken",
+	"Zigzag",
+	"Sparkler",
 	"Stargun (VIP)",
 };
 
@@ -260,6 +267,34 @@ void CCosmeticsHandler::DoKnockoutEffectRaw(vec2 Pos, int Effect)
 		GameServer()->Animations()->Laserwrite("PRO", Pos + vec2(0, 10.0f), 10.0f, Server()->TickSpeed() * 0.7f);
 	else if(Effect == KNOCKOUT_VIP_SPLASH)
 		GameServer()->Animations()->DoAnimation(Pos, CAnimationHandler::ANIMATION_SPLASH);
+	else if(Effect == KNOCKOUT_TORNADO)
+	{
+		for(int i = 0; i < 16; i++)
+		{
+			float a = (float)i / 16.0f * 4.0f * pi;
+			float dist = 10.0f + (float)i * 5.0f;
+			GameServer()->CreateDamageInd(Pos + direction(a) * dist, a + pi, 1);
+		}
+		GameServer()->CreateSound(Pos, SOUND_PLAYER_AIRJUMP);
+	}
+	else if(Effect == KNOCKOUT_SKULL)
+		GameServer()->Animations()->Laserwrite("🕱", Pos + vec2(0, 10.0f), 10.0f, Server()->TickSpeed() * 0.7f);
+	else if(Effect == KNOCKOUT_GG)
+		GameServer()->Animations()->Laserwrite("GG", Pos + vec2(0, 10.0f), 10.0f, Server()->TickSpeed() * 0.7f);
+	else if(Effect == KNOCKOUT_LIGHTNING)
+	{
+		for(int bolt = -1; bolt <= 1; bolt++)
+		{
+			vec2 Top = Pos + vec2(bolt * 40.0f, -120.0f);
+			vec2 Mid1 = Pos + vec2(bolt * 40.0f + 15.0f, -80.0f);
+			vec2 Mid2 = Pos + vec2(bolt * 40.0f - 10.0f, -40.0f);
+			GameServer()->CreateDamageInd(Top, pi / 2.0f + 0.3f, 3);
+			GameServer()->CreateDamageInd(Mid1, pi / 2.0f - 0.3f, 3);
+			GameServer()->CreateDamageInd(Mid2, pi / 2.0f + 0.2f, 3);
+		}
+		GameServer()->CreateSound(Pos, SOUND_GRENADE_EXPLODE);
+		GameServer()->CreateExplosion(Pos, -1, WEAPON_GRENADE, true, 0);
+	}
 	else if((unsigned int)Effect < sizeof(ms_KnockoutNames) / sizeof(ms_KnockoutNames[0]))
 	{
 		dbg_msg("cosmetics", "ERROR: Knockouteffect '%s' not implemented!", ms_KnockoutNames[Effect]);
@@ -396,6 +431,34 @@ bool CCosmeticsHandler::DoGundesignRaw(vec2 Pos, int Effect, vec2 Direction)
 	{
 		GameServer()->CreateDamageInd(Pos, angle(Direction) + 5.1f, 1);
 	}
+	else if(Effect == GUNDESIGN_SHURIKEN)
+	{
+		// spinning cross of 4 damage indicators
+		float BaseAngle = angle(Direction);
+		for(int i = 0; i < 4; i++)
+		{
+			float a = BaseAngle + (pi / 2.0f) * i;
+			GameServer()->CreateDamageInd(Pos + direction(a) * 24.0f, a + pi, 1);
+		}
+	}
+	else if(Effect == GUNDESIGN_ZIGZAG)
+	{
+		// alternating offset damage indicators
+		float BaseAngle = angle(Direction);
+		float Perp = BaseAngle + pi / 2.0f;
+		GameServer()->CreateDamageInd(Pos + direction(Perp) * 20.0f, BaseAngle + pi, 1);
+		GameServer()->CreateDamageInd(Pos - direction(Perp) * 20.0f, BaseAngle + pi, 1);
+	}
+	else if(Effect == GUNDESIGN_SPARKLER)
+	{
+		// burst of 6 random damage indicators
+		for(int i = 0; i < 6; i++)
+		{
+			float a = random_float() * 2.0f * pi;
+			float dist = 10.0f + random_float() * 40.0f;
+			GameServer()->CreateDamageInd(Pos + direction(a) * dist, a, 1);
+		}
+	}
 	else
 		return false;
 
@@ -462,17 +525,17 @@ bool CCosmeticsHandler::SnapGundesignRaw(vec2 Pos, vec2 Dir, int Effect, int Ent
 
 	if(Effect == GUNDESIGN_HEART)
 	{
-		GameServer()->SnapPickup(CSnapContext(SnappingClientVersion, Sixup), EntityID, Pos, POWERUP_HEALTH, 0, 0);
+		GameServer()->SnapPickup(CSnapContext(SnappingClientVersion, Sixup), EntityID, Pos, POWERUP_HEALTH, 0, 0, PICKUPFLAG_NO_PREDICT);
 		return true;
 	}
 	else if(Effect == GUNDESIGN_ARMOR)
 	{
-		GameServer()->SnapPickup(CSnapContext(SnappingClientVersion, Sixup), EntityID, Pos, POWERUP_ARMOR, 0, 0);
+		GameServer()->SnapPickup(CSnapContext(SnappingClientVersion, Sixup), EntityID, Pos, POWERUP_ARMOR, 0, 0, PICKUPFLAG_NO_PREDICT);
 		return true;
 	}
 	else if(Effect == GUNDESIGN_1337)
 	{
-		GameServer()->SnapPickup(CSnapContext(SnappingClientVersion, Sixup), EntityID, Pos, 16 /* 53 */, 0, 0);
+		GameServer()->SnapPickup(CSnapContext(SnappingClientVersion, Sixup), EntityID, Pos, 16 /* 53 */, 0, 0, PICKUPFLAG_NO_PREDICT);
 		return true;
 	}
 	else if(Effect == GUNDESIGN_BLINKING)
@@ -484,6 +547,36 @@ bool CCosmeticsHandler::SnapGundesignRaw(vec2 Pos, vec2 Dir, int Effect, int Ent
 	{
 		GameServer()->CreateDamageInd(Pos, angle(Dir) + 5.1f, 1, CClientMask().set(SnappingClient));
 		return true;
+	}
+	else if(Effect == GUNDESIGN_SHURIKEN)
+	{
+		float BaseAngle = (float)(Server()->Tick() % 20) / 20.0f * 2.0f * pi;
+		for(int i = 0; i < 4; i++)
+		{
+			float a = BaseAngle + (pi / 2.0f) * i;
+			GameServer()->CreateDamageInd(Pos + direction(a) * 18.0f, a + pi, 1, CClientMask().set(SnappingClient));
+		}
+		return false;
+	}
+	else if(Effect == GUNDESIGN_ZIGZAG)
+	{
+		// offset the bullet left/right each tick
+		float Perp = angle(Dir) + pi / 2.0f;
+		float Offset = (Server()->Tick() % 2 == 0) ? 14.0f : -14.0f;
+		vec2 ZigPos = Pos + direction(Perp) * Offset;
+		// trail spark at opposite side
+		GameServer()->CreateDamageInd(Pos - direction(Perp) * Offset, angle(Dir) + pi, 1, CClientMask().set(SnappingClient));
+		// snap the bullet at zigzag position
+		GameServer()->SnapPickup(CSnapContext(SnappingClientVersion, Sixup), EntityID, ZigPos, POWERUP_ARMOR, 0, 0, PICKUPFLAG_NO_PREDICT);
+		return true;
+	}
+	else if(Effect == GUNDESIGN_SPARKLER)
+	{
+		// random spark around the bullet each tick
+		float a = ((float)(Server()->Tick() * 7 % 31)) / 31.0f * 2.0f * pi;
+		float dist = 12.0f + ((Server()->Tick() * 13 % 17) / 17.0f) * 20.0f;
+		GameServer()->CreateDamageInd(Pos + direction(a) * dist, a + pi, 1, CClientMask().set(SnappingClient));
+		return false; // show normal bullet too
 	}
 
 	return false;
@@ -861,6 +954,27 @@ bool CCosmeticsHandler::ShopInfoGundesign(int Index, int &Price, int &Level, vec
 		PreviewPos = vec2(5710.0f, 3729.0f);
 		return true;
 	}
+	else if(Index == CCosmeticsHandler::GUNDESIGN_SHURIKEN)
+	{
+		Price = 5000;
+		Level = 320;
+		PreviewPos = vec2(6094.0f, 3729.0f);
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::GUNDESIGN_ZIGZAG)
+	{
+		Price = 6000;
+		Level = 350;
+		PreviewPos = vec2(6478.0f, 3729.0f);
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::GUNDESIGN_SPARKLER)
+	{
+		Price = 7500;
+		Level = 400;
+		PreviewPos = vec2(6862.0f, 3729.0f);
+		return true;
+	}
 	else
 	{
 		return false;
@@ -937,6 +1051,34 @@ bool CCosmeticsHandler::ShopInfoKnockout(int Index, int &Price, int &Level, vec2
 		Price = 4400;
 		Level = 305;
 		PreviewPos = vec2(6478.0f, 5265.0f);
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::KNOCKOUT_TORNADO)
+	{
+		Price = 5000;
+		Level = 330;
+		PreviewPos = vec2(6862.0f, 5265.0f);
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::KNOCKOUT_SKULL)
+	{
+		Price = 5500;
+		Level = 350;
+		PreviewPos = vec2(7246.0f, 5265.0f);
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::KNOCKOUT_GG)
+	{
+		Price = 6000;
+		Level = 370;
+		PreviewPos = vec2(7630.0f, 5265.0f);
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::KNOCKOUT_LIGHTNING)
+	{
+		Price = 7000;
+		Level = 400;
+		PreviewPos = vec2(8014.0f, 5265.0f);
 		return true;
 	}
 	else

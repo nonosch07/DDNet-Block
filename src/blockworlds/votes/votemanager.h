@@ -44,6 +44,9 @@ public:
 		ToggleCosmeticItem, // data = (category index, item index)
 		ToggleHideCosmetics,
 		SetScoreMode, // data = mode (0=level, 1=blockpoints, 2=time)
+		OpenShop,
+		OpenShopCategory, // data = shop category index (0=skinmani, 1=gundesign, 2=knockout, 3=utility)
+		BuyShopItem, // data = A(category), B(item index)
 	};
 
 	struct Action
@@ -87,6 +90,8 @@ private:
 			MAP_TRANSFERS,
 			COSMETICS_ROOT,
 			COSMETICS_CATEGORY,
+			SHOP,
+			SHOP_CATEGORY, // Data = shop category index
 		} PageType{ROOT};
 		int Data{-1};
 	};
@@ -106,6 +111,8 @@ private:
 	void BuildMapTransfers(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
 	void BuildCosmeticsRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
 	void BuildCosmeticsCategory(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int CategoryIndex, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
+	void BuildShop(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
+	void BuildShopCategory(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int CategoryIndex, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
 
 	// nav helpers
 	void PushPage(int ClientID, Page::Type T, int Data = -1);
