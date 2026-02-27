@@ -146,6 +146,11 @@ private:
 
 	int m_DamageTakenTick;
 
+public:
+	const CNetObj_PlayerInput &GetInput() const { return m_Input; }
+	const CNetObj_PlayerInput &GetLatestInput() const { return m_LatestInput; }
+private:
+
 	int m_Health;
 	int m_Armor;
 

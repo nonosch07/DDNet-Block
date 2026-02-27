@@ -346,13 +346,13 @@ void CPlayer::Tick()
 
 	if(m_TelekinesisEnabled && m_pCharacter && m_pCharacter->IsAlive())
 	{
-		CNetObj_PlayerInput *pInput = &m_pCharacter->m_LatestInput;
-		bool Firing = (pInput->m_Fire & 1) != 0;
+		const CNetObj_PlayerInput &Input = m_pCharacter->GetLatestInput();
+		bool Firing = (Input.m_Fire & 1) != 0;
 
 		if(Firing)
 		{
 			// cursor position in world coordinates
-			vec2 CursorWorldPos = m_pCharacter->m_Pos + vec2(pInput->m_TargetX, pInput->m_TargetY);
+			vec2 CursorWorldPos = m_pCharacter->m_Pos + vec2(Input.m_TargetX, Input.m_TargetY);
 
 			if(m_TelekinesisTarget == -1)
 			{
