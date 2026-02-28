@@ -1243,10 +1243,10 @@ void CVoteManager::BuildShop(CPlayer *pPlayer, int ClientID, IServer *pServer, C
 	{
 		char aBuf[128];
 		str_format(aBuf, sizeof(aBuf), "Your BP: %d", pPlayer->GetPlayerBlockpoints());
-		OutLabels.emplace_back(SmallCaps(aBuf));
+		OutLabels.emplace_back(aBuf);
 		OutActions.emplace_back(Action{EActionKind::None});
 
-		OutLabels.emplace_back(SmallCaps("───────────"));
+		OutLabels.emplace_back("───────────");
 		OutActions.emplace_back(Action{EActionKind::None});
 	}
 
@@ -1264,7 +1264,7 @@ void CVoteManager::BuildShop(CPlayer *pPlayer, int ClientID, IServer *pServer, C
 
 	for(const auto &C : Cats)
 	{
-		std::string label = SmallCaps(C.Name);
+		std::string label = C.Name;
 		label += " ›";
 		OutLabels.emplace_back(label);
 		OutActions.emplace_back(Action{EActionKind::OpenShopCategory, C.CategoryIndex});
@@ -1275,7 +1275,7 @@ void CVoteManager::BuildShopCategory(CPlayer *pPlayer, int ClientID, IServer *pS
 {
 	if(!(pPlayer && pGameContext && pPlayer->IsLoggedIn()))
 	{
-		OutLabels.emplace_back(SmallCaps("/login to use the shop!"));
+		OutLabels.emplace_back("/login to use the shop!");
 		OutActions.emplace_back(Action{EActionKind::None});
 		return;
 	}
@@ -1288,10 +1288,10 @@ void CVoteManager::BuildShopCategory(CPlayer *pPlayer, int ClientID, IServer *pS
 	{
 		char aBuf[128];
 		str_format(aBuf, sizeof(aBuf), "Your BP: %d  |  Level: %d", pPlayer->GetPlayerBlockpoints(), pPlayer->GetPlayerLevel());
-		OutLabels.emplace_back(SmallCaps(aBuf));
+		OutLabels.emplace_back(aBuf);
 		OutActions.emplace_back(Action{EActionKind::None});
 
-		OutLabels.emplace_back(SmallCaps("───────────"));
+		OutLabels.emplace_back("───────────");
 		OutActions.emplace_back(Action{EActionKind::None});
 	}
 
@@ -1372,8 +1372,7 @@ void CVoteManager::BuildShopCategory(CPlayer *pPlayer, int ClientID, IServer *pS
 		else
 			str_format(aBuf, sizeof(aBuf), "%s - %d BP (Lvl %d)", pName, Price, Level);
 
-		std::string Line = SmallCaps(aBuf);
-		OutLabels.emplace_back(Line);
+		OutLabels.emplace_back(aBuf);
 
 		if(Owned)
 			OutActions.emplace_back(Action{EActionKind::None}); // already owned, no action
@@ -1385,7 +1384,7 @@ void CVoteManager::BuildShopCategory(CPlayer *pPlayer, int ClientID, IServer *pS
 
 	if(!AnyItems)
 	{
-		OutLabels.emplace_back(SmallCaps("No items available."));
+		OutLabels.emplace_back("No items available.");
 		OutActions.emplace_back(Action{EActionKind::None});
 	}
 }
