@@ -81,7 +81,7 @@ std::shared_ptr<IVpnServiceResult> CIPHubService::ParseResponse(
 		return pResult;
 	}
 
-	// Parse the "block" field — this is the key classification:
+	// Parse the "block" field - this is the key classification:
 	//   0 = residential/business (clean)
 	//   1 = non-residential/datacenter (suspicious)
 	//   2 = non-residential & known proxy/VPN/tor (bad)
@@ -127,7 +127,7 @@ std::shared_ptr<IVpnServiceResult> CIPHubService::ParseResponse(
 	}
 
 	// block=2 is definitively bad (proxy/VPN/tor)
-	// block=1 is datacenter/non-residential — also flag as bad since
+	// block=1 is datacenter/non-residential - also flag as bad since
 	// legitimate players don't connect from datacenters
 	pResult->m_IsBadIP = (Block >= 1);
 

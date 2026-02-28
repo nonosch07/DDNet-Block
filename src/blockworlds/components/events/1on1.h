@@ -20,7 +20,7 @@ struct SMatchConfig
 	int m_TimeLimit = 0; // seconds (0=unlimited, 120=2min, 300=5min, 600=10min)
 	bool m_EndlessHook = false;
 	bool m_aWeapons[6] = {true, true, false, false, false, false}; // HAMMER..NINJA (default: hammer+gun only)
-	int m_SpawnMode = 0; // 0=normal (fixed tiles), 1=random (pick from all 1on1 tiles)
+	int m_SpawnMode = 0; // 0=normal (TILE_BW_1ON1_START_POS), 1=random (1on1_rdm zone)
 };
 
 class COneOnOneEvent : public CComponent
@@ -48,8 +48,15 @@ public:
 	bool IsInConfigPhase() const { return GetState() == EEventState::Preparation; }
 
 	SMatchConfig m_Config;
-	bool m_aReady[2] = {false, false}; // ready state for both players (index 0=P1, 1=P2)
+	// duel vote state per player: 0=pending, 1=voted Start (F3), -1=voted Cancel (F4)
+	int m_aDuelVote[2] = {0, 0};
+	int64_t m_DuelVoteLastSendTick = -1;
 	int m_ConfigStartTick = -1; // tick when config phase started
+
+	// Private F3/F4 vote overlay - called from CGameContext::OnVoteNetMessage
+	bool OnDuelVote(int ClientId, int Vote);
+	void SendDuelVoteUi();    // sends/refreshes the vote overlay to both players
+	void ClearDuelVoteUi();   // clears the vote overlay for both players
 
 	void OnTick() override;
 	void OnCharacterSpawn(int ClientId, vec2 SpawnPos) override;

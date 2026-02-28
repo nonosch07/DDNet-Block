@@ -912,7 +912,7 @@ void CTeamDeathmatchEvent::AnnounceResults()
 				const auto &r = v[i];
 				const char *pName = GameServer()->Server()->ClientName(r.ClientId);
 				int kd_int = (int)(r.KD * 100.0f + 0.5f);
-				str_format(aBuf, sizeof(aBuf), "%s #%d: %s — K %d / D %d (K/D %d.%02d)",
+				str_format(aBuf, sizeof(aBuf), "%s #%d: %s - K %d / D %d (K/D %d.%02d)",
 					pTeamName, i + 1, pName, r.K, r.D, kd_int / 100, kd_int % 100);
 			}
 			else

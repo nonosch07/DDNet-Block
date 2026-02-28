@@ -6,6 +6,7 @@
 #include <blockworlds/components/oneonone_manager.h>
 #include <blockworlds/cosmetics/cosmetics.h>
 #include <blockworlds/shop/storemanager.h>
+#include <blockworlds/zones/zonemanager.h>
 #include <engine/shared/config.h>
 #include <game/server/player.h>
 
@@ -166,6 +167,13 @@ void CVoteManager::ClearClient(int ClientId)
 {
 	m_MapByClient.erase(ClientId);
 	m_PageStack.erase(ClientId);
+}
+
+void CVoteManager::NavigateToRoot(int ClientId)
+{
+	auto &Stack = m_PageStack[ClientId];
+	Stack.clear();
+	Stack.push_back(Page{Page::ROOT, -1});
 }
 
 void CVoteManager::SendOptions(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext)
@@ -383,8 +391,6 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				if(match && match->IsInConfigPhase())
 				{
 					match->m_Config.m_PointsLimit = A.A;
-					match->m_aReady[0] = false;
-					match->m_aReady[1] = false;
 					// re-render for both players
 					for(int cid : {match->m_Player1ID, match->m_Player2ID})
 					{
@@ -416,8 +422,6 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 						if(!anyEnabled)
 							match->m_Config.m_aWeapons[w] = true; // revert
 					}
-					match->m_aReady[0] = false;
-					match->m_aReady[1] = false;
 					for(int cid : {match->m_Player1ID, match->m_Player2ID})
 					{
 						CPlayer *pP = pGameContext->GetPlayer(cid);
@@ -437,8 +441,6 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				if(match && match->IsInConfigPhase())
 				{
 					match->m_Config.m_EndlessHook = !match->m_Config.m_EndlessHook;
-					match->m_aReady[0] = false;
-					match->m_aReady[1] = false;
 					for(int cid : {match->m_Player1ID, match->m_Player2ID})
 					{
 						CPlayer *pP = pGameContext->GetPlayer(cid);
@@ -458,8 +460,6 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				if(match && match->IsInConfigPhase())
 				{
 					match->m_Config.m_TimeLimit = A.A;
-					match->m_aReady[0] = false;
-					match->m_aReady[1] = false;
 					for(int cid : {match->m_Player1ID, match->m_Player2ID})
 					{
 						CPlayer *pP = pGameContext->GetPlayer(cid);
@@ -478,9 +478,7 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				auto match = mgr ? mgr->GetMatchForPlayer(ClientId) : nullptr;
 				if(match && match->IsInConfigPhase())
 				{
-					match->m_Config.m_SpawnMode = match->m_Config.m_SpawnMode == 0 ? 1 : 0;
-					match->m_aReady[0] = false;
-					match->m_aReady[1] = false;
+					match->m_Config.m_SpawnMode = A.A; // 0=normal, 1=random
 					for(int cid : {match->m_Player1ID, match->m_Player2ID})
 					{
 						CPlayer *pP = pGameContext->GetPlayer(cid);
@@ -494,41 +492,8 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				return true;
 			}
 			case EActionKind::DuelReady:
-			{
-				auto mgr = g_ComponentRegistry.Get<COneOnOneManager>();
-				auto match = mgr ? mgr->GetMatchForPlayer(ClientId) : nullptr;
-				if(match && match->IsInConfigPhase())
-				{
-					int idx = (ClientId == match->m_Player1ID) ? 0 : 1;
-					match->m_aReady[idx] = !match->m_aReady[idx];
-					if(match->m_aReady[0] && match->m_aReady[1])
-					{
-						// both ready — clear vote pages and start the match
-						for(int cid : {match->m_Player1ID, match->m_Player2ID})
-						{
-							auto &Stack = m_PageStack[cid];
-							Stack.clear();
-							Stack.push_back(Page{Page::ROOT, -1});
-							pGameContext->ClearVotes(cid);
-						}
-						match->StartMatchFromConfig();
-					}
-					else
-					{
-						// re-render for both players to show updated ready state
-						for(int cid : {match->m_Player1ID, match->m_Player2ID})
-						{
-							CPlayer *pP = pGameContext->GetPlayer(cid);
-							if(pP)
-							{
-								pGameContext->ClearVotes(cid);
-								RenderCurrentPage(pP, cid, pGameContext->Server(), pGameContext);
-							}
-						}
-					}
-				}
-				return true;
-			}
+			// Ready is now handled via F3/F4 vote overlay, no-op here
+			return true;
 			case EActionKind::None:
 			default:
 				return true;
@@ -568,7 +533,7 @@ void CVoteManager::RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pS
 	case Page::DUEL_CONFIG: BuildDuelConfig(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
 	}
 
-	// add nav ctrls (skip for DUEL_CONFIG — players can't leave config phase)
+	// add nav ctrls (skip for DUEL_CONFIG - players can't leave config phase)
 	if(Current.PageType != Page::ROOT && Current.PageType != Page::DUEL_CONFIG)
 	{
 		Labels.insert(Labels.begin(), SmallCaps("« Back"));
@@ -942,21 +907,21 @@ void CVoteManager::BuildServerInfosTopic(CPlayer *pPlayer, int ClientID, IServer
 		OutActions.emplace_back(Action{EActionKind::None});
 		OutLabels.emplace_back(SmallCaps("Chat commands:"));
 		OutActions.emplace_back(Action{EActionKind::None});
-		OutLabels.emplace_back("/register <name> <pass> — Create an account");
+		OutLabels.emplace_back("/register <name> <pass> - Create an account");
 		OutActions.emplace_back(Action{EActionKind::None});
-		OutLabels.emplace_back("/login <name> <pass> — Log in");
+		OutLabels.emplace_back("/login <name> <pass> - Log in");
 		OutActions.emplace_back(Action{EActionKind::None});
-		OutLabels.emplace_back("/logout_account — Log out");
+		OutLabels.emplace_back("/logout_account - Log out");
 		OutActions.emplace_back(Action{EActionKind::None});
-		OutLabels.emplace_back("/password <old> <new> — Change password");
+		OutLabels.emplace_back("/password <old> <new> - Change password");
 		OutActions.emplace_back(Action{EActionKind::None});
-		OutLabels.emplace_back("/exp — Show your EXP");
+		OutLabels.emplace_back("/exp - Show your EXP");
 		OutActions.emplace_back(Action{EActionKind::None});
-		OutLabels.emplace_back("/profile [name] — View a profile");
+		OutLabels.emplace_back("/profile [name] - View a profile");
 		OutActions.emplace_back(Action{EActionKind::None});
-		OutLabels.emplace_back("/bp — Show your blockpoints");
+		OutLabels.emplace_back("/bp - Show your blockpoints");
 		OutActions.emplace_back(Action{EActionKind::None});
-		OutLabels.emplace_back("/give_bp <player> <amount> — Offer BP transfer");
+		OutLabels.emplace_back("/give_bp <player> <amount> - Offer BP transfer");
 		OutActions.emplace_back(Action{EActionKind::None});
 		OutLabels.emplace_back("/accept_bp [player] | /decline_bp [player]");
 		OutActions.emplace_back(Action{EActionKind::None});
@@ -971,35 +936,35 @@ void CVoteManager::BuildServerInfosTopic(CPlayer *pPlayer, int ClientID, IServer
 		OutActions.emplace_back(Action{EActionKind::None});
 		OutLabels.emplace_back(SmallCaps("Member Commands:"));
 		OutActions.emplace_back(Action{EActionKind::None});
-		OutLabels.emplace_back("/clan_create <name> — Create a new clan");
+		OutLabels.emplace_back("/clan_create <name> - Create a new clan");
 		OutActions.emplace_back(Action{EActionKind::None});
-		OutLabels.emplace_back("/clan_leave — Leave your clan");
+		OutLabels.emplace_back("/clan_leave - Leave your clan");
 		OutActions.emplace_back(Action{EActionKind::None});
-		OutLabels.emplace_back("/clan_accept | /clan_decline — Respond to invite");
+		OutLabels.emplace_back("/clan_accept | /clan_decline - Respond to invite");
 		OutActions.emplace_back(Action{EActionKind::None});
-		OutLabels.emplace_back("/clan_exp — Show clan EXP progress");
+		OutLabels.emplace_back("/clan_exp - Show clan EXP progress");
 		OutActions.emplace_back(Action{EActionKind::None});
-		OutLabels.emplace_back("/clan_list — List clan members");
+		OutLabels.emplace_back("/clan_list - List clan members");
 		OutActions.emplace_back(Action{EActionKind::None});
 		OutLabels.emplace_back("");
 		OutActions.emplace_back(Action{EActionKind::None});
 		OutLabels.emplace_back(SmallCaps("Co-Leader & Leader:"));
 		OutActions.emplace_back(Action{EActionKind::None});
-		OutLabels.emplace_back("/clan_invite <player> — Invite a player");
+		OutLabels.emplace_back("/clan_invite <player> - Invite a player");
 		OutActions.emplace_back(Action{EActionKind::None});
-		OutLabels.emplace_back("/clan_kick <player> — Kick a member");
+		OutLabels.emplace_back("/clan_kick <player> - Kick a member");
 		OutActions.emplace_back(Action{EActionKind::None});
 		OutLabels.emplace_back("");
 		OutActions.emplace_back(Action{EActionKind::None});
 		OutLabels.emplace_back(SmallCaps("Leader Only:"));
 		OutActions.emplace_back(Action{EActionKind::None});
-		OutLabels.emplace_back("/clan_role <player> <member|coleader> — Set role");
+		OutLabels.emplace_back("/clan_role <player> <member|coleader> - Set role");
 		OutActions.emplace_back(Action{EActionKind::None});
-		OutLabels.emplace_back("/clan_rename <newname> — Rename clan");
+		OutLabels.emplace_back("/clan_rename <newname> - Rename clan");
 		OutActions.emplace_back(Action{EActionKind::None});
-		OutLabels.emplace_back("/clan_transfer <player> — Transfer clan leadership");
+		OutLabels.emplace_back("/clan_transfer <player> - Transfer clan leadership");
 		OutActions.emplace_back(Action{EActionKind::None});
-		OutLabels.emplace_back("/clan_delete — Delete your clan");
+		OutLabels.emplace_back("/clan_delete - Delete your clan");
 		OutActions.emplace_back(Action{EActionKind::None});
 	}
 }
@@ -1403,9 +1368,9 @@ void CVoteManager::BuildShopCategory(CPlayer *pPlayer, int ClientID, IServer *pS
 
 		char aBuf[256];
 		if(Owned)
-			str_format(aBuf, sizeof(aBuf), "%s — Owned", pName);
+			str_format(aBuf, sizeof(aBuf), "%s - Owned", pName);
 		else
-			str_format(aBuf, sizeof(aBuf), "%s — %d BP (Lvl %d)", pName, Price, Level);
+			str_format(aBuf, sizeof(aBuf), "%s - %d BP (Lvl %d)", pName, Price, Level);
 
 		std::string Line = SmallCaps(aBuf);
 		OutLabels.emplace_back(Line);
@@ -1466,7 +1431,6 @@ void CVoteManager::BuildDuelConfig(CPlayer *pPlayer, int ClientID, IServer *pSer
 	}
 
 	const SMatchConfig &cfg = match->m_Config;
-	int myIdx = (ClientID == match->m_Player1ID) ? 0 : 1;
 
 	// opponent name
 	int opponentId = (ClientID == match->m_Player1ID) ? match->m_Player2ID : match->m_Player1ID;
@@ -1482,7 +1446,7 @@ void CVoteManager::BuildDuelConfig(CPlayer *pPlayer, int ClientID, IServer *pSer
 	if(match->m_ConfigStartTick > 0)
 	{
 		int elapsed = (int)((pServer->Tick() - match->m_ConfigStartTick) / pServer->TickSpeed());
-		int remaining = 30 - elapsed;
+		int remaining = g_Config.m_Sv1on1WarmupSeconds - elapsed;
 		if(remaining < 0)
 			remaining = 0;
 		char aBuf[64];
@@ -1495,61 +1459,59 @@ void CVoteManager::BuildDuelConfig(CPlayer *pPlayer, int ClientID, IServer *pSer
 	OutLabels.emplace_back(SmallCaps("───────────"));
 	OutActions.emplace_back(Action{EActionKind::None});
 
-	// ── Points Limit ──
+	// ── Points Limit (radio checkboxes) ──
 	{
-		static const int s_PointOptions[] = {3, 5, 7, 10};
-		static const int s_NumOptions = 4;
+		static const int s_PointOptions[] = {3, 10, 20, 30, 50};
+		static const int s_NumOptions = 5;
 
-		// find current option index
-		int curIdx = 1; // default to 5
+		OutLabels.emplace_back(SmallCaps("Points:"));
+		OutActions.emplace_back(Action{EActionKind::None});
 		for(int i = 0; i < s_NumOptions; i++)
-			if(s_PointOptions[i] == cfg.m_PointsLimit)
-				curIdx = i;
-
-		// cycle to next on click
-		int nextIdx = (curIdx + 1) % s_NumOptions;
-		int nextVal = s_PointOptions[nextIdx];
-
-		char aBuf[64];
-		str_format(aBuf, sizeof(aBuf), "Points: First to %d", cfg.m_PointsLimit);
-		OutLabels.emplace_back(SmallCaps(aBuf));
-		OutActions.emplace_back(Action{EActionKind::DuelSetPoints, nextVal});
+		{
+			bool selected = (cfg.m_PointsLimit == s_PointOptions[i]);
+			char aBuf[64];
+			str_format(aBuf, sizeof(aBuf), "  %s %d", selected ? "\xe2\x98\x91" : "\xe2\x98\x90", s_PointOptions[i]);
+			OutLabels.emplace_back(aBuf);
+			OutActions.emplace_back(Action{EActionKind::DuelSetPoints, s_PointOptions[i]});
+		}
 	}
 
-	// ── Time Limit ──
+	// ── Time Limit (radio checkboxes) ──
 	{
 		static const int s_TimeOptions[] = {0, 120, 300, 600};
 		static const char *s_TimeNames[] = {"No Limit", "2 min", "5 min", "10 min"};
 		static const int s_NumOptions = 4;
 
-		int curIdx = 0;
+		OutLabels.emplace_back(SmallCaps("Time Limit:"));
+		OutActions.emplace_back(Action{EActionKind::None});
 		for(int i = 0; i < s_NumOptions; i++)
-			if(s_TimeOptions[i] == cfg.m_TimeLimit)
-				curIdx = i;
-
-		int nextIdx = (curIdx + 1) % s_NumOptions;
-		int nextVal = s_TimeOptions[nextIdx];
-
-		char aBuf[64];
-		str_format(aBuf, sizeof(aBuf), "Time: %s", s_TimeNames[curIdx]);
-		OutLabels.emplace_back(SmallCaps(aBuf));
-		OutActions.emplace_back(Action{EActionKind::DuelSetTimeLimit, nextVal});
+		{
+			bool selected = (cfg.m_TimeLimit == s_TimeOptions[i]);
+			std::string line = std::string(selected ? "  \xe2\x98\x91 " : "  \xe2\x98\x90 ") + SmallCaps(s_TimeNames[i]);
+			OutLabels.emplace_back(line);
+			OutActions.emplace_back(Action{EActionKind::DuelSetTimeLimit, s_TimeOptions[i]});
+		}
 	}
 
 	// ── Endless Hook ──
 	{
-		std::string line = std::string(cfg.m_EndlessHook ? "☑ " : "☐ ") + SmallCaps("Endless Hook");
+		std::string line = std::string(cfg.m_EndlessHook ? "\xe2\x98\x91 " : "\xe2\x98\x90 ") + SmallCaps("Endless Hook");
 		OutLabels.emplace_back(line);
 		OutActions.emplace_back(Action{EActionKind::DuelToggleEndlessHook});
 	}
 
 	// ── Spawn Mode ──
 	{
-		const char *pModeName = cfg.m_SpawnMode == 0 ? "Normal" : "Random";
-		char aBuf[64];
-		str_format(aBuf, sizeof(aBuf), "Spawns: %s", pModeName);
-		OutLabels.emplace_back(SmallCaps(aBuf));
-		OutActions.emplace_back(Action{EActionKind::DuelToggleSpawnMode});
+		OutLabels.emplace_back(SmallCaps("Spawn:"));
+		OutActions.emplace_back(Action{EActionKind::None});
+
+		bool isNormal = (cfg.m_SpawnMode == 0);
+		OutLabels.emplace_back(std::string(isNormal ? "  \xe2\x98\x91 " : "  \xe2\x98\x90 ") + SmallCaps("Normal"));
+		OutActions.emplace_back(isNormal ? Action{EActionKind::None} : Action{EActionKind::DuelToggleSpawnMode, 0});
+
+		bool isRandom = (cfg.m_SpawnMode == 1);
+		OutLabels.emplace_back(std::string(isRandom ? "  \xe2\x98\x91 " : "  \xe2\x98\x90 ") + SmallCaps("Random"));
+		OutActions.emplace_back(isRandom ? Action{EActionKind::None} : Action{EActionKind::DuelToggleSpawnMode, 1});
 	}
 
 	// separator
@@ -1572,28 +1534,28 @@ void CVoteManager::BuildDuelConfig(CPlayer *pPlayer, int ClientID, IServer *pSer
 	OutLabels.emplace_back(SmallCaps("───────────"));
 	OutActions.emplace_back(Action{EActionKind::None});
 
-	// ── Ready status ──
+	// ── Vote Status ──
 	{
-		// show both players' ready status
 		const char *pP1Name = pServer->ClientName(match->m_Player1ID);
 		const char *pP2Name = pServer->ClientName(match->m_Player2ID);
 
+		auto VoteLabel = [](int v) -> const char * {
+			if(v == 1) return "\xe2\x9c\x93 Start";
+			if(v == -1) return "\xe2\x9c\x97 Cancel";
+			return "Waiting...";
+		};
+
 		char aBuf[128];
-		str_format(aBuf, sizeof(aBuf), "%s: %s", pP1Name, match->m_aReady[0] ? "Ready" : "Not Ready");
+		str_format(aBuf, sizeof(aBuf), "%s: %s", pP1Name, VoteLabel(match->m_aDuelVote[0]));
 		OutLabels.emplace_back(SmallCaps(aBuf));
 		OutActions.emplace_back(Action{EActionKind::None});
 
-		str_format(aBuf, sizeof(aBuf), "%s: %s", pP2Name, match->m_aReady[1] ? "Ready" : "Not Ready");
+		str_format(aBuf, sizeof(aBuf), "%s: %s", pP2Name, VoteLabel(match->m_aDuelVote[1]));
 		OutLabels.emplace_back(SmallCaps(aBuf));
 		OutActions.emplace_back(Action{EActionKind::None});
-	}
 
-	// ── Ready button ──
-	{
-		bool amReady = match->m_aReady[myIdx];
-		std::string label = amReady ? SmallCaps("✓ Ready") : SmallCaps("▶ Ready Up");
-		OutLabels.emplace_back(label);
-		OutActions.emplace_back(Action{EActionKind::DuelReady});
+		OutLabels.emplace_back(SmallCaps("F3 = Start  |  F4 = Cancel"));
+		OutActions.emplace_back(Action{EActionKind::None});
 	}
 }
 

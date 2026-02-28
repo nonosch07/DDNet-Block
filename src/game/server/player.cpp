@@ -1154,24 +1154,43 @@ void CPlayer::TryRespawn()
 	// check for active 1on1 match via manager and override spawn position if needed
 	if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>(); mgr)
 	{
-		if(auto match = mgr->GetMatchForPlayer(GetCid()); match && match->GetState() == COneOnOneEvent::EEventState::Active)
+		if(auto match = mgr->GetMatchForPlayer(GetCid()); match)
 		{
 			auto parts = match->Participants();
 			if(std::find(parts.begin(), parts.end(), GetCid()) != parts.end())
 			{
-				std::vector<vec2> spawnPositions;
-				GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), spawnPositions);
-				if(!spawnPositions.empty())
+				if(match->GetState() == COneOnOneEvent::EEventState::Preparation)
 				{
-					// Use the match's coordinated spawn reservation so both players
-					// are guaranteed to land on different tiles.
-					auto &res = match->GetSpawnReservation();
-					int idx = (GetCid() == match->m_Player1ID) ? res.pos1Idx : res.pos2Idx;
-					if(idx >= 0 && idx < (int)spawnPositions.size())
-						SpawnPos = spawnPositions[idx];
+					// during warmup, respawn at the reserved 1on1 prep zone position
+					// (each player has a pre-assigned unique index so they don't collide)
+					auto positions = GameServer()->ZoneManager()->Get1on1PrepPositions();
+					if(!positions.empty())
+					{
+						auto &res = match->GetSpawnReservation();
+						int idx = (GetCid() == match->m_Player1ID) ? res.pos1Idx : res.pos2Idx;
+						if(idx < 0 || idx >= (int)positions.size())
+							idx = secure_rand_below((int)positions.size());
+						SpawnPos = positions[idx];
+						used1on1 = true;
+					}
+				}
+				else if(match->GetState() == COneOnOneEvent::EEventState::Active)
+				{
+					std::vector<vec2> positions;
+					if(match->m_Config.m_SpawnMode == 1)
+						positions = GameServer()->ZoneManager()->Get1on1ArenaPositions(-1);
 					else
-						SpawnPos = spawnPositions[0];
-					used1on1 = true;
+						CGameContext::GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), positions);
+					if(!positions.empty())
+					{
+						auto &res = match->GetSpawnReservation();
+						int idx = (GetCid() == match->m_Player1ID) ? res.pos1Idx : res.pos2Idx;
+						if(idx >= 0 && idx < (int)positions.size())
+							SpawnPos = positions[idx];
+						else
+							SpawnPos = positions[0];
+						used1on1 = true;
+					}
 				}
 			}
 		}
@@ -2276,29 +2295,29 @@ void CPlayer::ProcessWeeklyReward()
 	{
 	case 0: // Day 1: 15 BP
 		SetPlayerBlockpoints(GetPlayerBlockpoints() + 15);
-		str_format(aBuf, sizeof(aBuf), "[Weekly Day 1/7] +15 Blockpoints! Come back tomorrow for more!");
+		str_copy(aBuf, "[Weekly Day 1/7] +15 Blockpoints! Come back tomorrow for more!", sizeof(aBuf));
 		break;
 	case 1: // Day 2: 30 BP
 		SetPlayerBlockpoints(GetPlayerBlockpoints() + 30);
-		str_format(aBuf, sizeof(aBuf), "[Weekly Day 2/7] +30 Blockpoints!");
+		str_copy(aBuf, "[Weekly Day 2/7] +30 Blockpoints!", sizeof(aBuf));
 		break;
 	case 2: // Day 3: 3 weaponkits
 		SetPlayerWeaponkits(GetPlayerWeaponkits() + 3);
-		str_format(aBuf, sizeof(aBuf), "[Weekly Day 3/7] +3 Weaponkits!");
+		str_copy(aBuf, "[Weekly Day 3/7] +3 Weaponkits!", sizeof(aBuf));
 		break;
 	case 3: // Day 4: 50 BP
 		SetPlayerBlockpoints(GetPlayerBlockpoints() + 50);
-		str_format(aBuf, sizeof(aBuf), "[Weekly Day 4/7] +50 Blockpoints!");
+		str_copy(aBuf, "[Weekly Day 4/7] +50 Blockpoints!", sizeof(aBuf));
 		break;
 	case 4: // Day 5: 5 weaponkits
 		SetPlayerWeaponkits(GetPlayerWeaponkits() + 5);
-		str_format(aBuf, sizeof(aBuf), "[Weekly Day 5/7] +5 Weaponkits!");
+		str_copy(aBuf, "[Weekly Day 5/7] +5 Weaponkits!", sizeof(aBuf));
 		break;
 	case 5: // Day 6: 2 hours of passive time
 	{
 		int PassiveSeconds = 2 * 3600; // 2 hours in seconds
 		SetPlayerPassive(GetPlayerPassive() + PassiveSeconds);
-		str_format(aBuf, sizeof(aBuf), "[Weekly Day 6/7] +2 hours of Passive Protection!");
+		str_copy(aBuf, "[Weekly Day 6/7] +2 hours of Passive Protection!", sizeof(aBuf));
 		break;
 	}
 	case 6: // Day 7: 150 BP + x2 EXP for 48h of ingame time
@@ -2309,7 +2328,7 @@ void CPlayer::ProcessWeeklyReward()
 		SetWeeklyExpBoostUntil(BoostEndPlaytime);
 		// Activate the multiplier for 48h of real playtime (2880 minutes)
 		AddExpMultiplier(200, 2880);
-		str_format(aBuf, sizeof(aBuf), "[Weekly Day 7/7] +150 Blockpoints + x2 EXP for 48h (ingame time)! Streak complete!");
+		str_copy(aBuf, "[Weekly Day 7/7] +150 Blockpoints + x2 EXP for 48h (ingame time)! Streak complete!", sizeof(aBuf));
 		break;
 	}
 	default:

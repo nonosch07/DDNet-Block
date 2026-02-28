@@ -6,6 +6,8 @@
 #include <game/mapitems.h>
 #include <game/server/gamecontext.h>
 
+#include "1on1arenazone.h"
+#include "1on1prepzone.h"
 #include "nocollisionzone.h"
 #include "noexpzone.h"
 #include "passivezone.h"
@@ -121,6 +123,23 @@ void CZoneManager::Init(CGameContext *pGameServer)
 						pNoExpZone->Init(pQuads);
 						m_aZones[ZONE_NOEXP] = static_cast<IZone *>(pNoExpZone);
 					}
+					else if(!m_aZones[ZONE_1ON1_PREP] && str_comp_nocase(aName, "1on1_prep") == 0)
+					{
+						C1on1PrepZone *pPrepZone = new C1on1PrepZone(GameServer());
+						pPrepZone->Init(pQuads);
+						m_aZones[ZONE_1ON1_PREP] = static_cast<IZone *>(pPrepZone);
+						dbg_msg("zones", "loaded 1on1 prep zone with %d quads", pQuads->m_NumQuads);
+					}
+					else if(str_comp_nocase_num(aName, "1on1_", 5) == 0)
+					{
+						// any "1on1_*" layer that is not "1on1_prep" becomes a match arena
+						int arenaIdx = (int)m_v1on1Arenas.size();
+						C1on1ArenaZone *pArenaZone = new C1on1ArenaZone(GameServer(), aName, arenaIdx);
+						pArenaZone->Init(pQuads);
+						m_vExtraZones.push_back(pArenaZone); // ownership for deletion
+						m_v1on1Arenas.push_back(pArenaZone); // indexed access (borrowed)
+						dbg_msg("zones", "loaded 1on1 arena zone '%s' (idx=%d) with %d quads", aName, arenaIdx, pQuads->m_NumQuads);
+					}
 					else if(str_comp_nocase_num(aName, "shop", 4) == 0)
 					{
 						int Category = CShop::CATEGORY_SKINMANI;
@@ -222,6 +241,42 @@ IZone *CZoneManager::GetZone(int ZoneType)
 	if(ZoneType >= 0 && ZoneType < NUM_ZONES)
 		return m_aZones[ZoneType];
 	return nullptr;
+}
+
+std::vector<vec2> CZoneManager::Get1on1PrepPositions() const
+{
+	auto *pPrep = m_aZones[ZONE_1ON1_PREP];
+	if(pPrep && pPrep->IsEnabled())
+	{
+		auto positions = static_cast<C1on1PrepZone *>(pPrep)->GetSpawnPositions();
+		if(!positions.empty())
+			return positions;
+	}
+	// fallback: use positions from the first arena
+	if(!m_v1on1Arenas.empty())
+		return m_v1on1Arenas[0]->GetSpawnPositions();
+	return {};
+}
+
+const char *CZoneManager::Get1on1ArenaName(int idx) const
+{
+	if(idx >= 0 && idx < (int)m_v1on1Arenas.size())
+		return m_v1on1Arenas[idx]->GetDisplayName();
+	return "Unknown";
+}
+
+std::vector<vec2> CZoneManager::Get1on1ArenaPositions(int idx) const
+{
+	if(idx >= 0 && idx < (int)m_v1on1Arenas.size())
+		return m_v1on1Arenas[idx]->GetSpawnPositions();
+	// -1 or out of range: pool positions from all arenas
+	std::vector<vec2> all;
+	for(auto *pArena : m_v1on1Arenas)
+	{
+		auto pos = pArena->GetSpawnPositions();
+		all.insert(all.end(), pos.begin(), pos.end());
+	}
+	return all;
 }
 
 std::vector<vec2> CZoneManager::GetNamedQuadCenters(const char *pName) const

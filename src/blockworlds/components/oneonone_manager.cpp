@@ -176,7 +176,7 @@ void COneOnOneManager::OnPlayerDropping(int ClientId)
 			{
 				if(m->GetState() == COneOnOneEvent::EEventState::Preparation)
 				{
-					// player dropped during config phase — abort with full cleanup
+					// player dropped during config phase - abort with full cleanup
 					int otherCid = (ClientId == m->m_Player1ID) ? m->m_Player2ID : m->m_Player1ID;
 					GameServer()->SendChatTarget(otherCid, "[1on1] Opponent disconnected during warmup. Match cancelled.");
 
@@ -184,9 +184,7 @@ void COneOnOneManager::OnPlayerDropping(int ClientId)
 					extern CVoteManager g_VoteManager;
 					for(int cid : {m->m_Player1ID, m->m_Player2ID})
 					{
-						auto &Stack = g_VoteManager.GetPageStackMut(cid);
-						Stack.clear();
-						Stack.push_back(CVoteManager::Page{CVoteManager::Page::ROOT, -1});
+						g_VoteManager.NavigateToRoot(cid);
 						GameServer()->ClearVotes(cid);
 					}
 

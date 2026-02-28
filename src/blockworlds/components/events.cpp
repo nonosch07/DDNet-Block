@@ -16,6 +16,7 @@
 #include <blockworlds/components/events/tdm.h>
 #include <blockworlds/components/events/zcatch.h>
 #include <blockworlds/components/oneonone_manager.h>
+#include <blockworlds/votes/votemanager.h>
 
 CEvents::CEvents(CGameContext *pGameServer) :
 	CComponent(pGameServer), m_pActiveEvent(nullptr), m_pEventToDelete(nullptr)
@@ -253,6 +254,35 @@ void CEvents::ConJoin(IConsole::IResult *pResult, void *pUserData)
 void CEvents::ConLeave(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pThis = (CEvents *)pUserData;
+	const int ClientId = pResult->m_ClientId;
+
+	// handle 1on1 leave directly here (ConLeaveEvent in gamecontext is shadowed by this registration)
+	if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>())
+	{
+		if(auto match = mgr->GetMatchForPlayer(ClientId))
+		{
+			auto state = match->GetState();
+			if(state == COneOnOneEvent::EEventState::Preparation)
+			{
+				int otherCid = (ClientId == match->m_Player1ID) ? match->m_Player2ID : match->m_Player1ID;
+				pThis->GameServer()->SendChatTarget(ClientId, "[1on1] You left the warmup. Match cancelled.");
+				pThis->GameServer()->SendChatTarget(otherCid, "[1on1] Your opponent left during warmup. Match cancelled.");
+				match->ClearDuelVoteUi();
+				for(int cid : {match->m_Player1ID, match->m_Player2ID})
+				{
+					g_VoteManager.NavigateToRoot(cid);
+					pThis->GameServer()->ClearVotes(cid);
+				}
+				match->AbortAndRefund(nullptr);
+				return;
+			}
+			else if(state == COneOnOneEvent::EEventState::Active)
+			{
+				match->Leave(ClientId);
+				return;
+			}
+		}
+	}
 
 	if(!pThis->m_pActiveEvent)
 	{

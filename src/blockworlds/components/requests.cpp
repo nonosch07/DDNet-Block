@@ -563,12 +563,11 @@ bool CRequests::AcceptRequest(int RequestId)
 		}
 
 		{
-			std::vector<vec2> startPositions;
-			GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), startPositions);
-			if(startPositions.empty())
+			bool hasArenas = GameServer()->ZoneManager()->Get1on1ArenaCount() > 0;
+			if(!hasArenas)
 			{
-				GameServer()->SendChatTarget(from, "Cannot start 1on1: map missing 1on1 start positions.");
-				GameServer()->SendChatTarget(to, "Cannot start 1on1: map missing 1on1 start positions.");
+				GameServer()->SendChatTarget(from, "Cannot start 1on1: map is missing 1on1 arena zones.");
+				GameServer()->SendChatTarget(to, "Cannot start 1on1: map is missing 1on1 arena zones.");
 				int id = it->m_Id;
 				auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
 				if(eraseIt != m_Requests.end())

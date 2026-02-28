@@ -1128,10 +1128,18 @@ void CGameContext::SendVoteSet(int ClientId)
 
 	if(ClientId == -1)
 	{
+		auto pMgr = g_ComponentRegistry.Get<COneOnOneManager>();
 		for(int i = 0; i < Server()->MaxClients(); i++)
 		{
 			if(!m_apPlayers[i])
 				continue;
+			// don't overwrite duel vote overlay for 1on1 prep players
+			if(pMgr)
+			{
+				if(auto match = pMgr->GetMatchForPlayer(i))
+					if(match->GetState() == COneOnOneEvent::EEventState::Preparation)
+						continue;
+			}
 			if(!Server()->IsSixup(i))
 				Server()->SendPackMsg(&Msg6, MSGFLAG_VITAL, i);
 			else
@@ -1151,9 +1159,19 @@ void CGameContext::SendVoteStatus(int ClientId, int Total, int Yes, int No)
 {
 	if(ClientId == -1)
 	{
+		auto pMgr = g_ComponentRegistry.Get<COneOnOneManager>();
 		for(int i = 0; i < MAX_CLIENTS; ++i)
-			if(Server()->ClientIngame(i))
-				SendVoteStatus(i, Total, Yes, No);
+		{
+			if(!Server()->ClientIngame(i))
+				continue;
+			if(pMgr)
+			{
+				if(auto match = pMgr->GetMatchForPlayer(i))
+					if(match->GetState() == COneOnOneEvent::EEventState::Preparation)
+						continue;
+			}
+			SendVoteStatus(i, Total, Yes, No);
+		}
 		return;
 	}
 
@@ -1421,10 +1439,19 @@ void CGameContext::OnTick()
 				// remember checked players, only the first player with a specific ip will be handled
 				bool aVoteChecked[MAX_CLIENTS] = {false};
 				int64_t Now = Server()->Tick();
+				auto pVoteMgr = g_ComponentRegistry.Get<COneOnOneManager>();
 				for(int i = 0; i < MAX_CLIENTS; i++)
 				{
 					if(!m_apPlayers[i] || aVoteChecked[i])
 						continue;
+
+					// players in 1on1 prep don't participate in server votes
+					if(pVoteMgr)
+					{
+						if(auto match = pVoteMgr->GetMatchForPlayer(i))
+							if(match->GetState() == COneOnOneEvent::EEventState::Preparation)
+								continue;
+					}
 
 					if((IsKickVote() || IsSpecVote()) && (m_apPlayers[i]->GetTeam() == TEAM_SPECTATORS ||
 										     (GetPlayerChar(m_VoteCreator) && GetPlayerChar(i) &&
@@ -2939,6 +2966,13 @@ void CGameContext::OnCallVoteNetMessage(const CNetMsg_Cl_CallVote *pMsg, int Cli
 	// remove delay between navigating custom pages
 	if(HandleCosmeticsVote(pMsg, ClientId))
 		return;
+	// players in 1on1 prep can't call server votes
+	if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>())
+	{
+		if(auto match = mgr->GetMatchForPlayer(ClientId))
+			if(match->GetState() == COneOnOneEvent::EEventState::Preparation)
+				return;
+	}
 	// for real server votes, keep normal rate limiter
 	if(RateLimitPlayerVote(ClientId))
 		return;
@@ -3190,6 +3224,21 @@ void CGameContext::OnCallVoteNetMessage(const CNetMsg_Cl_CallVote *pMsg, int Cli
 
 void CGameContext::OnVoteNetMessage(const CNetMsg_Cl_Vote *pMsg, int ClientId)
 {
+	// Route to the private 1on1 duel vote handler for players in config phase
+	if(pMsg->m_Vote != 0)
+	{
+		auto mgr = g_ComponentRegistry.Get<COneOnOneManager>();
+		if(mgr)
+		{
+			auto match = mgr->GetMatchForPlayer(ClientId);
+			if(match && match->IsInConfigPhase())
+			{
+				match->OnDuelVote(ClientId, pMsg->m_Vote);
+				return;
+			}
+		}
+	}
+
 	if(!m_VoteCloseTime)
 		return;
 
@@ -3282,11 +3331,20 @@ void CGameContext::OnSetTeamNetMessage(const CNetMsg_Cl_SetTeam *pMsg, int Clien
 			if(auto oneOnOneMgr = g_ComponentRegistry.Get<COneOnOneManager>(); oneOnOneMgr)
 			{
 				auto match = oneOnOneMgr->GetMatchForPlayer(ClientId);
-				if(match && match->GetState() == COneOnOneEvent::EEventState::Active)
+				if(match)
 				{
-					// treat as ragequit/leave from the 1on1 match
-					match->Leave(ClientId);
-					return; // suppress actual team change
+					if(match->GetState() == COneOnOneEvent::EEventState::Preparation)
+					{
+						// can't spec during prep - use /leave to cancel
+						SendChatTarget(ClientId, "You can't join spectators during 1on1 preparation. Use /leave to cancel.");
+						return;
+					}
+					if(match->GetState() == COneOnOneEvent::EEventState::Active)
+					{
+						// treat as ragequit
+						match->Leave(ClientId);
+						return;
+					}
 				}
 			}
 		}
@@ -3583,9 +3641,19 @@ void CGameContext::OnKillNetMessage(const CNetMsg_Cl_Kill *pMsg, int ClientId)
 	}
 	CPlayer *pPlayer = m_apPlayers[ClientId];
 
-	// prevent participants in LMB or TDM events from killing themselves - 1on1 is ok
+	// prevent participants in LMB, TDM, or 1on1 prep from killing themselves
 	// allow in TDM if frozen for more than 2 seconds to avoid bullying
 	{
+		// no self-kill during 1on1 prep
+		if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>())
+		{
+			if(auto match = mgr->GetMatchForPlayer(ClientId))
+			{
+				if(match->GetState() == COneOnOneEvent::EEventState::Preparation)
+					return;
+			}
+		}
+
 		int ev = isInEvent(ClientId);
 		if(ev == 2 /* EVENT_TDM */ || ev == 3 /* EVENT_LMB */)
 		{
@@ -4619,7 +4687,7 @@ void CGameContext::RegisterDDRaceCommands()
 
 	Console()->Register("telekinesis", "", CFGFLAG_SERVER, ConTelekinesis, this, "Toggle telekinesis mode: hold fire to grab and move players with your cursor");
 	Console()->Register("knockout", "?r[name|id]", CFGFLAG_SERVER, ConKnockout, this, "Trigger a knockout effect at your cursor position (no args to list all)");
-	Console()->Register("whois_account", "r[account name]", CFGFLAG_SERVER, ConWhoisAccount, this, "Look up an online player by account name and show account details");
+	Console()->Register("whois_account", "r[account name]", CFGFLAG_SERVER, ConWhoisAccount, this, "List all names ever seen on an account (from whois log)");
 }
 
 void CGameContext::RegisterChatCommands()
@@ -6374,6 +6442,16 @@ extern CVoteManager g_VoteManager;
 
 void CGameContext::SendCosmeticsVoteOptions(int ClientID)
 {
+	if(!g_Config.m_SvVotemenuEnabled)
+		return;
+
+	// don't send the menu to active event participants or 1on1 players (but allow during prep for duel config)
+	if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>())
+	{
+		if(auto match = mgr->GetMatchForPlayer(ClientID))
+			if(match->GetState() != COneOnOneEvent::EEventState::Preparation)
+				return;
+	}
 	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
 	{
 		if(auto active = events->GetActiveEvent(); active)
@@ -6394,6 +6472,27 @@ bool CGameContext::HandleCosmeticsVote(const CNetMsg_Cl_CallVote *pMsg, int Clie
 	CPlayer *pPlayer = GetPlayer(ClientId);
 	if(!pPlayer)
 		return false;
+
+	if(!g_Config.m_SvVotemenuEnabled)
+		return false;
+
+	// block vote menu interactions for 1on1 players and active event participants
+	// during prep, allow through so the duel config menu still works
+	if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>())
+	{
+		if(auto match = mgr->GetMatchForPlayer(ClientId))
+			if(match->GetState() != COneOnOneEvent::EEventState::Preparation)
+				return true; // consume silently
+	}
+	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
+	{
+		if(auto active = events->GetActiveEvent(); active)
+		{
+			const auto &parts = active->Participants();
+			if(std::find(parts.begin(), parts.end(), ClientId) != parts.end())
+				return true;
+		}
+	}
 
 	return g_VoteManager.HandleVote(pPlayer, pMsg->m_pValue, ClientId, this);
 }

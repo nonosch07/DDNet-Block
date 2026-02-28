@@ -171,7 +171,7 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos, bool doEvent)
 				pEv->OnCharacterSpawn(pPlayer->GetCid(), Pos);
 			}
 		}
-		// legacy fallback removed — components are the only supported event mechanism
+		// legacy fallback removed - components are the only supported event mechanism
 	}
 
 	m_CurrentKillingSpree = 0;

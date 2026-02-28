@@ -111,6 +111,8 @@ MACRO_CONFIG_INT(SvLMBPagesReward, sv_lmb_pages_reward, 3, 1, 15, CFGFLAG_SERVER
 // Weaponkits setting: persist whether weaponkits are allowed on this server
 MACRO_CONFIG_INT(SvWeaponkitsAllowed, sv_weaponkits_allowed, 1, 0, 1, CFGFLAG_SERVER, "Allow (1) or disable (0) weaponkits on the server.")
 
+MACRO_CONFIG_INT(SvVotemenuEnabled, sv_votemenu_enabled, 1, 0, 1, CFGFLAG_SERVER, "Enable (1) or disable (0) the blockworlds vote menu (shop/cosmetics) globally.")
+
 MACRO_CONFIG_INT(SvWeaponkitsVoteCoolDown, sv_weaponkits_vote_cooldown, 15, 1, 60, CFGFLAG_SERVER, "Cooldown time (in minutes) a player must wait before reusing the weaponkits vote.")
 MACRO_CONFIG_INT(SvEventVoteCoolDown, sv_lmb_vote_cooldown, 1800, 1, 86400, CFGFLAG_SERVER, "Cooldown time (in seconds) before another event vote (LMB/TDM) can be called.")
 
@@ -155,6 +157,10 @@ MACRO_CONFIG_STR(SvDiscordWebhookUrlLmb, sv_discord_webhook_url_lmb, 512, "", CF
 MACRO_CONFIG_STR(SvDiscordWebhookUrlChat, sv_discord_webhook_url_chat, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for chat relay")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlCmd, sv_discord_webhook_url_cmd, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for chat commands")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlChatFilter, sv_discord_webhook_url_chatfilter, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for chat filter mutes")
+MACRO_CONFIG_STR(SvDiscordWebhookUrlRconLog, sv_discord_webhook_url_rcon_log, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL used for RCON logs")
+
+// 1on1 duel settings
+MACRO_CONFIG_INT(Sv1on1WarmupSeconds, sv_1on1_warmup_seconds, 120, 10, 600, CFGFLAG_SERVER, "Duration of the 1on1 warmup/config phase in seconds before auto-start")
 
 // Whois admin tool
 MACRO_CONFIG_INT(SvWhoisRetentionMonths, sv_whois_retention_months, 6, 0, 120, CFGFLAG_SERVER, "Delete whois records older than this many months (0 = keep forever)")

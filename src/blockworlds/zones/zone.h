@@ -28,6 +28,7 @@ public:
 	virtual void Snap(int ClientID) = 0;
 
 	bool IsInZone(vec2 Target) const;
+	std::vector<vec2> GetCenters() const;
 
 	bool IsEnabled() const { return m_IsEnabled; }
 	void Enable() { m_IsEnabled = true; }

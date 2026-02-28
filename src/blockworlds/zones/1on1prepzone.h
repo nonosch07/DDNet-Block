@@ -1,0 +1,20 @@
+#ifndef BLOCKWORLDS_ZONES_1ON1PREPZONE_H
+#define BLOCKWORLDS_ZONES_1ON1PREPZONE_H
+
+#include "zone.h"
+#include <vector>
+#include <base/vmath.h>
+
+class C1on1PrepZone final : public IZone
+{
+public:
+	explicit C1on1PrepZone(CGameContext *pGameServer);
+
+	void Tick() override {}
+	void Snap(int ClientID) override {}
+
+	// Returns the center position of every quad (i.e. all valid spawn points).
+	std::vector<vec2> GetSpawnPositions() const { return GetCenters(); }
+};
+
+#endif // BLOCKWORLDS_ZONES_1ON1PREPZONE_H

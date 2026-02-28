@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <blockworlds/zones/zone.h>
+#include <blockworlds/whois.h>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -991,59 +992,8 @@ void CGameContext::ConWhoisAccount(IConsole::IResult *pResult, void *pUserData)
 		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "Usage: whois_account <account name>");
 		return;
 	}
-
-	// search online players for matching account name
-	CPlayer *pFound = nullptr;
-	int FoundClientId = -1;
-	for(int i = 0; i < MAX_CLIENTS; i++)
-	{
-		CPlayer *pPlayer = pSelf->m_apPlayers[i];
-		if(!pPlayer || !pPlayer->IsLoggedIn())
-			continue;
-		if(str_comp_nocase(pPlayer->GetPlayerName(), pName) == 0)
-		{
-			pFound = pPlayer;
-			FoundClientId = i;
-			break;
-		}
-	}
-
-	if(!pFound)
-	{
-		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "No online player found with that account name.");
-		return;
-	}
-
-	char aBuf[256];
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "--- Account Info ---");
-	str_format(aBuf, sizeof(aBuf), "Client ID: %d | Tee Name: %s", FoundClientId, pSelf->Server()->ClientName(FoundClientId));
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", aBuf);
-	str_format(aBuf, sizeof(aBuf), "Account: %s (ID: %d)", pFound->GetPlayerName(), pFound->GetAccId());
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", aBuf);
-	str_format(aBuf, sizeof(aBuf), "Level: %d | EXP: %d | Ranking: %d", pFound->GetPlayerLevel(), pFound->GetPlayerExperience(), pFound->GetPlayerRanking());
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", aBuf);
-	str_format(aBuf, sizeof(aBuf), "Blockpoints: %d | Kills: %d | Deaths: %d | K/D: %.2f",
-		pFound->GetPlayerBlockpoints(), pFound->GetPlayerKills(), pFound->GetPlayerDeaths(),
-		pFound->GetPlayerDeaths() > 0 ? (float)pFound->GetPlayerKills() / (float)pFound->GetPlayerDeaths() : (float)pFound->GetPlayerKills());
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", aBuf);
-	str_format(aBuf, sizeof(aBuf), "VIP: %s | Pages: %d | Weaponkits: %d", pFound->GetPlayerVip() ? "Yes" : "No", pFound->GetPlayerPages(), pFound->GetPlayerWeaponkits());
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", aBuf);
-	str_format(aBuf, sizeof(aBuf), "Killstreak: %d | Tourney Wins: %d", pFound->GetPlayerKillstreak(), pFound->GetPlayerTourneyWin());
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", aBuf);
-	str_format(aBuf, sizeof(aBuf), "Ranked: %d games | %d wins | %d kills | %d deaths",
-		pFound->GetPlayerRankedGames(), pFound->GetPlayerRankedWins(), pFound->GetPlayerRankedKills(), pFound->GetPlayerRankedDeaths());
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", aBuf);
-
-	long long pt = pFound->GetPlayerPlaytime();
-	int hours = (int)(pt / 3600);
-	int mins = (int)((pt % 3600) / 60);
-	str_format(aBuf, sizeof(aBuf), "Playtime: %dh %dm | Passive: %ds | Clan ID: %d", hours, mins, pFound->GetPlayerPassive(), pFound->GetClanId());
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", aBuf);
-	str_format(aBuf, sizeof(aBuf), "Address: %s | Registered: %s", pFound->GetPlayerAddress(), pFound->GetPlayerRegisterDate());
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", aBuf);
-	str_format(aBuf, sizeof(aBuf), "Last Skin: %s | Last Name: %s", pFound->GetPlayerLastSkin(), pFound->GetPlayerLastName());
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", aBuf);
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "whois", "--------------------");
+	if(pSelf->WhoIs())
+		pSelf->WhoIs()->CmdWhoisAccount(-1, pName);
 }
 
 void CGameContext::ConGiveLevel(IConsole::IResult *pResult, void *pUserData)
@@ -1661,18 +1611,18 @@ void CGameContext::ConClanHelp(IConsole::IResult *pResult, void *pUserData)
 	if(!CheckClientId(pResult->m_ClientId))
 		return;
 	pSelf->SendChatTarget(pResult->m_ClientId, "Clan system commands:");
-	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_create <name> — Create a new clan");
-	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_delete — Delete your clan (leader only)");
-	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_leave — Leave your clan");
-	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_invite <player> — Invite a player");
-	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_accept | /clan_decline — Respond to invite");
-	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_kick <player> — Kick a member (leader/co-leader)");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_create <name> - Create a new clan");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_delete - Delete your clan (leader only)");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_leave - Leave your clan");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_invite <player> - Invite a player");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_accept | /clan_decline - Respond to invite");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_kick <player> - Kick a member (leader/co-leader)");
 	// Updated role command
-	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_role <player> <member|coleader> — Set role (leader only)");
-	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_rename <newname> — Rename clan (leader only)");
-	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_transfer <player> — Transfer clan leadership (leader only)");
-	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_exp — Show clan EXP progress");
-	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_list — List clan members");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_role <player> <member|coleader> - Set role (leader only)");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_rename <newname> - Rename clan (leader only)");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_transfer <player> - Transfer clan leadership (leader only)");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_exp - Show clan EXP progress");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/clan_list - List clan members");
 	char aBuf[128];
 	str_format(aBuf, sizeof(aBuf), "Max members per clan: %d", g_Config.m_SvClanMaxMembers);
 	pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
@@ -1688,15 +1638,15 @@ void CGameContext::ConAccountHelp(IConsole::IResult *pResult, void *pUserData)
 	if(!CheckClientId(pResult->m_ClientId))
 		return;
 	pSelf->SendChatTarget(pResult->m_ClientId, "Account system commands:");
-	pSelf->SendChatTarget(pResult->m_ClientId, "/register <name> <pass> — Create an account");
-	pSelf->SendChatTarget(pResult->m_ClientId, "/login <name> <pass> — Log in");
-	pSelf->SendChatTarget(pResult->m_ClientId, "/logout_account — Log out");
-	pSelf->SendChatTarget(pResult->m_ClientId, "/password <old> <new> — Change password");
-	pSelf->SendChatTarget(pResult->m_ClientId, "/exp — Show your EXP");
-	pSelf->SendChatTarget(pResult->m_ClientId, "/profile [name] — View a profile");
-	pSelf->SendChatTarget(pResult->m_ClientId, "/bp — Show your blockpoints");
-	pSelf->SendChatTarget(pResult->m_ClientId, "/give_bp <player> <amount> — Offer BP transfer");
-	pSelf->SendChatTarget(pResult->m_ClientId, "/accept_bp [player] | /decline_bp [player] — Respond to BP transfer");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/register <name> <pass> - Create an account");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/login <name> <pass> - Log in");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/logout_account - Log out");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/password <old> <new> - Change password");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/exp - Show your EXP");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/profile [name] - View a profile");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/bp - Show your blockpoints");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/give_bp <player> <amount> - Offer BP transfer");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/accept_bp [player] | /decline_bp [player] - Respond to BP transfer");
 }
 
 void CGameContext::ConBuy(IConsole::IResult *pResult, void *pUserData)
@@ -2505,8 +2455,9 @@ void CGameContext::Con1on1(IConsole::IResult *pResult, void *pUserData)
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 	CPlayer *pTarget = pSelf->GetPlayerByName(pEnemyName);
 
-	std::vector<vec2> result;
-	GetTilePositions(TILE_BW_1ON1_START_POS, pSelf, result);
+	std::vector<vec2> dummy1on1;
+	bool hasArenas = CGameContext::GetTilePositions(TILE_BW_1ON1_START_POS, pSelf, dummy1on1) > 0 ||
+	                 pSelf->ZoneManager()->Get1on1ArenaCount() > 0;
 
 	// some errors handling
 	if(!pTarget)
@@ -2533,8 +2484,8 @@ void CGameContext::Con1on1(IConsole::IResult *pResult, void *pUserData)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "This player is already in a 1on1 match.");
 
 	char aBuf[256];
-	if(result.empty())
-		return pSelf->SendChatTarget(pResult->m_ClientId, "Error: This map does not have any spawn tiles for 1v1. (194 / Blue Spawn inside of Game Layer)");
+	if(!hasArenas)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Error: This map does not have any 1on1 spawn positions defined.");
 
 	// create invite via requests component
 	if(auto requests = g_ComponentRegistry.Get<CRequests>())
@@ -2719,47 +2670,8 @@ void CGameContext::Con1on1Ready(IConsole::IResult *pResult, void *pUserData)
 		return;
 	}
 
-	int myIdx = (pResult->m_ClientId == match->m_Player1ID) ? 0 : 1;
-	match->m_aReady[myIdx] = !match->m_aReady[myIdx];
-
-	if(match->m_aReady[myIdx])
-	{
-		pSelf->SendChatTarget(match->m_Player1ID, "[1on1] %s is ready!", pSelf->Server()->ClientName(pResult->m_ClientId));
-		pSelf->SendChatTarget(match->m_Player2ID, "[1on1] %s is ready!", pSelf->Server()->ClientName(pResult->m_ClientId));
-	}
-	else
-	{
-		pSelf->SendChatTarget(match->m_Player1ID, "[1on1] %s is no longer ready.", pSelf->Server()->ClientName(pResult->m_ClientId));
-		pSelf->SendChatTarget(match->m_Player2ID, "[1on1] %s is no longer ready.", pSelf->Server()->ClientName(pResult->m_ClientId));
-	}
-
-	if(match->m_aReady[0] && match->m_aReady[1])
-	{
-		// both ready — clear vote pages and start
-		extern CVoteManager g_VoteManager;
-		for(int cid : {match->m_Player1ID, match->m_Player2ID})
-		{
-			auto &Stack = g_VoteManager.GetPageStackMut(cid);
-			Stack.clear();
-			Stack.push_back(CVoteManager::Page{CVoteManager::Page::ROOT, -1});
-			pSelf->ClearVotes(cid);
-		}
-		match->StartMatchFromConfig();
-	}
-	else
-	{
-		// re-render vote menu for both players to show updated ready state
-		extern CVoteManager g_VoteManager;
-		for(int cid : {match->m_Player1ID, match->m_Player2ID})
-		{
-			CPlayer *pP = pSelf->GetPlayer(cid);
-			if(pP)
-			{
-				pSelf->ClearVotes(cid);
-				g_VoteManager.RenderCurrentPage(pP, cid, pSelf->Server(), pSelf);
-			}
-		}
-	}
+	// /ready now casts a "Start" vote (same as pressing F3 in the vote overlay)
+	match->OnDuelVote(pResult->m_ClientId, 1);
 }
 
 void CGameContext::ConJoinEvent(IConsole::IResult *pResult, void *pUserData)
@@ -2837,7 +2749,7 @@ void CGameContext::ConLeaveEvent(IConsole::IResult *pResult, void *pUserData)
 			auto state = match->GetState();
 			if(state == COneOnOneEvent::EEventState::Preparation)
 			{
-				// during warmup/config phase — cancel without penalty, no escrow was collected
+				// during warmup/config phase - cancel without penalty, no escrow was collected
 				int otherCid = (pResult->m_ClientId == match->m_Player1ID) ? match->m_Player2ID : match->m_Player1ID;
 				pSelf->SendChatTarget(pResult->m_ClientId, "[1on1] You left the warmup. Match cancelled.");
 				pSelf->SendChatTarget(otherCid, "[1on1] Your opponent left during warmup. Match cancelled.");
@@ -2846,9 +2758,7 @@ void CGameContext::ConLeaveEvent(IConsole::IResult *pResult, void *pUserData)
 				extern CVoteManager g_VoteManager;
 				for(int cid : {match->m_Player1ID, match->m_Player2ID})
 				{
-					auto &Stack = g_VoteManager.GetPageStackMut(cid);
-					Stack.clear();
-					Stack.push_back(CVoteManager::Page{CVoteManager::Page::ROOT, -1});
+					g_VoteManager.NavigateToRoot(cid);
 					pSelf->ClearVotes(cid);
 				}
 
@@ -2857,7 +2767,7 @@ void CGameContext::ConLeaveEvent(IConsole::IResult *pResult, void *pUserData)
 			}
 			else if(state == COneOnOneEvent::EEventState::Active)
 			{
-				// during active match — leave counts as ragequit (opponent wins)
+				// during active match - leave counts as ragequit (opponent wins)
 				match->Leave(pResult->m_ClientId);
 				return;
 			}

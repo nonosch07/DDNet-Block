@@ -51,7 +51,7 @@ public:
 		DuelToggleWeapon, // data = A(weapon index 0..5)
 		DuelToggleEndlessHook,
 		DuelSetTimeLimit, // data = A(new time limit in seconds)
-		DuelToggleSpawnMode,
+		DuelToggleSpawnMode, // data = A(0=normal, 1=random)
 		DuelReady,
 	};
 
@@ -79,6 +79,9 @@ public:
 	// force a client onto the DUEL_CONFIG page (used when entering 1on1 config phase)
 	void ForceDuelConfigPage(int ClientId, CPlayer *pPlayer, IServer *pServer, CGameContext *pGameContext);
 	void RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext);
+
+	// reset the page stack to root (used when leaving duel config flows)
+	void NavigateToRoot(int ClientId);
 
 private:
 	// exact option text => action mapping for last sent menu for that client

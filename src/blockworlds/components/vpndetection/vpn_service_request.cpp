@@ -129,7 +129,7 @@ bool CVpnServiceRequest::PerformHttpRequest(const char *pUrl, std::string &Respo
 		}
 	}
 
-	// Return true whenever curl succeeded — let ParseResponse handle
+	// Return true whenever curl succeeded - let ParseResponse handle
 	// non-200 codes (401, 403, 429, etc.) with service-specific messages
 	return true;
 }

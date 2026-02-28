@@ -78,6 +78,8 @@ public:
 
 	// commands
 	void CmdWhoisStr(int RequesterId, int Mode, int Cutoff, const char *pSearch, std::shared_ptr<CWhoIsResult> pRes = nullptr);
+	// query all distinct names ever seen on an account
+	void CmdWhoisAccount(int RequesterId, const char *pAccName);
 
 	// manual purge
 	void PurgeNow(int RetentionMonths, bool Silent = false);

@@ -61,3 +61,18 @@ bool IZone::IsInZone(vec2 Target) const
 			return true;
 	return false;
 }
+
+std::vector<vec2> IZone::GetCenters() const
+{
+	std::vector<vec2> result;
+	result.reserve(m_apQuads.size());
+	for(const auto &q : m_apQuads)
+	{
+		vec2 c{0.0f, 0.0f};
+		for(int i = 0; i < 4; i++)
+			c += q[i];
+		c /= 4.0f;
+		result.push_back(c);
+	}
+	return result;
+}

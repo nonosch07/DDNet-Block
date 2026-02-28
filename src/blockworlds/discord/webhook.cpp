@@ -205,7 +205,7 @@ void CDiscordWebhook::BroadcastCmd(const char *pCmd, const char *pExecutor, cons
 	{
 		return;
 	}
-	const char *pUrl = g_Config.m_SvDiscordWebhookUrlCmd;
+	const char *pUrl = g_Config.m_SvDiscordWebhookUrlRconLog;
 
 	if(pUrl == nullptr)
 	{

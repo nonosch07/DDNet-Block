@@ -188,6 +188,16 @@ static bool EnsureWhoisSchema(IDbConnection *pSql, char *pError, int ErrorSize)
 	if(ExecRaw(pSql, aStmt, pError, ErrorSize))
 		return true;
 
+	// migration: add account_name column if not yet present (safe on re-run)
+	{
+		char aMigErr[256] = {0};
+		str_format(aStmt, sizeof(aStmt), "ALTER TABLE %s ADD COLUMN account_name TEXT NOT NULL DEFAULT ''", TBL_WHOIS_CONNECTIONS);
+		ExecRaw(pSql, aStmt, aMigErr, sizeof(aMigErr)); // ignore error if column already exists
+	}
+	str_format(aStmt, sizeof(aStmt), "CREATE INDEX IF NOT EXISTS whois_idx_accname ON %s(account_name)", TBL_WHOIS_CONNECTIONS);
+	if(ExecRaw(pSql, aStmt, pError, ErrorSize))
+		return true;
+
 	// aggregates: names by IP
 	str_format(aStmt, sizeof(aStmt),
 		"CREATE TABLE IF NOT EXISTS %s ("
@@ -338,14 +348,15 @@ static bool RunLog(IDbConnection *pSql, const CSqlWhoIsLog *pReq, char *pError, 
 		g_WhoisSchemaInit.store(true, std::memory_order_release);
 	}
 	str_format(aStmt, sizeof(aStmt),
-		"INSERT INTO %s (ip, name, account_id, source) VALUES (?, ?, ?, ?)",
+		"INSERT INTO %s (ip, name, account_id, account_name, source) VALUES (?, ?, ?, ?, ?)",
 		TBL_WHOIS_CONNECTIONS);
 	if(pSql->PrepareStatement(aStmt, pError, ErrorSize))
 		return true;
 	pSql->BindString(1, pReq->m_aIp);
 	pSql->BindString(2, pReq->m_aName);
 	pSql->BindInt(3, pReq->m_AccountId);
-	pSql->BindString(4, pReq->m_aSource);
+	pSql->BindString(4, pReq->m_aAccountName);
+	pSql->BindString(5, pReq->m_aSource);
 	int Affected = 0;
 	if(pSql->ExecuteUpdate(&Affected, pError, ErrorSize))
 		return true;
@@ -694,7 +705,7 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 			}
 		}
 	}
-	else
+	else if(pReq->m_Mode == 1)
 	{
 		int MaxRows3 = clamp(g_Config.m_SvWhoisMaxRows, 10, 100000);
 		bool Wildcard = (str_find(pReq->m_aSearch, "*") != nullptr) || (str_find(pReq->m_aSearch, "%") != nullptr);
@@ -792,6 +803,80 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 			pRes->m_vLines.emplace_back(aMsg);
 		}
 	}
+	else if(pReq->m_Mode == 2)
+	{
+		// account name: find all distinct names ever seen on this account
+		int MaxRows4 = clamp(g_Config.m_SvWhoisMaxRows, 10, 100000);
+		str_format(aStmt, sizeof(aStmt),
+			"SELECT name, COUNT(*) AS cnt, date(MIN(created_at)) AS first_seen, date(MAX(created_at)) AS last_seen "
+			"FROM %s WHERE account_name = ? AND account_name != '' "
+			"GROUP BY name ORDER BY cnt DESC LIMIT %d",
+			TBL_WHOIS_CONNECTIONS, MaxRows4);
+		if(pSql->PrepareStatement(aStmt, pError, ErrorSize))
+			return true;
+		pSql->BindString(1, pReq->m_aSearch);
+
+		bool End2 = false;
+		struct SNameEntry
+		{
+			char Name[32];
+			int Cnt;
+			char First[20];
+			char Last[20];
+		};
+		std::vector<SNameEntry> vAccEntries;
+		int AccTotal = 0;
+		char aAccFirst[20] = {0};
+		char aAccLast[20] = {0};
+		while(!pSql->Step(&End2, pError, ErrorSize) && !End2)
+		{
+			SNameEntry e{};
+			pSql->GetString(1, e.Name, sizeof(e.Name));
+			e.Cnt = pSql->GetInt(2);
+			mem_zero(e.First, sizeof(e.First));
+			if(!pSql->IsNull(3))
+				pSql->GetString(3, e.First, sizeof(e.First));
+			mem_zero(e.Last, sizeof(e.Last));
+			if(!pSql->IsNull(4))
+				pSql->GetString(4, e.Last, sizeof(e.Last));
+			vAccEntries.push_back(e);
+			AccTotal += e.Cnt;
+			if(e.First[0] && (!aAccFirst[0] || str_comp(e.First, aAccFirst) < 0))
+				str_copy(aAccFirst, e.First, sizeof(aAccFirst));
+			if(e.Last[0] && (!aAccLast[0] || str_comp(e.Last, aAccLast) > 0))
+				str_copy(aAccLast, e.Last, sizeof(aAccLast));
+		}
+		int AccDistinct = (int)vAccEntries.size();
+		char aHead2[256];
+		if(AccDistinct == 0)
+		{
+			str_format(aHead2, sizeof(aHead2), "No recorded names found for account '%s')", pReq->m_aSearch);
+			pRes->m_vLines.emplace_back(aHead2);
+		}
+		else
+		{
+			if(aAccFirst[0] || aAccLast[0])
+				str_format(aHead2, sizeof(aHead2), "Account '%s': %d name(s), %d connections (first: %s, last: %s):", pReq->m_aSearch, AccDistinct, AccTotal, aAccFirst[0] ? aAccFirst : "-", aAccLast[0] ? aAccLast : "-");
+			else
+				str_format(aHead2, sizeof(aHead2), "Account '%s': %d name(s), %d connections:", pReq->m_aSearch, AccDistinct, AccTotal);
+			pRes->m_vLines.emplace_back(aHead2);
+			for(const auto &e : vAccEntries)
+			{
+				char aTmp2[256];
+				if(e.First[0] && e.Last[0])
+					str_format(aTmp2, sizeof(aTmp2), " - %s (%d connections, first: %s, last: %s)", e.Name, e.Cnt, e.First, e.Last);
+				else
+					str_format(aTmp2, sizeof(aTmp2), " - %s (%d connections)", e.Name, e.Cnt);
+				pRes->m_vLines.emplace_back(aTmp2);
+			}
+			if((int)vAccEntries.size() >= MaxRows4)
+			{
+				char aFoot2[160];
+				str_format(aFoot2, sizeof(aFoot2), "[truncated] Results capped at sv_whois_max_rows=%d.", MaxRows4);
+				pRes->m_vLines.emplace_back(aFoot2);
+			}
+		}
+	}
 
 	pRes->m_Completed.store(true, std::memory_order_release);
 	pRes->m_Success = true;
@@ -879,7 +964,7 @@ void CWhoIs::SnapshotTick()
 				if(!pSql)
 				{
 					char aLine[192];
-					str_format(aLine, sizeof(aLine), "whois purge failed: database unavialable");
+					str_copy(aLine, "whois purge failed: database unavialable", sizeof(aLine));
 					pRes->m_vLines.emplace_back(aLine);
 					pRes->m_Success = false;
 					pRes->m_Completed.store(true, std::memory_order_release);
@@ -1054,6 +1139,11 @@ void CWhoIs::DrainAndPrintResults()
 	}
 }
 
+void CWhoIs::CmdWhoisAccount(int RequesterId, const char *pAccName)
+{
+	CmdWhoisStr(RequesterId, 2, 0, pAccName);
+}
+
 void CWhoIs::PurgeNow(int RetentionMonths, bool Silent)
 {
 	if(RetentionMonths <= 0)
@@ -1068,7 +1158,7 @@ void CWhoIs::PurgeNow(int RetentionMonths, bool Silent)
 			if(pRes)
 			{
 				char aLine[192];
-				str_format(aLine, sizeof(aLine), "whois purge failed: database unavalable");
+				str_copy(aLine, "whois purge failed: database unavalable", sizeof(aLine));
 				pRes->m_vLines.emplace_back(aLine);
 				pRes->m_Success = false;
 				pRes->m_Completed.store(true, std::memory_order_release);
