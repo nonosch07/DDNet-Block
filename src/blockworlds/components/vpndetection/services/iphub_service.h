@@ -39,7 +39,6 @@ public:
 	bool RequiresAuth() const override { return true; }
 	std::string GetAuthHeader() const override;
 
-
 	void SetApiKeyPtr(const char *pKeyBuffer) { m_pApiKey = pKeyBuffer; }
 
 private:

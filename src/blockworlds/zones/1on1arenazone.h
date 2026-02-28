@@ -2,13 +2,13 @@
 #define BLOCKWORLDS_ZONES_1ON1ARENAZONE_H
 
 #include "zone.h"
+#include <base/vmath.h>
 #include <string>
 #include <vector>
-#include <base/vmath.h>
 
 class C1on1ArenaZone final : public IZone
 {
-	std::string m_DisplayName; 
+	std::string m_DisplayName;
 	int m_ArenaIndex;
 
 public:

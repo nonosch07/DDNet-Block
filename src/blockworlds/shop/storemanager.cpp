@@ -361,9 +361,12 @@ bool CShop::InstantPurchase(CGameContext *pGameContext, CPlayer *pOwner, int Cat
 		InfoOk = pCosmetics->ShopInfoUtility(Cosmetics, Price, Level, PreviewPos);
 		if(InfoOk)
 		{
-			if(Cosmetics == 0) pName = "Weapon Kit";
-			else if(Cosmetics == 1) pName = "Deathnote Page";
-			else pName = "Utility Item";
+			if(Cosmetics == 0)
+				pName = "Weapon Kit";
+			else if(Cosmetics == 1)
+				pName = "Deathnote Page";
+			else
+				pName = "Utility Item";
 		}
 		break;
 	default: break;

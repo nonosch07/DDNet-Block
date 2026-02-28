@@ -2,8 +2,8 @@
 #define BLOCKWORLDS_ZONES_1ON1PREPZONE_H
 
 #include "zone.h"
-#include <vector>
 #include <base/vmath.h>
+#include <vector>
 
 class C1on1PrepZone final : public IZone
 {

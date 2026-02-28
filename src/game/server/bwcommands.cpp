@@ -22,8 +22,8 @@
 #include <blockworlds/votes/votemanager.h>
 
 #include <algorithm>
-#include <blockworlds/zones/zone.h>
 #include <blockworlds/whois.h>
+#include <blockworlds/zones/zone.h>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -1458,7 +1458,7 @@ void CGameContext::ConDeathnote(IConsole::IResult *pResult, void *pUserData)
 			return pSelf->SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a player inside a passive zone.");
 		if(pNoCollZone && pNoCollZone->IsInZone(pTChar->m_Pos))
 			return pSelf->SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a player inside a no-collision zone.");
-		if (pTChar->Core()->m_Solo)
+		if(pTChar->Core()->m_Solo)
 			return pSelf->SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a solo player."); // bad mapper
 	}
 
@@ -2457,7 +2457,7 @@ void CGameContext::Con1on1(IConsole::IResult *pResult, void *pUserData)
 
 	std::vector<vec2> dummy1on1;
 	bool hasArenas = CGameContext::GetTilePositions(TILE_BW_1ON1_START_POS, pSelf, dummy1on1) > 0 ||
-	                 pSelf->ZoneManager()->Get1on1ArenaCount() > 0;
+			 pSelf->ZoneManager()->Get1on1ArenaCount() > 0;
 
 	// some errors handling
 	if(!pTarget)

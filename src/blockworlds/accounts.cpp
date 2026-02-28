@@ -13,7 +13,7 @@
 #include <vector>
 
 #if defined(CONF_FAMILY_WINDOWS)
-	#include <intrin.h>  // For _ReadWriteBarrier
+#include <intrin.h> // For _ReadWriteBarrier
 #endif
 
 #include "accounts.h"

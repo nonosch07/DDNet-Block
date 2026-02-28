@@ -299,7 +299,6 @@ public:
 
 	virtual bool IsClientsSameAddr(int FirstClientID, int SecondClientID) = 0;
 
-
 	virtual void RefreshRconCommands() = 0;
 	virtual void BroadcastNewRconCmd(const char *pName) = 0;
 	virtual void BroadcastRemovedRconCmd(const char *pName) = 0;

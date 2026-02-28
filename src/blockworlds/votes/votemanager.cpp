@@ -492,8 +492,8 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				return true;
 			}
 			case EActionKind::DuelReady:
-			// Ready is now handled via F3/F4 vote overlay, no-op here
-			return true;
+				// Ready is now handled via F3/F4 vote overlay, no-op here
+				return true;
 			case EActionKind::None:
 			default:
 				return true;
@@ -1540,8 +1540,10 @@ void CVoteManager::BuildDuelConfig(CPlayer *pPlayer, int ClientID, IServer *pSer
 		const char *pP2Name = pServer->ClientName(match->m_Player2ID);
 
 		auto VoteLabel = [](int v) -> const char * {
-			if(v == 1) return "\xe2\x9c\x93 Start";
-			if(v == -1) return "\xe2\x9c\x97 Cancel";
+			if(v == 1)
+				return "\xe2\x9c\x93 Start";
+			if(v == -1)
+				return "\xe2\x9c\x97 Cancel";
 			return "Waiting...";
 		};
 

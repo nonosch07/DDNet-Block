@@ -3,7 +3,6 @@
 #include <base/system.h>
 #include <cctype>
 
-
 static std::string BuildDisplayName(const char *pLayerName)
 {
 	// strip leading "1on1_" prefix (5 chars)

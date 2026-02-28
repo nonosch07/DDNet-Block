@@ -8,15 +8,15 @@
 #include <stdlib.h>
 #include <string.h>
 #if defined(CONF_FAMILY_WINDOWS)
-	#include <io.h>
-	#include <Windows.h>
-	#include <wincrypt.h>
+#include <io.h>
+#include <Windows.h>
+#include <wincrypt.h>
 #else
-	#include <unistd.h>
+#include <unistd.h>
 #endif
 
 #if defined(CONF_FAMILY_WINDOWS)
-	#define strtok_r strtok_s
+#define strtok_r strtok_s
 #endif
 
 // Internal constants
@@ -155,7 +155,7 @@ int pw_hash_generate(const char *pPassword, char *pOut, int OutSize, int Iterati
 		return -1;
 	Iterations = effective_iterations(Iterations);
 	unsigned char salt[SALT_BYTES];
-	
+
 #if defined(CONF_FAMILY_WINDOWS)
 	HCRYPTPROV hProv = 0;
 	if(CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))

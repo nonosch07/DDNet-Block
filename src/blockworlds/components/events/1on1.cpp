@@ -310,7 +310,7 @@ bool COneOnOneEvent::OnDuelVote(int ClientId, int Vote)
 		}
 	}
 
-	// both F3'ed -> start 
+	// both F3'ed -> start
 	if(m_aDuelVote[0] == 1 && m_aDuelVote[1] == 1)
 	{
 		GameServer()->SendChatTarget(m_Player1ID, "[1on1] Both players ready - starting match!");
@@ -822,148 +822,147 @@ void COneOnOneEvent::OnTick()
 	// All freeze/stalemate/scoring logic only applies during Active phase
 	if(GetState() == EEventState::Active)
 	{
+		const int GraceTicks = Config()->m_Sv1on1DrawFreezeGrace * Server()->TickSpeed();
+		const int StalemateThresholdTicks = Config()->m_Sv1on1DrawFreezeStalemate * Server()->TickSpeed();
+		CCharacter *pChr1 = GameServer()->GetPlayerChar(m_Player1ID);
+		CCharacter *pChr2 = GameServer()->GetPlayerChar(m_Player2ID);
+		bool bothChars = pChr1 && pChr2;
+		bool bothInFreezeTile = bothChars && pChr1->Core()->m_IsInFreeze && pChr2->Core()->m_IsInFreeze;
 
-	const int GraceTicks = Config()->m_Sv1on1DrawFreezeGrace * Server()->TickSpeed();
-	const int StalemateThresholdTicks = Config()->m_Sv1on1DrawFreezeStalemate * Server()->TickSpeed();
-	CCharacter *pChr1 = GameServer()->GetPlayerChar(m_Player1ID);
-	CCharacter *pChr2 = GameServer()->GetPlayerChar(m_Player2ID);
-	bool bothChars = pChr1 && pChr2;
-	bool bothInFreezeTile = bothChars && pChr1->Core()->m_IsInFreeze && pChr2->Core()->m_IsInFreeze;
-
-	// track if each player is currently in a freeze tile (perma-freeze context)
-	if(pChr1)
-	{
-		bool inFreeze = pChr1->Core()->m_IsInFreeze; // set in DDRaceTick
-		if(inFreeze)
+		// track if each player is currently in a freeze tile (perma-freeze context)
+		if(pChr1)
 		{
-			if(!m_P1InFreezeTile)
-				m_P1InFreezeTileTick = m_CurrentTick;
-			m_P1InFreezeTile = true;
-		}
-		else
-		{
-			m_P1InFreezeTile = false;
-		}
-
-		if(inFreeze)
-		{
-			if(!m_P1Frozen)
-				m_P1FrozenTick = m_CurrentTick;
-			m_P1Frozen = true;
-		}
-		else
-		{
-			m_P1Frozen = false;
-		}
-	}
-	if(pChr2)
-	{
-		bool inFreeze = pChr2->Core()->m_IsInFreeze;
-		if(inFreeze)
-		{
-			if(!m_P2InFreezeTile)
-				m_P2InFreezeTileTick = m_CurrentTick;
-			m_P2InFreezeTile = true;
-		}
-		else
-		{
-			m_P2InFreezeTile = false;
-		}
-
-		if(inFreeze)
-		{
-			if(!m_P2Frozen)
-				m_P2FrozenTick = m_CurrentTick;
-			m_P2Frozen = true;
-		}
-		else
-		{
-			m_P2Frozen = false;
-		}
-	}
-	if(bothInFreezeTile)
-	{
-		if(m_BothFrozenSinceTick == -1)
-		{
-			// only start counting after grace period
-			if(m_CurrentTick > m_RoundStartTick + GraceTicks)
-				m_BothFrozenSinceTick = m_CurrentTick;
-		}
-		else if(m_CurrentTick - m_BothFrozenSinceTick >= StalemateThresholdTicks)
-		{
-			GameServer()->SendChatTarget(m_Player1ID, "Draw!");
-			GameServer()->SendChatTarget(m_Player2ID, "Draw!");
-			char aDrawBuf[256];
-			str_format(aDrawBuf, sizeof(aDrawBuf), "%s: %d\n%s: %d\nStalemate draw! restarting...", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load());
-			GameServer()->SendBroadcast(aDrawBuf, m_Player1ID, false);
-			GameServer()->SendBroadcast(aDrawBuf, m_Player2ID, false);
-			// reset freeze timers so they can't unfreeze before respawn
-			m_Player1DeathTick = -1; // ensure normal death draw logic does not interfere because otherwise we're fucked
-			m_Player2DeathTick = -1;
-			RestartRoundAfterDraw();
-			return;
-		}
-	}
-	else
-	{
-		m_BothFrozenSinceTick = -1; // reset if condition breaks
-	}
-
-	if(GetState() == EEventState::Active)
-	{
-		const int GroundHookDelayTicks = Config()->m_SvGroundHookPenaltyDelay * Server()->TickSpeed();
-		if(PlayerHookedGroundFor(m_Player1ID) > GroundHookDelayTicks)
-		{
-			GameServer()->GetPlayerChar(m_Player1ID)->FreezeForce(Config()->m_SvGroundHookPenalty);
-		}
-		if(PlayerHookedGroundFor(m_Player2ID) > GroundHookDelayTicks)
-		{
-			GameServer()->GetPlayerChar(m_Player2ID)->FreezeForce(Config()->m_SvGroundHookPenalty);
-		}
-		// adds the check so people can't hold 1on1's hostage.
-		CheckFreezePenalties();
-	}
-
-	if(GetState() == EEventState::Active && CheckEndCondition())
-	{
-		static constexpr const char *s_padding = "                                                                                     "
-							 "                                                                                     "
-							 "                                                                                     ";
-		char aFinalBroadcast[256];
-		str_format(aFinalBroadcast, sizeof(aFinalBroadcast), "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load(), s_padding);
-		GameServer()->SendBroadcast(aFinalBroadcast, m_Player1ID, false);
-		GameServer()->SendBroadcast(aFinalBroadcast, m_Player2ID, false);
-
-		FinishEvent();
-	}
-
-	// time limit enforcement
-	if(GetState() == EEventState::Active && m_Config.m_TimeLimit > 0 && m_MatchStartTick > 0)
-	{
-		int elapsed = (int)((m_CurrentTick - m_MatchStartTick) / Server()->TickSpeed());
-		if(elapsed >= m_Config.m_TimeLimit)
-		{
-			// time's up - player with more points wins; tie = draw/refund
-			int s1 = m_Score1.load();
-			int s2 = m_Score2.load();
-			if(s1 > s2)
-				m_ForcedWinnerCid = m_Player1ID;
-			else if(s2 > s1)
-				m_ForcedWinnerCid = m_Player2ID;
+			bool inFreeze = pChr1->Core()->m_IsInFreeze; // set in DDRaceTick
+			if(inFreeze)
+			{
+				if(!m_P1InFreezeTile)
+					m_P1InFreezeTileTick = m_CurrentTick;
+				m_P1InFreezeTile = true;
+			}
 			else
 			{
-				// true draw - suppress normal finish broadcast and handle it here
-				m_SuppressFinishBroadcast = true;
-				GameServer()->SendChatTarget(-1, "[1on1] Time limit reached - match ended in a draw!");
-				if(m_Wager > 0)
-					RefundEscrow();
+				m_P1InFreezeTile = false;
 			}
 
-			GameServer()->SendChatTarget(m_Player1ID, "[1on1] Time limit reached!");
-			GameServer()->SendChatTarget(m_Player2ID, "[1on1] Time limit reached!");
+			if(inFreeze)
+			{
+				if(!m_P1Frozen)
+					m_P1FrozenTick = m_CurrentTick;
+				m_P1Frozen = true;
+			}
+			else
+			{
+				m_P1Frozen = false;
+			}
+		}
+		if(pChr2)
+		{
+			bool inFreeze = pChr2->Core()->m_IsInFreeze;
+			if(inFreeze)
+			{
+				if(!m_P2InFreezeTile)
+					m_P2InFreezeTileTick = m_CurrentTick;
+				m_P2InFreezeTile = true;
+			}
+			else
+			{
+				m_P2InFreezeTile = false;
+			}
+
+			if(inFreeze)
+			{
+				if(!m_P2Frozen)
+					m_P2FrozenTick = m_CurrentTick;
+				m_P2Frozen = true;
+			}
+			else
+			{
+				m_P2Frozen = false;
+			}
+		}
+		if(bothInFreezeTile)
+		{
+			if(m_BothFrozenSinceTick == -1)
+			{
+				// only start counting after grace period
+				if(m_CurrentTick > m_RoundStartTick + GraceTicks)
+					m_BothFrozenSinceTick = m_CurrentTick;
+			}
+			else if(m_CurrentTick - m_BothFrozenSinceTick >= StalemateThresholdTicks)
+			{
+				GameServer()->SendChatTarget(m_Player1ID, "Draw!");
+				GameServer()->SendChatTarget(m_Player2ID, "Draw!");
+				char aDrawBuf[256];
+				str_format(aDrawBuf, sizeof(aDrawBuf), "%s: %d\n%s: %d\nStalemate draw! restarting...", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load());
+				GameServer()->SendBroadcast(aDrawBuf, m_Player1ID, false);
+				GameServer()->SendBroadcast(aDrawBuf, m_Player2ID, false);
+				// reset freeze timers so they can't unfreeze before respawn
+				m_Player1DeathTick = -1; // ensure normal death draw logic does not interfere because otherwise we're fucked
+				m_Player2DeathTick = -1;
+				RestartRoundAfterDraw();
+				return;
+			}
+		}
+		else
+		{
+			m_BothFrozenSinceTick = -1; // reset if condition breaks
+		}
+
+		if(GetState() == EEventState::Active)
+		{
+			const int GroundHookDelayTicks = Config()->m_SvGroundHookPenaltyDelay * Server()->TickSpeed();
+			if(PlayerHookedGroundFor(m_Player1ID) > GroundHookDelayTicks)
+			{
+				GameServer()->GetPlayerChar(m_Player1ID)->FreezeForce(Config()->m_SvGroundHookPenalty);
+			}
+			if(PlayerHookedGroundFor(m_Player2ID) > GroundHookDelayTicks)
+			{
+				GameServer()->GetPlayerChar(m_Player2ID)->FreezeForce(Config()->m_SvGroundHookPenalty);
+			}
+			// adds the check so people can't hold 1on1's hostage.
+			CheckFreezePenalties();
+		}
+
+		if(GetState() == EEventState::Active && CheckEndCondition())
+		{
+			static constexpr const char *s_padding = "                                                                                     "
+								 "                                                                                     "
+								 "                                                                                     ";
+			char aFinalBroadcast[256];
+			str_format(aFinalBroadcast, sizeof(aFinalBroadcast), "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load(), s_padding);
+			GameServer()->SendBroadcast(aFinalBroadcast, m_Player1ID, false);
+			GameServer()->SendBroadcast(aFinalBroadcast, m_Player2ID, false);
+
 			FinishEvent();
 		}
-	}
+
+		// time limit enforcement
+		if(GetState() == EEventState::Active && m_Config.m_TimeLimit > 0 && m_MatchStartTick > 0)
+		{
+			int elapsed = (int)((m_CurrentTick - m_MatchStartTick) / Server()->TickSpeed());
+			if(elapsed >= m_Config.m_TimeLimit)
+			{
+				// time's up - player with more points wins; tie = draw/refund
+				int s1 = m_Score1.load();
+				int s2 = m_Score2.load();
+				if(s1 > s2)
+					m_ForcedWinnerCid = m_Player1ID;
+				else if(s2 > s1)
+					m_ForcedWinnerCid = m_Player2ID;
+				else
+				{
+					// true draw - suppress normal finish broadcast and handle it here
+					m_SuppressFinishBroadcast = true;
+					GameServer()->SendChatTarget(-1, "[1on1] Time limit reached - match ended in a draw!");
+					if(m_Wager > 0)
+						RefundEscrow();
+				}
+
+				GameServer()->SendChatTarget(m_Player1ID, "[1on1] Time limit reached!");
+				GameServer()->SendChatTarget(m_Player2ID, "[1on1] Time limit reached!");
+				FinishEvent();
+			}
+		}
 
 	} // end of if(GetState() == EEventState::Active)
 

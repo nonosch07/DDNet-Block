@@ -124,7 +124,6 @@ void COneOnOneManager::OnTick()
 
 void COneOnOneManager::OnSnap(int SnappingClient)
 {
-
 	std::vector<std::shared_ptr<COneOnOneEvent>> snapshot;
 	{
 		std::lock_guard<std::mutex> g(m_Mutex);

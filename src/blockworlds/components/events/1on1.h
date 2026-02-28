@@ -55,8 +55,8 @@ public:
 
 	// Private F3/F4 vote overlay - called from CGameContext::OnVoteNetMessage
 	bool OnDuelVote(int ClientId, int Vote);
-	void SendDuelVoteUi();    // sends/refreshes the vote overlay to both players
-	void ClearDuelVoteUi();   // clears the vote overlay for both players
+	void SendDuelVoteUi(); // sends/refreshes the vote overlay to both players
+	void ClearDuelVoteUi(); // clears the vote overlay for both players
 
 	void OnTick() override;
 	void OnCharacterSpawn(int ClientId, vec2 SpawnPos) override;
