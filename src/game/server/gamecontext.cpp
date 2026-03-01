@@ -6517,12 +6517,13 @@ void CGameContext::BW_OnTick()
 		m_pClans->AutosaveTick();
 	}
 
-	// hourly top 3 session players broadcast
+	// periodic top 3 session players broadcast (kills, deaths, best streak)
+	if(g_Config.m_SvSessionStatsEnabled)
 	{
-		int64_t HourTicks = (int64_t)Server()->TickSpeed() * 3600;
+		int64_t IntervalTicks = (int64_t)Server()->TickSpeed() * clamp(g_Config.m_SvSessionStatsInterval, 60, 86400);
 		if(m_LastBestPlayerBroadcast == 0)
 			m_LastBestPlayerBroadcast = Server()->Tick();
-		if(Server()->Tick() - m_LastBestPlayerBroadcast >= HourTicks)
+		if(Server()->Tick() - m_LastBestPlayerBroadcast >= IntervalTicks)
 		{
 			m_LastBestPlayerBroadcast = Server()->Tick();
 
@@ -6530,9 +6531,8 @@ void CGameContext::BW_OnTick()
 			{
 				int m_ClientId;
 				int m_Kills;
-				int m_Exp;
+				int m_Deaths;
 				int m_BestStreak;
-				int m_Blockpoints;
 			};
 
 			SSessionEntry aEntries[MAX_CLIENTS];
@@ -6545,14 +6545,21 @@ void CGameContext::BW_OnTick()
 					continue;
 				if(p->GetTeam() == TEAM_SPECTATORS)
 					continue;
-				int Score = p->m_SessionKills + p->m_SessionExpGained + p->m_SessionBestKillstreak * 2 + p->m_SessionBlockpoints;
+
+				// clamp to sane values to avoid overflow
+				int Kills = clamp(p->m_SessionKills, 0, 999999);
+				int Deaths = clamp(p->m_SessionDeaths, 0, 999999);
+				int BestStreak = clamp(p->m_SessionBestKillstreak, 0, 9999);
+
+				// score = kills + best streak bonus; must have at least 1 kill
+				int Score = Kills + BestStreak * 2;
 				if(Score <= 0)
 					continue;
+
 				aEntries[EntryCount].m_ClientId = i;
-				aEntries[EntryCount].m_Kills = p->m_SessionKills;
-				aEntries[EntryCount].m_Exp = p->m_SessionExpGained;
-				aEntries[EntryCount].m_BestStreak = p->m_SessionBestKillstreak;
-				aEntries[EntryCount].m_Blockpoints = p->m_SessionBlockpoints;
+				aEntries[EntryCount].m_Kills = Kills;
+				aEntries[EntryCount].m_Deaths = Deaths;
+				aEntries[EntryCount].m_BestStreak = BestStreak;
 				EntryCount++;
 			}
 
@@ -6561,8 +6568,8 @@ void CGameContext::BW_OnTick()
 			{
 				for(int j = i + 1; j < EntryCount; ++j)
 				{
-					int ScoreI = aEntries[i].m_Kills + aEntries[i].m_Exp + aEntries[i].m_BestStreak * 2 + aEntries[i].m_Blockpoints;
-					int ScoreJ = aEntries[j].m_Kills + aEntries[j].m_Exp + aEntries[j].m_BestStreak * 2 + aEntries[j].m_Blockpoints;
+					int ScoreI = aEntries[i].m_Kills + aEntries[i].m_BestStreak * 2;
+					int ScoreJ = aEntries[j].m_Kills + aEntries[j].m_BestStreak * 2;
 					if(ScoreJ > ScoreI)
 					{
 						SSessionEntry Tmp = aEntries[i];
@@ -6581,9 +6588,9 @@ void CGameContext::BW_OnTick()
 					const SSessionEntry &e = aEntries[i];
 					char aBuf[256];
 					str_format(aBuf, sizeof(aBuf),
-						"#%d %s | %d Kills | %d EXP | %d BP | Best Streak: %d",
+						"#%d %s | %d Kills | %d Deaths | Best Streak: %d",
 						i + 1, Server()->ClientName(e.m_ClientId),
-						e.m_Kills, e.m_Exp, e.m_Blockpoints, e.m_BestStreak);
+						e.m_Kills, e.m_Deaths, e.m_BestStreak);
 					SendChat(-1, TEAM_ALL, aBuf);
 				}
 			}

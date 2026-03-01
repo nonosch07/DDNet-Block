@@ -191,5 +191,14 @@ MACRO_CONFIG_INT(SvDebugSql, sv_debug_sql, 0, 0, 1, CFGFLAG_SERVER, "Enable verb
 // global show ips
 MACRO_CONFIG_INT(SvShowIps, sv_show_ips, 0, 0, 1, CFGFLAG_SERVER, "Global switch to always show IP addresses in rcon commands (1 = on, 0 = off)")
 
+// session stats broadcast
+MACRO_CONFIG_INT(SvSessionStatsEnabled, sv_session_stats_enabled, 1, 0, 1, CFGFLAG_SERVER, "Enable periodic top-session-players broadcast (1=on, 0=off)")
+MACRO_CONFIG_INT(SvSessionStatsInterval, sv_session_stats_interval, 3600, 60, 86400, CFGFLAG_SERVER, "Interval in seconds between session stats broadcasts")
+
+// race finish EXP settings
+MACRO_CONFIG_INT(SvRaceFinishExp, sv_race_finish_exp, 3, 0, 1000, CFGFLAG_SERVER, "EXP awarded for finishing a race (0=disabled)")
+MACRO_CONFIG_INT(SvRaceFinishExpCooldown, sv_race_finish_exp_cooldown, 120, 0, 86400, CFGFLAG_SERVER, "Cooldown in seconds between race finish EXP awards per player (0=no cooldown)")
+MACRO_CONFIG_INT(SvRaceFinishExpMaxPerSession, sv_race_finish_exp_max_per_session, 50, 0, 10000, CFGFLAG_SERVER, "Maximum race finish EXP awards per session (0=unlimited)")
+
 // VPN detection
 MACRO_CONFIG_STR(SvVpnIphubApiKey, sv_vpn_iphub_api_key, 128, "", CFGFLAG_SERVER, "API key for IPHub.info VPN detetion service")

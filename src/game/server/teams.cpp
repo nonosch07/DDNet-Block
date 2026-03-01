@@ -717,11 +717,31 @@ void CGameTeams::OnFinish(CPlayer *Player, int TimeTicks, const char *pTimestamp
 	if(!Player || !Player->IsPlaying())
 		return;
 
-	// Award 10 EXP for finishing the race (only for logged-in players)
-	if(Player->IsLoggedIn())
+	// Award EXP for finishing the race (only for logged-in players, with cooldown)
+	if(Player->IsLoggedIn() && g_Config.m_SvRaceFinishExp > 0)
 	{
-		Player->AddPlayerExp(10);
-		GameServer()->SendChatTarget(Player->GetCid(), "+10 EXP for finishing the race!");
+		int Now = Server()->Tick();
+		int CooldownTicks = g_Config.m_SvRaceFinishExpCooldown * Server()->TickSpeed();
+		bool OnCooldown = CooldownTicks > 0 && Player->m_LastRaceFinishExpTick > 0 && (Now - Player->m_LastRaceFinishExpTick) < CooldownTicks;
+		bool SessionCapped = g_Config.m_SvRaceFinishExpMaxPerSession > 0 && Player->m_RaceFinishExpCount >= g_Config.m_SvRaceFinishExpMaxPerSession;
+
+		if(!OnCooldown && !SessionCapped)
+		{
+			int ExpAmount = clamp(g_Config.m_SvRaceFinishExp, 1, 1000);
+			Player->AddPlayerExp(ExpAmount);
+			Player->m_LastRaceFinishExpTick = Now;
+			Player->m_RaceFinishExpCount++;
+			char aBuf[128];
+			str_format(aBuf, sizeof(aBuf), "+%d EXP for finishing the race!", ExpAmount);
+			GameServer()->SendChatTarget(Player->GetCid(), aBuf);
+		}
+		else if(OnCooldown)
+		{
+			int SecsLeft = (CooldownTicks - (Now - Player->m_LastRaceFinishExpTick)) / Server()->TickSpeed() + 1;
+			char aBuf[128];
+			str_format(aBuf, sizeof(aBuf), "Race EXP on cooldown (%ds remaining).", SecsLeft);
+			GameServer()->SendChatTarget(Player->GetCid(), aBuf);
+		}
 	}
 
 	float Time = TimeTicks / (float)Server()->TickSpeed();

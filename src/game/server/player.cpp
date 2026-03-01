@@ -2364,45 +2364,55 @@ void CPlayer::AddPlayerExp(int Amount, bool ApplyMultiplier)
 		}
 	}
 	Amount = (int)((float)Amount * TotalMult);
+
+	// Clamp to prevent overflow / absurd values
+	if(Amount < 0)
+		Amount = 0;
+	if(Amount > 10000)
+		Amount = 10000;
+
 	m_SessionExpGained += Amount;
 	m_Account.m_Experience += Amount;
 
 	m_Account.m_DirtyProgress = true;
 
-	if(GetPlayerExperience() >= NeededAccountExp(GetPlayerLevel()))
+	// Process level-ups iteratively (not recursively) to avoid stack overflow
+	int LevelsGained = 0;
+	const int MaxLevelsPerCall = 100; // safety cap
+	int RemainingExp = GetPlayerExperience();
+	while(RemainingExp >= NeededAccountExp(GetPlayerLevel()) && LevelsGained < MaxLevelsPerCall)
+	{
+		RemainingExp -= NeededAccountExp(GetPlayerLevel());
+		SetPlayerLevel(GetPlayerLevel() + 1);
+		LevelsGained++;
+	}
+	SetPlayerExperience(maximum(RemainingExp, 0));
+
+	if(LevelsGained > 0)
 	{
 		CPlayer *pPlayer = GameServer()->GetPlayer(m_ClientId);
-		if(!pPlayer)
-			return;
-
-		int ExcessiveExp = GetPlayerExperience() - NeededAccountExp(GetPlayerLevel());
-
-		SetPlayerLevel(GetPlayerLevel() + 1);
-		SetPlayerExperience(0);
-
-		pPlayer->GetCharacter()->SetEmote(EMOTE_HAPPY, Server()->Tick() + 2 * Server()->TickSpeed());
-
-		// confetti effect
-		if(pPlayer->GetCharacter())
+		if(pPlayer && pPlayer->GetCharacter())
 		{
+			pPlayer->GetCharacter()->SetEmote(EMOTE_HAPPY, Server()->Tick() + 2 * Server()->TickSpeed());
 			CCharacter *pChar = pPlayer->GetCharacter();
 			GameServer()->CreateFinishEffect(pChar->GetPos(), pChar->TeamMask());
-			GameServer()->CreateSound(pPlayer->GetCharacter()->GetPos(), SOUND_CTF_CAPTURE, -1);
+			GameServer()->CreateSound(pChar->GetPos(), SOUND_CTF_CAPTURE, -1);
 		}
 
 		char aBuf[256];
 		str_format(aBuf, sizeof(aBuf), "[LevelUp+]: You are now level %d!", GetPlayerLevel());
 		GameServer()->SendChatTarget(m_ClientId, aBuf);
 
-		if(GetPlayerLevel() % 50 == 0)
+		// Check all levels gained for milestone rewards
+		int StartLevel = GetPlayerLevel() - LevelsGained;
+		for(int l = StartLevel + 1; l <= GetPlayerLevel(); l++)
 		{
-			SetPlayerBlockpoints(GetPlayerBlockpoints() + 300);
-
-			str_copy(aBuf, "[LevelUp+]: You've received 300bp !", sizeof(aBuf));
-			GameServer()->SendChatTarget(m_ClientId, aBuf);
+			if(l % 50 == 0)
+			{
+				SetPlayerBlockpoints(GetPlayerBlockpoints() + 300);
+				GameServer()->SendChatTarget(m_ClientId, "[LevelUp+]: You've received 300bp !");
+			}
 		}
-
-		AddPlayerExp(ExcessiveExp, false);
 
 		OnPlayerSave(false);
 	}

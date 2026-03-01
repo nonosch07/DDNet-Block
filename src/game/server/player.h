@@ -546,6 +546,10 @@ public:
 	int m_SessionBestKillstreak = 0;
 	int m_SessionBlockpoints = 0;
 
+	// Race finish EXP cooldown (tick of last awarded race EXP)
+	int m_LastRaceFinishExpTick = 0;
+	int m_RaceFinishExpCount = 0; // finishes awarded this session
+
 	// 0 = not in TDM, 1 = inside TDM, 2 has sent an invite (only leaders can), 3 received leader invite, 4 received clan user invite, 5 accepted & waiting
 	int s_TDM;
 	int s_TDM_team;
