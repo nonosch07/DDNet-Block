@@ -2952,7 +2952,7 @@ void CGameContext::OnSayNetMessage(const CNetMsg_Cl_Say *pMsg, int ClientId, con
 			{
 				char aMsg[600];
 				const char *pName = Server()->ClientName(ClientId);
-				str_format(aMsg, sizeof(aMsg), "[%s]: %s", pName ? pName : "<unknown>", aCensoredMessage);
+				str_format(aMsg, sizeof(aMsg), "<%s> [%s]: %s", Server()->GetMapName(), pName ? pName : "<unknown>", aCensoredMessage);
 				CDiscordWebhook::SSendOptions Opt;
 				Opt.m_pWebhookUrl = pChatUrl;
 				Discord.Send(aMsg, Opt);

@@ -1,6 +1,7 @@
 /* (c) Blockworlds contributors. See licence.txt in the root of the distribution for more information. */
 
 #include "webhook.h"
+#include "webhook_queue.h"
 
 #include <engine/shared/http.h>
 #include <engine/shared/jobs.h>
@@ -194,9 +195,9 @@ void CDiscordWebhook::Send(const char *pContent, const SSendOptions *pOpt)
 		return;
 	}
 	std::string sanitized = SanitizeMentions(pContent);
-	auto vChunks = ChunkMessage(sanitized.c_str());
-	auto pJob = std::make_shared<CSendJob>(m_pHttp, pUrl, vChunks, pOpt);
-	m_pEngine->AddJob(pJob);
+
+	CDiscordWebhookQueueManager::Instance().Init(m_pEngine, m_pHttp);
+	CDiscordWebhookQueueManager::Instance().Enqueue(pUrl, sanitized.c_str());
 }
 
 void CDiscordWebhook::BroadcastCmd(const char *pCmd, const char *pExecutor, const char *pArgs)
