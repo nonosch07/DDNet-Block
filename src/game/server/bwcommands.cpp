@@ -466,63 +466,63 @@ void CGameContext::ConDisplayProfile(IConsole::IResult *pResult, void *pUserData
 	}
 
 	char aBuf[128];
-	str_format(aBuf, sizeof(aBuf), "*** Profile of %s",
+	str_format(aBuf, sizeof(aBuf), "Profile of %s",
 		pTargetPlayer->m_Account.m_aName);
 	pSelf->SendChatTarget(ClientId, aBuf);
 
-	pSelf->SendChatTarget(ClientId, "*** ------Global------");
+	pSelf->SendChatTarget(ClientId, "------Global------");
 
 	// global stats: Kills, Deaths, Max Kill Streak
-	str_format(aBuf, sizeof(aBuf), "*** Kills: %d", pTargetPlayer->m_Account.m_Kills);
+	str_format(aBuf, sizeof(aBuf), "Kills: %d", pTargetPlayer->m_Account.m_Kills);
 	pSelf->SendChatTarget(ClientId, aBuf);
 
-	str_format(aBuf, sizeof(aBuf), "*** Deaths: %d", pTargetPlayer->m_Account.m_Deaths);
+	str_format(aBuf, sizeof(aBuf), "Deaths: %d", pTargetPlayer->m_Account.m_Deaths);
 	pSelf->SendChatTarget(ClientId, aBuf);
 
 	// global K/D ratio
 	float KD = pTargetPlayer->m_Account.m_Deaths > 0 ? (float)pTargetPlayer->m_Account.m_Kills / pTargetPlayer->m_Account.m_Deaths : (float)pTargetPlayer->m_Account.m_Kills;
-	str_format(aBuf, sizeof(aBuf), "*** K/D: %.2f", KD);
+	str_format(aBuf, sizeof(aBuf), "K/D: %.2f", KD);
 	pSelf->SendChatTarget(ClientId, aBuf);
 
-	str_format(aBuf, sizeof(aBuf), "*** Max Kill Streak: %d", pTargetPlayer->m_Account.m_Killstreak);
+	str_format(aBuf, sizeof(aBuf), "Max Kill Streak: %d", pTargetPlayer->m_Account.m_Killstreak);
 	pSelf->SendChatTarget(ClientId, aBuf);
 
 	// LMB Wins
-	str_format(aBuf, sizeof(aBuf), "*** LMB Wins: %d", pTargetPlayer->m_Account.m_TourneyWin);
+	str_format(aBuf, sizeof(aBuf), "LMB Wins: %d", pTargetPlayer->m_Account.m_TourneyWin);
 	pSelf->SendChatTarget(ClientId, aBuf);
 
 	// playtime in hours and minutes
 	int Hours = pTargetPlayer->m_Account.m_Playtime / 3600;
 	int Minutes = (pTargetPlayer->m_Account.m_Playtime % 3600) / 60;
-	str_format(aBuf, sizeof(aBuf), "*** PlayTime: %d hours %d minutes", Hours, Minutes);
+	str_format(aBuf, sizeof(aBuf), "PlayTime: %d hours %d minutes", Hours, Minutes);
 	pSelf->SendChatTarget(ClientId, aBuf);
 
-	// pSelf->SendChatTarget(ClientId, "*** ------Ranked------");
+	// pSelf->SendChatTarget(ClientId, "------Ranked------");
 
 	// // ranked stats: Games, Kills, Deaths, Wins
-	// str_format(aBuf, sizeof(aBuf), "*** Games: %d", pTargetPlayer->m_Account.m_RankedGames);
+	// str_format(aBuf, sizeof(aBuf), "Games: %d", pTargetPlayer->m_Account.m_RankedGames);
 	// pSelf->SendChatTarget(ClientId, aBuf);
 
-	// str_format(aBuf, sizeof(aBuf), "*** Rating: %d", pTargetPlayer->m_Account.m_Ranking);
+	// str_format(aBuf, sizeof(aBuf), "Rating: %d", pTargetPlayer->m_Account.m_Ranking);
 	// pSelf->SendChatTarget(ClientId, aBuf);
 
-	// str_format(aBuf, sizeof(aBuf), "*** Kills: %d", pTargetPlayer->m_Account.m_RankedKills);
+	// str_format(aBuf, sizeof(aBuf), "Kills: %d", pTargetPlayer->m_Account.m_RankedKills);
 	// pSelf->SendChatTarget(ClientId, aBuf);
 
-	// str_format(aBuf, sizeof(aBuf), "*** Deaths: %d", pTargetPlayer->m_Account.m_RankedDeaths);
+	// str_format(aBuf, sizeof(aBuf), "Deaths: %d", pTargetPlayer->m_Account.m_RankedDeaths);
 	// pSelf->SendChatTarget(ClientId, aBuf);
 
 	// // ranked K/D ratio
 	// float RankedKD = pTargetPlayer->m_Account.m_RankedDeaths > 0 ? (float)pTargetPlayer->m_Account.m_RankedKills / pTargetPlayer->m_Account.m_RankedDeaths : (float)pTargetPlayer->m_Account.m_RankedKills;
-	// str_format(aBuf, sizeof(aBuf), "*** K/D: %.2f", RankedKD);
+	// str_format(aBuf, sizeof(aBuf), "K/D: %.2f", RankedKD);
 	// pSelf->SendChatTarget(ClientId, aBuf);
 
 	// // ranked Wins and Win Rate
-	// str_format(aBuf, sizeof(aBuf), "*** Wins: %d", pTargetPlayer->m_Account.m_RankedWins);
+	// str_format(aBuf, sizeof(aBuf), "Wins: %d", pTargetPlayer->m_Account.m_RankedWins);
 	// pSelf->SendChatTarget(ClientId, aBuf);
 
 	// float WinRate = pTargetPlayer->m_Account.m_RankedGames > 0 ? (float)pTargetPlayer->m_Account.m_RankedWins / pTargetPlayer->m_Account.m_RankedGames * 100.0f : 0.0f;
-	// str_format(aBuf, sizeof(aBuf), "*** Win Rate: %.2f%%", WinRate);
+	// str_format(aBuf, sizeof(aBuf), "Win Rate: %.2f%%", WinRate);
 	// pSelf->SendChatTarget(ClientId, aBuf);
 }
 
