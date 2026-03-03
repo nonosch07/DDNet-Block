@@ -1179,7 +1179,7 @@ void CPlayer::TryRespawn()
 	}
 	if(!used1on1)
 	{
-		// check for active event (TDM) and override spawn position to event start tiles
+		// check for active event and override spawn position to event start tiles
 		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
 		{
 			auto active = eventsAccessor->GetActiveEvent();
@@ -1187,18 +1187,27 @@ void CPlayer::TryRespawn()
 			{
 				auto parts = active->Participants();
 				bool isPart = std::find(parts.begin(), parts.end(), GetCid()) != parts.end();
-				if(isPart && active->GetName() && str_comp(active->GetName(), "tdm") == 0)
+				if(isPart && active->GetName())
 				{
-					std::vector<vec2> startPositions;
-					int spawncount = CGameContext::GetTilePositions(TILE_BW_EVENT_TDM_START_POS, GameServer(), startPositions);
-					if(spawncount > 0)
+					int tileId = -1;
+					if(str_comp(active->GetName(), "tdm") == 0)
+						tileId = TILE_BW_EVENT_TDM_START_POS;
+					else if(str_comp(active->GetName(), "LMB") == 0 || str_comp(active->GetName(), "zcatch") == 0)
+						tileId = TILE_BW_EVENT_LMB_START_POS;
+
+					if(tileId >= 0)
 					{
-						// choose a random event start position so players don't always spawn on the same tile
-						std::default_random_engine rng((unsigned)(Server()->Tick() + GetCid() * 9973));
-						std::uniform_int_distribution<int> dist(0, spawncount - 1);
-						int idx = dist(rng);
-						SpawnPos = startPositions[idx];
-						used1on1 = true; // reuse flag name to indicate we've chosen a special spawn --rework tgat
+						std::vector<vec2> startPositions;
+						int spawncount = CGameContext::GetTilePositions(tileId, GameServer(), startPositions);
+						if(spawncount > 0)
+						{
+							// choose a random event start position so players don't always spawn on the same tile
+							std::default_random_engine rng((unsigned)(Server()->Tick() + GetCid() * 9973));
+							std::uniform_int_distribution<int> dist(0, spawncount - 1);
+							int idx = dist(rng);
+							SpawnPos = startPositions[idx];
+							used1on1 = true; // reuse flag to indicate we've chosen a special spawn
+						}
 					}
 				}
 			}

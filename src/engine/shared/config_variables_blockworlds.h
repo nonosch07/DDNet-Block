@@ -103,7 +103,7 @@ MACRO_CONFIG_INT(SvLMBActiveTime, sv_lmb_active_time, 600, 0, 1000, CFGFLAG_SERV
 MACRO_CONFIG_INT(SvLMBWinnerExpMultiplier, sv_lmb_winner_exp_multiplier, 200, 100, 10000, CFGFLAG_SERVER, "Exp multiplier for the winner (percents)")
 MACRO_CONFIG_INT(SvLMBWinnerExpMultiplierDuration, sv_lmb_winner_exp_multiplier_duration, 5, 1, 60, CFGFLAG_SERVER, " Exp multiplier duration (minutes)") // make more precise?
 MACRO_CONFIG_INT(SvLMBFreezeTimeout, sv_lmb_freeze_timeout, 5, 1, 50000, CFGFLAG_SERVER, "Seconds a player must remain frozen to be eliminated in LMB")
-MACRO_CONFIG_INT(SvLMBBroadcastRate, sv_lmb_broadcast_rate, 10, 1, 500, CFGFLAG_SERVER, "Rate at which information broadcasts will be sent (ticks, 50 ticks = 1 second)") // not related to lmb?
+MACRO_CONFIG_INT(SvLMBBroadcastRate, sv_lmb_broadcast_rate, 50, 1, 500, CFGFLAG_SERVER, "Rate at which information broadcasts will be sent (ticks, 50 ticks = 1 second)") // not related to lmb?
 MACRO_CONFIG_INT(SvLMBMinimumCandidates, sv_lmb_minimum_candidates, 8, 2, MAX_CLIENTS, CFGFLAG_SERVER, "Minimum amount of candidates to start the active phase")
 MACRO_CONFIG_INT(SvLMBBlockpointsReward, sv_lmb_blockpoints_reward, 50, 1, 10000, CFGFLAG_SERVER, "Blockpoints reward for winning the LMB event")
 MACRO_CONFIG_INT(SvLMBPagesReward, sv_lmb_pages_reward, 3, 1, 15, CFGFLAG_SERVER, "Pages reward for winning the LMB event")
@@ -123,7 +123,7 @@ MACRO_CONFIG_INT(SvTDMRegistrationTime, sv_tdm_registration_time, 120, 0, 1000, 
 MACRO_CONFIG_INT(SvTDMActiveTime, sv_tdm_active_time, 600, 0, 3600, CFGFLAG_SERVER, "Duration of TDM active phase (seconds)")
 MACRO_CONFIG_INT(SvTDMMinimumCandidates, sv_tdm_minimum_candidates, 8, 2, MAX_CLIENTS, CFGFLAG_SERVER, "Minimum amount of candidates to start TDM")
 MACRO_CONFIG_INT(SvTDMMaximumCandidates, sv_tdm_maximum_candidates, 16, 2, MAX_CLIENTS, CFGFLAG_SERVER, "Maximum amount of participants for TDM")
-MACRO_CONFIG_INT(SvTDMBroadcastRate, sv_tdm_broadcast_rate, 10, 1, 500, CFGFLAG_SERVER, "Rate at which TDM information broadcasts will be sent (ticks)")
+MACRO_CONFIG_INT(SvTDMBroadcastRate, sv_tdm_broadcast_rate, 50, 1, 500, CFGFLAG_SERVER, "Rate at which TDM information broadcasts will be sent (ticks)")
 MACRO_CONFIG_INT(SvTDMFreezeTime, sv_tdm_freeze_time, 3, 5, 30, CFGFLAG_SERVER, "Specifies the time required for a player to be frozen in order to die")
 MACRO_CONFIG_INT(SvTDMFreezeTimeKill, sv_tdm_freeze_time_kill, 5, 1, 30, CFGFLAG_SERVER, "Specifies the time required for a frozen player to die")
 
@@ -138,20 +138,20 @@ MACRO_CONFIG_INT(SvTDMLoseBP3, sv_tdm_lose_bp_3, 25, 0, 10000, CFGFLAG_SERVER, "
 // zCatch (block-based catch event)
 MACRO_CONFIG_INT(SvZCatchRegistrationTime, sv_zcatch_registration_time, 60, 0, 1000, CFGFLAG_SERVER, "Duration of zCatch registration phase (seconds)")
 MACRO_CONFIG_INT(SvZCatchActiveTime, sv_zcatch_active_time, 600, 0, 3600, CFGFLAG_SERVER, "Duration of zCatch active phase in seconds (0 = unlimited)")
-MACRO_CONFIG_INT(SvZCatchMinimumCandidates, sv_zcatch_minimum_candidates, 4, 2, MAX_CLIENTS, CFGFLAG_SERVER, "Minimum candidates to start zCatch")
+MACRO_CONFIG_INT(SvZCatchMinimumCandidates, sv_zcatch_minimum_candidates, 6, 2, MAX_CLIENTS, CFGFLAG_SERVER, "Minimum candidates to start zCatch")
 MACRO_CONFIG_INT(SvZCatchKillsToWin, sv_zcatch_kills_to_win, 30, 1, 1000, CFGFLAG_SERVER, "Number of catches needed to win zCatch")
 MACRO_CONFIG_INT(SvZCatchBlockpointsReward, sv_zcatch_blockpoints_reward, 0, 0, 10000, CFGFLAG_SERVER, "Blockpoints reward for winning zCatch")
 MACRO_CONFIG_INT(SvZCatchPagesReward, sv_zcatch_pages_reward, 0, 0, 15, CFGFLAG_SERVER, "Pages reward for winning zCatch")
 MACRO_CONFIG_INT(SvZCatchBroadcastRate, sv_zcatch_broadcast_rate, 50, 1, 500, CFGFLAG_SERVER, "Rate at which zCatch broadcasts are sent (ticks, 50 = 1 second)")
 MACRO_CONFIG_INT(SvZCatchInitialFreezeTime, sv_zcatch_initial_freeze_time, 3, 0, 30, CFGFLAG_SERVER, "Freeze duration when teleported to zCatch arena (seconds)")
-MACRO_CONFIG_INT(SvZCatchFreezeTimeout, sv_zcatch_freeze_timeout, 2, 1, 30, CFGFLAG_SERVER, "Seconds a participant must stay frozen to be caught (must be < sv_block_freezed)")
+MACRO_CONFIG_INT(SvZCatchFreezeTimeout, sv_zcatch_freeze_timeout, 5, 3, 30, CFGFLAG_SERVER, "Seconds a participant must stay frozen to be caught (must be < sv_block_freezed)")
 
 // 1on1 draw detection settings
 MACRO_CONFIG_INT(Sv1on1DrawFreezeGrace, sv_1on1_draw_freeze_grace, 3, 0, 120, CFGFLAG_SERVER, "1on1: Grace period after round start before counting simultaneous freeze (seconds)")
 MACRO_CONFIG_INT(Sv1on1DrawFreezeStalemate, sv_1on1_draw_freeze_stalemate, 5, 1, 300, CFGFLAG_SERVER, "1on1: Both players frozen this long (after grace) => draw (seconds)")
 MACRO_CONFIG_INT(Sv1on1DrawDeathTickTolerance, sv_1on1_draw_death_tick_tolerance, 1, 0, 50, CFGFLAG_SERVER, "1on1: Max tick diff to treat dual death as draw")
 MACRO_CONFIG_INT(Sv1on1DrawDeathExtendedWindow, sv_1on1_draw_death_extended_window, 50, 0, 2000, CFGFLAG_SERVER, "1on1: Extended tick window for dual death draw (ticks)")
-MACRO_CONFIG_INT(Sv1on1BroadcastRate, sv_1on1_broadcast_rate, 10, 1, 500, CFGFLAG_SERVER, "Rate at which 1on1 score broadcasts will be sent (ticks, 50 ticks = 1 second)")
+MACRO_CONFIG_INT(Sv1on1BroadcastRate, sv_1on1_broadcast_rate, 50, 1, 500, CFGFLAG_SERVER, "Rate at which 1on1 score broadcasts will be sent (ticks, 50 ticks = 1 second)")
 
 MACRO_CONFIG_INT(SvPasswordPbkdf2Iter, sv_password_pbkdf2_iter, 120000, 10000, 2000000, CFGFLAG_SERVER, "PBKDF2 iteration count for account password hashing")
 

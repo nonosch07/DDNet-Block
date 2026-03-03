@@ -270,14 +270,14 @@ bool CZCatchEvent::Register(int ClientId)
 		GameServer()->SendChatTarget(ClientId, "You are already registered for zCatch.");
 		return false;
 	}
-	// for(int CandId : m_Candidates)
-	// {
-	// 	if(GameServer()->Server()->IsClientsSameAddr(ClientId, CandId))
-	// 	{
-	// 		GameServer()->SendChatTarget(ClientId, "You cannot register (same IP already registered).");
-	// 		// return false;
-	// 	}
-	// }
+	for(int CandId : m_Candidates)
+	{
+		if(GameServer()->Server()->IsClientsSameAddr(ClientId, CandId))
+		{
+			GameServer()->SendChatTarget(ClientId, "You cannot register for this event (Already registered).");
+			// return false;
+		}
+	}
 	m_Candidates.push_back(ClientId);
 	GameServer()->SendChatTarget(ClientId, "You joined zCatch registration!");
 	return true;
@@ -745,9 +745,9 @@ void CZCatchEvent::ReleaseCaptives(int CatcherId)
 			pVictimPlayer->Respawn();
 		}
 
-		char aBuf[128];
-		str_format(aBuf, sizeof(aBuf), "%s has been freed!", Server()->ClientName(victim));
-		GameServer()->SendChatTarget(-1, aBuf);
+		// char aBuf[128];
+		// str_format(aBuf, sizeof(aBuf), "%s has been freed!", Server()->ClientName(victim));
+		// GameServer()->SendChatTarget(-1, aBuf);
 	}
 }
 
