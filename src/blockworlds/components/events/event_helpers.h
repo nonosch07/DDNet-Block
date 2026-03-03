@@ -4,6 +4,7 @@
 #include <array>
 #include <map>
 
+#include <base/system.h>
 #include <engine/shared/protocol.h>
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
@@ -107,6 +108,25 @@ inline int PlayerHookedGroundForHelper(CGameContext *pGameServer, int ClientId)
 	if(HookingGround)
 		return pChar->Core()->m_HookTick;
 	return 0;
+}
+
+inline void FormatTimeLeft(char *pBuf, int BufSize, int Secs)
+{
+	if(Secs <= 0)
+	{
+		str_copy(pBuf, "0 secs", BufSize);
+		return;
+	}
+	const int mins = Secs / 60;
+	const int secs = Secs % 60;
+	if(mins > 0 && secs > 0)
+		str_format(pBuf, BufSize, "%d %s %d %s",
+			mins, mins == 1 ? "min" : "mins",
+			secs, secs == 1 ? "sec" : "secs");
+	else if(mins > 0)
+		str_format(pBuf, BufSize, "%d %s", mins, mins == 1 ? "min" : "mins");
+	else
+		str_format(pBuf, BufSize, "%d %s", secs, secs == 1 ? "sec" : "secs");
 }
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_EVENT_HELPERS_H

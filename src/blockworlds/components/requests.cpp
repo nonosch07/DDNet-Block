@@ -44,13 +44,13 @@ static int CurrentUtcYyyymmdd()
 
 int CRequests::Create1on1Invite(int FromClient, int ToClient, int Wager, int ExpireSeconds)
 {
-	// disallow inviting players on the same IP address
-	//if(GameServer()->Server()->IsClientsSameAddr(FromClient, ToClient))
-	//{
-	//	if(CheckClientId(FromClient) && GameServer()->m_apPlayers[FromClient])
-	//		GameServer()->SendChatTarget(FromClient, "You cannot invite your dummy.");
-	//	return -1;
-	//}
+	// dummy protection
+	if(GameServer()->Server()->IsClientsSameAddr(FromClient, ToClient))
+	{
+		if(CheckClientId(FromClient) && GameServer()->m_apPlayers[FromClient])
+			GameServer()->SendChatTarget(FromClient, "You cannot invite your own dummy to a 1on1.");
+		return -1;
+	}
 
 	for(const auto &existing : m_Requests)
 	{

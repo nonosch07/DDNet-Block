@@ -11,6 +11,16 @@ class CGameContext;
 
 class CBlockTracker
 {
+public:
+	struct SHourlyStats
+	{
+		int m_Kills = 0;
+		int m_Deaths = 0;
+		int m_BestStreak = 0;
+		bool m_Active = false; // has participated at least once this interval
+	};
+
+private:
 	struct STrackedPlayer
 	{
 		bool m_Tracked;
@@ -54,6 +64,7 @@ class CBlockTracker
 	CGameContext *m_pGameContext;
 	STrackedPlayer m_aTrackedPlayers[MAX_CLIENTS];
 	SKillerRecent m_aKillerStats[MAX_CLIENTS];
+	SHourlyStats m_aHourlyStats[MAX_CLIENTS];
 	std::deque<SKillEvent> m_GlobalKillBuffer; // for loop detection across pairs
 
 	// internal helpers
@@ -87,6 +98,16 @@ public:
 	void OnPlayerImpacted(int ClientID, int InitiatorID);
 	bool OnPlayerKill(int ClientID);
 	void OnPlayerDeath(int ClientID);
+
+	// Hourly session stats (not account-bound, covers all in-game players)
+	const SHourlyStats &GetHourlyStats(int ClientID) const { return m_aHourlyStats[ClientID]; }
+
+	// Returns the client ID currently tracked as the impactor for ClientId, or -1 if none.
+	int GetImpactorOf(int ClientId) const { return (ClientId >= 0 && ClientId < MAX_CLIENTS) ? m_aTrackedPlayers[ClientId].m_ImpactedClientID : -1; }
+	// Returns true when the tracker currently has an active freeze timestamp for ClientId.
+	bool IsTrackerFrozen(int ClientId) const { return (ClientId >= 0 && ClientId < MAX_CLIENTS) && m_aTrackedPlayers[ClientId].m_FreezedTick >= 0; }
+	void ResetHourlyStats(int ClientID);
+	void ResetAllHourlyStats();
 };
 
 #endif // BLOCKWORLDS_BLOCKTRACKER_H

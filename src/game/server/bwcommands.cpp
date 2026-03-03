@@ -1416,7 +1416,7 @@ void CGameContext::ConDeathnote(IConsole::IResult *pResult, void *pUserData)
 	IZone *pNoCollZone = pSelf->ZoneManager()->GetZone(ZONE_NOCOLL);
 
 	// prevent using deathnote if target is participating in an event
-	if(pTarget && pSelf->isInEvent(pTarget->GetCid()) != 0)
+	if(pTarget && pSelf->isInEvent(pTarget->GetCid()))
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a player participating in an event.");
 
 	int CurrentTick = pServer->Tick();

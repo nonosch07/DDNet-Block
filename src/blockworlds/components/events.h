@@ -34,6 +34,7 @@ protected:
 
 	void OnTick() override;
 	void OnPostTick() override;
+	void OnCharacterDeath(int KillerId, int ClientId, int Weapon) override;
 
 	static void ConEventsStatus(IConsole::IResult *pResult, void *pUserData);
 	static void ConEventsList(IConsole::IResult *pResult, void *pUserData);

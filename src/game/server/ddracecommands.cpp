@@ -464,19 +464,15 @@ void CGameContext::ConKill(IConsole::IResult *pResult, void *pUserData)
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 
 	// prevent participants in events from using /kill to leave or suicide,
-	// except in TDM if they've been frozen for more than 2 seconds
+	// unless the event explicitly allows it for this player (e.g. TDM frozen check,
+	// zCatch self-surrender to last impactor)
 	if(pSelf->isInEvent(pResult->m_ClientId))
 	{
 		bool allowed = false;
 		if(auto events = g_ComponentRegistry.Get<CEvents>())
 		{
-			if(auto active = events->GetActiveEvent(); active && str_comp(active->GetName(), "tdm") == 0)
-			{
-				if(auto tdm = std::dynamic_pointer_cast<CTeamDeathmatchEvent>(active))
-				{
-					allowed = tdm->AllowKillCommandFor(pResult->m_ClientId);
-				}
-			}
+			if(auto active = events->GetActiveEvent())
+				allowed = active->AllowKillCommandFor(pResult->m_ClientId);
 		}
 		if(!allowed)
 		{

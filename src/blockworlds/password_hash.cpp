@@ -8,8 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 #if defined(CONF_FAMILY_WINDOWS)
-#include <io.h>
 #include <Windows.h>
+#include <io.h>
 #include <wincrypt.h>
 #else
 #include <unistd.h>

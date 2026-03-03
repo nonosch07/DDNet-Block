@@ -24,7 +24,6 @@
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
 #include <blockworlds/components/events/event.h>
-#include <blockworlds/components/events/tdm.h>
 #include <blockworlds/shop/storemanager.h>
 
 MACRO_ALLOC_POOL_ID_IMPL(CCharacter, MAX_CLIENTS)
@@ -609,11 +608,8 @@ void CCharacter::FireWeapon()
 
 			if(auto events = g_ComponentRegistry.Get<CEvents>())
 			{
-				if(auto active = events->GetActiveEvent(); active && str_comp(active->GetName(), "tdm") == 0)
-				{
-					if(auto tdm = std::dynamic_pointer_cast<CTeamDeathmatchEvent>(active))
-						tdm->OnPlayerImpacted(pTarget->m_pPlayer->GetCid(), m_pPlayer->GetCid());
-				}
+				if(auto active = events->GetActiveEvent())
+					active->OnPlayerImpacted(pTarget->m_pPlayer->GetCid(), m_pPlayer->GetCid());
 			}
 
 			Hits++;
@@ -907,11 +903,8 @@ void CCharacter::Tick()
 
 			if(auto events = g_ComponentRegistry.Get<CEvents>())
 			{
-				if(auto active = events->GetActiveEvent(); active && str_comp(active->GetName(), "tdm") == 0)
-				{
-					if(auto tdm = std::dynamic_pointer_cast<CTeamDeathmatchEvent>(active))
-						tdm->OnPlayerImpacted(m_Core.HookedPlayer(), m_pPlayer->GetCid());
-				}
+				if(auto active = events->GetActiveEvent())
+					active->OnPlayerImpacted(m_Core.HookedPlayer(), m_pPlayer->GetCid());
 			}
 
 			int Hooker = m_pPlayer->GetCid();

@@ -1,5 +1,6 @@
 #include "tdm.h"
 
+#include "event_helpers.h"
 #include <engine/shared/config.h>
 #include <engine/shared/protocol.h>
 
@@ -200,26 +201,26 @@ void CTeamDeathmatchEvent::BroadcastStatus()
 	int secs = (int)((m_ActiveEndTick - Server()->Tick()) / Server()->TickSpeed());
 	if(secs < 0)
 		secs = 0;
-	const int minutes = secs / 60;
-	const int seconds = secs % 60;
+	char aTimeLeft[32];
+	FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), secs);
 
 	for(int ClientId : m_Participants)
 	{
 		int side = GetSideOf(ClientId);
 		if(side == 0)
 		{
-			GameServer()->SendBroadcast(ClientId, "Team Blue\nBlue %d / %d\nRed %d / %d\nTime left: %d:%02d\n%s",
-				m_ScoreTeam[0], m_TargetScore, m_ScoreTeam[1], m_TargetScore, minutes, seconds, PADDING);
+			GameServer()->SendBroadcast(ClientId, "Team Blue\nBlue %d / %d\nRed %d / %d\nTime left: %s\n%s",
+				m_ScoreTeam[0], m_TargetScore, m_ScoreTeam[1], m_TargetScore, aTimeLeft, PADDING);
 		}
 		else if(side == 1)
 		{
-			GameServer()->SendBroadcast(ClientId, "Team Red\nRed %d / %d\nBlue %d / %d\nTime left: %d:%02d\n%s",
-				m_ScoreTeam[1], m_TargetScore, m_ScoreTeam[0], m_TargetScore, minutes, seconds, PADDING);
+			GameServer()->SendBroadcast(ClientId, "Team Red\nRed %d / %d\nBlue %d / %d\nTime left: %s\n%s",
+				m_ScoreTeam[1], m_TargetScore, m_ScoreTeam[0], m_TargetScore, aTimeLeft, PADDING);
 		}
 		else
 		{
-			GameServer()->SendBroadcast(ClientId, "%s\nBlue %d / %d\nRed %d / %d\nTime left: %d:%02d\n%s",
-				GetEventName(), m_ScoreTeam[0], m_TargetScore, m_ScoreTeam[1], m_TargetScore, minutes, seconds, PADDING);
+			GameServer()->SendBroadcast(ClientId, "%s\nBlue %d / %d\nRed %d / %d\nTime left: %s\n%s",
+				GetEventName(), m_ScoreTeam[0], m_TargetScore, m_ScoreTeam[1], m_TargetScore, aTimeLeft, PADDING);
 		}
 	}
 }
@@ -364,7 +365,7 @@ void CTeamDeathmatchEvent::UpdateRespawns()
 		{
 			lastShown = secsLeft;
 			if(secsLeft > 0)
-				GameServer()->SendBroadcast(cid, "You will respawn in %d sec\n%s", secsLeft, PADDING);
+				GameServer()->SendBroadcast(cid, "You will respawn in %d %s\n%s", secsLeft, secsLeft == 1 ? "sec" : "secs", PADDING);
 		}
 		if(Server()->Tick() >= when)
 			ready.push_back(cid);
@@ -471,9 +472,10 @@ void CTeamDeathmatchEvent::OnTick()
 
 		if(Server()->Tick() % Config()->m_SvTDMBroadcastRate == 0)
 		{
-			GameServer()->SendBroadcast(-1, "%s is about to start!\nRegister with /join\nTime left: %d seconds\n\nParticipants: %zd\n%s",
-				GetEventName(), (int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()),
-				Candidates().size(), PADDING);
+			char aTimeLeft[32];
+			FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), (int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()));
+			GameServer()->SendBroadcast(-1, "%s is about to start!\nRegister with /join\nTime left: %s\n\nParticipants: %zd\n%s",
+				GetEventName(), aTimeLeft, Candidates().size(), PADDING);
 		}
 	}
 	else if(GetState() == CEventComponent::EEventState::Active)
@@ -572,6 +574,7 @@ void CTeamDeathmatchEvent::OpenRegistration()
 void CTeamDeathmatchEvent::CloseRegistration()
 {
 	SetState(CEventComponent::EEventState::Preparation);
+	GameServer()->SendBroadcast(-1, " ", false); // clear registration broadcast for all
 
 	if((int)m_Candidates.size() < Config()->m_SvTDMMinimumCandidates)
 	{
@@ -960,6 +963,21 @@ bool CTeamDeathmatchEvent::Register(int ClientId)
 		GameServer()->SendChatTarget(ClientId, "You already registered to participate.");
 		return false;
 	}
+
+	// When the server allows multiple clients per IP (dummies), prevent registering
+	// with more than one account from the same connection.
+	if(g_Config.m_SvMaxClientsPerIp > 1)
+	{
+		for(int CandId : m_Candidates)
+		{
+			if(GameServer()->Server()->IsClientsSameAddr(ClientId, CandId))
+			{
+				GameServer()->SendChatTarget(ClientId, "You cannot register for this event (Already registered).");
+				return false;
+			}
+		}
+	}
+
 	if((int)m_Candidates.size() >= Config()->m_SvTDMMaximumCandidates)
 	{
 		GameServer()->SendChatTarget(ClientId, "Registration is full (max %d players).", Config()->m_SvTDMMaximumCandidates);

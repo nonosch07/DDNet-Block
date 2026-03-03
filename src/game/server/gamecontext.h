@@ -19,6 +19,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <blockworlds/cosmetics/animations.h>
@@ -284,6 +285,9 @@ public:
 	int64_t m_LastGlobalWeaponkitsVoteCall = 0;
 	int64_t m_LastGlobalEventVoteCall = 0;
 	int64_t m_LastBestPlayerBroadcast = 0; // tick of last hourly best-player summary
+
+	// IP-based daily reward guard: ip string -> last yyyymmdd a reward was granted from that IP
+	std::unordered_map<std::string, int> m_WeeklyRewardClaimedByIp;
 
 	// helper functions
 	void CreateDamageInd(vec2 Pos, float AngleMod, int Amount, CClientMask Mask = CClientMask().set());
@@ -692,8 +696,8 @@ public:
 	void ClearVotes(int ClientID);
 
 	//public Event getters and checks
-	// Legacy invite API removed. Use the Requests component: g_ComponentRegistry.Get<CRequests>()
-	int isInEvent(int pPlayerID);
+	// Returns true if the player is currently participating in any event (including 1on1).
+	bool isInEvent(int pPlayerID);
 
 private:
 	CAccounts *m_pAccounts;

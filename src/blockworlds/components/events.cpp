@@ -135,6 +135,12 @@ void CEvents::OnPostTick()
 	}
 }
 
+void CEvents::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
+{
+	if(m_pActiveEvent)
+		m_pActiveEvent->OnCharacterDeath(KillerId, ClientId, Weapon);
+}
+
 void CEvents::ConEventsStatus(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pThis = (CEvents *)pUserData;

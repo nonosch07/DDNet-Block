@@ -63,6 +63,7 @@ CPlayer::CPlayer(CGameContext *pGameServer, uint32_t UniqueClientId, int ClientI
 
 CPlayer::~CPlayer()
 {
+	ClearCosmetics(); // destroy special/flag entities before the character is deleted
 	GameServer()->Antibot()->OnPlayerDestroy(m_ClientId);
 	delete m_pLastTarget;
 	delete m_pCharacter;
@@ -626,45 +627,12 @@ void CPlayer::Snap(int SnappingClient)
 	// -9999: means no time and isn't displayed in the scoreboard.
 	if(m_Score.has_value())
 	{
-		bool treatedAsEventScore = false;
-		// First check active 1on1 matches managed by the oneonone manager
-		if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>(); mgr)
-		{
-			if(auto match = mgr->GetMatchForPlayer(GetCid()); match)
-			{
-				if(auto evScore = match->GetScoreOf(GetCid()); evScore.has_value())
-				{
-					Score = evScore.value();
-					treatedAsEventScore = true;
-				}
-			}
-		}
-
-		// fallback to the global active event (other event types)
-		if(!treatedAsEventScore)
-		{
-			if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
-			{
-				if(auto active = eventsAccessor->GetActiveEvent())
-				{
-					if(auto evScore = active->GetScoreOf(GetCid()); evScore.has_value())
-					{
-						Score = evScore.value();
-						treatedAsEventScore = true;
-					}
-				}
-			}
-		}
-
-		if(!treatedAsEventScore)
-		{
-			// shift the time by a second if the player actually took 9999
-			// seconds to finish the map.
-			if(m_Score.value() == 9999)
-				Score = -10000;
-			else
-				Score = -m_Score.value();
-		}
+		// DDRace race-time score (event scores are handled below by bScoreSetFromEvent).
+		// Shift the time by a second if the player actually took 9999 seconds.
+		if(m_Score.value() == 9999)
+			Score = -10000;
+		else
+			Score = -m_Score.value();
 	}
 	else
 	{
@@ -733,16 +701,30 @@ void CPlayer::Snap(int SnappingClient)
 	{
 		if(IsLoggedIn())
 		{
+			// Canonical server-side score uses this player's own display preference
+			// (drives internal sorting / SetClientScore).
+			int ownScore;
 			switch(m_ScoreDisplayMode)
 			{
-			case 1: // Blockpoints
-				m_Score = Score = GetPlayerBlockpoints();
-				break;
-			default: // 0 = Level
-				m_Score = Score = GetPlayerLevel();
-				break;
+			case 1: ownScore = GetPlayerBlockpoints(); break;
+			default: ownScore = GetPlayerLevel(); break;
 			}
-			Server()->SetClientScore(m_ClientId, Score);
+			m_Score = ownScore;
+			Server()->SetClientScore(m_ClientId, ownScore);
+
+			// The value written into the snap packet uses the VIEWER's preference,
+			// so each client sees the metric they chose in the vote menu.
+			int viewerMode = m_ScoreDisplayMode; // fallback for self-snap / demo
+			if(SnappingClient != SERVER_DEMO_CLIENT && SnappingClient >= 0 && SnappingClient < MAX_CLIENTS && SnappingClient != m_ClientId)
+			{
+				if(CPlayer *pSnapper = GameServer()->m_apPlayers[SnappingClient])
+					viewerMode = pSnapper->m_ScoreDisplayMode;
+			}
+			switch(viewerMode)
+			{
+			case 1: Score = GetPlayerBlockpoints(); break;
+			default: Score = GetPlayerLevel(); break;
+			}
 		}
 		else
 		{
@@ -2248,9 +2230,28 @@ void CPlayer::ProcessWeeklyReward()
 
 	int LastClaim = GetWeeklyLastClaim();
 
-	// Already claimed today
+	// Already claimed today (this account)
 	if(LastClaim == TodayDate)
 		return;
+
+	// IP-based abuse guard: if another account from the same IP already claimed today, deny
+	{
+		char aAddrWithPort[NETADDR_MAXSTRSIZE];
+		GameServer()->Server()->GetClientAddr(m_ClientId, aAddrWithPort, sizeof(aAddrWithPort));
+		// strip port: truncate at the last ':'
+		char aIpKey[NETADDR_MAXSTRSIZE];
+		str_copy(aIpKey, aAddrWithPort, sizeof(aIpKey));
+		char *pLastColon = (char *)str_rchr(aIpKey, ':');
+		if(pLastColon)
+			*pLastColon = '\0';
+
+		auto it = GameServer()->m_WeeklyRewardClaimedByIp.find(aIpKey);
+		if(it != GameServer()->m_WeeklyRewardClaimedByIp.end() && it->second == TodayDate)
+		{
+			GameServer()->SendChatTarget(m_ClientId, "[Daily Reward] You have already claimed today's reward!");
+			return;
+		}
+	}
 
 	// Check if streak is broken (more than 1 day gap)
 	int Day = GetWeeklyDay();
@@ -2340,6 +2341,19 @@ void CPlayer::ProcessWeeklyReward()
 	// Advance day and save
 	SetWeeklyDay(Day + 1);
 	SetWeeklyLastClaim(TodayDate);
+
+	// Record this IP as having claimed today
+	{
+		char aAddrWithPort[NETADDR_MAXSTRSIZE];
+		GameServer()->Server()->GetClientAddr(m_ClientId, aAddrWithPort, sizeof(aAddrWithPort));
+		char aIpKey[NETADDR_MAXSTRSIZE];
+		str_copy(aIpKey, aAddrWithPort, sizeof(aIpKey));
+		char *pLastColon = (char *)str_rchr(aIpKey, ':');
+		if(pLastColon)
+			*pLastColon = '\0';
+		GameServer()->m_WeeklyRewardClaimedByIp[aIpKey] = TodayDate;
+	}
+
 	OnPlayerSave(false);
 }
 

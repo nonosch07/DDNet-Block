@@ -39,10 +39,10 @@ public:
 	void OnCharacterDeath(int KillerId, int ClientId, int Weapon) override;
 
 	// records that InitiatorId last impacted ClientId (hook/hammer/push)
-	void OnPlayerImpacted(int ClientId, int InitiatorId);
+	void OnPlayerImpacted(int ClientId, int InitiatorId) override;
 
 	// allow /kill or client kill message if frozen for a grace period (e.g., 2 seconds)
-	bool AllowKillCommandFor(int ClientId) const;
+	[[nodiscard]] bool AllowKillCommandFor(int ClientId) const override;
 
 	[[nodiscard]] std::optional<int> GetTeamIndexFor(int ClientId) const override;
 

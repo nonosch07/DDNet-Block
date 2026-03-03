@@ -20,7 +20,7 @@
 namespace {
 constexpr int DISCORD_MAX_CONTENT = 2000;
 
-static std::vector<std::string> ChunkMessage(const char *pMsg)
+[[maybe_unused]] static std::vector<std::string> ChunkMessage(const char *pMsg)
 {
 	std::vector<std::string> v;
 	if(!pMsg || !pMsg[0])

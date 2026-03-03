@@ -51,20 +51,22 @@ void CLastManBlockingEvent::OnTick()
 		// TODO: broadcast manager
 		if(Server()->Tick() % Config()->m_SvLMBBroadcastRate == 0)
 		{
+			char aTimeLeft[32];
+			FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), (int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()));
 			char aMsg[1024];
-			str_format(aMsg, sizeof(aMsg), "%s is about to start!\n"
-						       "Register with /join\n"
-						       "Time left: %d seconds\n\n"
-						       "Participants: %" PRIzu "\n\n"
-						       "%s\n"
-						       "%s",
+			str_format(aMsg, sizeof(aMsg),
+				"%s is about to start!\n"
+				"Register with /join\n"
+				"Time left: %s\n\n"
+				"Participants: %" PRIzu "\n"
+				"%s"
+				"                                                                                     "
+				"                                                                                     "
+				"                                                                                     ",
 				GetEventName(),
-				(int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()),
+				aTimeLeft,
 				Candidates().size(),
-				(int)Candidates().size() < Config()->m_SvLMBMinimumCandidates ? "Not enough Participants!" : "",
-				"                                                                                     "
-				"                                                                                     "
-				"                                                                                     ");
+				(int)Candidates().size() < Config()->m_SvLMBMinimumCandidates ? "Not enough participants!\n" : "");
 
 			auto p1on1 = g_ComponentRegistry.Get<COneOnOneManager>();
 			IServer *pServer = Server();
@@ -82,19 +84,24 @@ void CLastManBlockingEvent::OnTick()
 	{
 		if(Server()->Tick() % Config()->m_SvLMBBroadcastRate == 0)
 		{
+			char aTimeLeft[32];
+			FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), (int)((m_ActiveEndTick - Server()->Tick()) / Server()->TickSpeed()));
+			char aMsg[512];
+			str_format(aMsg, sizeof(aMsg),
+				"Participants left: %" PRIzu "\n"
+				"Time left: %s\n"
+				"                                                                                     "
+				"                                                                                     "
+				"                                                                                     ",
+				Participants().size(),
+				aTimeLeft);
+
 			auto p1on1 = g_ComponentRegistry.Get<COneOnOneManager>();
 			for(const auto &ClientId : Participants())
 			{
 				if(p1on1 && p1on1->GetMatchForPlayer(ClientId))
 					continue; // skip sending to players that are in a 1on1 match
-				GameServer()->SendBroadcast(ClientId, "Participants left: %" PRIzu "\n"
-								      "Time left: %d seconds\n"
-								      "%s",
-					Participants().size(),
-					(int)((m_ActiveEndTick - Server()->Tick()) / Server()->TickSpeed()),
-					"                                                                                     "
-					"                                                                                     "
-					"                                                                                     ");
+				GameServer()->SendBroadcast(aMsg, ClientId);
 			}
 		}
 
@@ -146,6 +153,7 @@ void CLastManBlockingEvent::OpenRegistration()
 void CLastManBlockingEvent::CloseRegistration()
 {
 	SetState(CEventComponent::EEventState::Preparation);
+	GameServer()->SendBroadcast(-1, " ", false); // clear registration broadcast for all
 
 	if((int)m_Candidates.size() < Config()->m_SvLMBMinimumCandidates)
 	{
@@ -366,6 +374,18 @@ bool CLastManBlockingEvent::Register(int ClientId)
 	{
 		GameServer()->SendChatTarget(ClientId, "You already registered to participate.");
 		return false;
+	}
+
+	if(g_Config.m_SvMaxClientsPerIp > 1)
+	{
+		for(int CandId : m_Candidates)
+		{
+			if(GameServer()->Server()->IsClientsSameAddr(ClientId, CandId))
+			{
+				GameServer()->SendChatTarget(ClientId, "You cannot register for this event (Already registered).");
+				return false;
+			}
+		}
 	}
 
 	m_Candidates.push_back(ClientId);

@@ -3431,29 +3431,8 @@ void CGameContext::OnChangeInfoNetMessage(const CNetMsg_Cl_ChangeInfo *pMsg, int
 	pPlayer->m_LastChangeInfo = Server()->Tick();
 	pPlayer->UpdatePlaytime();
 
-	if(!Server()->ClientAuthed(ClientId))
-	{
-		bool inLegacyEvent = isInEvent(ClientId) != 0;
-		bool inComponentEvent = false;
-		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
-		{
-			auto subs = eventsAccessor->GetSubComponents();
-			for(auto &sub : subs)
-			{
-				CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
-				if(pEv && pEv->GetState() == CEventComponent::EEventState::Active &&
-					std::find(pEv->Participants().begin(), pEv->Participants().end(), ClientId) != pEv->Participants().end())
-				{
-					inComponentEvent = true;
-					break;
-				}
-			}
-		}
-		if(inLegacyEvent || inComponentEvent)
-		{
-			return;
-		}
-	}
+	if(!Server()->ClientAuthed(ClientId) && isInEvent(ClientId))
+		return;
 
 	if(g_Config.m_SvSpamprotection)
 	{
@@ -3641,8 +3620,8 @@ void CGameContext::OnKillNetMessage(const CNetMsg_Cl_Kill *pMsg, int ClientId)
 	}
 	CPlayer *pPlayer = m_apPlayers[ClientId];
 
-	// prevent participants in LMB, TDM, or 1on1 prep from killing themselves
-	// allow in TDM if frozen for more than 2 seconds to avoid bullying
+	// prevent event participants from killing themselves unless the event explicitly allows it
+	// (e.g. TDM: only when frozen ≥2s; zCatch: only when there is a valid last impactor to credit)
 	{
 		// no self-kill during 1on1 prep
 		if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>())
@@ -3654,26 +3633,16 @@ void CGameContext::OnKillNetMessage(const CNetMsg_Cl_Kill *pMsg, int ClientId)
 			}
 		}
 
-		int ev = isInEvent(ClientId);
-		if(ev == 2 /* EVENT_TDM */ || ev == 3 /* EVENT_LMB */)
+		if(isInEvent(ClientId))
 		{
 			bool allowed = false;
-			if(ev == 2)
+			if(auto events = g_ComponentRegistry.Get<CEvents>())
 			{
-				if(auto events = g_ComponentRegistry.Get<CEvents>())
-				{
-					if(auto active = events->GetActiveEvent(); active && str_comp(active->GetName(), "tdm") == 0)
-					{
-						if(auto tdm = std::dynamic_pointer_cast<CTeamDeathmatchEvent>(active))
-							allowed = tdm->AllowKillCommandFor(ClientId);
-					}
-				}
+				if(auto active = events->GetActiveEvent())
+					allowed = active->AllowKillCommandFor(ClientId);
 			}
 			if(!allowed)
-			{
-				// SendChatTarget(ClientId, "You can't kill yourself while participating in an event. Use /leave first."); pretty obvious
 				return;
-			}
 		}
 	}
 	if(pPlayer->m_LastKill && pPlayer->m_LastKill + Server()->TickSpeed() * g_Config.m_SvKillDelay > Server()->Tick())
@@ -3706,29 +3675,8 @@ void CGameContext::OnStartInfoNetMessage(const CNetMsg_Cl_StartInfo *pMsg, int C
 		return;
 
 	// Prevent non-authed players from setting initial identity while participating in an event
-	if(!Server()->ClientAuthed(ClientId))
-	{
-		bool inLegacyEvent = isInEvent(ClientId) != 0;
-		bool inComponentEvent = false;
-		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
-		{
-			auto subs = eventsAccessor->GetSubComponents();
-			for(auto &sub : subs)
-			{
-				CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
-				if(pEv && pEv->GetState() == CEventComponent::EEventState::Active &&
-					std::find(pEv->Participants().begin(), pEv->Participants().end(), ClientId) != pEv->Participants().end())
-				{
-					inComponentEvent = true;
-					break;
-				}
-			}
-		}
-		if(inLegacyEvent || inComponentEvent)
-		{
-			return;
-		}
-	}
+	if(!Server()->ClientAuthed(ClientId) && isInEvent(ClientId))
+		return;
 
 	pPlayer->m_LastChangeInfo = Server()->Tick();
 
@@ -6253,37 +6201,28 @@ void CGameContext::ReadCensorList()
 
 // Blockworlds
 
-int CGameContext::isInEvent(int pPlayerID)
+bool CGameContext::isInEvent(int pPlayerID)
 {
-	// Prefer explicit 1on1 manager lookup first (allows multiple concurrent 1on1s)
+	// 1on1 manager is checked first (supports multiple concurrent 1on1s)
 	if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>(); mgr)
 	{
 		if(mgr->GetMatchForPlayer(pPlayerID))
-			return 1; // EVENT_1on1
+			return true;
 	}
 
-	// Only component-based events are supported now
 	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
 	{
-		auto subs = events->GetSubComponents();
-		for(auto &sub : subs)
+		for(auto &sub : events->GetSubComponents())
 		{
 			CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
 			if(!pEv)
 				continue;
 			const auto &parts = pEv->Participants();
 			if(std::find(parts.begin(), parts.end(), pPlayerID) != parts.end())
-			{
-				const char *name = pEv->GetName();
-				if(str_comp(name, "tdm") == 0)
-					return 2; // EVENT_TDM
-				if(str_comp(name, "LMB") == 0)
-					return 3; // EVENT_LMB
-				return 4; // Some other event
-			}
+				return true;
 		}
 	}
-	return 0;
+	return false;
 }
 SHA256_DIGEST CGameContext::HashPassword(const char *pPassword)
 {
@@ -6518,6 +6457,7 @@ void CGameContext::BW_OnTick()
 	}
 
 	// periodic top 3 session players broadcast (kills, deaths, best streak)
+	// Uses BlockTracker hourly stats — not account-bound, covers all ingame players.
 	if(g_Config.m_SvSessionStatsEnabled)
 	{
 		int64_t IntervalTicks = (int64_t)Server()->TickSpeed() * clamp(g_Config.m_SvSessionStatsInterval, 60, 86400);
@@ -6541,15 +6481,18 @@ void CGameContext::BW_OnTick()
 			for(int i = 0; i < MAX_CLIENTS; ++i)
 			{
 				CPlayer *p = m_apPlayers[i];
-				if(!p || !p->IsLoggedIn() || !p->IsPlaying())
+				if(!p || !p->IsPlaying())
 					continue;
 				if(p->GetTeam() == TEAM_SPECTATORS)
 					continue;
 
-				// clamp to sane values to avoid overflow
-				int Kills = clamp(p->m_SessionKills, 0, 999999);
-				int Deaths = clamp(p->m_SessionDeaths, 0, 999999);
-				int BestStreak = clamp(p->m_SessionBestKillstreak, 0, 9999);
+				const CBlockTracker::SHourlyStats &HS = m_pController->m_BlockTracker.GetHourlyStats(i);
+				if(!HS.m_Active)
+					continue;
+
+				int Kills = clamp(HS.m_Kills, 0, 999999);
+				int Deaths = clamp(HS.m_Deaths, 0, 999999);
+				int BestStreak = clamp(HS.m_BestStreak, 0, 9999);
 
 				// score = kills + best streak bonus; must have at least 1 kill
 				int Score = Kills + BestStreak * 2;
@@ -6582,7 +6525,7 @@ void CGameContext::BW_OnTick()
 			int ShowCount = minimum(EntryCount, 3);
 			if(ShowCount > 0)
 			{
-				SendChat(-1, TEAM_ALL, "══════ Top Players This Session ══════");
+				SendChat(-1, TEAM_ALL, "------ Top Players This Hour ------");
 				for(int i = 0; i < ShowCount; ++i)
 				{
 					const SSessionEntry &e = aEntries[i];
@@ -6594,6 +6537,9 @@ void CGameContext::BW_OnTick()
 					SendChat(-1, TEAM_ALL, aBuf);
 				}
 			}
+
+			// reset hourly stats so each broadcast window is independent
+			m_pController->m_BlockTracker.ResetAllHourlyStats();
 		}
 	}
 }

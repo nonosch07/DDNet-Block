@@ -86,6 +86,17 @@ public:
 
 	[[nodiscard]] virtual std::optional<int> GetScoreOf(int /*ClientId*/) const { return std::nullopt; }
 
+	// called when a confirmed block-kill happens while the event is active
+	// override in events that need killbased mechanics like zcatch or tdm
+	virtual void OnBlockedKill(int /*VictimID*/, int /*KillerID*/) {}
+
+	// called when a participant physically impacts another (hammer hit or hook attach)
+	// fired before the block tracker clears its state, so impactor data is still fresh
+	virtual void OnPlayerImpacted(int /*VictimId*/, int /*InitiatorId*/) {}
+
+	// returns true if this event allows the given participant to kill themselves
+	[[nodiscard]] virtual bool AllowKillCommandFor(int /*ClientId*/) const { return false; }
+
 	// optional per-event team index for presenting teams to clients (e.g., vanilla UI teams).
 	// Return 0 for red, 1 for blue, or nullopt if not applicable/not a participant.
 	[[nodiscard]] virtual std::optional<int> GetTeamIndexFor(int /*ClientId*/) const { return std::nullopt; }

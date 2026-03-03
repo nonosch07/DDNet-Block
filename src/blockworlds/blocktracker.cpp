@@ -20,7 +20,10 @@ CBlockTracker::CBlockTracker(CGameContext *pGameServer) :
 	m_pGameContext(pGameServer)
 {
 	for(int ClientID = 0; ClientID < MAX_CLIENTS; ClientID++)
+	{
 		m_aTrackedPlayers[ClientID].m_Tracked = false;
+		m_aHourlyStats[ClientID] = {};
+	}
 }
 
 float CBlockTracker::SecondsPassed(int SinceTick) const
@@ -527,6 +530,10 @@ void CBlockTracker::KillStreaks(int ClientID, int BlockerID)
 
 	pBlockerChr->m_KillStreak++;
 
+	// update hourly best streak (EXP-eligible kills only, i.e. real blocks)
+	if(pBlockerChr->m_KillStreak > m_aHourlyStats[BlockerID].m_BestStreak)
+		m_aHourlyStats[BlockerID].m_BestStreak = pBlockerChr->m_KillStreak;
+
 	if(CPlayer *pBlockerPlayer = pBlockerChr->GetPlayer())
 	{
 		if(pBlockerPlayer->IsLoggedIn())
@@ -605,6 +612,9 @@ void CBlockTracker::StartTrackPlayer(int ClientID)
 	// reset killer stats
 	SKillerRecent &KS = m_aKillerStats[ClientID];
 	KS.m_Victims.clear();
+
+	// initialise hourly stats for this session window
+	m_aHourlyStats[ClientID] = {};
 }
 
 void CBlockTracker::StopTrackPlayer(int ClientID)
@@ -650,7 +660,8 @@ void CBlockTracker::OnPlayerImpacted(int ClientID, int InitiatorID)
 			CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
 			if(!pEv)
 				continue;
-			if(pEv->GetName() && str_comp(pEv->GetName(), "tdm") == 0)
+			// TDM and zCatch handle their own kill/catch detection; don't suppress impact tracking for them
+			if(pEv->GetName() && (str_comp(pEv->GetName(), "tdm") == 0 || str_comp(pEv->GetName(), "zcatch") == 0))
 				continue;
 			const auto &parts = pEv->Participants();
 			if(std::find(parts.begin(), parts.end(), ClientID) != parts.end() || std::find(parts.begin(), parts.end(), InitiatorID) != parts.end())
@@ -695,6 +706,23 @@ bool CBlockTracker::OnPlayerKill(int ClientID)
 	if(pVictimPlayer)
 		VictimWasAfk = pVictimPlayer->IsAfk() || pVictimPlayer->IsPaused();
 
+	// hourly stats: count this kill/death regardless of EXP eligibility
+	int KillerID = Player.m_ImpactedClientID;
+	if(KillerID >= 0 && KillerID < MAX_CLIENTS)
+	{
+		m_aHourlyStats[KillerID].m_Kills++;
+		m_aHourlyStats[KillerID].m_Active = true;
+	}
+	m_aHourlyStats[ClientID].m_Deaths++;
+	m_aHourlyStats[ClientID].m_Active = true;
+
+	// notify active event of the block kill (e.g. used by zCatch)
+	if(auto events = g_ComponentRegistry.Get<CEvents>())
+	{
+		if(auto active = events->GetActiveEvent())
+			active->OnBlockedKill(ClientID, KillerID);
+	}
+
 	const bool ExpKillMsgSent = Blocked(ClientID, Player.m_ImpactedClientID);
 
 	// record kill stats regardless of EXP (for detection)
@@ -709,6 +737,18 @@ bool CBlockTracker::OnPlayerKill(int ClientID)
 	}
 
 	return ExpKillMsgSent;
+}
+
+void CBlockTracker::ResetHourlyStats(int ClientID)
+{
+	if(ClientID >= 0 && ClientID < MAX_CLIENTS)
+		m_aHourlyStats[ClientID] = {};
+}
+
+void CBlockTracker::ResetAllHourlyStats()
+{
+	for(int i = 0; i < MAX_CLIENTS; ++i)
+		m_aHourlyStats[i] = {};
 }
 
 void CBlockTracker::OnPlayerDeath(int ClientID)

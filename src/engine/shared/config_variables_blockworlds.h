@@ -135,6 +135,17 @@ MACRO_CONFIG_INT(SvTDMLoseBP1, sv_tdm_lose_bp_1, 75, 0, 10000, CFGFLAG_SERVER, "
 MACRO_CONFIG_INT(SvTDMLoseBP2, sv_tdm_lose_bp_2, 50, 0, 10000, CFGFLAG_SERVER, "Losing team 2nd place BP reward")
 MACRO_CONFIG_INT(SvTDMLoseBP3, sv_tdm_lose_bp_3, 25, 0, 10000, CFGFLAG_SERVER, "Losing team 3rd place BP reward")
 
+// zCatch (block-based catch event)
+MACRO_CONFIG_INT(SvZCatchRegistrationTime, sv_zcatch_registration_time, 60, 0, 1000, CFGFLAG_SERVER, "Duration of zCatch registration phase (seconds)")
+MACRO_CONFIG_INT(SvZCatchActiveTime, sv_zcatch_active_time, 600, 0, 3600, CFGFLAG_SERVER, "Duration of zCatch active phase in seconds (0 = unlimited)")
+MACRO_CONFIG_INT(SvZCatchMinimumCandidates, sv_zcatch_minimum_candidates, 4, 2, MAX_CLIENTS, CFGFLAG_SERVER, "Minimum candidates to start zCatch")
+MACRO_CONFIG_INT(SvZCatchKillsToWin, sv_zcatch_kills_to_win, 30, 1, 1000, CFGFLAG_SERVER, "Number of catches needed to win zCatch")
+MACRO_CONFIG_INT(SvZCatchBlockpointsReward, sv_zcatch_blockpoints_reward, 0, 0, 10000, CFGFLAG_SERVER, "Blockpoints reward for winning zCatch")
+MACRO_CONFIG_INT(SvZCatchPagesReward, sv_zcatch_pages_reward, 0, 0, 15, CFGFLAG_SERVER, "Pages reward for winning zCatch")
+MACRO_CONFIG_INT(SvZCatchBroadcastRate, sv_zcatch_broadcast_rate, 50, 1, 500, CFGFLAG_SERVER, "Rate at which zCatch broadcasts are sent (ticks, 50 = 1 second)")
+MACRO_CONFIG_INT(SvZCatchInitialFreezeTime, sv_zcatch_initial_freeze_time, 3, 0, 30, CFGFLAG_SERVER, "Freeze duration when teleported to zCatch arena (seconds)")
+MACRO_CONFIG_INT(SvZCatchFreezeTimeout, sv_zcatch_freeze_timeout, 2, 1, 30, CFGFLAG_SERVER, "Seconds a participant must stay frozen to be caught (must be < sv_block_freezed)")
+
 // 1on1 draw detection settings
 MACRO_CONFIG_INT(Sv1on1DrawFreezeGrace, sv_1on1_draw_freeze_grace, 3, 0, 120, CFGFLAG_SERVER, "1on1: Grace period after round start before counting simultaneous freeze (seconds)")
 MACRO_CONFIG_INT(Sv1on1DrawFreezeStalemate, sv_1on1_draw_freeze_stalemate, 5, 1, 300, CFGFLAG_SERVER, "1on1: Both players frozen this long (after grace) => draw (seconds)")
