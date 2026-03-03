@@ -275,7 +275,7 @@ bool CZCatchEvent::Register(int ClientId)
 		if(GameServer()->Server()->IsClientsSameAddr(ClientId, CandId))
 		{
 			GameServer()->SendChatTarget(ClientId, "You cannot register for this event (Already registered).");
-			// return false;
+			return false;
 		}
 	}
 	m_Candidates.push_back(ClientId);
