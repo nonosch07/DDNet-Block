@@ -809,14 +809,18 @@ void COneOnOneEvent::OnTick()
 		return;
 	}
 
-	if(GetState() == EEventState::Active && Config()->m_Sv1on1BroadcastRate > 0 && (Server()->Tick() % Config()->m_Sv1on1BroadcastRate) == 0)
+	if(GetState() == EEventState::Active)
 	{
-		static constexpr const char *s_padding = "                                                                                     "
-							 "                                                                                     "
-							 "                                                                                     ";
+		char aBuf[256];
+		str_format(aBuf, sizeof(aBuf), "%s: %d\n"
+			"%s: %d",
+			Server()->ClientName(m_Player1ID),
+			m_Score1.load(),
+			Server()->ClientName(m_Player2ID),
+			m_Score2.load());
 
-		GameServer()->SendBroadcast(m_Player1ID, "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load(), s_padding);
-		GameServer()->SendBroadcast(m_Player2ID, "%s: %d\n%s: %d\n%s", Server()->ClientName(m_Player1ID), m_Score1.load(), Server()->ClientName(m_Player2ID), m_Score2.load(), s_padding);
+		GameServer()->m_apPlayers[m_Player1ID]->SendBroadcastAlignedLeft(aBuf);
+		GameServer()->m_apPlayers[m_Player2ID]->SendBroadcastAlignedLeft(aBuf);
 	}
 
 	// All freeze/stalemate/scoring logic only applies during Active phase

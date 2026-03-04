@@ -36,6 +36,11 @@ enum
 	WEAPON_WORLD = -1, // death tiles etc
 };
 
+static constexpr const char *BROADCAST_PADDING = "\n"
+				       "                                                                                     "
+				       "                                                                                     "
+				       "                                                                                     ";
+
 // player object
 class CPlayer
 {
@@ -644,6 +649,35 @@ public:
 	// Telekinesis (admin feature)
 	bool m_TelekinesisEnabled = false; // whether this admin has telekinesis active
 	int m_TelekinesisTarget = -1; // client ID of the player being held
+
+	// Broadcasts
+	class CBroadcastData
+	{
+	public:
+		char m_aMessage[1024];
+		int64_t m_SentTick;
+	} m_BroadcastData;
+
+	void SendBroadcastImp(const char *pMessage);
+	void SendBroadcast(const char *pFmt, ...)
+	{
+		char aBuf[1024];
+		va_list args;
+		va_start(args, pFmt);
+		str_format_v(aBuf, sizeof(aBuf), pFmt, args);
+		va_end(args);
+		SendBroadcastImp(aBuf);
+	}
+	void SendBroadcastAlignedLeft(const char *pFmt, ...)
+	{
+		char aBuf[1024];
+		va_list args;
+		va_start(args, pFmt);
+		str_format_v(aBuf, sizeof(aBuf), pFmt, args);
+		va_end(args);
+		str_append(aBuf, BROADCAST_PADDING, sizeof(aBuf));
+		SendBroadcastImp(aBuf);
+	}
 };
 
 #endif

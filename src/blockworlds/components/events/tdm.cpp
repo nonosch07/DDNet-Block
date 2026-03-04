@@ -14,13 +14,6 @@
 #include <blockworlds/components/core/component_registry.h>
 #include <random>
 
-namespace {
-static constexpr const char *PADDING =
-	"                                                                                     "
-	"                                                                                     "
-	"                                                                                     ";
-}
-
 CTeamDeathmatchEvent::CTeamDeathmatchEvent(CGameContext *pGameContext) :
 	CEventComponent(pGameContext), m_Rng((unsigned)std::random_device{}() ^ (unsigned)pGameContext->Server()->Tick())
 {
@@ -206,21 +199,34 @@ void CTeamDeathmatchEvent::BroadcastStatus()
 
 	for(int ClientId : m_Participants)
 	{
+		CPlayer *pPlayer = GameServer()->GetPlayer(ClientId);
+		if(!pPlayer)
+			continue;
+
 		int side = GetSideOf(ClientId);
 		if(side == 0)
 		{
-			GameServer()->SendBroadcast(ClientId, "Team Blue\nBlue %d / %d\nRed %d / %d\nTime left: %s\n%s",
-				m_ScoreTeam[0], m_TargetScore, m_ScoreTeam[1], m_TargetScore, aTimeLeft, PADDING);
+			pPlayer->SendBroadcastAlignedLeft("Team Blue\n"
+				"Blue %d / %d\n"
+				"Red %d / %d\n"
+				"Time left: %s",
+				m_ScoreTeam[0], m_TargetScore, m_ScoreTeam[1], m_TargetScore, aTimeLeft);
 		}
 		else if(side == 1)
 		{
-			GameServer()->SendBroadcast(ClientId, "Team Red\nRed %d / %d\nBlue %d / %d\nTime left: %s\n%s",
-				m_ScoreTeam[1], m_TargetScore, m_ScoreTeam[0], m_TargetScore, aTimeLeft, PADDING);
+			pPlayer->SendBroadcastAlignedLeft("Team Red\n"
+				"Red %d / %d\n"
+				"Blue %d / %d\n"
+				"Time left: %s",
+				m_ScoreTeam[1], m_TargetScore, m_ScoreTeam[0], m_TargetScore, aTimeLeft);
 		}
 		else
 		{
-			GameServer()->SendBroadcast(ClientId, "%s\nBlue %d / %d\nRed %d / %d\nTime left: %s\n%s",
-				GetEventName(), m_ScoreTeam[0], m_TargetScore, m_ScoreTeam[1], m_TargetScore, aTimeLeft, PADDING);
+			pPlayer->SendBroadcastAlignedLeft("%s\n"
+				"Blue %d / %d\n"
+				"Red %d / %d\n"
+				"Time left: %s",
+				GetEventName(), m_ScoreTeam[0], m_TargetScore, m_ScoreTeam[1], m_TargetScore, aTimeLeft);
 		}
 	}
 }
@@ -354,7 +360,7 @@ void CTeamDeathmatchEvent::UpdateRespawns()
 
 	std::vector<int> ready;
 	ready.reserve(m_RespawnAtTick.size());
-	for(const auto &kv : m_RespawnAtTick)
+	for(auto &kv : m_RespawnAtTick)
 	{
 		int cid = kv.first;
 		int when = kv.second;
@@ -365,7 +371,11 @@ void CTeamDeathmatchEvent::UpdateRespawns()
 		{
 			lastShown = secsLeft;
 			if(secsLeft > 0)
-				GameServer()->SendBroadcast(cid, "You will respawn in %d %s\n%s", secsLeft, secsLeft == 1 ? "sec" : "secs", PADDING);
+			{
+				CPlayer *pPlayer = GameServer()->GetPlayer(cid);
+				if(pPlayer)
+					pPlayer->SendBroadcastAlignedLeft("You will respawn in %d %s\n%s", secsLeft, secsLeft == 1 ? "sec" : "secs");
+			}
 		}
 		if(Server()->Tick() >= when)
 			ready.push_back(cid);
@@ -470,12 +480,16 @@ void CTeamDeathmatchEvent::OnTick()
 			return;
 		}
 
-		if(Server()->Tick() % Config()->m_SvTDMBroadcastRate == 0)
+		for(int i = 0; i < Server()->MaxClients(); ++i)
 		{
+			CPlayer *pPlayer = GameServer()->GetPlayer(i);
+			if(!pPlayer)
+				continue;
+
 			char aTimeLeft[32];
 			FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), (int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()));
-			GameServer()->SendBroadcast(-1, "%s is about to start!\nRegister with /join\nTime left: %s\n\nParticipants: %zd\n%s",
-				GetEventName(), aTimeLeft, Candidates().size(), PADDING);
+			pPlayer->SendBroadcastAlignedLeft("%s is about to start!\nRegister with /join\nTime left: %s\n\nParticipants: %zd",
+				GetEventName(), aTimeLeft, Candidates().size());
 		}
 	}
 	else if(GetState() == CEventComponent::EEventState::Active)
@@ -491,8 +505,7 @@ void CTeamDeathmatchEvent::OnTick()
 			}
 		}
 
-		if(Server()->Tick() % Config()->m_SvTDMBroadcastRate == 0)
-			BroadcastStatus();
+		BroadcastStatus();
 
 		// after initial fixed freeze window, start tracking long freezes for autokill
 		if(m_ActiveStartTick != -1 && Server()->Tick() > m_ActiveStartTick + Config()->m_SvTDMFreezeTime * Server()->TickSpeed())

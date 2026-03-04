@@ -485,28 +485,26 @@ void CZCatchEvent::OnTick()
 			CloseRegistration();
 			return;
 		}
-		if(Server()->Tick() % Config()->m_SvZCatchBroadcastRate == 0)
+		char aTimeLeft[32];
+		FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), (int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()));
+
+		for(int i = 0; i < Server()->MaxClients(); ++i)
 		{
-			char aTimeLeft[32];
-			FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), (int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()));
-			char aMsg[512];
-			str_format(aMsg, sizeof(aMsg),
-				"zCatch is about to start!\n"
-				"Register with /join\n"
-				"Time left: %s\n\n"
-				"Participants: %" PRIzu "\n"
-				"%s"
-				"                                                                                     "
-				"                                                                                     "
-				"                                                                                     ",
+			if(!Server()->ClientIngame(i))
+				continue;
+
+			CPlayer *pPlayer = GameServer()->GetPlayer(i);
+			if(!pPlayer)
+				continue;
+
+			pPlayer->SendBroadcastAlignedLeft("zCatch is about to start!\n"
+							  "Register with /join\n"
+							  "Time left: %s\n\n"
+							  "Participants: %" PRIzu "\n"
+							  "%s",
 				aTimeLeft,
 				m_Candidates.size(),
 				(int)m_Candidates.size() < Config()->m_SvZCatchMinimumCandidates ? "Not enough participants!\n" : "");
-			for(int i = 0; i < Server()->MaxClients(); ++i)
-			{
-				if(Server()->ClientIngame(i))
-					GameServer()->SendBroadcast(aMsg, i);
-			}
 		}
 	}
 	else if(GetState() == EEventState::Active)
@@ -580,31 +578,27 @@ void CZCatchEvent::OnTick()
 			}
 		}
 
-		// periodic broadcast showing event status (scoreboard has per-player scores)
-		if(Server()->Tick() % Config()->m_SvZCatchBroadcastRate == 0)
+		int caughtCount = 0;
+		int leadScore = 0;
+		for(int id : m_Participants)
 		{
-			int caughtCount = 0;
-			int leadScore = 0;
-			for(int id : m_Participants)
-			{
-				if(IsCaught(id))
-					caughtCount++;
-				auto it = m_Scores.find(id);
-				if(it != m_Scores.end() && it->second > leadScore)
-					leadScore = it->second;
-			}
+			if(IsCaught(id))
+				caughtCount++;
+			auto it = m_Scores.find(id);
+			if(it != m_Scores.end() && it->second > leadScore)
+				leadScore = it->second;
+		}
 
-			char aMsg[512];
-			str_format(aMsg, sizeof(aMsg),
-				"%d / %d\n"
-				"Currently caught: %d / %d\n"
-				"                                                                                     "
-				"                                                                                     "
-				"                                                                                     ",
+		for(int ClientId : m_Participants)
+		{
+			CPlayer *pPlayer = GameServer()->GetPlayer(ClientId);
+			if(!pPlayer)
+				continue;
+
+			pPlayer->SendBroadcastAlignedLeft("%d / %d\n"
+							  "Currently caught: %d / %d\n",
 				leadScore, Config()->m_SvZCatchKillsToWin,
 				caughtCount, (int)m_Participants.size() - 1);
-			for(int ClientId : m_Participants)
-				GameServer()->SendBroadcast(aMsg, ClientId);
 		}
 
 		CEventComponent::OnTick(); // process deferred position/weapon restores

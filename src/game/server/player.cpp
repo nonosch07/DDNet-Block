@@ -2517,3 +2517,15 @@ int CGameContext::GetNextClientID()
 
 	return ClientID;
 }
+
+void CPlayer::SendBroadcastImp(const char *pMessage)
+{
+	// Only send Broadcast if message is different or timed out
+	if(!str_comp(m_BroadcastData.m_aMessage, pMessage) && m_BroadcastData.m_SentTick + Server()->TickSpeed() * 9 > Server()->Tick())
+		return;
+
+	str_copy(m_BroadcastData.m_aMessage, pMessage, sizeof(m_BroadcastData.m_aMessage));
+	m_BroadcastData.m_SentTick = Server()->Tick();
+
+	GameServer()->SendBroadcast(pMessage, GetCid());
+}

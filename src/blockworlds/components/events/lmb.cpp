@@ -48,61 +48,44 @@ void CLastManBlockingEvent::OnTick()
 			return;
 		}
 
-		// TODO: broadcast manager
-		if(Server()->Tick() % Config()->m_SvLMBBroadcastRate == 0)
+		char aTimeLeft[32];
+		FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), (int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()));
+		auto p1on1 = g_ComponentRegistry.Get<COneOnOneManager>();
+		IServer *pServer = Server();
+		for(int i = 0; i < pServer->MaxClients(); ++i)
 		{
-			char aTimeLeft[32];
-			FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), (int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()));
-			char aMsg[1024];
-			str_format(aMsg, sizeof(aMsg),
-				"%s is about to start!\n"
-				"Register with /join\n"
-				"Time left: %s\n\n"
-				"Participants: %" PRIzu "\n"
-				"%s"
-				"                                                                                     "
-				"                                                                                     "
-				"                                                                                     ",
+			if(!pServer->ClientIngame(i))
+				continue;
+			CPlayer *pPlayer = GameServer()->GetPlayer(i);
+			if(!pPlayer)
+				continue;
+			if(p1on1 && p1on1->GetMatchForPlayer(i))
+				continue; // don't send LMB registration broadcasts to 1on1 participants
+
+			pPlayer->SendBroadcastAlignedLeft("%s is about to start!\n",
 				GetEventName(),
 				aTimeLeft,
 				Candidates().size(),
 				(int)Candidates().size() < Config()->m_SvLMBMinimumCandidates ? "Not enough participants!\n" : "");
-
-			auto p1on1 = g_ComponentRegistry.Get<COneOnOneManager>();
-			IServer *pServer = Server();
-			for(int i = 0; i < pServer->MaxClients(); ++i)
-			{
-				if(!pServer->ClientIngame(i))
-					continue;
-				if(p1on1 && p1on1->GetMatchForPlayer(i))
-					continue; // don't send LMB registration broadcasts to 1on1 participants
-				GameServer()->SendBroadcast(aMsg, i);
-			}
 		}
 	}
 	else if(GetState() == CEventComponent::EEventState::Active)
 	{
-		if(Server()->Tick() % Config()->m_SvLMBBroadcastRate == 0)
+		char aTimeLeft[32];
+		FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), (int)((m_ActiveEndTick - Server()->Tick()) / Server()->TickSpeed()));
+
+		auto p1on1 = g_ComponentRegistry.Get<COneOnOneManager>();
+		for(const auto &ClientId : Participants())
 		{
-			char aTimeLeft[32];
-			FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), (int)((m_ActiveEndTick - Server()->Tick()) / Server()->TickSpeed()));
-			char aMsg[512];
-			str_format(aMsg, sizeof(aMsg),
-				"Participants left: %" PRIzu "\n"
-				"Time left: %s\n"
-				"                                                                                     "
-				"                                                                                     "
-				"                                                                                     ",
+			CPlayer *pPlayer = GameServer()->GetPlayer(ClientId);
+			if(!pPlayer)
+				continue;
+			if(p1on1 && p1on1->GetMatchForPlayer(ClientId))
+				continue; // skip sending to players that are in a 1on1 match
+			pPlayer->SendBroadcastAlignedLeft("Participants left: %" PRIzu "\n"
+							  "Time left: %s",
 				Participants().size(),
 				aTimeLeft);
-
-			auto p1on1 = g_ComponentRegistry.Get<COneOnOneManager>();
-			for(const auto &ClientId : Participants())
-			{
-				if(p1on1 && p1on1->GetMatchForPlayer(ClientId))
-					continue; // skip sending to players that are in a 1on1 match
-				GameServer()->SendBroadcast(aMsg, ClientId);
-			}
 		}
 
 		if(Server()->Tick() > m_ActiveStartTick + Config()->m_SvLMBInitialFreezeTime * Server()->TickSpeed())
