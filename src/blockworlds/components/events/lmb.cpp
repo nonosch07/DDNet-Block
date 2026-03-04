@@ -62,7 +62,11 @@ void CLastManBlockingEvent::OnTick()
 			if(p1on1 && p1on1->GetMatchForPlayer(i))
 				continue; // don't send LMB registration broadcasts to 1on1 participants
 
-			pPlayer->SendBroadcastAlignedLeft("%s is about to start!\n",
+			pPlayer->SendBroadcastAlignedLeft("%s is about to start!\n"
+							  "Register with /join\n"
+							  "Time left: %s\n\n"
+							  "Participants: %" PRIzu "\n"
+							  "%s",
 				GetEventName(),
 				aTimeLeft,
 				Candidates().size(),
