@@ -374,7 +374,7 @@ void CTeamDeathmatchEvent::UpdateRespawns()
 			{
 				CPlayer *pPlayer = GameServer()->GetPlayer(cid);
 				if(pPlayer)
-					pPlayer->SendBroadcastAlignedLeft("You will respawn in %d %s\n%s", secsLeft, secsLeft == 1 ? "sec" : "secs");
+					pPlayer->SendBroadcastAlignedLeft("You will respawn in %d %s", secsLeft, secsLeft == 1 ? "sec" : "secs");
 			}
 		}
 		if(Server()->Tick() >= when)
