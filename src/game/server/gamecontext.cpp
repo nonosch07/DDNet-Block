@@ -4626,6 +4626,12 @@ void CGameContext::RegisterDDRaceCommands()
 	Console()->Register("vip_player", "v[id] i[0|1]", CFGFLAG_SERVER, ConSetVip, this, "Set or remove VIP for player id (1=set, 0=remove)");
 	Console()->Register("vip_account", "s[name] i[0|1]", CFGFLAG_SERVER, ConSetVipAccount, this, "Set or remove VIP for account name (offline-capable) (1=set, 0=remove)");
 
+	// cosmetic toggling commands with prefix c_
+	Console()->Register("c_set_gundesign", "i[type] ?v[id]", CFGFLAG_SERVER, ConSetGunDesignCosmetic, this, "Set players' gun design cosmetic");
+	Console()->Register("c_set_knockout", "i[type] ?v[id]", CFGFLAG_SERVER, ConSetKnockoutCosmetic, this, "Set players' knockout cosmetic");
+	Console()->Register("c_set_skinmani", "i[type] ?v[id]", CFGFLAG_SERVER, ConSetSkinManiCosmetic, this, "Set players' skinmani cosmetic");
+	Console()->Register("c_set_special", "i[type] ?v[id]", CFGFLAG_SERVER, ConSetSpecialCosmetic, this, "Set players' special cosmetic");
+	
 	Console()->Register("set_pages", "v[id] i[amount]", CFGFLAG_SERVER, ConSetPages, this, "Set pages for player id");
 	Console()->Register("set_level", "v[id] i[amount]", CFGFLAG_SERVER, ConSetLevel, this, "Set level for player id");
 	Console()->Register("set_experience", "v[id] i[amount]", CFGFLAG_SERVER, ConSetExperience, this, "Set experience for player id");

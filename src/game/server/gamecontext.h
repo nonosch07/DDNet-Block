@@ -792,6 +792,11 @@ private:
 	static void ConKnockout(IConsole::IResult *pResult, void *pUserData);
 	static void ConWhoisAccount(IConsole::IResult *pResult, void *pUserData);
 
+	static void ConSetGunDesignCosmetic(IConsole::IResult *pResult, void *pUserData);
+	static void ConSetKnockoutCosmetic(IConsole::IResult *pResult, void *pUserData);
+	static void ConSetSkinManiCosmetic(IConsole::IResult *pResult, void *pUserData);
+	static void ConSetSpecialCosmetic(IConsole::IResult *pResult, void *pUserData);
+
 public:
 	template<typename... TArgs>
 	void SendChatTarget(int To, const char *pFmt, TArgs &&... Args) const

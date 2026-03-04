@@ -2950,3 +2950,55 @@ void CGameContext::ConPassive(IConsole::IResult *pResult, void *pUserData)
 		str_copy(aBuf, "You have no passive protection left.", sizeof(aBuf));
 	pSelf->SendChatTarget(ClientId, aBuf);
 }
+
+void CGameContext::ConSetGunDesignCosmetic(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int Victim = pResult->NumArguments() > 1 ? pResult->GetVictim() : pResult->m_ClientId;
+	const int Index = pResult->GetInteger(0);
+	if(!CheckClientId(Victim))
+		return;
+	CPlayer *pPlayer = pSelf->m_apPlayers[Victim];
+	if(!pPlayer)
+		return;
+	pPlayer->ToggleGunDesign(Index);
+}
+
+void CGameContext::ConSetKnockoutCosmetic(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int Victim = pResult->NumArguments() > 1 ? pResult->GetVictim() : pResult->m_ClientId;
+	const int Index = pResult->GetInteger(0);
+	if(!CheckClientId(Victim))
+		return;
+	CPlayer *pPlayer = pSelf->m_apPlayers[Victim];
+	if(!pPlayer)
+		return;
+	pPlayer->ToggleKnockout(Index);
+}
+
+void CGameContext::ConSetSkinManiCosmetic(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int Victim = pResult->NumArguments() > 1 ? pResult->GetVictim() : pResult->m_ClientId;
+	const int Index = pResult->GetInteger(0);
+	if(!CheckClientId(Victim))
+		return;
+	CPlayer *pPlayer = pSelf->m_apPlayers[Victim];
+	if(!pPlayer)
+		return;
+	pPlayer->ToggleSkinMani(Index);
+}
+
+void CGameContext::ConSetSpecialCosmetic(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int Victim = pResult->NumArguments() > 1 ? pResult->GetVictim() : pResult->m_ClientId;
+	const int Index = pResult->GetInteger(0);
+	if(!CheckClientId(Victim))
+		return;
+	CPlayer *pPlayer = pSelf->m_apPlayers[Victim];
+	if(!pPlayer)
+		return;
+	pPlayer->ToggleSpecial(Index);
+}
