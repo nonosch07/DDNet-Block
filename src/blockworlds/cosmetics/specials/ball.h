@@ -14,7 +14,7 @@ public:
 
 private:
 	int m_Owner;
-	int m_aIDs[2];
+	int m_aIds[2];
 
 	int m_LaserLifeSpan;
 	int m_LaserDirAngle;

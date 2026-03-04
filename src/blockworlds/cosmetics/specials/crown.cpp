@@ -15,7 +15,8 @@ CCrown::CCrown(CGameWorld *pGameWorld, int Owner) :
 	m_Owner = Owner;
 
 	for(int i = 0; i < 4; i++)
-		m_IDs[i] = Server()->SnapNewId();
+		m_aIds[i] = Server()->SnapNewId();
+	std::sort(m_aIds, m_aIds + std::size(m_aIds));
 
 	GameWorld()->InsertEntity(this);
 }
@@ -25,7 +26,7 @@ void CCrown::Reset()
 	m_MarkedForDestroy = true;
 
 	for(int i = 0; i < 4; i++)
-		Server()->SnapFreeId(m_IDs[i]);
+		Server()->SnapFreeId(m_aIds[i]);
 }
 
 void CCrown::Tick()
@@ -68,7 +69,8 @@ void CCrown::Snap(int SnappingClient)
 	if(SnappingClient != SERVER_DEMO_CLIENT && m_Owner != -1 && !TeamMask.test(SnappingClient))
 		return;
 
-	CNetObj_Laser *pObj[4];
+	const int SnapVer = Server()->GetClientVersion(SnappingClient);
+	const bool SixUp = Server()->IsSixup(SnappingClient);
 
 	for(int i = 0; i < 4; i++)
 	{
@@ -97,15 +99,6 @@ void CCrown::Snap(int SnappingClient)
 			break;
 		}
 
-		pObj[i] = static_cast<CNetObj_Laser *>(Server()->SnapNewItem(NETOBJTYPE_LASER, m_IDs[i], sizeof(CNetObj_Laser)));
-
-		if(!pObj[i])
-			return;
-
-		pObj[i]->m_X = (int)m_Pos.x + To.x;
-		pObj[i]->m_Y = (int)m_Pos.y + To.y;
-		pObj[i]->m_FromX = (int)m_Pos.x + From.x;
-		pObj[i]->m_FromY = (int)m_Pos.y + From.y;
-		pObj[i]->m_StartTick = Server()->Tick();
+		GameServer()->SnapLaserObject(CSnapContext(SnapVer, SixUp), m_aIds[i], m_Pos + To, m_Pos + From, Server()->Tick(), m_Owner, 0, -1, -1, LASERFLAG_NO_PREDICT);
 	}
 }

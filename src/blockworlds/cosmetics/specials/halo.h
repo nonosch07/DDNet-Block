@@ -14,7 +14,7 @@ public:
 
 private:
 	int m_Owner;
-	int m_IDs[6];
+	int m_aIds[6];
 };
 
 #endif // BLOCKWORLDS_COSMETICS_HALO_H

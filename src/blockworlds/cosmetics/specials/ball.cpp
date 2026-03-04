@@ -25,7 +25,7 @@ CBall::CBall(CGameWorld *pGameWorld, vec2 Pos, int Owner) :
 	m_TableDirV[3] = -5;
 
 	for(int i = 0; i < 2; i++)
-		m_aIDs[i] = Server()->SnapNewId();
+		m_aIds[i] = Server()->SnapNewId();
 
 	GameWorld()->InsertEntity(this);
 }
@@ -34,7 +34,7 @@ void CBall::Reset()
 {
 	m_MarkedForDestroy = true;
 	for(int i = 0; i < 2; i++)
-		Server()->SnapFreeId(m_aIDs[i]);
+		Server()->SnapFreeId(m_aIds[i]);
 }
 
 void CBall::Tick()
@@ -103,23 +103,20 @@ void CBall::Snap(int SnappingClient)
 	if(SnappingClient != SERVER_DEMO_CLIENT && m_Owner != -1 && !TeamMask.test(SnappingClient))
 		return;
 
-	CNetObj_Laser *pObj;
-	pObj = static_cast<CNetObj_Laser *>(Server()->SnapNewItem(NETOBJTYPE_LASER, m_aIDs[0], sizeof(CNetObj_Laser)));
+	const int SnapVer = Server()->GetClientVersion(SnappingClient);
+	const bool SixUp = Server()->IsSixup(SnappingClient);
 
-	if(!pObj)
+	GameServer()->SnapLaserObject(CSnapContext(SnapVer, SixUp), m_aIds[0], m_Pos, m_Pos, Server()->Tick(), m_Owner, LASERTYPE_GUN, -1, -1, LASERFLAG_NO_PREDICT);
+	
+	CNetObj_DDNetProjectile *pProj = Server()->SnapNewItem<CNetObj_DDNetProjectile>(m_aIds[1]);
+	if(!pProj)
 		return;
 
-	pObj->m_X = (int)m_Pos.x;
-	pObj->m_Y = (int)m_Pos.y;
-	pObj->m_FromX = (int)m_Pos.x;
-	pObj->m_FromY = (int)m_Pos.y;
-	pObj->m_StartTick = Server()->Tick();
-
-	CNetObj_Projectile *pObj2 = static_cast<CNetObj_Projectile *>(Server()->SnapNewItem(NETOBJTYPE_PROJECTILE, m_aIDs[1], sizeof(CNetObj_Projectile)));
-	if(!pObj2)
-		return;
-
-	pObj2->m_X = (int)m_Pos2.x;
-	pObj2->m_Y = (int)m_Pos2.y;
-	pObj2->m_StartTick = Server()->Tick();
+	pProj->m_X = round_to_int(m_Pos2.x * 100.0f);
+	pProj->m_Y = round_to_int(m_Pos2.y * 100.0f);
+	pProj->m_Type = WEAPON_HAMMER;
+	pProj->m_Owner = m_Owner;
+	pProj->m_StartTick = 0;
+	pProj->m_VelX = 0;
+	pProj->m_VelY = 0;
 }

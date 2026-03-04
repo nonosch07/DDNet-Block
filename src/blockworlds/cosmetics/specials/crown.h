@@ -14,7 +14,7 @@ public:
 	virtual void Snap(int SnappingClient) override;
 
 private:
-	int m_IDs[4];
+	int m_aIds[4];
 	int m_Owner;
 };
 

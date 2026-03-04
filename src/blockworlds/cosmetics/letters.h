@@ -12,7 +12,7 @@ protected:
 	int m_NumIds;
 	float m_Width;
 	float m_Size;
-	int *m_aIDs;
+	int *m_aIds;
 	bool *m_pBitField;
 	bool m_Shotgun;
 
@@ -32,19 +32,19 @@ public:
 				m_NumIds++;
 
 		if(m_NumIds > 0)
-			m_aIDs = new int[m_NumIds];
+			m_aIds = new int[m_NumIds];
 		else
-			m_aIDs = NULL;
+			m_aIds = NULL;
 
 		for(int i = 0; i < m_NumIds; i++)
-			m_aIDs[i] = Server()->SnapNewId();
+			m_aIds[i] = Server()->SnapNewId();
 	}
 	virtual ~CAnimLetter()
 	{
 		for(int i = 0; i < m_NumIds; i++)
-			Server()->SnapFreeId(m_aIDs[i]);
+			Server()->SnapFreeId(m_aIds[i]);
 
-		delete[] m_aIDs;
+		delete[] m_aIds;
 	}
 
 	void Tick() override{};
@@ -60,11 +60,11 @@ public:
 					continue;
 
 				// catch read-out-of-bounds
-				dbg_assert(IDIndex < m_NumIds, "something weird happened!! (IDIndex out of range)");
+				dbg_assert(IDIndex < m_NumIds, "something weird happened!! (IDIndex out of range: %d/%d)", IDIndex, m_NumIds);
 
 				if(m_Shotgun == false)
 				{
-					CNetObj_Laser *pObj = static_cast<CNetObj_Laser *>(Server()->SnapNewItem(NETOBJTYPE_LASER, m_aIDs[IDIndex], sizeof(CNetObj_Laser)));
+					CNetObj_Laser *pObj = static_cast<CNetObj_Laser *>(Server()->SnapNewItem(NETOBJTYPE_LASER, m_aIds[IDIndex], sizeof(CNetObj_Laser)));
 					if(!pObj)
 						return;
 
@@ -77,7 +77,7 @@ public:
 				}
 				else
 				{
-					CNetObj_Projectile *pProj = static_cast<CNetObj_Projectile *>(Server()->SnapNewItem(NETOBJTYPE_PROJECTILE, m_aIDs[IDIndex], sizeof(CNetObj_Projectile)));
+					CNetObj_Projectile *pProj = static_cast<CNetObj_Projectile *>(Server()->SnapNewItem(NETOBJTYPE_PROJECTILE, m_aIds[IDIndex], sizeof(CNetObj_Projectile)));
 					if(pProj)
 					{
 						vec2 Pos = GetPos() + vec2(x * m_Size, y * m_Size);

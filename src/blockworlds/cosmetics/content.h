@@ -10,9 +10,9 @@
 class CAnimLove : public CMapAnimation
 {
 	static const int NUM = 4;
-	int m_IDs[NUM];
-	vec2 m_Pos[NUM];
-	bool m_Spawned[NUM];
+	int m_aIds[NUM];
+	vec2 m_aPos[NUM];
+	bool m_aSpawned[NUM];
 
 public:
 	CAnimLove(vec2 Pos, int64_t Tick, CGameWorld *pGameWorld) :
@@ -20,20 +20,20 @@ public:
 	{
 		for(int i = 0; i < NUM; i++)
 		{
-			m_IDs[i] = Server()->SnapNewId();
-			m_Spawned[i] = false;
+			m_aIds[i] = Server()->SnapNewId();
+			m_aSpawned[i] = false;
 		}
 
-		m_Pos[0] = GetPos();
-		m_Pos[1] = GetPos() + vec2(12.0f, 0);
-		m_Pos[2] = GetPos() - vec2(12.0f, 0);
-		m_Pos[3] = GetPos();
+		m_aPos[0] = GetPos();
+		m_aPos[1] = GetPos() + vec2(12.0f, 0);
+		m_aPos[2] = GetPos() - vec2(12.0f, 0);
+		m_aPos[3] = GetPos();
 	}
 
 	~CAnimLove()
 	{
 		for(int i = 0; i < NUM; i++)
-			Server()->SnapFreeId(m_IDs[i]);
+			Server()->SnapFreeId(m_aIds[i]);
 	}
 
 	void Tick() override
@@ -41,20 +41,20 @@ public:
 		for(int i = 0; i < NUM; i++)
 		{
 			if(GetTick() + Server()->TickSpeed() * 1.5f * (i / (float)NUM) + Server()->TickSpeed() <= Server()->Tick())
-				m_Spawned[i] = false;
-			else if(GetTick() + Server()->TickSpeed() * 1.5f * (i / (float)NUM) <= Server()->Tick() && m_Spawned[i] == false)
+				m_aSpawned[i] = false;
+			else if(GetTick() + Server()->TickSpeed() * 1.5f * (i / (float)NUM) <= Server()->Tick() && m_aSpawned[i] == false)
 			{
-				m_Spawned[i] = true;
-				GameServer()->CreateSound(m_Pos[i], SOUND_PICKUP_HEALTH);
+				m_aSpawned[i] = true;
+				GameServer()->CreateSound(m_aPos[i], SOUND_PICKUP_HEALTH);
 			}
 		}
 
 		for(int i = 0; i < NUM; i++)
 		{
-			if(m_Spawned[i] == false)
+			if(m_aSpawned[i] == false)
 				continue;
 
-			m_Pos[i] += vec2(0, -2.0f);
+			m_aPos[i] += vec2(0, -2.0f);
 		}
 	}
 
@@ -64,10 +64,10 @@ public:
 		bool Sixup = Server()->IsSixup(SnappingClient);
 		for(int i = 0; i < NUM; i++)
 		{
-			if(m_Spawned[i] == false)
+			if(m_aSpawned[i] == false)
 				continue;
 
-			GameServer()->SnapPickup(CSnapContext(SnappingClientVersion, Sixup), m_IDs[i], m_Pos[i], POWERUP_HEALTH, 0, 0, PICKUPFLAG_NO_PREDICT);
+			GameServer()->SnapPickup(CSnapContext(SnappingClientVersion, Sixup), m_aIds[i], m_aPos[i], POWERUP_HEALTH, 0, 0, PICKUPFLAG_NO_PREDICT);
 		}
 	}
 
@@ -80,9 +80,9 @@ public:
 class CSplash : public CMapAnimation
 {
 	static const int MAX_PARTICLES = 6;
-	int m_aIDs[MAX_PARTICLES];
+	int m_aIds[MAX_PARTICLES];
 	vec2 m_Pos;
-	vec2 m_RotatePos[MAX_PARTICLES];
+	vec2 m_aRotatePos[MAX_PARTICLES];
 	bool m_Done;
 	int m_Rad;
 
@@ -96,14 +96,14 @@ public:
 		m_Done = false;
 
 		for(int i = 0; i < MAX_PARTICLES; i++)
-			m_aIDs[i] = Server()->SnapNewId();
+			m_aIds[i] = Server()->SnapNewId();
 	}
 
 	~CSplash()
 	{
 		for(int i = 0; i < MAX_PARTICLES; i++)
 		{
-			Server()->SnapFreeId(m_aIDs[i]);
+			Server()->SnapFreeId(m_aIds[i]);
 		}
 	}
 
@@ -117,8 +117,8 @@ public:
 		for(int i = 0; i < MAX_PARTICLES; i++)
 		{
 			float TurnFac = 0.070f;
-			m_RotatePos[i].x = cosf(2 * pi * (i / (float)MAX_PARTICLES) + Server()->Tick() * TurnFac) * m_Rad;
-			m_RotatePos[i].y = sinf(2 * pi * (i / (float)MAX_PARTICLES) + Server()->Tick() * TurnFac) * m_Rad;
+			m_aRotatePos[i].x = cosf(2 * pi * (i / (float)MAX_PARTICLES) + Server()->Tick() * TurnFac) * m_Rad;
+			m_aRotatePos[i].y = sinf(2 * pi * (i / (float)MAX_PARTICLES) + Server()->Tick() * TurnFac) * m_Rad;
 		}
 	}
 
@@ -127,15 +127,11 @@ public:
 		CNetObj_Laser *pParticle[MAX_PARTICLES];
 		for(int i = 0; i < MAX_PARTICLES; i++)
 		{
-			pParticle[i] = static_cast<CNetObj_Laser *>(Server()->SnapNewItem(NETOBJTYPE_LASER, m_aIDs[i], sizeof(CNetObj_Laser)));
-			if(pParticle[i])
-			{
-				pParticle[i]->m_X = m_Pos.x + m_RotatePos[i].x;
-				pParticle[i]->m_Y = m_Pos.y + m_RotatePos[i].y;
-				pParticle[i]->m_FromX = m_Pos.x + m_RotatePos[i].x;
-				pParticle[i]->m_FromY = m_Pos.y + m_RotatePos[i].y;
-				pParticle[i]->m_StartTick = Server()->Tick();
-			}
+			const int SnapVer = Server()->GetClientVersion(SnappingClient);
+			const bool SixUp = Server()->IsSixup(SnappingClient);
+			vec2 Pos = m_Pos + m_aRotatePos[i];
+	
+			GameServer()->SnapLaserObject(CSnapContext(SnapVer, SixUp), m_aIds[i], Pos, Pos, Server()->Tick(), -1, LASERTYPE_GUN, -1, -1, LASERFLAG_NO_PREDICT);
 		}
 	}
 
@@ -148,9 +144,9 @@ public:
 class CAnimThunderstorm : public CMapAnimation
 {
 	static const int NUM = 25;
-	int m_IDs[NUM];
-	vec2 m_Pos[NUM];
-	bool m_Spawned[NUM];
+	int m_aIds[NUM];
+	vec2 m_aPos[NUM];
+	bool m_aSpawned[NUM];
 
 public:
 	CAnimThunderstorm(vec2 Pos, int64_t Tick, CGameWorld *pGameWorld) :
@@ -158,29 +154,29 @@ public:
 	{
 		for(int i = 0; i < NUM; i++)
 		{
-			m_IDs[i] = Server()->SnapNewId();
-			m_Spawned[i] = false;
+			m_aIds[i] = Server()->SnapNewId();
+			m_aSpawned[i] = false;
 		}
 	}
 
 	~CAnimThunderstorm()
 	{
 		for(int i = 0; i < NUM; i++)
-			Server()->SnapFreeId(m_IDs[i]);
+			Server()->SnapFreeId(m_aIds[i]);
 	}
 
 	void Tick() override
 	{
 		for(int i = 0; i < NUM; i++)
 		{
-			if(GetTick() + Server()->TickSpeed() * 3.0f * (i / (float)NUM) <= Server()->Tick() && m_Spawned[i] == false)
+			if(GetTick() + Server()->TickSpeed() * 3.0f * (i / (float)NUM) <= Server()->Tick() && m_aSpawned[i] == false)
 			{
-				m_Spawned[i] = true;
+				m_aSpawned[i] = true;
 				float Dist = rand() % 128 - 64;
 				vec2 Dir = normalize(vec2((rand() % 20 - 10) / 10.0f, (rand() % 20 - 10) / 10.0f));
-				m_Pos[i] = GetPos() + Dir * Dist;
+				m_aPos[i] = GetPos() + Dir * Dist;
 
-				GameServer()->CreateSound(m_Pos[i], SOUND_BODY_LAND);
+				GameServer()->CreateSound(m_aPos[i], SOUND_BODY_LAND);
 			}
 		}
 	}
@@ -189,18 +185,14 @@ public:
 	{
 		for(int i = 0; i < NUM; i++)
 		{
-			if(m_Spawned[i] == false)
+			if(m_aSpawned[i] == false)
 				break;
 
-			CNetObj_Laser *pObj = static_cast<CNetObj_Laser *>(Server()->SnapNewItem(NETOBJTYPE_LASER, m_IDs[i], sizeof(CNetObj_Laser)));
-			if(!pObj)
-				return;
+			const int SnapVer = Server()->GetClientVersion(SnappingClient);
+			const bool SixUp = Server()->IsSixup(SnappingClient);
+			vec2 Pos = m_aPos[i];
 
-			pObj->m_X = (int)m_Pos[i].x;
-			pObj->m_Y = (int)m_Pos[i].y;
-			pObj->m_FromX = (int)m_Pos[i].x;
-			pObj->m_FromY = (int)m_Pos[i].y;
-			pObj->m_StartTick = Server()->Tick() - 1;
+			GameServer()->SnapLaserObject(CSnapContext(SnapVer, SixUp), m_aIds[i], Pos, Pos, Server()->Tick() - 1, -1, LASERTYPE_GUN, -1, -1, LASERFLAG_NO_PREDICT);
 		}
 	}
 
@@ -213,7 +205,7 @@ public:
 class CStarsCW : public CMapAnimation
 {
 	static const int NUM = 10;
-	bool m_Spawned[NUM];
+	bool m_aSpawned[NUM];
 	vec2 m_Direction;
 
 public:
@@ -221,7 +213,7 @@ public:
 		CMapAnimation(Pos, Tick, pGameWorld)
 	{
 		for(int i = 0; i < NUM; i++)
-			m_Spawned[i] = false;
+			m_aSpawned[i] = false;
 
 		m_Direction = Dir;
 	}
@@ -230,12 +222,12 @@ public:
 	{
 		for(int i = 0; i < NUM; i++)
 		{
-			if(GetTick() + Server()->TickSpeed() * 0.2f * (i / (float)NUM) <= Server()->Tick() && m_Spawned[i] == false)
+			if(GetTick() + Server()->TickSpeed() * 0.2f * (i / (float)NUM) <= Server()->Tick() && m_aSpawned[i] == false)
 			{
 				float AngleFrom = angle(m_Direction) + 5.1f;
 				float AngleTo = AngleFrom + ((i - 5) / 5.0f) * pi * 0.3f;
 				GameServer()->CreateDamageInd(GetPos(), AngleTo, 1);
-				m_Spawned[i] = true;
+				m_aSpawned[i] = true;
 			}
 		}
 	}
@@ -251,7 +243,7 @@ public:
 class CStarsCCW : public CMapAnimation
 {
 	static const int NUM = 10;
-	bool m_Spawned[NUM];
+	bool m_aSpawned[NUM];
 	vec2 m_Direction;
 
 public:
@@ -259,7 +251,7 @@ public:
 		CMapAnimation(Pos, Tick, pGameWorld)
 	{
 		for(int i = 0; i < NUM; i++)
-			m_Spawned[i] = false;
+			m_aSpawned[i] = false;
 
 		m_Direction = Dir;
 	}
@@ -268,12 +260,12 @@ public:
 	{
 		for(int i = 0; i < NUM; i++)
 		{
-			if(GetTick() + Server()->TickSpeed() * 0.2f * (i / (float)NUM) <= Server()->Tick() && m_Spawned[i] == false)
+			if(GetTick() + Server()->TickSpeed() * 0.2f * (i / (float)NUM) <= Server()->Tick() && m_aSpawned[i] == false)
 			{
 				float AngleFrom = angle(m_Direction) + 5.1f;
 				float AngleTo = AngleFrom + ((5 - i) / 5.0f) * pi * 0.3f;
 				GameServer()->CreateDamageInd(GetPos(), AngleTo, 1);
-				m_Spawned[i] = true;
+				m_aSpawned[i] = true;
 			}
 		}
 	}
@@ -289,7 +281,7 @@ public:
 class CStarsTOC : public CMapAnimation
 {
 	static const int NUM = 10;
-	bool m_Spawned[NUM];
+	bool m_aSpawned[NUM];
 	vec2 m_Direction;
 
 public:
@@ -297,7 +289,7 @@ public:
 		CMapAnimation(Pos, Tick, pGameWorld)
 	{
 		for(int i = 0; i < NUM; i++)
-			m_Spawned[i] = false;
+			m_aSpawned[i] = false;
 
 		m_Direction = Dir;
 	}
@@ -306,23 +298,23 @@ public:
 	{
 		for(int i = 0; i < NUM / 2; i++)
 		{
-			if(GetTick() + Server()->TickSpeed() * 0.2f * (i / (float)(NUM / 2.0f)) <= Server()->Tick() && m_Spawned[i] == false)
+			if(GetTick() + Server()->TickSpeed() * 0.2f * (i / (float)(NUM / 2.0f)) <= Server()->Tick() && m_aSpawned[i] == false)
 			{
 				float AngleFrom = angle(m_Direction) + 5.0f;
 				float AngleTo = AngleFrom + ((i - 5) / 5.0f) * pi * 0.3f;
 				GameServer()->CreateDamageInd(GetPos(), AngleTo, 1);
-				m_Spawned[i] = true;
+				m_aSpawned[i] = true;
 			}
 		}
 
 		for(int i = NUM / 2; i < NUM; i++)
 		{
-			if(GetTick() + Server()->TickSpeed() * 0.2f * ((i - NUM / 2) / (float)(NUM / 2.0f)) <= Server()->Tick() && m_Spawned[i] == false)
+			if(GetTick() + Server()->TickSpeed() * 0.2f * ((i - NUM / 2) / (float)(NUM / 2.0f)) <= Server()->Tick() && m_aSpawned[i] == false)
 			{
 				float AngleFrom = angle(m_Direction) + 5.0f;
 				float AngleTo = AngleFrom + ((5 - (i - NUM / 2)) / 5.0f) * pi * 0.3f;
 				GameServer()->CreateDamageInd(GetPos(), AngleTo, 1);
-				m_Spawned[i] = true;
+				m_aSpawned[i] = true;
 			}
 		}
 	}
