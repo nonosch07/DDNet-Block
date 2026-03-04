@@ -50,7 +50,7 @@ public:
 	void Tick() override{};
 	void Snap(int SnappingClient) override
 	{
-		int IDIndex = 0;
+		int IdIndex = 0;
 
 		for(int x = 4; x >= 0; x--)
 		{
@@ -60,24 +60,18 @@ public:
 					continue;
 
 				// catch read-out-of-bounds
-				dbg_assert(IDIndex < m_NumIds, "something weird happened!! (IDIndex out of range: %d/%d)", IDIndex, m_NumIds);
+				dbg_assert(IdIndex < m_NumIds, "something weird happened!! (IDIndex out of range)");
 
 				if(m_Shotgun == false)
 				{
-					CNetObj_Laser *pObj = static_cast<CNetObj_Laser *>(Server()->SnapNewItem(NETOBJTYPE_LASER, m_aIds[IDIndex], sizeof(CNetObj_Laser)));
-					if(!pObj)
-						return;
-
+					const int SnapVer = Server()->GetClientVersion(SnappingClient);
+					const bool SixUp = Server()->IsSixup(SnappingClient);
 					vec2 Pos = GetPos() + vec2(x * m_Size, y * m_Size);
-					pObj->m_X = (int)Pos.x;
-					pObj->m_Y = (int)Pos.y;
-					pObj->m_FromX = (int)Pos.x;
-					pObj->m_FromY = (int)Pos.y;
-					pObj->m_StartTick = Server()->Tick() - 5;
+					GameServer()->SnapLaserObject(CSnapContext(SnapVer, SixUp), m_aIds[IdIndex], Pos, Pos, Server()->Tick() - 5, -1, LASERTYPE_GUN, -1, -1, LASERFLAG_NO_PREDICT);
 				}
 				else
 				{
-					CNetObj_Projectile *pProj = static_cast<CNetObj_Projectile *>(Server()->SnapNewItem(NETOBJTYPE_PROJECTILE, m_aIds[IDIndex], sizeof(CNetObj_Projectile)));
+					CNetObj_Projectile *pProj = static_cast<CNetObj_Projectile *>(Server()->SnapNewItem(NETOBJTYPE_PROJECTILE, m_aIds[IdIndex], sizeof(CNetObj_Projectile)));
 					if(pProj)
 					{
 						vec2 Pos = GetPos() + vec2(x * m_Size, y * m_Size);
@@ -90,7 +84,7 @@ public:
 					}
 				}
 
-				IDIndex++;
+				IdIndex++;
 			}
 		}
 	}

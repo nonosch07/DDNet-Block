@@ -124,7 +124,6 @@ public:
 
 	void Snap(int SnappingClient) override
 	{
-		CNetObj_Laser *pParticle[MAX_PARTICLES];
 		for(int i = 0; i < MAX_PARTICLES; i++)
 		{
 			const int SnapVer = Server()->GetClientVersion(SnappingClient);
