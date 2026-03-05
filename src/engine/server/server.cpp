@@ -3287,7 +3287,7 @@ void CServer::ConKick(IConsole::IResult *pResult, void *pUser)
 
 	{
 		CDiscordWebhook Discord(pSelf->Engine(), &pSelf->m_Http);
-		const char *pUrl = g_Config.m_SvDiscordWebhookUrlCmd[0] ? g_Config.m_SvDiscordWebhookUrlCmd : nullptr;
+		const char *pUrl = g_Config.m_SvDiscordWebhookUrlRconLogs[0] ? g_Config.m_SvDiscordWebhookUrlRconLogs : nullptr;
 		if(Discord.IsConfigured(pUrl))
 		{
 			char aMsg[256];

@@ -425,7 +425,7 @@ void CNetBan::ConBan(IConsole::IResult *pResult, void *pUser)
 			if(pServerBan && pServerBan->Server())
 			{
 				CDiscordWebhook Discord(pServerBan->Server()->Engine(), &pServerBan->Server()->m_Http);
-				const char *pUrl = g_Config.m_SvDiscordWebhookUrlCmd[0] ? g_Config.m_SvDiscordWebhookUrlCmd : nullptr;
+				const char *pUrl = g_Config.m_SvDiscordWebhookUrlRconLogs[0] ? g_Config.m_SvDiscordWebhookUrlRconLogs : nullptr;
 				if(Discord.IsConfigured(pUrl))
 				{
 					char aMsg[256];
@@ -504,7 +504,7 @@ void CNetBan::ConUnban(IConsole::IResult *pResult, void *pUser)
 		if(pServerBan && pServerBan->Server())
 		{
 			CDiscordWebhook Discord(pServerBan->Server()->Engine(), &pServerBan->Server()->m_Http);
-			const char *pUrl = g_Config.m_SvDiscordWebhookUrlCmd[0] ? g_Config.m_SvDiscordWebhookUrlCmd : nullptr;
+			const char *pUrl = g_Config.m_SvDiscordWebhookUrlRconLogs[0] ? g_Config.m_SvDiscordWebhookUrlRconLogs : nullptr;
 			if(Discord.IsConfigured(pUrl))
 			{
 				char aMsg[256];
