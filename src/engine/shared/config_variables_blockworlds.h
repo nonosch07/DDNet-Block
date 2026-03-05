@@ -162,9 +162,8 @@ MACRO_CONFIG_STR(SvDiscordWebhookUrl1on1, sv_discord_webhook_url_1on1, 512, "", 
 MACRO_CONFIG_STR(SvDiscordWebhookUrlLogs, sv_discord_webhook_url_bp_logs, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL used for blockpoint transfer logs")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlLmb, sv_discord_webhook_url_lmb, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for LMB events")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlChat, sv_discord_webhook_url_chat, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for chat relay")
-MACRO_CONFIG_STR(SvDiscordWebhookUrlCmd, sv_discord_webhook_url_cmd, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for chat commands")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlChatFilter, sv_discord_webhook_url_chatfilter, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for chat filter mutes")
-MACRO_CONFIG_STR(SvDiscordWebhookUrlRconLog, sv_discord_webhook_url_rcon_log, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL used for RCON logs")
+MACRO_CONFIG_STR(SvDiscordWebhookUrlRconLogs, sv_discord_webhook_url_rcon_logs, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL used for RCON logs")
 
 // 1on1 duel settings
 MACRO_CONFIG_INT(Sv1on1WarmupSeconds, sv_1on1_warmup_seconds, 120, 10, 600, CFGFLAG_SERVER, "Duration of the 1on1 warmup/config phase in seconds before auto-start")
@@ -191,6 +190,7 @@ MACRO_CONFIG_STR(SvChatfilterWordsFile, sv_chatfilter_words_file, 255, "data/cha
 // Map transfers
 MACRO_CONFIG_INT(SvBlmapV3RoyalPort, sv_blmap_v3_royal_port, 8305, 8303, 8310, CFGFLAG_SERVER, "Port for BlmapV3Royal map")
 MACRO_CONFIG_INT(SvStorePort, sv_store_port, 8306, 8303, 8310, CFGFLAG_SERVER, "Port for store map")
+MACRO_CONFIG_INT(SvMulteasyPort, sv_multeasy_port, 8304, 8303, 8310, CFGFLAG_SERVER, "Port for Multeasy map")
 
 // silence sql logs
 MACRO_CONFIG_INT(SvDebugSql, sv_debug_sql, 0, 0, 1, CFGFLAG_SERVER, "Enable verbose SQL debug logging (accounts, clans)")

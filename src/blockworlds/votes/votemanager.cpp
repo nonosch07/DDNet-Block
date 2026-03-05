@@ -805,6 +805,7 @@ void CVoteManager::BuildMapTransfers(CPlayer *pPlayer, int ClientID, IServer *pS
 
 	add_entry(g_Config.m_SvBlmapV3RoyalPort, "BlmapV3Royal");
 	add_entry(g_Config.m_SvStorePort, "Store");
+	add_entry(g_Config.m_SvMulteasyPort, "Multeasymap");
 
 	if(!Any)
 	{
