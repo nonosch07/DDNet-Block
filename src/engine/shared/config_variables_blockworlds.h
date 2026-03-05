@@ -59,8 +59,8 @@ MACRO_CONFIG_INT(SvBlockMinAliveTime, sv_block_min_alive_time, 20, 1, 120, CFGFL
 MACRO_CONFIG_INT(SvBlockInterval, sv_block_interval, 0, 0, 1, CFGFLAG_SERVER, "Interval (in seconds) between two countable fights.")
 
 // Anti-farming / PvP EXP integrity settings
-MACRO_CONFIG_INT(SvMinActivePlayersForExp, sv_min_active_players_for_exp, 8, 0, MAX_CLIENTS, CFGFLAG_SERVER, "Minimum number of active (non-afk, non-spec, playing) players required to award PvP/block EXP")
-MACRO_CONFIG_INT(SvExpTargetFullPlayers, sv_exp_target_full_players, 8, 0, MAX_CLIENTS, CFGFLAG_SERVER, "Player count at which population scaling reaches 100% EXP")
+MACRO_CONFIG_INT(SvMinActivePlayersForExp, sv_min_active_players_for_exp, 0, 0, MAX_CLIENTS, CFGFLAG_SERVER, "Minimum number of active (non-afk, non-spec, playing) players required to award PvP/block EXP")
+MACRO_CONFIG_INT(SvExpTargetFullPlayers, sv_exp_target_full_players, 5, 0, MAX_CLIENTS, CFGFLAG_SERVER, "Player count at which population scaling reaches 100% EXP")
 MACRO_CONFIG_INT(SvExpVictimRecentActionSec, sv_exp_victim_recent_action_sec, 6, 0, 120, CFGFLAG_SERVER, "Victim must have acted within this many seconds to grant EXP")
 MACRO_CONFIG_INT(SvExpKillerRecentActionSec, sv_exp_killer_recent_action_sec, 4, 0, 120, CFGFLAG_SERVER, "Killer must have acted within this many seconds to receive EXP")
 MACRO_CONFIG_INT(SvExpMaxSameVictim, sv_exp_max_same_victim, 3, 1, 50, CFGFLAG_SERVER, "Maximum EXP-granting kills on the same victim within the configured window")
@@ -134,7 +134,7 @@ MACRO_CONFIG_INT(SvTDMLoseBP2, sv_tdm_lose_bp_2, 50, 0, 10000, CFGFLAG_SERVER, "
 MACRO_CONFIG_INT(SvTDMLoseBP3, sv_tdm_lose_bp_3, 25, 0, 10000, CFGFLAG_SERVER, "Losing team 3rd place BP reward")
 
 // zCatch (block-based catch event)
-MACRO_CONFIG_INT(SvZCatchRegistrationTime, sv_zcatch_registration_time, 60, 0, 1000, CFGFLAG_SERVER, "Duration of zCatch registration phase (seconds)")
+MACRO_CONFIG_INT(SvZCatchRegistrationTime, sv_zcatch_registration_time, 120, 0, 1000, CFGFLAG_SERVER, "Duration of zCatch registration phase (seconds)")
 MACRO_CONFIG_INT(SvZCatchActiveTime, sv_zcatch_active_time, 600, 0, 3600, CFGFLAG_SERVER, "Duration of zCatch active phase in seconds (0 = unlimited)")
 MACRO_CONFIG_INT(SvZCatchMinimumCandidates, sv_zcatch_minimum_candidates, 6, 2, MAX_CLIENTS, CFGFLAG_SERVER, "Minimum candidates to start zCatch")
 MACRO_CONFIG_INT(SvZCatchKillsToWin, sv_zcatch_kills_to_win, 30, 1, 1000, CFGFLAG_SERVER, "Number of catches needed to win zCatch")
@@ -205,7 +205,7 @@ MACRO_CONFIG_INT(SvSessionStatsInterval, sv_session_stats_interval, 3600, 60, 86
 // race finish EXP settings
 MACRO_CONFIG_INT(SvRaceFinishExp, sv_race_finish_exp, 3, 0, 1000, CFGFLAG_SERVER, "EXP awarded for finishing a race (0=disabled)")
 MACRO_CONFIG_INT(SvRaceFinishExpCooldown, sv_race_finish_exp_cooldown, 120, 0, 86400, CFGFLAG_SERVER, "Cooldown in seconds between race finish EXP awards per player (0=no cooldown)")
-MACRO_CONFIG_INT(SvRaceFinishExpMaxPerSession, sv_race_finish_exp_max_per_session, 50, 0, 10000, CFGFLAG_SERVER, "Maximum race finish EXP awards per session (0=unlimited)")
+MACRO_CONFIG_INT(SvRaceFinishExpMaxPerSession, sv_race_finish_exp_max_per_session, 10, 0, 10000, CFGFLAG_SERVER, "Maximum race finish EXP awards per session (0=unlimited)")
 
 // VPN detection
 MACRO_CONFIG_STR(SvVpnIphubApiKey, sv_vpn_iphub_api_key, 128, "", CFGFLAG_SERVER, "API key for IPHub.info VPN detetion service")
