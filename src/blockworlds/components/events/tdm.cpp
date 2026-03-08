@@ -481,6 +481,7 @@ void CTeamDeathmatchEvent::OnTick()
 			return;
 		}
 
+		CEventComponent::OnTick(); // test-mode dummies
 		for(int i = 0; i < Server()->MaxClients(); ++i)
 		{
 			CPlayer *pPlayer = GameServer()->GetPlayer(i);
@@ -564,7 +565,7 @@ void CTeamDeathmatchEvent::OnCharacterSpawn(int ClientId, vec2 /*SpawnPos*/)
 	}
 }
 
-void CTeamDeathmatchEvent::OnPlayerDropping(int ClientId)
+void CTeamDeathmatchEvent::OnEventPlayerDropping(int ClientId)
 {
 	if(GetState() == CEventComponent::EEventState::Active)
 	{
@@ -758,6 +759,11 @@ void CTeamDeathmatchEvent::OnPlayerImpacted(int ClientId, int InitiatorId)
 		return;
 	m_LastImpactByVictim[ClientId] = InitiatorId;
 	m_LastImpactTick[ClientId] = Server()->Tick();
+}
+
+int CTeamDeathmatchEvent::GetMinCandidates() const
+{
+	return Config()->m_SvTDMMinimumCandidates;
 }
 
 bool CTeamDeathmatchEvent::AllowKillCommandFor(int ClientId) const

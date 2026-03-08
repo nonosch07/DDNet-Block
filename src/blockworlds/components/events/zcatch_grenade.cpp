@@ -124,7 +124,16 @@ void CZCatchGrenadeEvent::FinishEvent()
 			GameServer()->SendChatTarget(-1, aBuf);
 			GameServer()->SendBroadcast(-1, aBuf, false);
 
-			// Discord webhook: post zCatch Grenade result
+			// give winner exp multiplier and flag
+			if(auto *pWinner = GameServer()->GetPlayer(m_Winner))
+			{
+				pWinner->AddExpMultiplier(Config()->m_SvZCatchGrenadeWinnerExpMultiplier, Config()->m_SvZCatchGrenadeWinnerExpDuration);
+				pWinner->GiveFlag(Config()->m_SvZCatchGrenadeWinnerExpDuration);
+				char aBonusBuf[256];
+				str_format(aBonusBuf, sizeof(aBonusBuf), "%d%% experience bonus enabled for %d minutes!", Config()->m_SvZCatchGrenadeWinnerExpMultiplier, Config()->m_SvZCatchGrenadeWinnerExpDuration);
+				GameServer()->SendChatTarget(m_Winner, aBonusBuf);
+			}
+			// webhook
 			{
 				CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
 				const char *pZCatchUrl = g_Config.m_SvDiscordWebhookUrlZCatch[0] ? g_Config.m_SvDiscordWebhookUrlZCatch : nullptr;
@@ -465,6 +474,10 @@ void CZCatchGrenadeEvent::OnCharacterDeath(int KillerId, int ClientId, int /*Wea
 		m_CaughtBy[ClientId] = KillerId;
 		m_Captives[KillerId].insert(ClientId);
 		m_Scores[KillerId]++;
+
+		if(auto *pKillerChar = GameServer()->GetPlayerChar(KillerId))
+			pKillerChar->SetEmote(EMOTE_HAPPY, Server()->Tick() + 3 * Server()->TickSpeed());
+		GameServer()->CreateSoundGlobal(SOUND_HIT, KillerId);
 	}
 }
 
@@ -493,7 +506,7 @@ void CZCatchGrenadeEvent::OnCharacterSpawn(int ClientId, vec2 /*SpawnPos*/)
 	}
 }
 
-void CZCatchGrenadeEvent::OnPlayerDropping(int ClientId)
+void CZCatchGrenadeEvent::OnEventPlayerDropping(int ClientId)
 {
 	if(GetState() == EEventState::Active)
 	{
@@ -541,6 +554,7 @@ void CZCatchGrenadeEvent::OnTick()
 			CloseRegistration();
 			return;
 		}
+		CEventComponent::OnTick(); // test-mode dummies
 		char aTimeLeft[32];
 		FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), (int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()));
 
@@ -601,6 +615,11 @@ void CZCatchGrenadeEvent::OnTick()
 		if(CheckEndCondition())
 			FinishEvent(NATURAL);
 	}
+}
+
+int CZCatchGrenadeEvent::GetMinCandidates() const
+{
+	return Config()->m_SvZCatchMinimumCandidates;
 }
 
 bool CZCatchGrenadeEvent::IsCandidate(int ClientId) const

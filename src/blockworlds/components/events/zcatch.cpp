@@ -478,6 +478,11 @@ void CZCatchEvent::OnBlockedKill(int VictimID, int KillerID)
 	// win-condition check is performed in OnTick to stay outside Die().
 }
 
+int CZCatchEvent::GetMinCandidates() const
+{
+	return Config()->m_SvZCatchMinimumCandidates;
+}
+
 bool CZCatchEvent::AllowKillCommandFor(int ClientId) const
 {
 	if(GetState() != EEventState::Active)
@@ -527,6 +532,7 @@ void CZCatchEvent::OnTick()
 			CloseRegistration();
 			return;
 		}
+		CEventComponent::OnTick(); // test-mode dummies
 		char aTimeLeft[32];
 		FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), (int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()));
 
@@ -707,7 +713,7 @@ void CZCatchEvent::OnCharacterDeath(int /*KillerId*/, int ClientId, int /*Weapon
 	ReleaseCaptives(ClientId);
 }
 
-void CZCatchEvent::OnPlayerDropping(int ClientId)
+void CZCatchEvent::OnEventPlayerDropping(int ClientId)
 {
 	if(GetState() == EEventState::Active)
 	{

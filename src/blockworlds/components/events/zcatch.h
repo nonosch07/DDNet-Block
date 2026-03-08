@@ -23,7 +23,7 @@ public:
 	void OnTick() override;
 	void OnCharacterSpawn(int ClientId, vec2 SpawnPos) override;
 	void OnCharacterDeath(int KillerId, int ClientId, int Weapon) override;
-	void OnPlayerDropping(int ClientId) override;
+	void OnEventPlayerDropping(int ClientId) override;
 	void OnSnapPlayerInfo(int ClientId, int SnappingClient, class CNetObj_PlayerInfo *pPlayerInfo) override;
 
 	void OpenRegistration() override;
@@ -48,6 +48,7 @@ public:
 
 	// allow selfkills only when there is a valid last impactor who can receive the catch credit
 	[[nodiscard]] bool AllowKillCommandFor(int ClientId) const override;
+	[[nodiscard]] int GetMinCandidates() const override;
 
 	[[nodiscard]] std::optional<int> GetScoreOf(int ClientId) const override;
 

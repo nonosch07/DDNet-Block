@@ -30,6 +30,16 @@ public:
 	};
 	using FnOnStateChange = std::function<void(EEventState OldState, EEventState NewState)>;
 
+	// Snapshot of a player's active cosmetics so they can be saved/restored around events
+	struct SCosmeticsSnapshot
+	{
+		int m_Special = -1;
+		int m_SkinMani = -1;
+		int m_GunDesign = -1;
+		int m_Knockout = -1;
+		int m_FlagExpireTick = 0; // server tick when flag expires (0 = no flag)
+	};
+
 protected:
 	EEventState m_State = EEventState::Created;
 	FnOnStateChange m_pfnOnStateChange;
@@ -45,8 +55,15 @@ protected:
 	std::vector<int> m_Candidates;
 	std::vector<int> m_Participants;
 
+	// cosmetics snapshot map: ClientId -> snapshot taken when player entered the event
+	std::map<int, SCosmeticsSnapshot> m_SavedCosmetics;
+
 	bool m_EmergencyShutdown;
 	char m_EmergencyMessage[256];
+
+
+	void SaveAndClearCosmetics(int ClientId);
+	void RestoreCosmetics(int ClientId);
 
 public:
 	[[nodiscard]] virtual const char *GetEventName() const = 0; // this is printable name for players, GetName() is internal name for logging
@@ -84,6 +101,10 @@ public:
 	// Process deferred operations (default implementation processes deferred loads).
 	virtual void OnTick() override;
 
+	// Final override for OnPlayerDropping: restores cosmetics first, then calls OnEventPlayerDropping.
+	// Derived classes MUST override OnEventPlayerDropping instead of OnPlayerDropping.
+	void OnPlayerDropping(int ClientId) final override;
+
 	[[nodiscard]] virtual std::optional<int> GetScoreOf(int /*ClientId*/) const { return std::nullopt; }
 
 	// called when a confirmed block-kill happens while the event is active
@@ -103,7 +124,13 @@ public:
 
 	[[nodiscard]] const char *GetName() const override { return GetEventName(); }
 
+	// Minimum candidates required to start this event (used for test-mode dummy population).
+	[[nodiscard]] virtual int GetMinCandidates() const { return 2; }
+
 protected:
+	// Called by OnPlayerDropping after cosmetics are restored. Override this instead of OnPlayerDropping.
+	virtual void OnEventPlayerDropping(int /*ClientId*/) {}
+
 	void SavePosition(int ClientId);
 	void LoadPosition(int ClientId);
 

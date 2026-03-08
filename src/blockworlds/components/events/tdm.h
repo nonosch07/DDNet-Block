@@ -19,7 +19,7 @@ public:
 	void OnTick() override;
 	void OnSnapClientInfo(int ClientId, int SnappingClient, class CNetObj_ClientInfo *pClientInfo) override;
 	void OnCharacterSpawn(int ClientId, vec2 SpawnPos) override;
-	void OnPlayerDropping(int ClientId) override;
+	void OnEventPlayerDropping(int ClientId) override;
 
 	void OpenRegistration() override;
 	void CloseRegistration() override;
@@ -43,6 +43,7 @@ public:
 
 	// allow /kill or client kill message if frozen for a grace period (e.g., 2 seconds)
 	[[nodiscard]] bool AllowKillCommandFor(int ClientId) const override;
+	[[nodiscard]] int GetMinCandidates() const override;
 
 	[[nodiscard]] std::optional<int> GetTeamIndexFor(int ClientId) const override;
 

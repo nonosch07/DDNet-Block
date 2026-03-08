@@ -147,6 +147,8 @@ MACRO_CONFIG_INT(SvZCatchFreezeTimeout, sv_zcatch_freeze_timeout, 5, 3, 30, CFGF
 
 // zCatch Grenade
 MACRO_CONFIG_INT(SvZCatchGrenadeKillsToWin, sv_zcatch_grenade_kills_to_win, 50, 1, 1000, CFGFLAG_SERVER, "Number of grenade kills needed to win zCatch Grenade")
+MACRO_CONFIG_INT(SvZCatchGrenadeWinnerExpMultiplier, sv_zcatch_grenade_winner_exp_multiplier, 200, 100, 10000, CFGFLAG_SERVER, "Exp multiplier for the zCatch Grenade winner (percent, e.g. 200 = 2x)")
+MACRO_CONFIG_INT(SvZCatchGrenadeWinnerExpDuration, sv_zcatch_grenade_winner_exp_duration, 5, 1, 60, CFGFLAG_SERVER, "Duration of the zCatch Grenade winner exp bonus (minutes)")
 
 // 1on1 draw detection settings
 MACRO_CONFIG_INT(Sv1on1DrawFreezeGrace, sv_1on1_draw_freeze_grace, 3, 0, 120, CFGFLAG_SERVER, "1on1: Grace period after round start before counting simultaneous freeze (seconds)")

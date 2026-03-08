@@ -1,6 +1,7 @@
 #include "event.h"
 #include "game/teamscore.h"
 
+#include <algorithm>
 #include <engine/shared/config.h>
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
@@ -38,6 +39,68 @@ void CEventComponent::SetState(CEventComponent::EEventState NewState)
 
 	if(cb)
 		cb(OldState, NewState);
+
+	if(NewState == EEventState::Active)
+	{
+		for(int ClientId : m_Participants)
+			SaveAndClearCosmetics(ClientId);
+	}
+	else if(NewState == EEventState::Ending)
+	{
+		auto Saved = m_SavedCosmetics;
+		for(auto &[ClientId, _] : Saved)
+			RestoreCosmetics(ClientId);
+	}
+}
+
+void CEventComponent::SaveAndClearCosmetics(int ClientId)
+{
+	CPlayer *pPlayer = GameServer()->GetPlayer(ClientId);
+	if(!pPlayer)
+		return;
+
+	SCosmeticsSnapshot Snap;
+	Snap.m_Special = pPlayer->GetCurrentSpecial();
+	Snap.m_SkinMani = pPlayer->GetSkinMani();
+	Snap.m_GunDesign = pPlayer->GetGunDesign();
+	Snap.m_Knockout = pPlayer->GetKnockout();
+	Snap.m_FlagExpireTick = pPlayer->GetFlagExpireTick();
+	m_SavedCosmetics[ClientId] = Snap;
+
+	pPlayer->DisableCosmeticsForEvent();
+}
+
+void CEventComponent::RestoreCosmetics(int ClientId)
+{
+	auto It = m_SavedCosmetics.find(ClientId);
+	if(It == m_SavedCosmetics.end())
+		return;
+
+	const SCosmeticsSnapshot &Snap = It->second;
+	CPlayer *pPlayer = GameServer()->GetPlayer(ClientId);
+	if(pPlayer)
+	{
+		pPlayer->SetSkinMani(Snap.m_SkinMani);
+		pPlayer->SetGunDesign(Snap.m_GunDesign);
+		pPlayer->SetKnockout(Snap.m_Knockout);
+		if(Snap.m_Special >= 0)
+			pPlayer->ToggleSpecial(Snap.m_Special);
+		if(Snap.m_FlagExpireTick > Server()->Tick())
+		{
+			int RemainingTicks = Snap.m_FlagExpireTick - Server()->Tick();
+			int RemainingMinutes = RemainingTicks / Server()->TickSpeed() / 60;
+			if(RemainingMinutes > 0)
+				pPlayer->GiveFlag(RemainingMinutes);
+		}
+	}
+
+	m_SavedCosmetics.erase(It);
+}
+
+void CEventComponent::OnPlayerDropping(int ClientId)
+{
+	RestoreCosmetics(ClientId);
+	OnEventPlayerDropping(ClientId);
 }
 
 // Delegate position/weapons/hook helpers to centralized inline helpers
@@ -65,6 +128,20 @@ void CEventComponent::LoadWeapons(int ClientId)
 
 void CEventComponent::OnTick()
 {
+	if(g_Config.m_SvEventsTestMode && m_State == EEventState::Registration)
+	{
+		const int NeedDummies = GetMinCandidates();
+		if(g_Config.m_DbgDummies < NeedDummies)
+			g_Config.m_DbgDummies = NeedDummies;
+
+		// autorregister (they occupy the top client IDs)
+		const int MaxClients = Server()->MaxClients();
+		for(int i = MaxClients - g_Config.m_DbgDummies; i < MaxClients; ++i)
+		{
+			if(GameServer()->GetPlayer(i) && std::find(m_Candidates.begin(), m_Candidates.end(), i) == m_Candidates.end())
+				Register(i);
+		}
+	}
 	// process both queues independently and requeue items that could not be completed yet
 	// this makes restoration robust whenn a player has no character this tick (e.g., in spec, paused, timing issues)
 

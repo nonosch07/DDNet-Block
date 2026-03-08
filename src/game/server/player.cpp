@@ -2177,6 +2177,31 @@ void CPlayer::ClearCosmetics()
 	m_CurrentKnockout = -1;
 }
 
+void CPlayer::DisableCosmeticsForEvent()
+{
+	// remove active special entity (but keep ownership)
+	if(m_pSpecialEntity)
+	{
+		GameServer()->m_World.RemoveEntity(m_pSpecialEntity);
+		m_pSpecialEntity = nullptr;
+	}
+	m_CurrentSpecial = -1;
+	m_SpecialExpireTick = 0;
+
+	// remove flag entity
+	if(m_pFlagEntity)
+	{
+		GameServer()->m_World.RemoveEntity(m_pFlagEntity);
+		m_pFlagEntity = nullptr;
+	}
+	m_FlagExpireTick = 0;
+
+	// reset active visual slots (not ownership)
+	m_CurrentSkinMani = -1;
+	m_CurrentGunDesign = -1;
+	m_CurrentKnockout = -1;
+}
+
 const char *CPlayer::GetPlayerSpecials()
 {
 	return m_aSpecialsOwned;

@@ -3623,17 +3623,19 @@ void CGameContext::OnKillNetMessage(const CNetMsg_Cl_Kill *pMsg, int ClientId)
 	// prevent event participants from killing themselves unless the event explicitly allows it
 	// (e.g. TDM: only when frozen ≥2s; zCatch: only when there is a valid last impactor to credit)
 	{
-		// no self-kill during 1on1 prep
+		// 1on1: block during prep, allow during active phase
+		bool inActive1on1 = false;
 		if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>())
 		{
 			if(auto match = mgr->GetMatchForPlayer(ClientId))
 			{
 				if(match->GetState() == COneOnOneEvent::EEventState::Preparation)
 					return;
+				inActive1on1 = true; // active state: allow self-kill
 			}
 		}
 
-		if(isInEvent(ClientId))
+		if(!inActive1on1 && isInEvent(ClientId))
 		{
 			bool allowed = false;
 			if(auto events = g_ComponentRegistry.Get<CEvents>())
@@ -3994,6 +3996,14 @@ void CGameContext::ConRestart(IConsole::IResult *pResult, void *pUserData)
 		pSelf->m_pController->DoWarmup(pResult->GetInteger(0));
 	else
 		pSelf->m_pController->StartRound();
+}
+
+void CGameContext::ConSendSound(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int Sound = pResult->GetInteger(0);
+	int Target = pResult->GetInteger(1);
+	pSelf->CreateSoundGlobal(Sound, Target);
 }
 
 void CGameContext::ConBroadcast(IConsole::IResult *pResult, void *pUserData)
@@ -4498,6 +4508,7 @@ void CGameContext::OnConsoleInit()
 	Console()->Register("random_unfinished_map", "?i[stars]", CFGFLAG_SERVER | CFGFLAG_STORE, ConRandomUnfinishedMap, this, "Random unfinished map");
 	Console()->Register("restart", "?i[seconds]", CFGFLAG_SERVER | CFGFLAG_STORE, ConRestart, this, "Restart in x seconds (0 = abort)");
 	Console()->Register("broadcast", "r[message]", CFGFLAG_SERVER, ConBroadcast, this, "Broadcast message");
+	Console()->Register("send_sound", "i[sound id] i[player id]", CFGFLAG_SERVER, ConSendSound, this, "Send a sound to a player (-1 = everyone)");
 	Console()->Register("say", "r[message]", CFGFLAG_SERVER, ConSay, this, "Say in chat");
 	Console()->Register("set_team", "i[id] i[team-id] ?i[delay in minutes]", CFGFLAG_SERVER, ConSetTeam, this, "Set team of player to team");
 	Console()->Register("set_team_all", "i[team-id]", CFGFLAG_SERVER, ConSetTeamAll, this, "Set team of all players to team");

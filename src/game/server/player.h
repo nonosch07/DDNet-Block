@@ -264,6 +264,9 @@ public:
 
 	// clear cosmetics/effects (specials, flag, skin/gundesign, knockouts) without logging out account
 	void ClearCosmetics();
+	// disable only the active cosmetics (special entity + flag + visual slots) without resetting ownership
+	void DisableCosmeticsForEvent();
+	int GetFlagExpireTick() const { return m_FlagExpireTick; }
 
 	// give a temporary special (spawns and auto-removes after Duration minutes)
 	void GiveTemporarySpecial(int SpecialIndex, int DurationMinutes);

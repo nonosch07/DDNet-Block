@@ -25,7 +25,7 @@ public:
 	void OnCharacterSpawn(int ClientId, vec2 SpawnPos) override;
 	void OnCharacterDeath(int KillerId, int ClientId, int Weapon) override;
 	void OnCharacterTakeDamage(vec2 Force, vec2 Source, int Dmg, int From, int ClientId, int Weapon) override;
-	void OnPlayerDropping(int ClientId) override;
+	void OnEventPlayerDropping(int ClientId) override;
 	void OnSnapPlayerInfo(int ClientId, int SnappingClient, class CNetObj_PlayerInfo *pPlayerInfo) override;
 
 	void OpenRegistration() override;
@@ -44,6 +44,7 @@ public:
 	void EmergencyShutdown(const char *pMsg) override;
 
 	[[nodiscard]] std::optional<int> GetScoreOf(int ClientId) const override;
+	[[nodiscard]] int GetMinCandidates() const override;
 
 private:
 	// --- timing ---

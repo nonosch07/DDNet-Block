@@ -47,6 +47,7 @@ void CLastManBlockingEvent::OnTick()
 			return;
 		}
 
+		CEventComponent::OnTick(); // test-mode dummies
 		char aTimeLeft[32];
 		FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), (int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()));
 		auto p1on1 = g_ComponentRegistry.Get<COneOnOneManager>();
@@ -509,7 +510,7 @@ void CLastManBlockingEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 		}
 	}
 }
-void CLastManBlockingEvent::OnPlayerDropping(int ClientId)
+void CLastManBlockingEvent::OnEventPlayerDropping(int ClientId)
 {
 	if(GetState() == CEventComponent::EEventState::Active)
 	{
@@ -576,6 +577,11 @@ void CLastManBlockingEvent::CheckFreezeTime()
 		}
 	}
 }
+int CLastManBlockingEvent::GetMinCandidates() const
+{
+	return Config()->m_SvLMBMinimumCandidates;
+}
+
 int CLastManBlockingEvent::GetFrozenSince(int ClientId) const
 {
 	auto it = m_FrozenSince.find(ClientId);
