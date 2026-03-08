@@ -547,6 +547,8 @@ public:
 	// Hide other players' cosmetics
 	bool m_HideCosmetics = false;
 
+	bool m_AutoLoginAttempted = false;
+
 	// --- Live session stats (reset on disconnect, not saved to DB) ---
 	int m_SessionKills = 0;
 	int m_SessionDeaths = 0;

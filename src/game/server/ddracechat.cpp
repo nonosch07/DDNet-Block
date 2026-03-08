@@ -566,6 +566,19 @@ void CGameContext::ConTimeout(IConsole::IResult *pResult, void *pUserData)
 
 	pSelf->Server()->SetTimeoutProtected(pResult->m_ClientId);
 	str_copy(pPlayer->m_aTimeoutCode, pResult->GetString(0), sizeof(pPlayer->m_aTimeoutCode));
+
+	if(g_Config.m_SvAutoLogin && g_Config.m_SvAutoLoginSecret[0] && pSelf->Accounts())
+	{
+		char aIp[64];
+		pSelf->Server()->GetClientAddr(pResult->m_ClientId, aIp, sizeof(aIp));
+		if(pPlayer->m_Account.m_Id > 0)
+		{
+			if(pPlayer->m_Account.m_AutoLoginEnabled)
+				pSelf->Accounts()->WriteAutoLoginToken(pPlayer->m_Account.m_Id, pResult->GetString(0), aIp);
+		}
+		else
+			pSelf->Accounts()->AutoLoginLookup(pResult->m_ClientId, pResult->GetString(0), aIp);
+	}
 }
 
 void CGameContext::ConPractice(IConsole::IResult *pResult, void *pUserData)

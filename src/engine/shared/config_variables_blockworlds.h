@@ -12,6 +12,11 @@
 
 MACRO_CONFIG_STR(SvServerId, sv_server_id, 32, "unique_id", CFGFLAG_SERVER, "Unique identifier for the server instance. Mainly used for login state.")
 
+// Auto-login via timeout code + IP
+MACRO_CONFIG_INT(SvAutoLogin, sv_auto_login, 1, 0, 1, CFGFLAG_SERVER, "Enable (1) or disable (0) automatic login via timeout code + IP check.")
+MACRO_CONFIG_INT(SvAutoLoginExpiryDays, sv_auto_login_expiry_days, 14, 1, 365, CFGFLAG_SERVER, "Days before an auto-login token expires and the player must /login again.")
+MACRO_CONFIG_STR(SvAutoLoginSecret, sv_auto_login_secret, 64, "", CFGFLAG_SERVER, "Server-side secret for hashing auto-login tokens. Must be set for auto-login to work.")
+
 MACRO_CONFIG_INT(SvAccountsystem, sv_account_system, 1, 0, 1, CFGFLAG_SERVER, "Toggle for enabling (1) or disabling (0) the account system.")
 MACRO_CONFIG_INT(Sv1on1system, sv_1on1_system, 1, 0, 1, CFGFLAG_SERVER, "Toggle for enabling (1) or disabling (0) the one-on-one (1v1) system.")
 

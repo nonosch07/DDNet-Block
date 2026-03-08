@@ -433,7 +433,8 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 		"p.clanID, p.auth_level, p.blockpoints, i.knockouts, i.gundesign, i.skinmani, p.passive, c.registerdate, r.ranked_games, "
 		"r.ranked_kills, r.ranked_deaths, r.ranked_wins, p.kills, p.deaths, p.tourney_win, p.playtime, p.killstreak, "
 		"c.last_name, c.last_skin, c.last_body_color, c.last_feet_color, "
-		"COALESCE(p.weekly_day, 0), COALESCE(p.weekly_last_claim, 0), COALESCE(p.weekly_exp_boost_until, 0) FROM %s c "
+		"COALESCE(p.weekly_day, 0), COALESCE(p.weekly_last_claim, 0), COALESCE(p.weekly_exp_boost_until, 0), "
+		"COALESCE(p.autologin_enabled, 1) FROM %s c "
 		"JOIN %s p ON c.id=p.account_id "
 		"JOIN %s i ON c.id=i.account_id "
 		"JOIN %s r ON c.id=r.account_id WHERE c.id = ?;",
@@ -498,6 +499,7 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 	SQL_GET_INT(Index++, pResult->m_Account.m_WeeklyDay);
 	SQL_GET_INT(Index++, pResult->m_Account.m_WeeklyLastClaim);
 	SQL_GET_INT64(Index++, pResult->m_Account.m_WeeklyExpBoostUntil);
+	SQL_GET_INT(Index++, pResult->m_Account.m_AutoLoginEnabled);
 
 #undef SQL_GET_INT
 #undef SQL_GET_INT64
@@ -875,7 +877,7 @@ bool CAccounts::SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData,
 	}
 	if(DoProg)
 	{
-		str_format(aBuf, sizeof(aBuf), "UPDATE %s SET level=?, experience=?, ranking=?, clanID=?, auth_level=?, blockpoints=?, passive=?, kills=?, deaths=?, tourney_win=?, playtime=?, killstreak=?, weekly_day=?, weekly_last_claim=?, weekly_exp_boost_until=? WHERE account_id=?;", TBL_ACCOUNTS_PROGRESS);
+		str_format(aBuf, sizeof(aBuf), "UPDATE %s SET level=?, experience=?, ranking=?, clanID=?, auth_level=?, blockpoints=?, passive=?, kills=?, deaths=?, tourney_win=?, playtime=?, killstreak=?, weekly_day=?, weekly_last_claim=?, weekly_exp_boost_until=?, autologin_enabled=? WHERE account_id=?;", TBL_ACCOUNTS_PROGRESS);
 		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 			goto fail;
 		pSqlServer->BindInt(1, Acc.m_Level);
@@ -893,7 +895,8 @@ bool CAccounts::SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData,
 		pSqlServer->BindInt(13, Acc.m_WeeklyDay);
 		pSqlServer->BindInt(14, Acc.m_WeeklyLastClaim);
 		pSqlServer->BindInt64(15, Acc.m_WeeklyExpBoostUntil);
-		pSqlServer->BindInt(16, Acc.m_Id);
+		pSqlServer->BindInt(16, Acc.m_AutoLoginEnabled);
+		pSqlServer->BindInt(17, Acc.m_Id);
 		if(pSqlServer->ExecuteUpdate(&Affected, pError, ErrorSize))
 			goto fail;
 	}
@@ -964,6 +967,305 @@ bool CAccounts::LogoutThread(IDbConnection *pSqlServer, const ISqlData *pGameDat
 	}
 	// if Deleted == 0 thenb we silently ignore (can happen if bulk ClearLogins already removed it)
 	return false;
+}
+
+static void AutoLoginComputeHash(const char *pSecret, const char *pData, char *pOutHex, int OutHexSize)
+{
+	char aBuf[512];
+	str_format(aBuf, sizeof(aBuf), "%s|%s", pSecret, pData);
+	SHA256_DIGEST Digest = sha256(aBuf, str_length(aBuf));
+	sha256_str(Digest, pOutHex, OutHexSize);
+	mem_zero(aBuf, sizeof(aBuf));
+}
+
+static void AutoLoginStripPort(char *pIp)
+{
+	if(!pIp || !*pIp)
+		return;
+	if(pIp[0] == '[')
+	{
+		char *pEnd = const_cast<char *>(str_find(pIp, "]"));
+		if(pEnd)
+		{
+			*pEnd = '\0';
+			size_t Len = str_length(pIp + 1);
+			mem_move(pIp, pIp + 1, Len + 1);
+		}
+		return;
+	}
+	const char *pLastColon = str_rchr(pIp, ':');
+	if(pLastColon)
+	{
+		int NumColons = 0;
+		for(const char *p = pIp; *p; ++p)
+			if(*p == ':')
+				NumColons++;
+		if(NumColons == 1)
+			const_cast<char *>(pLastColon)[0] = '\0';
+	}
+}
+
+void CAccounts::WriteAutoLoginToken(int AccountId, const char *pTimeoutCode, const char *pIp)
+{
+	if(!g_Config.m_SvAutoLogin || !g_Config.m_SvAutoLoginSecret[0] || !pTimeoutCode || !pTimeoutCode[0])
+		return;
+
+	auto Tmp = std::make_unique<CSqlAutoLoginWriteData>();
+	Tmp->m_AccountId = AccountId;
+	Tmp->m_ExpiryDays = g_Config.m_SvAutoLoginExpiryDays;
+
+	char aIp[64];
+	str_copy(aIp, pIp ? pIp : "", sizeof(aIp));
+	AutoLoginStripPort(aIp);
+
+	AutoLoginComputeHash(g_Config.m_SvAutoLoginSecret, pTimeoutCode, Tmp->m_aTokenHash, sizeof(Tmp->m_aTokenHash));
+	AutoLoginComputeHash(g_Config.m_SvAutoLoginSecret, aIp, Tmp->m_aIpHash, sizeof(Tmp->m_aIpHash));
+
+	m_pPool->Execute(WriteAutoLoginTokenThread, std::move(Tmp), "write autologin token");
+}
+
+bool CAccounts::WriteAutoLoginTokenThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
+{
+	const CSqlAutoLoginWriteData *pData = dynamic_cast<const CSqlAutoLoginWriteData *>(pGameData);
+	if(!pData)
+		return true;
+
+	char aBuf[512];
+	str_format(aBuf, sizeof(aBuf),
+		"INSERT INTO %s (account_id, token_hash, ip_hash, expires_at) "
+		"VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL %d DAY)) "
+		"ON DUPLICATE KEY UPDATE token_hash=VALUES(token_hash), ip_hash=VALUES(ip_hash), "
+		"expires_at=DATE_ADD(NOW(), INTERVAL %d DAY);",
+		TBL_ACCOUNTS_AUTOLOGIN, pData->m_ExpiryDays, pData->m_ExpiryDays);
+
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+		return true;
+
+	pSqlServer->BindInt(1, pData->m_AccountId);
+	pSqlServer->BindString(2, pData->m_aTokenHash);
+	pSqlServer->BindString(3, pData->m_aIpHash);
+
+	int Affected;
+	return pSqlServer->ExecuteUpdate(&Affected, pError, ErrorSize);
+}
+
+void CAccounts::DeleteAutoLoginToken(int AccountId)
+{
+	auto Tmp = std::make_unique<CSqlAutoLoginWriteData>();
+	Tmp->m_AccountId = AccountId;
+	m_pPool->Execute(DeleteAutoLoginTokenThread, std::move(Tmp), "delete autologin token");
+}
+
+bool CAccounts::DeleteAutoLoginTokenThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
+{
+	const CSqlAutoLoginWriteData *pData = dynamic_cast<const CSqlAutoLoginWriteData *>(pGameData);
+	if(!pData)
+		return true;
+
+	char aBuf[256];
+	str_format(aBuf, sizeof(aBuf), "DELETE FROM %s WHERE account_id = ?;", TBL_ACCOUNTS_AUTOLOGIN);
+
+	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+		return true;
+
+	pSqlServer->BindInt(1, pData->m_AccountId);
+	int Deleted;
+	return pSqlServer->ExecuteUpdate(&Deleted, pError, ErrorSize);
+}
+
+void CAccounts::AutoLoginLookup(int ClientId, const char *pTimeoutCode, const char *pIp)
+{
+	if(!g_Config.m_SvAutoLogin || !g_Config.m_SvAutoLoginSecret[0])
+		return;
+	if(!pTimeoutCode || !pTimeoutCode[0])
+		return;
+	if(ClientId < 0 || ClientId >= MAX_CLIENTS || !GameServer()->m_apPlayers[ClientId])
+		return;
+	if(GameServer()->m_apPlayers[ClientId]->m_Account.m_Id > 0)
+		return; // already logged in
+
+	auto pResult = NewSqlAccountResult(ClientId);
+	if(!pResult)
+		return;
+
+	auto Tmp = std::make_unique<CSqlAutoLoginRequest>(pResult, GameServer());
+	Tmp->m_ClientId = ClientId;
+
+	char aIp[64];
+	str_copy(aIp, pIp ? pIp : "", sizeof(aIp));
+	AutoLoginStripPort(aIp);
+
+	AutoLoginComputeHash(g_Config.m_SvAutoLoginSecret, pTimeoutCode, Tmp->m_aTokenHash, sizeof(Tmp->m_aTokenHash));
+	AutoLoginComputeHash(g_Config.m_SvAutoLoginSecret, aIp, Tmp->m_aIpHash, sizeof(Tmp->m_aIpHash));
+
+	GameServer()->m_apPlayers[ClientId]->m_AccountQueryResult.push(pResult);
+	m_pPool->Execute(AutoLoginLookupThread, std::move(Tmp), "autologin lookup");
+}
+
+bool CAccounts::AutoLoginLookupThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
+{
+	const CSqlAutoLoginRequest *pData = dynamic_cast<const CSqlAutoLoginRequest *>(pGameData);
+	CAccountResult *pResult = dynamic_cast<CAccountResult *>(pGameData->m_pResult.get());
+	if(!pData || !pResult)
+		return true;
+
+	// look up by token_hash + ip_hash, LIMIT 2 to detect collisions
+	int AccountId = -1;
+	{
+		char aBuf[512];
+		str_format(aBuf, sizeof(aBuf),
+			"SELECT account_id FROM %s WHERE token_hash = ? AND ip_hash = ? AND expires_at > NOW() LIMIT 2;",
+			TBL_ACCOUNTS_AUTOLOGIN);
+
+		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+			return true;
+
+		pSqlServer->BindString(1, pData->m_aTokenHash);
+		pSqlServer->BindString(2, pData->m_aIpHash);
+
+		bool End;
+		if(pSqlServer->Step(&End, pError, ErrorSize))
+			return true;
+		if(End)
+		{
+			// no matching token -> silent fail, player will be prompted to /login
+			pResult->SetVariant(CAccountResult::LOG_ONLY);
+			return false;
+		}
+
+		AccountId = pSqlServer->GetInt(1);
+
+		// collision check: if a second row exists, abort silently
+		if(pSqlServer->Step(&End, pError, ErrorSize))
+			return true;
+		if(!End)
+		{
+			dbg_msg("autologin", "Collision: multiple accounts match token+ip, aborting auto-login");
+			pResult->SetVariant(CAccountResult::LOG_ONLY);
+			return false;
+		}
+	}
+
+	// check whether this account is already in an active session
+	{
+		char aBuf[512];
+		str_format(aBuf, sizeof(aBuf), "SELECT server_id FROM %s WHERE account_id = ?;", TBL_ACCOUNTS_BUSY);
+		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+			return true;
+		pSqlServer->BindInt(1, AccountId);
+		bool End;
+		if(pSqlServer->Step(&End, pError, ErrorSize))
+			return true;
+		if(!End)
+		{
+			// already logged in elsewhere -> silent fail
+			pResult->SetVariant(CAccountResult::LOG_ONLY);
+			return false;
+		}
+	}
+
+	// load full account data
+	{
+		char aBuf[2048];
+		str_format(aBuf, sizeof(aBuf),
+			"SELECT c.id, c.name, c.password, c.address, i.vip, i.pages, p.level, p.experience, i.weaponkits, p.ranking, "
+			"p.clanID, p.auth_level, p.blockpoints, i.knockouts, i.gundesign, i.skinmani, p.passive, c.registerdate, r.ranked_games, "
+			"r.ranked_kills, r.ranked_deaths, r.ranked_wins, p.kills, p.deaths, p.tourney_win, p.playtime, p.killstreak, "
+			"c.last_name, c.last_skin, c.last_body_color, c.last_feet_color, "
+			"COALESCE(p.weekly_day, 0), COALESCE(p.weekly_last_claim, 0), COALESCE(p.weekly_exp_boost_until, 0), "
+			"COALESCE(p.autologin_enabled, 1) FROM %s c "
+			"JOIN %s p ON c.id=p.account_id "
+			"JOIN %s i ON c.id=i.account_id "
+			"JOIN %s r ON c.id=r.account_id WHERE c.id = ?;",
+			TBL_ACCOUNTS_CORE, TBL_ACCOUNTS_PROGRESS, TBL_ACCOUNTS_INVENTORY, TBL_ACCOUNTS_RANKED);
+
+		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+			return true;
+		pSqlServer->BindInt(1, AccountId);
+		bool End;
+		if(pSqlServer->Step(&End, pError, ErrorSize))
+			return true;
+		if(End)
+			return true; // account vanished – shouldn't happen
+	}
+
+	pResult->SetVariant(CAccountResult::LOGIN_INFO);
+
+	int Index = 1;
+#define SQL_GET_INT(idx, dest) dest = pSqlServer->GetInt(idx)
+#define SQL_GET_INT64(idx, dest) dest = pSqlServer->GetInt64(idx)
+#define SQL_GET_STRING(idx, dest) pSqlServer->GetString(idx, dest, sizeof(dest))
+
+	SQL_GET_INT(Index++, pResult->m_Account.m_Id);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aName);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aPassword);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aAddress);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Vip);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Pages);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Level);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Experience);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Weaponkits);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Ranking);
+	SQL_GET_INT(Index++, pResult->m_Account.m_ClanId);
+	{
+		int rawAuthLevel = 0;
+		SQL_GET_INT(Index++, rawAuthLevel);
+		pResult->m_Account.m_AuthLevel = static_cast<ClanAuthLevel>(rawAuthLevel);
+	}
+	SQL_GET_INT(Index++, pResult->m_Account.m_Blockpoints);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aKnockouts);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aGundesign);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aSkinmani);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Passive);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_RegisterDate);
+	SQL_GET_INT(Index++, pResult->m_Account.m_RankedGames);
+	SQL_GET_INT(Index++, pResult->m_Account.m_RankedKills);
+	SQL_GET_INT(Index++, pResult->m_Account.m_RankedDeaths);
+	SQL_GET_INT(Index++, pResult->m_Account.m_RankedWins);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Kills);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Deaths);
+	SQL_GET_INT(Index++, pResult->m_Account.m_TourneyWin);
+	SQL_GET_INT64(Index++, pResult->m_Account.m_Playtime);
+	SQL_GET_INT(Index++, pResult->m_Account.m_Killstreak);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aLastName);
+	SQL_GET_STRING(Index++, pResult->m_Account.m_aLastSkin);
+	SQL_GET_INT(Index++, pResult->m_Account.m_LastBodyColor);
+	SQL_GET_INT(Index++, pResult->m_Account.m_LastFeetColor);
+	SQL_GET_INT(Index++, pResult->m_Account.m_WeeklyDay);
+	SQL_GET_INT(Index++, pResult->m_Account.m_WeeklyLastClaim);
+	SQL_GET_INT64(Index++, pResult->m_Account.m_WeeklyExpBoostUntil);
+	SQL_GET_INT(Index++, pResult->m_Account.m_AutoLoginEnabled);
+
+#undef SQL_GET_INT
+#undef SQL_GET_INT64
+#undef SQL_GET_STRING
+
+	// if the account owner has opted out of auto-login, silently abort
+	if(!pResult->m_Account.m_AutoLoginEnabled)
+	{
+		pResult->SetVariant(CAccountResult::LOG_ONLY); // reset from LOGIN_INFO so no login fires
+		return false;
+	}
+
+	// mark account as busy
+	{
+		char aBuf[512];
+		str_format(aBuf, sizeof(aBuf),
+			"INSERT INTO %s (server_id, account_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE server_id = VALUES(server_id);",
+			TBL_ACCOUNTS_BUSY);
+		if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+			return true;
+		pSqlServer->BindString(1, g_Config.m_SvServerId);
+		pSqlServer->BindInt(2, AccountId);
+		int Affected;
+		if(pSqlServer->ExecuteUpdate(&Affected, pError, ErrorSize))
+		{
+			pResult->m_Success = false;
+			return true;
+		}
+	}
+
+	return false; // success → pool sets pResult->m_Success = true
 }
 
 void CAccounts::ClearLogins()
