@@ -1162,7 +1162,7 @@ void CPlayer::TryRespawn()
 					if(match->m_Config.m_SpawnMode == 1)
 						positions = GameServer()->ZoneManager()->Get1on1ArenaPositions(-1);
 					else
-						CGameContext::GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), positions);
+						positions = GameServer()->ZoneManager()->GetNamedQuadCenters("1on1_spawn");
 					if(!positions.empty())
 					{
 						auto &res = match->GetSpawnReservation();
@@ -1189,19 +1189,23 @@ void CPlayer::TryRespawn()
 				bool isPart = std::find(parts.begin(), parts.end(), GetCid()) != parts.end();
 				if(isPart && active->GetName())
 				{
-					int tileId = -1;
+					const char *pQuadLayer = nullptr;
 					if(str_comp(active->GetName(), "tdm") == 0)
-						tileId = TILE_BW_EVENT_TDM_START_POS;
-					else if(str_comp(active->GetName(), "LMB") == 0 || str_comp(active->GetName(), "zcatch") == 0)
-						tileId = TILE_BW_EVENT_LMB_START_POS;
+						pQuadLayer = "tdm_spawn";
+					else if(str_comp(active->GetName(), "lmb") == 0)
+						pQuadLayer = "lmb_spawn";
+					else if(str_comp(active->GetName(), "zcatch") == 0)
+						pQuadLayer = "zcb_spawn";
+					else if(str_comp(active->GetName(), "zcatch_grenade") == 0)
+						pQuadLayer = "zcg_spawn";
 
-					if(tileId >= 0)
+					if(pQuadLayer)
 					{
-						std::vector<vec2> startPositions;
-						int spawncount = CGameContext::GetTilePositions(tileId, GameServer(), startPositions);
+						auto startPositions = GameServer()->ZoneManager()->GetNamedQuadCenters(pQuadLayer);
+						int spawncount = (int)startPositions.size();
 						if(spawncount > 0)
 						{
-							// choose a random event start position so players don't always spawn on the same tile
+							// choose a random event start position so players don't always spawn on the same spot
 							std::default_random_engine rng((unsigned)(Server()->Tick() + GetCid() * 9973));
 							std::uniform_int_distribution<int> dist(0, spawncount - 1);
 							int idx = dist(rng);

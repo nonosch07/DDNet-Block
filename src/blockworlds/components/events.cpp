@@ -15,6 +15,7 @@
 #include <blockworlds/components/events/priv_tdm.h>
 #include <blockworlds/components/events/tdm.h>
 #include <blockworlds/components/events/zcatch.h>
+#include <blockworlds/components/events/zcatch_grenade.h>
 #include <blockworlds/components/oneonone_manager.h>
 #include <blockworlds/votes/votemanager.h>
 
@@ -25,6 +26,7 @@ CEvents::CEvents(CGameContext *pGameServer) :
 	m_EventsFactory.emplace("lmb", SFactoryRec{EEventCategory::Public, [](class CGameContext *pGS) { return std::make_shared<CLastManBlockingEvent>(pGS); }});
 	m_EventsFactory.emplace("tdm", SFactoryRec{EEventCategory::Public, [](class CGameContext *pGS) { return std::make_shared<CTeamDeathmatchEvent>(pGS); }});
 	m_EventsFactory.emplace("zcatch", SFactoryRec{EEventCategory::Public, [](class CGameContext *pGS) { return std::make_shared<CZCatchEvent>(pGS); }});
+	m_EventsFactory.emplace("zcatch_grenade", SFactoryRec{EEventCategory::Public, [](class CGameContext *pGS) { return std::make_shared<CZCatchGrenadeEvent>(pGS); }});
 	m_EventsFactory.emplace("colorsoldiers", SFactoryRec{EEventCategory::Public, [](class CGameContext *pGS) { return std::make_shared<CColorSoldiersEvent>(pGS); }});
 
 	// Private events

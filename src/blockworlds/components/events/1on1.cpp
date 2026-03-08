@@ -362,8 +362,7 @@ void COneOnOneEvent::StartMatchFromConfig()
 		if(Discord.IsConfigured(pLogsUrl))
 		{
 			char aMsg[256];
-			const char *pMap = Server()->GetMapName();
-			str_format(aMsg, sizeof(aMsg), "1on1 wager collected on %s: %s vs %s | Wager: %d BP", pMap ? pMap : "<map>", Server()->ClientName(m_Player1ID), Server()->ClientName(m_Player2ID), m_Wager);
+			str_format(aMsg, sizeof(aMsg), "1on1 wager collected: **%s** vs **%s** | Wager: %d BP", Server()->ClientName(m_Player1ID), Server()->ClientName(m_Player2ID), m_Wager);
 			CDiscordWebhook::SSendOptions Opt;
 			Opt.m_pWebhookUrl = pLogsUrl;
 			Discord.Send(aMsg, Opt);
@@ -399,7 +398,7 @@ void COneOnOneEvent::StartMatchFromConfig()
 	if(m_Config.m_SpawnMode == 1)
 		spawnPosition = GameServer()->ZoneManager()->Get1on1ArenaPositions(-1);
 	else
-		CGameContext::GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), spawnPosition);
+		spawnPosition = GameServer()->ZoneManager()->GetNamedQuadCenters("1on1_spawn");
 	int spawncount = (int)spawnPosition.size();
 
 	if(spawncount >= 2)
@@ -582,13 +581,12 @@ bool COneOnOneEvent::StartEvent()
 		if(Discord.IsConfigured(pLogsUrl))
 		{
 			char aMsg[256];
-			const char *pMap = Server()->GetMapName();
-			str_format(aMsg, sizeof(aMsg), "1on1 wager collected on %s: %s vs %s | Wager: %d BP", pMap ? pMap : "<map>", Server()->ClientName(m_Player1ID), Server()->ClientName(m_Player2ID), m_Wager);
+			str_format(aMsg, sizeof(aMsg), "1on1 wager collected: **%s** vs **%s** | Wager: %d BP", Server()->ClientName(m_Player1ID), Server()->ClientName(m_Player2ID), m_Wager);
 			CDiscordWebhook::SSendOptions Opt;
 			Opt.m_pWebhookUrl = pLogsUrl;
 			Discord.Send(aMsg, Opt);
 
-			str_format(aMsg, sizeof(aMsg), "1on1 wager locked for transfer on %s: %s <-> %s | Amount: %d BP", pMap ? pMap : "<map>", Server()->ClientName(m_Player1ID), Server()->ClientName(m_Player2ID), m_Wager);
+			str_format(aMsg, sizeof(aMsg), "1on1 wager locked for transfer: **%s** <-> **%s** | Amount: %d BP", Server()->ClientName(m_Player1ID), Server()->ClientName(m_Player2ID), m_Wager);
 			Discord.Send(aMsg, Opt);
 		}
 	}
@@ -621,7 +619,7 @@ bool COneOnOneEvent::StartEvent()
 	if(m_Config.m_SpawnMode == 1)
 		spawnPosition = GameServer()->ZoneManager()->Get1on1ArenaPositions(-1);
 	else
-		CGameContext::GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), spawnPosition);
+		spawnPosition = GameServer()->ZoneManager()->GetNamedQuadCenters("1on1_spawn");
 	int spawncount = (int)spawnPosition.size();
 
 	if(spawncount <= 0)
@@ -813,7 +811,7 @@ void COneOnOneEvent::OnTick()
 	{
 		char aBuf[256];
 		str_format(aBuf, sizeof(aBuf), "%s: %d\n"
-			"%s: %d",
+					       "%s: %d",
 			Server()->ClientName(m_Player1ID),
 			m_Score1.load(),
 			Server()->ClientName(m_Player2ID),
@@ -1263,7 +1261,7 @@ void COneOnOneEvent::RestartRoundAfterDraw()
 	if(m_Config.m_SpawnMode == 1)
 		startPositions = GameServer()->ZoneManager()->Get1on1ArenaPositions(-1);
 	else
-		CGameContext::GetTilePositions(TILE_BW_1ON1_START_POS, GameServer(), startPositions);
+		startPositions = GameServer()->ZoneManager()->GetNamedQuadCenters("1on1_spawn");
 
 	int spawncount = (int)startPositions.size();
 	if(spawncount >= 2)

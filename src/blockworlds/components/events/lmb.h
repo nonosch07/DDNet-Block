@@ -3,6 +3,9 @@
 
 #include "event.h"
 
+#include <set>
+#include <vector>
+
 class CLastManBlockingEvent final : public CEventComponent, public std::enable_shared_from_this<CLastManBlockingEvent>
 {
 public:
@@ -47,7 +50,7 @@ private:
 	int m_ActiveStartTick;
 	int m_ActiveEndTick;
 
-	int m_SpawnOffset;
+	std::set<int> m_UsedSpawnIndices;
 	std::vector<vec2> m_SpawnPositions;
 
 	int m_DDRaceTeam;

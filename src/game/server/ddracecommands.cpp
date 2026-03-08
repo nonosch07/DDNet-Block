@@ -750,19 +750,14 @@ void CGameContext::ConMuteId(IConsole::IResult *pResult, void *pUserData)
 	{
 		CDiscordWebhook Discord(pSelf->Engine(), pSelf->Http());
 		const char *pUrl = g_Config.m_SvDiscordWebhookUrlRconLogs[0] ? g_Config.m_SvDiscordWebhookUrlRconLogs : nullptr;
-		if(Discord.IsConfigured(pUrl))
+		if(pResult->m_ClientId >= 0 && Discord.IsConfigured(pUrl))
 		{
 			char aMsg[256];
-			const char *pExecutorName = "Console";
+			const char *pExecutorName = pSelf->Server()->ClientName(pResult->m_ClientId);
+			if(!pExecutorName || !pExecutorName[0])
+				pExecutorName = "Unknown";
 
-			if(pResult->m_ClientId >= 0 && pResult->m_ClientId < MAX_CLIENTS)
-			{
-				const char *pName = pSelf->Server()->ClientName(pResult->m_ClientId);
-				if(pName && pName[0])
-					pExecutorName = pName;
-			}
-
-			str_format(aMsg, sizeof(aMsg), "**%s** muted player **%s** for %d seconds - Reason: %s",
+			str_format(aMsg, sizeof(aMsg), "**[MUTE]** **%s** muted **%s** for %d sec \u2014 Reason: %s",
 				pExecutorName, pVictimName ? pVictimName : "<unknown>", Seconds, pReason[0] ? pReason : "No reason given");
 
 			CDiscordWebhook::SSendOptions Opt;
@@ -784,8 +779,30 @@ void CGameContext::ConMuteIp(IConsole::IResult *pResult, void *pUserData)
 		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "mutes",
 			"Invalid network address to mute");
 	}
+	const char *pIp = pResult->GetString(0);
+	int Seconds = clamp(pResult->GetInteger(1), 1, 86400);
 	const char *pReason = pResult->NumArguments() > 2 ? pResult->GetString(2) : "";
-	pSelf->Mute(&Addr, clamp(pResult->GetInteger(1), 1, 86400), NULL, pReason);
+	pSelf->Mute(&Addr, Seconds, NULL, pReason);
+
+	if(pResult->m_ClientId >= 0 && pResult->m_ClientId < MAX_CLIENTS)
+	{
+		CDiscordWebhook Discord(pSelf->Engine(), pSelf->Http());
+		const char *pUrl = g_Config.m_SvDiscordWebhookUrlRconLogs[0] ? g_Config.m_SvDiscordWebhookUrlRconLogs : nullptr;
+		if(Discord.IsConfigured(pUrl))
+		{
+			const char *pExecutorName = pSelf->Server()->ClientName(pResult->m_ClientId);
+			if(!pExecutorName || !pExecutorName[0])
+				pExecutorName = "Unknown";
+			char aMsg[256];
+			str_format(aMsg, sizeof(aMsg), "**[MUTE]** **%s** muted IP **%s** for %d sec \u2014 Reason: %s",
+				pExecutorName, pIp, Seconds, pReason[0] ? pReason : "No reason given");
+			CDiscordWebhook::SSendOptions Opt;
+			Opt.m_pWebhookUrl = pUrl;
+			Opt.m_pUsername = g_Config.m_SvDiscordWebhookUsername;
+			Opt.m_Tts = 0;
+			Discord.Send(aMsg, Opt);
+		}
+	}
 }
 
 // unmute by mute list index
@@ -806,19 +823,14 @@ void CGameContext::ConUnmute(IConsole::IResult *pResult, void *pUserData)
 	{
 		CDiscordWebhook Discord(pSelf->Engine(), pSelf->Http());
 		const char *pUrl = g_Config.m_SvDiscordWebhookUrlRconLogs[0] ? g_Config.m_SvDiscordWebhookUrlRconLogs : nullptr;
-		if(Discord.IsConfigured(pUrl))
+		if(pResult->m_ClientId >= 0 && Discord.IsConfigured(pUrl))
 		{
 			char aMsg[256];
-			const char *pExecutorName = "Console";
+			const char *pExecutorName = pSelf->Server()->ClientName(pResult->m_ClientId);
+			if(!pExecutorName || !pExecutorName[0])
+				pExecutorName = "Unknown";
 
-			if(pResult->m_ClientId >= 0 && pResult->m_ClientId < MAX_CLIENTS)
-			{
-				const char *pName = pSelf->Server()->ClientName(pResult->m_ClientId);
-				if(pName && pName[0])
-					pExecutorName = pName;
-			}
-
-			str_format(aMsg, sizeof(aMsg), "**%s** unmuted IP **%s** ", pExecutorName, aIpBuf);
+			str_format(aMsg, sizeof(aMsg), "**[UNMUTE]** **%s** unmuted IP **%s**", pExecutorName, aIpBuf);
 
 			CDiscordWebhook::SSendOptions Opt;
 			Opt.m_pWebhookUrl = pUrl;
@@ -860,21 +872,14 @@ void CGameContext::ConUnmuteId(IConsole::IResult *pResult, void *pUserData)
 			{
 				CDiscordWebhook Discord(pSelf->Engine(), pSelf->Http());
 				const char *pUrl = g_Config.m_SvDiscordWebhookUrlRconLogs[0] ? g_Config.m_SvDiscordWebhookUrlRconLogs : nullptr;
-				if(Discord.IsConfigured(pUrl))
+				if(pResult->m_ClientId >= 0 && Discord.IsConfigured(pUrl))
 				{
 					char aMsg[256];
-					const char *pExec = "idk who did it (consult melon)";
-
-					if(pResult->m_ClientId >= 0 && pResult->m_ClientId < MAX_CLIENTS)
-					{
-						const char *pName = pSelf->Server()->ClientName(pResult->m_ClientId);
-						if(pName && pName[0])
-							pExec = pName;
-					}
-
-					str_format(aMsg, sizeof(aMsg), "**%s** unmuted player **%s**",
+					const char *pExec = pSelf->Server()->ClientName(pResult->m_ClientId);
+					if(!pExec || !pExec[0])
+						pExec = "Unknown";
+					str_format(aMsg, sizeof(aMsg), "**[UNMUTE]** **%s** unmuted player **%s**",
 						pExec, pVictim ? pVictim : "<unknown>");
-
 					CDiscordWebhook::SSendOptions Opt;
 					Opt.m_pWebhookUrl = pUrl;
 					Opt.m_pUsername = g_Config.m_SvDiscordWebhookUsername;

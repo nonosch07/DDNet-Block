@@ -152,17 +152,38 @@ void CServerBan::ConBanExt(IConsole::IResult *pResult, void *pUser)
 	CServerBan *pThis = static_cast<CServerBan *>(pUser);
 
 	const char *pStr = pResult->GetString(0);
-
-	if(pThis->m_pServer->m_pDiscordWebhook)
-	{
-		pThis->m_pServer->m_pDiscordWebhook->BroadcastCmd("ban", "Console", pStr);
-	}
-	else
-	{
-		dbg_msg("ban", "Discord webhook not init");
-	}
 	int Minutes = pResult->NumArguments() > 1 ? clamp(pResult->GetInteger(1), 0, 525600) : 10;
 	const char *pReason = pResult->NumArguments() > 2 ? pResult->GetString(2) : "No reason given";
+
+	// discord logging: only when executed by an in-game admin
+	if(pResult->m_ClientId >= 0 && pResult->m_ClientId < MAX_CLIENTS && pThis->m_pServer->m_pDiscordWebhook)
+	{
+		const char *pUrl = g_Config.m_SvDiscordWebhookUrlRconLogs[0] ? g_Config.m_SvDiscordWebhookUrlRconLogs : nullptr;
+		if(pThis->m_pServer->m_pDiscordWebhook->IsConfigured(pUrl))
+		{
+			const char *pExec = pThis->m_pServer->ClientName(pResult->m_ClientId);
+			if(!pExec || !pExec[0])
+				pExec = "Unknown";
+			char aTarget[128];
+			if(str_isallnum(pStr))
+			{
+				int TargetId = str_toint(pStr);
+				const char *pTargetName = (TargetId >= 0 && TargetId < MAX_CLIENTS) ? pThis->m_pServer->ClientName(TargetId) : nullptr;
+				str_copy(aTarget, (pTargetName && pTargetName[0]) ? pTargetName : pStr, sizeof(aTarget));
+			}
+			else
+				str_copy(aTarget, pStr, sizeof(aTarget));
+			char aMsg[256];
+			if(Minutes > 0)
+				str_format(aMsg, sizeof(aMsg), "**[BAN]** **%s** banned **%s** for %d min \u2014 Reason: %s", pExec, aTarget, Minutes, pReason);
+			else
+				str_format(aMsg, sizeof(aMsg), "**[BAN]** **%s** permanently banned **%s** \u2014 Reason: %s", pExec, aTarget, pReason);
+			CDiscordWebhook::SSendOptions Opt;
+			Opt.m_pWebhookUrl = pUrl;
+			Opt.m_pUsername = g_Config.m_SvDiscordWebhookUsername[0] ? g_Config.m_SvDiscordWebhookUsername : nullptr;
+			pThis->m_pServer->m_pDiscordWebhook->Send(aMsg, Opt);
+		}
+	}
 
 	if(str_isallnum(pStr))
 	{
@@ -3276,6 +3297,13 @@ void CServer::ConKick(IConsole::IResult *pResult, void *pUser)
 	int ClientId = pResult->GetInteger(0);
 	const char *pReason = pResult->NumArguments() > 1 ? pResult->GetString(1) : "Kicked by console";
 
+	// save name before disconnect so it's valid for the log
+	char aKickedName[64];
+	{
+		const char *pN = pSelf->ClientName(ClientId);
+		str_copy(aKickedName, (pN && pN[0]) ? pN : "<unknown>", sizeof(aKickedName));
+	}
+
 	if(pResult->NumArguments() > 1)
 	{
 		char aBuf[128];
@@ -3285,28 +3313,21 @@ void CServer::ConKick(IConsole::IResult *pResult, void *pUser)
 	else
 		pSelf->Kick(ClientId, "Kicked by console");
 
+	if(pResult->m_ClientId >= 0 && pResult->m_ClientId < MAX_CLIENTS)
 	{
 		CDiscordWebhook Discord(pSelf->Engine(), &pSelf->m_Http);
 		const char *pUrl = g_Config.m_SvDiscordWebhookUrlRconLogs[0] ? g_Config.m_SvDiscordWebhookUrlRconLogs : nullptr;
 		if(Discord.IsConfigured(pUrl))
 		{
+			const char *pExecutorName = pSelf->ClientName(pResult->m_ClientId);
+			if(!pExecutorName || !pExecutorName[0])
+				pExecutorName = "Unknown";
 			char aMsg[256];
-			const char *pClientName = pSelf->ClientName(ClientId);
-			const char *pExecutorName = "Console";
-
-			if(pResult->m_ClientId >= 0 && pResult->m_ClientId < MAX_CLIENTS)
-			{
-				const char *pName = pSelf->ClientName(pResult->m_ClientId);
-				if(pName && pName[0])
-					pExecutorName = pName;
-			}
-
-			str_format(aMsg, sizeof(aMsg), "**%s** kicked player **%s** - Reason: %s",
-				pExecutorName, pClientName ? pClientName : "<unknown>", pReason);
-
+			str_format(aMsg, sizeof(aMsg), "**[KICK]** **%s** kicked **%s** \u2014 Reason: %s",
+				pExecutorName, aKickedName, pReason);
 			CDiscordWebhook::SSendOptions Opt;
 			Opt.m_pWebhookUrl = pUrl;
-			Opt.m_pUsername = g_Config.m_SvDiscordWebhookUsername;
+			Opt.m_pUsername = g_Config.m_SvDiscordWebhookUsername[0] ? g_Config.m_SvDiscordWebhookUsername : nullptr;
 			Opt.m_Tts = 0;
 			Discord.Send(aMsg, Opt);
 		}

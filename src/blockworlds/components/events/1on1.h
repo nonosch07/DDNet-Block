@@ -20,7 +20,7 @@ struct SMatchConfig
 	int m_TimeLimit = 0; // seconds (0=unlimited, 120=2min, 300=5min, 600=10min)
 	bool m_EndlessHook = false;
 	bool m_aWeapons[6] = {true, true, false, false, false, false}; // HAMMER..NINJA (default: hammer+gun only)
-	int m_SpawnMode = 0; // 0=normal (TILE_BW_1ON1_START_POS), 1=random (1on1_rdm zone)
+	int m_SpawnMode = 0; // 0=normal (1on1_spawn gamezone quads), 1=random (1on1_rdm zone)
 };
 
 class COneOnOneEvent : public CComponent

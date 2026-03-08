@@ -2455,8 +2455,7 @@ void CGameContext::Con1on1(IConsole::IResult *pResult, void *pUserData)
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 	CPlayer *pTarget = pSelf->GetPlayerByName(pEnemyName);
 
-	std::vector<vec2> dummy1on1;
-	bool hasArenas = CGameContext::GetTilePositions(TILE_BW_1ON1_START_POS, pSelf, dummy1on1) > 0 ||
+	bool hasArenas = !pSelf->ZoneManager()->GetNamedQuadCenters("1on1_spawn").empty() ||
 			 pSelf->ZoneManager()->Get1on1ArenaCount() > 0;
 
 	// some errors handling

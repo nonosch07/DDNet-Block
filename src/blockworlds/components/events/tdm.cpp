@@ -12,13 +12,14 @@
 
 #include <algorithm>
 #include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/discord/webhook.h>
 #include <random>
 
 CTeamDeathmatchEvent::CTeamDeathmatchEvent(CGameContext *pGameContext) :
 	CEventComponent(pGameContext), m_Rng((unsigned)std::random_device{}() ^ (unsigned)pGameContext->Server()->Tick())
 {
-	// preload shared event spawn tiles if present on map
-	CGameContext::GetTilePositions(TILE_BW_EVENT_TDM_START_POS, pGameContext, m_EventStartPositions);
+	// preload shared event spawn positions from gamezone quads
+	m_EventStartPositions = pGameContext->ZoneManager()->GetNamedQuadCenters("tdm_spawn");
 }
 
 // ===== Helpers =====
@@ -174,7 +175,7 @@ std::optional<vec2> CTeamDeathmatchEvent::ChooseSpawnFor(int ClientId)
 		if(bestIdx >= 0)
 			return m_EventStartPositions[(size_t)bestIdx];
 	}
-	// no TILE_BW_EVENT_TDM_START_POS provided: do not teleport (fallback is saved position)
+	// no tdm_spawn gamezone quads: do not teleport (fallback is saved position)
 	(void)ClientId;
 	return std::nullopt;
 }
@@ -207,25 +208,25 @@ void CTeamDeathmatchEvent::BroadcastStatus()
 		if(side == 0)
 		{
 			pPlayer->SendBroadcastAlignedLeft("Team Blue\n"
-				"Blue %d / %d\n"
-				"Red %d / %d\n"
-				"Time left: %s",
+							  "Blue %d / %d\n"
+							  "Red %d / %d\n"
+							  "Time left: %s",
 				m_ScoreTeam[0], m_TargetScore, m_ScoreTeam[1], m_TargetScore, aTimeLeft);
 		}
 		else if(side == 1)
 		{
 			pPlayer->SendBroadcastAlignedLeft("Team Red\n"
-				"Red %d / %d\n"
-				"Blue %d / %d\n"
-				"Time left: %s",
+							  "Red %d / %d\n"
+							  "Blue %d / %d\n"
+							  "Time left: %s",
 				m_ScoreTeam[1], m_TargetScore, m_ScoreTeam[0], m_TargetScore, aTimeLeft);
 		}
 		else
 		{
 			pPlayer->SendBroadcastAlignedLeft("%s\n"
-				"Blue %d / %d\n"
-				"Red %d / %d\n"
-				"Time left: %s",
+							  "Blue %d / %d\n"
+							  "Red %d / %d\n"
+							  "Time left: %s",
 				GetEventName(), m_ScoreTeam[0], m_TargetScore, m_ScoreTeam[1], m_TargetScore, aTimeLeft);
 		}
 	}
@@ -941,6 +942,75 @@ void CTeamDeathmatchEvent::AnnounceResults()
 
 	announceTop("Blue", blue);
 	announceTop("Red", red);
+
+	// discord webhook: post TDM result with teams, scores and top-3 per side
+	{
+		CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
+		const char *pTdmUrl = g_Config.m_SvDiscordWebhookUrlTdm[0] ? g_Config.m_SvDiscordWebhookUrlTdm : nullptr;
+		if(Discord.IsConfigured(pTdmUrl))
+		{
+			bool BlueWins = m_ScoreTeam[0] > m_ScoreTeam[1];
+			bool RedWins = m_ScoreTeam[1] > m_ScoreTeam[0];
+
+			char aDiscord[2000];
+			char aTmp[128];
+
+			if(BlueWins)
+				str_format(aDiscord, sizeof(aDiscord),
+					"**TDM Result**\n"
+					"**Winner: Team Blue** | Blue **%d** - Red **%d** | Target: %d\n"
+					"```\n",
+					m_ScoreTeam[0], m_ScoreTeam[1], m_TargetScore);
+			else if(RedWins)
+				str_format(aDiscord, sizeof(aDiscord),
+					"**TDM Result**\n"
+					"**Winner: Team Red** | Blue **%d** - Red **%d** | Target: %d\n"
+					"```\n",
+					m_ScoreTeam[0], m_ScoreTeam[1], m_TargetScore);
+			else
+				str_format(aDiscord, sizeof(aDiscord),
+					"**TDM Result**\n"
+					"Tie | Blue **%d** - Red **%d** | Target: %d\n"
+					"```\n",
+					m_ScoreTeam[0], m_ScoreTeam[1], m_TargetScore);
+
+			str_append(aDiscord, "Team Blue           K    D    K/D\n");
+			for(int i = 0; i < 3; ++i)
+			{
+				if(i < (int)blue.size())
+				{
+					const char *pName = Server()->ClientName(blue[i].ClientId);
+					int kdi = (int)(blue[i].KD * 100.0f + 0.5f);
+					str_format(aTmp, sizeof(aTmp), "#%d  %-16.16s %3d  %3d  %d.%02d\n",
+						i + 1, pName ? pName : "?", blue[i].K, blue[i].D, kdi / 100, kdi % 100);
+				}
+				else
+					str_format(aTmp, sizeof(aTmp), "#%d  -\n", i + 1);
+				str_append(aDiscord, aTmp);
+			}
+
+			str_append(aDiscord, "\nTeam Red            K    D    K/D\n");
+			for(int i = 0; i < 3; ++i)
+			{
+				if(i < (int)red.size())
+				{
+					const char *pName = Server()->ClientName(red[i].ClientId);
+					int kdi = (int)(red[i].KD * 100.0f + 0.5f);
+					str_format(aTmp, sizeof(aTmp), "#%d  %-16.16s %3d  %3d  %d.%02d\n",
+						i + 1, pName ? pName : "?", red[i].K, red[i].D, kdi / 100, kdi % 100);
+				}
+				else
+					str_format(aTmp, sizeof(aTmp), "#%d  -\n", i + 1);
+				str_append(aDiscord, aTmp);
+			}
+
+			str_append(aDiscord, "```");
+
+			CDiscordWebhook::SSendOptions Opt;
+			Opt.m_pWebhookUrl = pTdmUrl;
+			Discord.Send(aDiscord, Opt);
+		}
+	}
 }
 
 void CTeamDeathmatchEvent::ForceNextStage()
@@ -979,7 +1049,7 @@ bool CTeamDeathmatchEvent::Register(int ClientId)
 
 	// When the server allows multiple clients per IP (dummies), prevent registering
 	// with more than one account from the same connection.
-	if(g_Config.m_SvMaxClientsPerIp > 1)
+	if(g_Config.m_SvMaxClientsPerIp > 1 && g_Config.m_SvEventsTestMode == 0)
 	{
 		for(int CandId : m_Candidates)
 		{

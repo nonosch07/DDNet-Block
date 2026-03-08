@@ -1,5 +1,5 @@
-#ifndef BLOCKWORLDS_COMPONENTS_EVENTS_ZCATCH_H
-#define BLOCKWORLDS_COMPONENTS_EVENTS_ZCATCH_H
+#ifndef BLOCKWORLDS_COMPONENTS_EVENTS_ZCATCH_GRENADE_H
+#define BLOCKWORLDS_COMPONENTS_EVENTS_ZCATCH_GRENADE_H
 
 #include "event.h"
 
@@ -8,21 +8,23 @@
 #include <set>
 #include <vector>
 
-// zCatch block event:
-// Players who are block-killed become "caught" spectators locked on to their killer
-// when a catcher is themselves caught, all their captives are released back into the arena
-// first player to reach SvZCatchKillsToWin catches wins, they can also win by killing every other participants
-class CZCatchEvent final : public CEventComponent, public std::enable_shared_from_this<CZCatchEvent>
+// zCatch Grenade event:
+// Classic grenade-launcher-only zCatch gameplay.
+// Players who are killed become "caught" spectators locked on to their killer.
+// When a catcher dies, all their captives are released back into the arena.
+// First player to reach SvZCatchKillsToWin catches wins, or last free fighter standing.
+class CZCatchGrenadeEvent final : public CEventComponent, public std::enable_shared_from_this<CZCatchGrenadeEvent>
 {
 public:
-	explicit CZCatchEvent(CGameContext *pGameServer);
+	explicit CZCatchGrenadeEvent(CGameContext *pGameServer);
 
-	[[nodiscard]] const char *GetName() const override { return "zcatch"; }
-	[[nodiscard]] const char *GetEventName() const override { return "zCatch"; }
+	[[nodiscard]] const char *GetName() const override { return "zcatch_grenade"; }
+	[[nodiscard]] const char *GetEventName() const override { return "zCatch Grenade"; }
 
 	void OnTick() override;
 	void OnCharacterSpawn(int ClientId, vec2 SpawnPos) override;
 	void OnCharacterDeath(int KillerId, int ClientId, int Weapon) override;
+	void OnCharacterTakeDamage(vec2 Force, vec2 Source, int Dmg, int From, int ClientId, int Weapon) override;
 	void OnPlayerDropping(int ClientId) override;
 	void OnSnapPlayerInfo(int ClientId, int SnappingClient, class CNetObj_PlayerInfo *pPlayerInfo) override;
 
@@ -40,14 +42,6 @@ public:
 	bool Leave(int ClientId) override;
 
 	void EmergencyShutdown(const char *pMsg) override;
-
-	void OnBlockedKill(int VictimID, int KillerID) override;
-
-	// track hammer/hook impacts to attribute catches when block tracker is not active
-	void OnPlayerImpacted(int VictimId, int InitiatorId) override;
-
-	// allow selfkills only when there is a valid last impactor who can receive the catch credit
-	[[nodiscard]] bool AllowKillCommandFor(int ClientId) const override;
 
 	[[nodiscard]] std::optional<int> GetScoreOf(int ClientId) const override;
 
@@ -73,13 +67,6 @@ private:
 
 	// captives[catcher] = set of victims caught by this catcher
 	std::map<int, std::set<int>> m_Captives;
-
-	// freeze start tick per participant (for freeze-kill timeout detection)
-	std::map<int, int> m_FrozenSince;
-
-	// shadow-tracks the last free participant to impact each victim (hammer / hook)
-	// used as a fallback catch attribution when the block tracker was not active at death time
-	std::map<int, int> m_LastImpactorOf;
 
 	// previous solo/collision state for participants
 	struct SSoloCollisionState
@@ -116,6 +103,9 @@ private:
 
 	// Return a free arena spawn position cycling through m_SpawnPositions.
 	vec2 NextSpawnPos();
+
+	// Give grenade only to a character (replaces any current weapons).
+	void ArmWithGrenade(class CCharacter *pChar);
 };
 
-#endif // BLOCKWORLDS_COMPONENTS_EVENTS_ZCATCH_H
+#endif // BLOCKWORLDS_COMPONENTS_EVENTS_ZCATCH_GRENADE_H

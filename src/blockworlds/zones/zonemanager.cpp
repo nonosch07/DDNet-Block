@@ -321,7 +321,7 @@ std::vector<vec2> CZoneManager::GetNamedQuadCenters(const char *pName) const
 							center /= 4.0f;
 							centers.push_back(center);
 						}
-						return centers; // return for first matching layer
+						// Continue searching to support multiple layers with the same name
 					}
 				}
 			}
@@ -370,7 +370,7 @@ std::vector<std::array<vec2, 4>> CZoneManager::GetNamedQuads(const char *pName) 
 								corners[i] = vec2{fx2f(Q.m_aPoints[i].x), fx2f(Q.m_aPoints[i].y)};
 							quads.push_back(corners);
 						}
-						return quads; // return for first matching layer
+						// Continue searching to support multiple layers with the same name
 					}
 				}
 			}

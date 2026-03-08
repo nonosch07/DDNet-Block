@@ -186,9 +186,6 @@ enum
 	// Blockworlds
 	TILE_BW_PASSIVE = 176,
 	TILE_BW_VIP = 177,
-	TILE_BW_EVENT_TDM_START_POS = 178,
-	TILE_BW_EVENT_LMB_START_POS = 193,
-	TILE_BW_1ON1_START_POS = 194,
 
 	//End of higher tiles
 	//Layers

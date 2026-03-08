@@ -96,6 +96,8 @@ MACRO_CONFIG_INT(SvClanRenamePrice, sv_clan_rename_price, 5000, 0, 1000000, CFGF
 MACRO_CONFIG_INT(SvGroundHookPenaltyDelay, sv_ground_hook_penalty_delay, 5, 1, 999999, CFGFLAG_SERVER, "Seconds allowed to hook ground before freeze penalty is applied")
 MACRO_CONFIG_INT(SvGroundHookPenalty, sv_ground_hook_penalty, 3, 1, 999999, CFGFLAG_SERVER, "Seconds the freeze penalty will last when applied to a player")
 
+// Events testing
+MACRO_CONFIG_INT(SvEventsTestMode, sv_events_test_mode, 0, 0, 1, CFGFLAG_SERVER, "Enable (1) or disable (0) test mode for events, allowing manual triggering and bypassing normal registration conditions.")
 // LMB (last man blocking)
 MACRO_CONFIG_INT(SvLMBInitialFreezeTime, sv_lmb_initial_freeze_time, 3, 0, 1000, CFGFLAG_SERVER, " Duration of character freeze after teleportation to the arena (seconds)")
 MACRO_CONFIG_INT(SvLMBRegistrationTime, sv_lmb_registration_time, 120, 0, 1000, CFGFLAG_SERVER, "Duration of registration phase (seconds)")
@@ -143,6 +145,9 @@ MACRO_CONFIG_INT(SvZCatchPagesReward, sv_zcatch_pages_reward, 0, 0, 15, CFGFLAG_
 MACRO_CONFIG_INT(SvZCatchInitialFreezeTime, sv_zcatch_initial_freeze_time, 3, 0, 30, CFGFLAG_SERVER, "Freeze duration when teleported to zCatch arena (seconds)")
 MACRO_CONFIG_INT(SvZCatchFreezeTimeout, sv_zcatch_freeze_timeout, 5, 3, 30, CFGFLAG_SERVER, "Seconds a participant must stay frozen to be caught (must be < sv_block_freezed)")
 
+// zCatch Grenade
+MACRO_CONFIG_INT(SvZCatchGrenadeKillsToWin, sv_zcatch_grenade_kills_to_win, 50, 1, 1000, CFGFLAG_SERVER, "Number of grenade kills needed to win zCatch Grenade")
+
 // 1on1 draw detection settings
 MACRO_CONFIG_INT(Sv1on1DrawFreezeGrace, sv_1on1_draw_freeze_grace, 3, 0, 120, CFGFLAG_SERVER, "1on1: Grace period after round start before counting simultaneous freeze (seconds)")
 MACRO_CONFIG_INT(Sv1on1DrawFreezeStalemate, sv_1on1_draw_freeze_stalemate, 5, 1, 300, CFGFLAG_SERVER, "1on1: Both players frozen this long (after grace) => draw (seconds)")
@@ -161,6 +166,8 @@ MACRO_CONFIG_STR(SvDiscordThreadId, sv_discord_thread_id, 127, "", CFGFLAG_SERVE
 MACRO_CONFIG_STR(SvDiscordWebhookUrl1on1, sv_discord_webhook_url_1on1, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for 1on1 events")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlLogs, sv_discord_webhook_url_bp_logs, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL used for blockpoint transfer logs")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlLmb, sv_discord_webhook_url_lmb, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for LMB events")
+MACRO_CONFIG_STR(SvDiscordWebhookUrlTdm, sv_discord_webhook_url_tdm, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for TDM results (teams, scores, top players)")
+MACRO_CONFIG_STR(SvDiscordWebhookUrlZCatch, sv_discord_webhook_url_zcatch, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for zCatch results (winner and top 3)")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlChat, sv_discord_webhook_url_chat, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for chat relay")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlChatFilter, sv_discord_webhook_url_chatfilter, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for chat filter mutes")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlRconLogs, sv_discord_webhook_url_rcon_logs, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL used for RCON logs")

@@ -1,11 +1,10 @@
-#include "zcatch.h"
+#include "zcatch_grenade.h"
 
 #include <algorithm>
 
 #include <engine/shared/config.h>
 
 #include "event_helpers.h"
-#include <game/mapitems.h>
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/gamecontroller.h>
@@ -15,28 +14,30 @@
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/discord/webhook.h>
 
-CZCatchEvent::CZCatchEvent(CGameContext *pGameServer) :
+CZCatchGrenadeEvent::CZCatchGrenadeEvent(CGameContext *pGameServer) :
 	CEventComponent(pGameServer)
 {
-	m_SpawnPositions = GameServer()->ZoneManager()->GetNamedQuadCenters("zcb_spawn");
+	m_SpawnPositions.clear();
+
+	m_SpawnPositions = GameServer()->ZoneManager()->GetNamedQuadCenters("zcg_spawn");
 	if(m_SpawnPositions.empty())
 	{
-		EmergencyShutdown("Map has no zcatch block spawns!");
+		EmergencyShutdown("Map has no zcatch grenade spawns!");
 		return;
 	}
 }
 
-void CZCatchEvent::OpenRegistration()
+void CZCatchGrenadeEvent::OpenRegistration()
 {
 	m_Candidates.clear();
 	m_RegistrationEndTick = Server()->Tick() + Config()->m_SvZCatchRegistrationTime * Server()->TickSpeed();
 	SetState(EEventState::Registration);
 }
 
-void CZCatchEvent::CloseRegistration()
+void CZCatchGrenadeEvent::CloseRegistration()
 {
 	SetState(EEventState::Preparation);
-	GameServer()->SendBroadcast(-1, " ", false); // clear registration broadcast for all
+	GameServer()->SendBroadcast(-1, " ", false);
 	if((int)m_Candidates.size() < Config()->m_SvZCatchMinimumCandidates)
 	{
 		FinishEvent(NOT_ENOUGH_CANDIDATES);
@@ -47,7 +48,7 @@ void CZCatchEvent::CloseRegistration()
 	StartEvent();
 }
 
-void CZCatchEvent::StartEvent()
+void CZCatchGrenadeEvent::StartEvent()
 {
 	// drop participants who no longer have a live character
 	{
@@ -87,9 +88,7 @@ void CZCatchEvent::StartEvent()
 	m_Scores.clear();
 	m_CaughtBy.clear();
 	m_Captives.clear();
-	m_FrozenSince.clear();
 	m_PrevSoloState.clear();
-	m_LastImpactorOf.clear();
 	m_Winner = -1;
 
 	// join all participants — RandomSpawnPos ensures each player gets a unique
@@ -106,13 +105,13 @@ void CZCatchEvent::StartEvent()
 				  -1;
 
 	char aBuf[256];
-	str_format(aBuf, sizeof(aBuf), "zCatch started! First to %d kills wins!", Config()->m_SvZCatchKillsToWin);
+	str_format(aBuf, sizeof(aBuf), "zCatch Grenade started! First to %d kills wins!", Config()->m_SvZCatchGrenadeKillsToWin);
 	GameServer()->SendChatTarget(-1, aBuf);
 
 	SetState(EEventState::Active);
 }
 
-void CZCatchEvent::FinishEvent()
+void CZCatchGrenadeEvent::FinishEvent()
 {
 	SetState(EEventState::Ending);
 
@@ -121,11 +120,11 @@ void CZCatchEvent::FinishEvent()
 		if(m_Winner != -1)
 		{
 			char aBuf[256];
-			str_format(aBuf, sizeof(aBuf), "'%s' has won zCatch!", Server()->ClientName(m_Winner));
+			str_format(aBuf, sizeof(aBuf), "'%s' has won zCatch Grenade!", Server()->ClientName(m_Winner));
 			GameServer()->SendChatTarget(-1, aBuf);
 			GameServer()->SendBroadcast(-1, aBuf, false);
 
-			// discord webhook (+top 3)
+			// Discord webhook: post zCatch Grenade result
 			{
 				CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Http());
 				const char *pZCatchUrl = g_Config.m_SvDiscordWebhookUrlZCatch[0] ? g_Config.m_SvDiscordWebhookUrlZCatch : nullptr;
@@ -134,7 +133,6 @@ void CZCatchEvent::FinishEvent()
 					const char *pWinnerName = Server()->ClientName(m_Winner);
 					int WinScore = m_Scores.count(m_Winner) ? m_Scores.at(m_Winner) : 0;
 
-					// Sort all scores descending for the leaderboard
 					std::vector<std::pair<int, int>> vSorted(m_Scores.begin(), m_Scores.end());
 					std::sort(vSorted.begin(), vSorted.end(), [](const auto &a, const auto &b) { return a.second > b.second; });
 
@@ -142,10 +140,10 @@ void CZCatchEvent::FinishEvent()
 					char aTmp[128];
 
 					str_format(aDiscord, sizeof(aDiscord),
-						"**zCatch Result**\n"
-						"**Winner: %s** | %d catches\n"
+						"**zCatch Grenade Result**\n"
+						"**Winner: %s** | %d kills\n"
 						"```\n"
-						"Rank  Player               Catches\n",
+						"Rank  Player               Kills\n",
 						pWinnerName ? pWinnerName : "?", WinScore);
 
 					for(int i = 0; i < 3 && i < (int)vSorted.size(); ++i)
@@ -163,46 +161,26 @@ void CZCatchEvent::FinishEvent()
 					Discord.Send(aDiscord, Opt);
 				}
 			}
-
-			// CPlayer *pWinner = GameServer()->GetPlayer(m_Winner);
-			// if(pWinner && pWinner->IsLoggedIn())
-			// {
-			// 	int BPReward = Config()->m_SvZCatchBlockpointsReward;
-			// 	int PagesReward = Config()->m_SvZCatchPagesReward;
-			// 	if(BPReward > 0)
-			// 		pWinner->SetPlayerBlockpoints(pWinner->GetPlayerBlockpoints() + BPReward);
-			// 	if(PagesReward > 0)
-			// 		pWinner->SetPlayerPages(pWinner->GetPlayerPages() + PagesReward);
-			// 	pWinner->SetPlayerTourneyWins(pWinner->GetPlayerTourneyWin() + 1);
-			// 	str_format(aBuf, sizeof(aBuf), "You received %d blockpoints and %d pages for winning zCatch!", BPReward, PagesReward);
-			// 	GameServer()->SendChatTarget(m_Winner, aBuf);
-			// }
-			// else if(pWinner)
-			// {
-			// 	GameServer()->SendChatTarget(m_Winner, "You must be logged in to receive rewards.");
-			// }
 		}
 		else
 		{
-			const char *pMsg = "zCatch ended with no winner (time limit).";
+			const char *pMsg = "zCatch Grenade ended with no winner (time limit).";
 			GameServer()->SendChatTarget(-1, pMsg);
 			GameServer()->SendBroadcast(-1, pMsg, false);
 		}
 	}
 	else if(m_FinishReason == NOT_ENOUGH_CANDIDATES)
 	{
-		GameServer()->SendChatTarget(-1, "Not enough players joined zCatch.");
+		GameServer()->SendChatTarget(-1, "Not enough players joined zCatch Grenade.");
 	}
 	else if(m_FinishReason == EMERGENCY)
 	{
-		GameServer()->SendChatTarget(-1, "zCatch ended prematurely.");
+		GameServer()->SendChatTarget(-1, "zCatch Grenade ended prematurely.");
 	}
 
-	// release all killed players and return everyone to normal
-	// clear caught state first so Leave() + ReleaseCaptives() don't double-process
+	// release all caught players and return everyone to normal
 	m_CaughtBy.clear();
 	m_Captives.clear();
-	m_FrozenSince.clear();
 
 	auto RemainingParticipants = m_Participants;
 	for(int ClientId : RemainingParticipants)
@@ -234,7 +212,7 @@ void CZCatchEvent::FinishEvent()
 	SetState(EEventState::Finished);
 }
 
-void CZCatchEvent::ForceNextStage()
+void CZCatchGrenadeEvent::ForceNextStage()
 {
 	if(GetState() == EEventState::Registration)
 		CloseRegistration();
@@ -242,7 +220,7 @@ void CZCatchEvent::ForceNextStage()
 		FinishEvent(NATURAL);
 }
 
-bool CZCatchEvent::CheckEndCondition()
+bool CZCatchGrenadeEvent::CheckEndCondition()
 {
 	// time limit
 	if(m_ActiveEndTick > 0 && Server()->Tick() > m_ActiveEndTick)
@@ -263,7 +241,7 @@ bool CZCatchEvent::CheckEndCondition()
 	// win by reaching the kill-count goal
 	for(const auto &[id, score] : m_Scores)
 	{
-		if(score >= Config()->m_SvZCatchKillsToWin)
+		if(score >= Config()->m_SvZCatchGrenadeKillsToWin)
 		{
 			m_Winner = id;
 			return true;
@@ -293,7 +271,7 @@ bool CZCatchEvent::CheckEndCondition()
 	return false;
 }
 
-bool CZCatchEvent::Register(int ClientId)
+bool CZCatchGrenadeEvent::Register(int ClientId)
 {
 	if(!CheckClientId(ClientId))
 		return false;
@@ -306,7 +284,7 @@ bool CZCatchEvent::Register(int ClientId)
 		return false;
 	if(IsCandidate(ClientId))
 	{
-		GameServer()->SendChatTarget(ClientId, "You are already registered for zCatch.");
+		GameServer()->SendChatTarget(ClientId, "You are already registered for zCatch Grenade.");
 		return false;
 	}
 	if(g_Config.m_SvMaxClientsPerIp > 1 && g_Config.m_SvEventsTestMode == 0)
@@ -320,12 +298,13 @@ bool CZCatchEvent::Register(int ClientId)
 			}
 		}
 	}
+
 	m_Candidates.push_back(ClientId);
-	GameServer()->SendChatTarget(ClientId, "You joined zCatch registration!");
+	GameServer()->SendChatTarget(ClientId, "You joined zCatch Grenade registration!");
 	return true;
 }
 
-bool CZCatchEvent::DeRegister(int ClientId)
+bool CZCatchGrenadeEvent::DeRegister(int ClientId)
 {
 	if(GetState() != EEventState::Registration)
 	{
@@ -335,17 +314,17 @@ bool CZCatchEvent::DeRegister(int ClientId)
 	auto it = std::find(m_Candidates.begin(), m_Candidates.end(), ClientId);
 	if(it == m_Candidates.end())
 	{
-		GameServer()->SendChatTarget(ClientId, "You are not registered for zCatch.");
+		GameServer()->SendChatTarget(ClientId, "You are not registered for zCatch Grenade.");
 		return false;
 	}
 	m_Candidates.erase(it);
-	GameServer()->SendChatTarget(ClientId, "You left zCatch registration.");
+	GameServer()->SendChatTarget(ClientId, "You left zCatch Grenade registration.");
 	return true;
 }
 
-bool CZCatchEvent::Join(int ClientId)
+bool CZCatchGrenadeEvent::Join(int ClientId)
 {
-	SaveWeapons(ClientId);
+	SaveWeapons(ClientId); // saves current weapons, clears all, gives hammer + gun
 	SavePosition(ClientId);
 
 	auto *pChar = GameServer()->GetPlayerChar(ClientId);
@@ -363,6 +342,9 @@ bool CZCatchEvent::Join(int ClientId)
 		pChar->ResetVelocity();
 		pChar->FreezeForce(Config()->m_SvZCatchInitialFreezeTime);
 		GameServer()->Teleport(pChar, NextSpawnPos());
+
+		// Replace hammer+gun (given by SaveWeapons) with grenade only
+		ArmWithGrenade(pChar);
 	}
 
 	if(auto *pPlayer = GameServer()->GetPlayer(ClientId))
@@ -378,7 +360,7 @@ bool CZCatchEvent::Join(int ClientId)
 	return true;
 }
 
-bool CZCatchEvent::Leave(int ClientId)
+bool CZCatchGrenadeEvent::Leave(int ClientId)
 {
 	auto it = std::find(m_Participants.begin(), m_Participants.end(), ClientId);
 	if(it == m_Participants.end())
@@ -428,83 +410,115 @@ bool CZCatchEvent::Leave(int ClientId)
 	}
 
 	m_Scores.erase(ClientId);
-	m_FrozenSince.erase(ClientId);
-	m_LastImpactorOf.erase(ClientId);
 	return true;
 }
 
-void CZCatchEvent::EmergencyShutdown(const char *pMsg)
+void CZCatchGrenadeEvent::EmergencyShutdown(const char *pMsg)
 {
 	CEventComponent::EmergencyShutdown(pMsg);
 	if(GetState() != EEventState::Finished)
 		FinishEvent(EMERGENCY);
 }
 
-void CZCatchEvent::OnBlockedKill(int VictimID, int KillerID)
+void CZCatchGrenadeEvent::OnCharacterTakeDamage(vec2 Force, vec2 Source, int Dmg, int From, int ClientId, int Weapon)
 {
 	if(GetState() != EEventState::Active)
 		return;
-	if(!IsParticipant(VictimID) || !IsParticipant(KillerID))
-		return;
-	// killer must be a free (fighting) participant - caught players can't block others
-	if(IsCaught(KillerID))
-		return;
-	// victim should not already be caught (they'd be a spectator)
-	if(IsCaught(VictimID))
+	if(Weapon != WEAPON_GRENADE)
 		return;
 
-	// if victim had their own captives, release them first (chain reaction)
-	ReleaseCaptives(VictimID);
+	// force the explosion to be closer, why 3? because claude said so :)
+	if(Dmg < 3)
+		return;
 
-	// register the catch.
-	// LockToSpectator is intentionally NOT callled here. this function may be
-	// invoked from within CCharacter::Die() (via OnPlayerKill), and calling
-	// SetTeam(TEAM_SPECTATORS) -> KillCharacter() -> Die() from inside Die()
-	// would be re-entrant (we dont want dat). instead, the spectate lock is applied in
-	// OnCharacterSpawn once the victim's new character has safely spawned
-	m_CaughtBy[VictimID] = KillerID;
-	m_Captives[KillerID].insert(VictimID);
-
-	// award the kill
-	m_Scores[KillerID]++;
-
-	// char aBuf[256];
-	// str_format(aBuf, sizeof(aBuf), "%s caught %s  (%d/%d)",
-	// 	Server()->ClientName(KillerID),
-	// 	Server()->ClientName(VictimID),
-	// 	newScore,
-	// 	Config()->m_SvZCatchKillsToWin);
-	// GameServer()->SendChatTarget(-1, aBuf);
-	// win-condition check is performed in OnTick to stay outside Die().
-}
-
-bool CZCatchEvent::AllowKillCommandFor(int ClientId) const
-{
-	if(GetState() != EEventState::Active)
-		return false;
+	// Both must be free (uncaught) participants
 	if(!IsParticipant(ClientId) || IsCaught(ClientId))
-		return false;
-	// block tracker still holds the live impactor (not yet cleared, player hasn't died)
-	int impactor = GameServer()->m_pController->m_BlockTracker.GetImpactorOf(ClientId);
-	if(impactor >= 0 && IsParticipant(impactor) && !IsCaught(impactor))
-		return true;
-	// fall back to shadow-tracked impactor
-	auto it = m_LastImpactorOf.find(ClientId);
-	return it != m_LastImpactorOf.end() && IsParticipant(it->second) && !IsCaught(it->second);
+		return;
+	if(From == ClientId || !IsParticipant(From) || IsCaught(From))
+		return;
+
+	// Kill the victim — OnCharacterDeath will handle the catch/release logic.
+	// Guard IsAlive() in case two explosions hit the same frame.
+	auto *pChar = GameServer()->GetPlayerChar(ClientId);
+	if(!pChar || !pChar->IsAlive())
+		return;
+
+	// if(GameServer()->Collision()->IntersectLine(Source, pChar->m_Pos, nullptr, nullptr))
+	// 	return;
+
+	pChar->Die(From, WEAPON_GRENADE);
 }
 
-void CZCatchEvent::OnPlayerImpacted(int VictimId, int InitiatorId)
+void CZCatchGrenadeEvent::OnCharacterDeath(int KillerId, int ClientId, int /*Weapon*/)
 {
 	if(GetState() != EEventState::Active)
 		return;
-	if(!IsParticipant(VictimId) || IsCaught(VictimId))
+	if(!IsParticipant(ClientId))
 		return;
-	if(!IsParticipant(InitiatorId) || IsCaught(InitiatorId))
+	if(IsCaught(ClientId))
 		return;
-	m_LastImpactorOf[VictimId] = InitiatorId;
+
+	ReleaseCaptives(ClientId);
+
+	if(KillerId >= 0 && KillerId != ClientId && IsParticipant(KillerId) && !IsCaught(KillerId))
+	{
+		m_CaughtBy[ClientId] = KillerId;
+		m_Captives[KillerId].insert(ClientId);
+		m_Scores[KillerId]++;
+	}
 }
 
-std::optional<int> CZCatchEvent::GetScoreOf(int ClientId) const
+void CZCatchGrenadeEvent::OnCharacterSpawn(int ClientId, vec2 /*SpawnPos*/)
+{
+	if(GetState() != EEventState::Active)
+		return;
+
+	if(IsCaught(ClientId))
+	{
+		// caught player just respawned - safely lock them to spectate their catcher.
+		LockToSpectator(ClientId, m_CaughtBy.at(ClientId));
+		return;
+	}
+
+	if(IsParticipant(ClientId))
+	{
+		// free participant respawned mid-event: pick the next random unique spawn.
+		auto *pChar = GameServer()->GetPlayerChar(ClientId);
+		if(pChar)
+		{
+			GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, m_DDRaceTeam);
+			GameServer()->Teleport(pChar, NextSpawnPos());
+			ArmWithGrenade(pChar);
+		}
+	}
+}
+
+void CZCatchGrenadeEvent::OnPlayerDropping(int ClientId)
+{
+	if(GetState() == EEventState::Active)
+	{
+		if(IsParticipant(ClientId))
+			Leave(ClientId);
+	}
+	else if(GetState() == EEventState::Registration)
+	{
+		if(IsCandidate(ClientId))
+			DeRegister(ClientId);
+	}
+}
+
+void CZCatchGrenadeEvent::OnSnapPlayerInfo(int ClientId, int /*SnappingClient*/, CNetObj_PlayerInfo *pPlayerInfo)
+{
+	if(GetState() != EEventState::Active)
+		return;
+	if(!IsParticipant(ClientId))
+		return;
+	auto it = m_Scores.find(ClientId);
+	if(it != m_Scores.end())
+		pPlayerInfo->m_Score = it->second;
+}
+
+std::optional<int> CZCatchGrenadeEvent::GetScoreOf(int ClientId) const
 {
 	if(!IsParticipant(ClientId))
 		return std::nullopt;
@@ -512,7 +526,7 @@ std::optional<int> CZCatchEvent::GetScoreOf(int ClientId) const
 	return (it != m_Scores.end()) ? std::optional<int>{it->second} : std::optional<int>{0};
 }
 
-void CZCatchEvent::OnTick()
+void CZCatchGrenadeEvent::OnTick()
 {
 	if(CEventComponent::EmergencyShutdown())
 	{
@@ -539,7 +553,7 @@ void CZCatchEvent::OnTick()
 			if(!pPlayer)
 				continue;
 
-			pPlayer->SendBroadcastAlignedLeft("zCatch is about to start!\n"
+			pPlayer->SendBroadcastAlignedLeft("zCatch Grenade is about to start!\n"
 							  "Register with /join\n"
 							  "Time left: %s\n\n"
 							  "Participants: %" PRIzu "\n"
@@ -551,73 +565,12 @@ void CZCatchEvent::OnTick()
 	}
 	else if(GetState() == EEventState::Active)
 	{
-		// enforce spectate lock for caughts players each tick
+		// enforce spectate lock for caught players each tick
 		for(const auto &[victim, catcher] : m_CaughtBy)
 		{
 			auto *pVictimPlayer = GameServer()->GetPlayer(victim);
 			if(pVictimPlayer && pVictimPlayer->m_SpectatorId != catcher)
 				pVictimPlayer->m_SpectatorId = catcher;
-		}
-
-		// freeze-kill detection: kill a participant once they have been
-		// continuously frozen for SvZCatchFreezeTimeout seconds.
-		// this triggers the normal Die() -> OnPlayerKill -> OnBlockedKill flow
-		// so the catch is attributed to whoever froze them.
-		// skip during the initial freeze window so the round-start freeze doesn't
-		// trigger a kill (block tracker may hold stale pre-event impact state).
-		{
-			const int graceTicks = Config()->m_SvZCatchInitialFreezeTime * Server()->TickSpeed();
-			if((Server()->Tick() - m_ActiveStartTick) < graceTicks)
-			{
-				m_FrozenSince.clear(); // discard any stale entries accumulated during grace period
-			}
-			else
-			{
-				std::vector<int> toKill;
-				for(int id : m_Participants)
-				{
-					if(IsCaught(id))
-					{
-						m_FrozenSince.erase(id);
-						continue;
-					}
-					auto *pChar = GameServer()->GetPlayerChar(id);
-					if(!pChar)
-					{
-						m_FrozenSince.erase(id);
-						continue;
-					}
-					bool isFrozen = pChar->m_FreezeTime > 0;
-					auto fsIt = m_FrozenSince.find(id);
-					if(isFrozen && fsIt == m_FrozenSince.end())
-					{
-						m_FrozenSince[id] = Server()->Tick();
-					}
-					else if(!isFrozen && fsIt != m_FrozenSince.end())
-					{
-						m_FrozenSince.erase(fsIt);
-					}
-					else if(isFrozen && fsIt != m_FrozenSince.end())
-					{
-						int frozenTicks = Server()->Tick() - fsIt->second;
-						int limitTicks = Config()->m_SvZCatchFreezeTimeout * Server()->TickSpeed();
-						if(frozenTicks >= limitTicks)
-						{
-							// verify there's a tracked impactor who is a free participant
-							int impactor = GameServer()->m_pController->m_BlockTracker.GetImpactorOf(id);
-							if(impactor >= 0 && IsParticipant(impactor) && !IsCaught(impactor))
-								toKill.push_back(id);
-
-							m_FrozenSince.erase(fsIt); // reset so we don't retry every tick
-						}
-					}
-				}
-				for(int id : toKill)
-				{
-					if(auto *pChar = GameServer()->GetPlayerChar(id))
-						pChar->Die(-1, WEAPON_GAME);
-				}
-			}
 		}
 
 		int caughtCount = 0;
@@ -639,7 +592,7 @@ void CZCatchEvent::OnTick()
 
 			pPlayer->SendBroadcastAlignedLeft("%d / %d\n"
 							  "Currently caught: %d / %d\n",
-				leadScore, Config()->m_SvZCatchKillsToWin,
+				leadScore, Config()->m_SvZCatchGrenadeKillsToWin,
 				caughtCount, (int)m_Participants.size() - 1);
 		}
 
@@ -650,119 +603,32 @@ void CZCatchEvent::OnTick()
 	}
 }
 
-void CZCatchEvent::OnCharacterSpawn(int ClientId, vec2 /*SpawnPos*/)
-{
-	if(GetState() != EEventState::Active)
-		return;
-
-	m_FrozenSince.erase(ClientId); // clear stale freeze-tracking from previous life
-
-	if(IsCaught(ClientId))
-	{
-		// caught player just respawned - safely lock them to spectate their catcher.
-		// this is the correct place to call LockToSpectator (we are NOT inside Die() here).
-		LockToSpectator(ClientId, m_CaughtBy.at(ClientId));
-		return;
-	}
-
-	if(IsParticipant(ClientId))
-	{
-		// free participant respawned mid-event: pick the next random unique spawn.
-		auto *pChar = GameServer()->GetPlayerChar(ClientId);
-		if(pChar && !m_SpawnPositions.empty())
-		{
-			GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, m_DDRaceTeam);
-			GameServer()->Teleport(pChar, NextSpawnPos());
-		}
-	}
-}
-
-void CZCatchEvent::OnCharacterDeath(int /*KillerId*/, int ClientId, int /*Weapon*/)
-{
-	if(GetState() != EEventState::Active)
-		return;
-	if(!IsParticipant(ClientId))
-		return;
-	if(IsCaught(ClientId))
-		return; // already handled by OnBlockedKill inside Die()
-
-	// OnBlockedKill fires only when the block tracker had a valid tracked impactor at death
-	// time. If tracking was inactive (e.g. first death after teleport, or tracker expired),
-	// the catch is silently skipped and the player would respawn freely. Fall back to our
-	// own shadow-tracked impactor which is set on every hammer/hook impact and outlives
-	// the tracker's own lifetime.
-	auto impactIt = m_LastImpactorOf.find(ClientId);
-	if(impactIt != m_LastImpactorOf.end())
-	{
-		int impactor = impactIt->second;
-		m_LastImpactorOf.erase(impactIt);
-		if(impactor >= 0 && IsParticipant(impactor) && !IsCaught(impactor))
-		{
-			OnBlockedKill(ClientId, impactor);
-			return;
-		}
-	}
-
-	// no valid impactor to credit — release their captives so those players can rejoin
-	ReleaseCaptives(ClientId);
-}
-
-void CZCatchEvent::OnPlayerDropping(int ClientId)
-{
-	if(GetState() == EEventState::Active)
-	{
-		if(IsParticipant(ClientId))
-			Leave(ClientId);
-	}
-	else if(GetState() == EEventState::Registration)
-	{
-		if(IsCandidate(ClientId))
-			DeRegister(ClientId);
-	}
-}
-
-void CZCatchEvent::OnSnapPlayerInfo(int ClientId, int /*SnappingClient*/, CNetObj_PlayerInfo *pPlayerInfo)
-{
-	if(GetState() != EEventState::Active)
-		return;
-	if(!IsParticipant(ClientId))
-		return;
-	auto it = m_Scores.find(ClientId);
-	if(it != m_Scores.end())
-		pPlayerInfo->m_Score = it->second;
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-bool CZCatchEvent::IsCandidate(int ClientId) const
+bool CZCatchGrenadeEvent::IsCandidate(int ClientId) const
 {
 	return std::find(m_Candidates.begin(), m_Candidates.end(), ClientId) != m_Candidates.end();
 }
 
-bool CZCatchEvent::IsParticipant(int ClientId) const
+bool CZCatchGrenadeEvent::IsParticipant(int ClientId) const
 {
 	return std::find(m_Participants.begin(), m_Participants.end(), ClientId) != m_Participants.end();
 }
 
-bool CZCatchEvent::IsCaught(int ClientId) const
+bool CZCatchGrenadeEvent::IsCaught(int ClientId) const
 {
 	return m_CaughtBy.count(ClientId) > 0;
 }
 
-bool CZCatchEvent::IsFighting(int ClientId) const
+bool CZCatchGrenadeEvent::IsFighting(int ClientId) const
 {
 	return IsParticipant(ClientId) && !IsCaught(ClientId);
 }
 
-void CZCatchEvent::ReleaseCaptives(int CatcherId)
+void CZCatchGrenadeEvent::ReleaseCaptives(int CatcherId)
 {
 	auto capIt = m_Captives.find(CatcherId);
 	if(capIt == m_Captives.end())
 		return;
 
-	// Copy to avoid modification during iteration
 	std::set<int> toRelease = capIt->second;
 	m_Captives.erase(capIt);
 
@@ -773,33 +639,36 @@ void CZCatchEvent::ReleaseCaptives(int CatcherId)
 		auto *pVictimPlayer = GameServer()->GetPlayer(victim);
 		if(pVictimPlayer)
 		{
-			// Restore game team so the player can respawn
 			if(pVictimPlayer->GetTeam() == TEAM_SPECTATORS)
 				pVictimPlayer->SetTeam(0, false);
-			// Put them back into the event DDRace team
 			GameServer()->m_pController->Teams().SetForceCharacterTeam(victim, m_DDRaceTeam);
 			pVictimPlayer->Respawn();
 		}
-
-		// char aBuf[128];
-		// str_format(aBuf, sizeof(aBuf), "%s has been freed!", Server()->ClientName(victim));
-		// GameServer()->SendChatTarget(-1, aBuf);
 	}
 }
 
-void CZCatchEvent::LockToSpectator(int VictimId, int WatchedId)
+void CZCatchGrenadeEvent::LockToSpectator(int VictimId, int WatchedId)
 {
 	auto *pVictimPlayer = GameServer()->GetPlayer(VictimId);
 	if(!pVictimPlayer)
 		return;
-	// Only change team if not already in spectator (avoids double KillCharacter calls)
 	if(pVictimPlayer->GetTeam() != TEAM_SPECTATORS)
 		pVictimPlayer->SetTeam(TEAM_SPECTATORS, false);
-	// Override the spectator target to watch the catcher
 	pVictimPlayer->m_SpectatorId = WatchedId;
 }
 
-vec2 CZCatchEvent::NextSpawnPos()
+vec2 CZCatchGrenadeEvent::NextSpawnPos()
 {
 	return RandomSpawnPos(m_SpawnPositions, m_UsedSpawnIndices);
+}
+
+void CZCatchGrenadeEvent::ArmWithGrenade(CCharacter *pChar)
+{
+	if(!pChar)
+		return;
+	// remove hammer and gun (given by SaveWeaponsHelper), give grenade only
+	pChar->GiveWeapon(WEAPON_HAMMER, true);
+	pChar->GiveWeapon(WEAPON_GUN, true);
+	pChar->GiveWeapon(WEAPON_GRENADE);
+	pChar->SetActiveWeapon(WEAPON_GRENADE);
 }

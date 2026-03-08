@@ -56,7 +56,7 @@ private:
 	int m_ActiveStartTick = -1;
 	int m_ActiveEndTick = -1;
 
-	// spawns: use only shared event start positions (TILE_BW_EVENT_TDM_START_POS)
+	// spawns: use only shared event start positions (tdm_spawn gamezone quads)
 	std::vector<vec2> m_EventStartPositions;
 	// reserved unique spawn index for the very first spawn at event start
 	std::unordered_map<int, int> m_AssignedSpawnIndex; // ClientId -> index in m_EventStartPositions

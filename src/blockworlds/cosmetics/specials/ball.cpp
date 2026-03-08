@@ -107,7 +107,7 @@ void CBall::Snap(int SnappingClient)
 	const bool SixUp = Server()->IsSixup(SnappingClient);
 
 	GameServer()->SnapLaserObject(CSnapContext(SnapVer, SixUp), m_aIds[0], m_Pos, m_Pos, Server()->Tick(), m_Owner, LASERTYPE_GUN, -1, -1, LASERFLAG_NO_PREDICT);
-	
+
 	CNetObj_DDNetProjectile *pProj = Server()->SnapNewItem<CNetObj_DDNetProjectile>(m_aIds[1]);
 	if(!pProj)
 		return;

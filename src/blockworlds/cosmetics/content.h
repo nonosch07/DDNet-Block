@@ -129,7 +129,7 @@ public:
 			const int SnapVer = Server()->GetClientVersion(SnappingClient);
 			const bool SixUp = Server()->IsSixup(SnappingClient);
 			vec2 Pos = m_Pos + m_aRotatePos[i];
-	
+
 			GameServer()->SnapLaserObject(CSnapContext(SnapVer, SixUp), m_aIds[i], Pos, Pos, Server()->Tick(), -1, LASERTYPE_GUN, -1, -1, LASERFLAG_NO_PREDICT);
 		}
 	}

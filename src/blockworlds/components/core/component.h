@@ -81,6 +81,8 @@ public:
 
 	virtual void OnCharacterSpawn(int ClientId, vec2 SpawnPos) {}
 	virtual void OnCharacterDeath(int KillerId, int ClientId, int Weapon) {}
+	// called when TakeDamage is invoked on a character by a real attacker (From >= 0)
+	virtual void OnCharacterTakeDamage(vec2 Force, vec2 Source, int Dmg, int From, int ClientId, int Weapon) {}
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_CORE_COMPONENT_H

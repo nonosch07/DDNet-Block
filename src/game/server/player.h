@@ -37,9 +37,9 @@ enum
 };
 
 static constexpr const char *BROADCAST_PADDING = "\n"
-				       "                                                                                     "
-				       "                                                                                     "
-				       "                                                                                     ";
+						 "                                                                                     "
+						 "                                                                                     "
+						 "                                                                                     ";
 
 // player object
 class CPlayer

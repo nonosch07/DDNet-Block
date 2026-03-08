@@ -415,7 +415,7 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon, bool NoDamag
 
 			m_pController->m_BlockTracker.OnPlayerImpacted(pChr->GetPlayer()->GetCid(), Owner);
 
-			pChr->TakeDamage(ForceDir * Dmg * 2, (int)Dmg, Owner, Weapon);
+			pChr->TakeDamage(ForceDir * Dmg * 2, Pos, (int)Dmg, Owner, Weapon);
 		}
 	}
 }
@@ -2952,7 +2952,7 @@ void CGameContext::OnSayNetMessage(const CNetMsg_Cl_Say *pMsg, int ClientId, con
 			{
 				char aMsg[600];
 				const char *pName = Server()->ClientName(ClientId);
-				str_format(aMsg, sizeof(aMsg), "<%s> [%s]: %s", Server()->GetMapName(), pName ? pName : "<unknown>", aCensoredMessage);
+				str_format(aMsg, sizeof(aMsg), "**%s**: %s", pName ? pName : "<unknown>", aCensoredMessage);
 				CDiscordWebhook::SSendOptions Opt;
 				Opt.m_pWebhookUrl = pChatUrl;
 				Discord.Send(aMsg, Opt);
@@ -4631,7 +4631,7 @@ void CGameContext::RegisterDDRaceCommands()
 	Console()->Register("c_set_knockout", "i[type] ?v[id]", CFGFLAG_SERVER, ConSetKnockoutCosmetic, this, "Set players' knockout cosmetic");
 	Console()->Register("c_set_skinmani", "i[type] ?v[id]", CFGFLAG_SERVER, ConSetSkinManiCosmetic, this, "Set players' skinmani cosmetic");
 	Console()->Register("c_set_special", "i[type] ?v[id]", CFGFLAG_SERVER, ConSetSpecialCosmetic, this, "Set players' special cosmetic");
-	
+
 	Console()->Register("set_pages", "v[id] i[amount]", CFGFLAG_SERVER, ConSetPages, this, "Set pages for player id");
 	Console()->Register("set_level", "v[id] i[amount]", CFGFLAG_SERVER, ConSetLevel, this, "Set level for player id");
 	Console()->Register("set_experience", "v[id] i[amount]", CFGFLAG_SERVER, ConSetExperience, this, "Set experience for player id");

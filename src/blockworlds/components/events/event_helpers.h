@@ -1,8 +1,11 @@
 #ifndef BLOCKWORLDS_COMPONENTS_EVENTS_EVENT_HELPERS_H
 #define BLOCKWORLDS_COMPONENTS_EVENTS_EVENT_HELPERS_H
 
+#include <algorithm>
 #include <array>
 #include <map>
+#include <set>
+#include <vector>
 
 #include <base/system.h>
 #include <engine/shared/protocol.h>
@@ -127,6 +130,30 @@ inline void FormatTimeLeft(char *pBuf, int BufSize, int Secs)
 		str_format(pBuf, BufSize, "%d %s", mins, mins == 1 ? "min" : "mins");
 	else
 		str_format(pBuf, BufSize, "%d %s", secs, secs == 1 ? "sec" : "secs");
+}
+
+inline vec2 RandomSpawnPos(const std::vector<vec2> &positions, std::set<int> &usedIndices)
+{
+	if(positions.empty())
+		return {0, 0};
+
+	// build the list of positions not yet used this cycle
+	std::vector<int> available;
+	for(int i = 0; i < (int)positions.size(); ++i)
+		if(!usedIndices.count(i))
+			available.push_back(i);
+
+	// full cycle exhausted -> start a fresh cycle
+	if(available.empty())
+	{
+		usedIndices.clear();
+		for(int i = 0; i < (int)positions.size(); ++i)
+			available.push_back(i);
+	}
+
+	int idx = available[secure_rand_below((int)available.size())];
+	usedIndices.insert(idx);
+	return positions[idx];
 }
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_EVENT_HELPERS_H

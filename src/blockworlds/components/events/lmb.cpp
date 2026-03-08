@@ -17,17 +17,16 @@
 #include <blockworlds/discord/webhook.h>
 
 CLastManBlockingEvent::CLastManBlockingEvent(CGameContext *pGameContext) :
-	CEventComponent(pGameContext), m_SpawnOffset(0), m_DDRaceTeam(-1), m_Winner(-1), m_FinishingReason(NATURAL)
+	CEventComponent(pGameContext), m_DDRaceTeam(-1), m_Winner(-1), m_FinishingReason(NATURAL)
 {
 	m_RegistrationEndTick = -1;
 	m_ActiveStartTick = -1;
 	m_ActiveEndTick = -1;
 
-	m_SpawnPositions.clear();
-	int Found = CGameContext::GetTilePositions(TILE_BW_EVENT_LMB_START_POS, GameServer(), m_SpawnPositions);
-	if(Found == 0)
+	m_SpawnPositions = GameServer()->ZoneManager()->GetNamedQuadCenters("lmb_spawn");
+	if(m_SpawnPositions.empty())
 	{
-		EmergencyShutdown("Map has no event start tiles");
+		EmergencyShutdown("Map has no lmb spawns!");
 		return;
 	}
 }
@@ -183,14 +182,13 @@ void CLastManBlockingEvent::StartEvent()
 	Teams.SetTeamLock(m_DDRaceTeam, false);
 	Teams.SetTeamInvitesOpen(m_DDRaceTeam, false);
 
-	m_SpawnOffset = 0;
+	m_UsedSpawnIndices.clear();
 	m_pSavedPlayers.clear();
 	m_SavedWeapons.clear();
 	m_FrozenSince.clear();
 	for(const auto &ClientId : m_Participants)
 	{
 		Join(ClientId);
-		m_SpawnOffset++;
 	}
 
 	m_ActiveStartTick = Server()->Tick();
@@ -214,10 +212,8 @@ void CLastManBlockingEvent::FinishEvent()
 			if(Discord.IsConfigured(g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr))
 			{
 				char aMsg[512];
-				const char *pMap = Server()->GetMapName();
 				const char *pWinnerName = Server()->ClientName(m_Winner);
-				const char *pMapName = pMap ? pMap : "<map>";
-				str_format(aMsg, sizeof(aMsg), "[ %s ] won the tournament on **%s**!", pWinnerName, pMapName);
+				str_format(aMsg, sizeof(aMsg), "**%s** won the LMB tournament!", pWinnerName ? pWinnerName : "?");
 				CDiscordWebhook::SSendOptions Opt;
 				Opt.m_pWebhookUrl = g_Config.m_SvDiscordWebhookUrlLmb[0] ? g_Config.m_SvDiscordWebhookUrlLmb : nullptr;
 				Discord.Send(aMsg, Opt);
@@ -362,8 +358,8 @@ bool CLastManBlockingEvent::Register(int ClientId)
 		GameServer()->SendChatTarget(ClientId, "You already registered to participate.");
 		return false;
 	}
-
-	if(g_Config.m_SvMaxClientsPerIp > 1)
+	// only check that if event testing mode is set to 0
+	if(g_Config.m_SvMaxClientsPerIp > 1 && g_Config.m_SvEventsTestMode == 0)
 	{
 		for(int CandId : m_Candidates)
 		{
@@ -427,7 +423,7 @@ bool CLastManBlockingEvent::Join(int ClientId)
 	pChar->ResetVelocity();
 	pChar->FreezeForce(Config()->m_SvLMBInitialFreezeTime);
 	m_FrozenSince.emplace(ClientId, Server()->Tick());
-	GameServer()->Teleport(pChar, m_SpawnPositions[m_SpawnOffset % m_SpawnPositions.size()]);
+	GameServer()->Teleport(pChar, RandomSpawnPos(m_SpawnPositions, m_UsedSpawnIndices));
 
 	if(auto pPlayer = GameServer()->GetPlayer(ClientId))
 	{

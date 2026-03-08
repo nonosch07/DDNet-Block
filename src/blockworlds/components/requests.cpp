@@ -45,7 +45,7 @@ static int CurrentUtcYyyymmdd()
 int CRequests::Create1on1Invite(int FromClient, int ToClient, int Wager, int ExpireSeconds)
 {
 	// dummy protection
-	if(GameServer()->Server()->IsClientsSameAddr(FromClient, ToClient))
+	if(GameServer()->Server()->IsClientsSameAddr(FromClient, ToClient) && g_Config.m_SvEventsTestMode == 0)
 	{
 		if(CheckClientId(FromClient) && GameServer()->m_apPlayers[FromClient])
 			GameServer()->SendChatTarget(FromClient, "You cannot invite your own dummy to a 1on1.");

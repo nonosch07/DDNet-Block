@@ -313,7 +313,7 @@ void CCharacter::HandleJetpack()
 		if(m_Core.m_Jetpack)
 		{
 			float Strength = GetTuning(m_TuneZone)->m_JetpackStrength;
-			TakeDamage(Direction * -1.0f * (Strength / 100.0f / 6.11f), 0, m_pPlayer->GetCid(), m_Core.m_ActiveWeapon);
+			TakeDamage(Direction * -1.0f * (Strength / 100.0f / 6.11f), m_Pos, 0, m_pPlayer->GetCid(), m_Core.m_ActiveWeapon);
 		}
 	}
 	}
@@ -409,7 +409,7 @@ void CCharacter::HandleNinja()
 				if(m_NumObjectsHit < 10)
 					m_apHitObjects[m_NumObjectsHit++] = pChr;
 
-				pChr->TakeDamage(vec2(0, -10.0f), g_pData->m_Weapons.m_Ninja.m_pBase->m_Damage, m_pPlayer->GetCid(), WEAPON_NINJA);
+				pChr->TakeDamage(vec2(0, -10.0f), m_Pos, g_pData->m_Weapons.m_Ninja.m_pBase->m_Damage, m_pPlayer->GetCid(), WEAPON_NINJA);
 			}
 		}
 
@@ -596,7 +596,7 @@ void CCharacter::FireWeapon()
 			vec2 Temp = pTarget->m_Core.m_Vel + normalize(Dir + vec2(0.f, -1.1f)) * 10.0f;
 			Temp = ClampVel(pTarget->m_MoveRestrictions, Temp);
 			Temp -= pTarget->m_Core.m_Vel;
-			pTarget->TakeDamage((vec2(0.f, -1.0f) + Temp) * Strength, g_pData->m_Weapons.m_Hammer.m_pBase->m_Damage,
+			pTarget->TakeDamage((vec2(0.f, -1.0f) + Temp) * Strength, m_Pos, g_pData->m_Weapons.m_Hammer.m_pBase->m_Damage,
 				m_pPlayer->GetCid(), m_Core.m_ActiveWeapon);
 			pTarget->UnFreeze();
 
@@ -1189,7 +1189,7 @@ void CCharacter::Die(int Killer, int Weapon, bool SendKillMsg)
 		Component->OnCharacterDeath(Killer, m_pPlayer->GetCid(), Weapon);
 }
 
-bool CCharacter::TakeDamage(vec2 Force, int Dmg, int From, int Weapon)
+bool CCharacter::TakeDamage(vec2 Force, vec2 Source, int Dmg, int From, int Weapon)
 {
 	if(Dmg)
 	{
@@ -1198,6 +1198,12 @@ bool CCharacter::TakeDamage(vec2 Force, int Dmg, int From, int Weapon)
 
 	vec2 Temp = m_Core.m_Vel + Force;
 	m_Core.m_Vel = ClampVel(m_MoveRestrictions, Temp);
+
+	if(From >= 0 && Weapon >= 0)
+	{
+		for(const auto &Component : g_ComponentRegistry.Active())
+			Component->OnCharacterTakeDamage(Force, Source, Dmg, From, m_pPlayer->GetCid(), Weapon);
+	}
 
 	return true;
 }
