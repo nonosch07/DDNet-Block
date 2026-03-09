@@ -4608,6 +4608,7 @@ void CGameContext::RegisterDDRaceCommands()
 	Console()->Register("unmuteid", "v[id]", CFGFLAG_SERVER, ConUnmuteId, this, "Unmute player with id");
 	Console()->Register("mutes", "", CFGFLAG_SERVER, ConMutes, this, "Show all active mutes");
 	Console()->Register("moderate", "", CFGFLAG_SERVER, ConModerate, this, "Enables/disables active moderator mode for the player");
+	Console()->Register("change_name", "v[id] r[name]", CFGFLAG_SERVER, ConChangeName, this, "Change a player's displayed name");
 	Console()->Register("vote_no", "", CFGFLAG_SERVER, ConVoteNo, this, "Same as \"vote no\"");
 	Console()->Register("save_dry", "", CFGFLAG_SERVER, ConDrySave, this, "Dump the current savestring");
 	Console()->Register("dump_log", "?i[seconds]", CFGFLAG_SERVER, ConDumpLog, this, "Show logs of the last i seconds");
@@ -6308,7 +6309,6 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("accept", "?r[player name]", CFGFLAG_CHAT, Con1on1Accept, this, "Accept the 1vs1 request from player r");
 	Console()->Register("decline", "?r[player name]", CFGFLAG_CHAT, Con1on1Decline, this, "Decline the 1vs1 request from player r");
 	Console()->Register("ready", "", CFGFLAG_CHAT, Con1on1Ready, this, "Ready up for 1on1 match during warmup");
-	Console()->Register("sub", "", CFGFLAG_CHAT, ConJoinEvent, this, "Join the current ongoing event");
 	Console()->Register("leave", "", CFGFLAG_CHAT, ConLeaveEvent, this, "Leave current event");
 
 	Console()->Register("pages", "", CFGFLAG_CHAT, ConDisplayPages, this, "Show how many deathnote pages you have.");

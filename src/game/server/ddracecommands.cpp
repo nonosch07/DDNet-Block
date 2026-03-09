@@ -919,6 +919,33 @@ void CGameContext::ConMutes(IConsole::IResult *pResult, void *pUserData)
 	}
 }
 
+void CGameContext::ConChangeName(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int Victim = pResult->GetVictim();
+
+	if(Victim < 0 || Victim >= MAX_CLIENTS || !pSelf->m_apPlayers[Victim])
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "change_name", "Client id not found.");
+		return;
+	}
+
+	const char *pNewName = pResult->GetString(1);
+	if(!pNewName || !pNewName[0])
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "change_name", "Name must not be empty.");
+		return;
+	}
+
+	const char *pOldName = pSelf->Server()->ClientName(Victim);
+	pSelf->Server()->SetClientName(Victim, pNewName);
+	const char *pActualName = pSelf->Server()->ClientName(Victim);
+
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "'%s' was renamed to '%s'", pOldName, pActualName);
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "change_name", aBuf);
+}
+
 void CGameContext::ConModerate(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;

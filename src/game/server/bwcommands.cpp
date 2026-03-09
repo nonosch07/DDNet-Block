@@ -2430,7 +2430,7 @@ void CGameContext::ConContributors(IConsole::IResult *pResult, void *pUserData)
 	if(!CheckClientId(pResult->m_ClientId))
 		return;
 	pSelf->SendChatTarget(pResult->m_ClientId, "Huge thanks to Blockworlds contributors:");
-	pSelf->SendChatTarget(pResult->m_ClientId, "melon, Anime.pdf, zhn, ReiTW, Brokecdx-, Sakido, Gegongt, noby, potato");
+	pSelf->SendChatTarget(pResult->m_ClientId, "melon, Anime.pdf, zhn, ReiTW, Brokecdx-, Sakido, Gegongt, noby, potato, qxdFox");
 }
 
 void CGameContext::Con1on1(IConsole::IResult *pResult, void *pUserData)
@@ -2676,32 +2676,8 @@ void CGameContext::Con1on1Ready(IConsole::IResult *pResult, void *pUserData)
 void CGameContext::ConJoinEvent(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
-
-	if(!g_Config.m_SvAccountsystem)
-		return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
-
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
-
-	if(!pPlayer->IsLoggedIn())
-		return pSelf->SendChatTarget(pResult->m_ClientId, "You must be logged in with an account to participate in a tournament.");
-
-	if(auto events = g_ComponentRegistry.Get<CEvents>())
-	{
-		auto subs = events->GetSubComponents();
-		for(auto &sub : subs)
-		{
-			CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
-			if(pEv && pEv->GetState() == CEventComponent::EEventState::Registration)
-			{
-				if(pSelf->isInEvent(pResult->m_ClientId))
-					return pSelf->SendChatTarget(pResult->m_ClientId, "You are either currently participating in an event or have already registered for an upcoming one. To exit, use the command /leave.");
-				pEv->Register(pResult->m_ClientId);
-				return;
-			}
-		}
-		pSelf->SendChatTarget(pResult->m_ClientId, "No active event at this time");
-		return;
-	}
+	return pSelf->SendChatTarget(pResult->m_ClientId, "use /join instead.");
 }
 
 void CGameContext::ConCreateTDM(IConsole::IResult *pResult, void *pUserData)

@@ -428,13 +428,10 @@ bool CLastManBlockingEvent::Join(int ClientId)
 
 	if(auto pPlayer = GameServer()->GetPlayer(ClientId))
 	{
-		// remove all cosmetics and prevent reactivation during the event via cosmetics module checks
+		// save cosmetics snapshot before stripping (guard in SaveAndClearCosmetics prevents double-save)
+		SaveAndClearCosmetics(ClientId);
+		// ClearCosmetics also removes ownership; called after the snapshot is taken
 		pPlayer->ClearCosmetics();
-		pPlayer->SetSkinMani(-1);
-		pPlayer->SetGunDesign(-1);
-		pPlayer->SetKnockout(-1);
-		if(pPlayer->GetCurrentSpecial() != -1)
-			pPlayer->ToggleSpecial(pPlayer->GetCurrentSpecial());
 	}
 
 	GameServer()->SendBroadcast(" ", ClientId);
@@ -474,6 +471,9 @@ bool CLastManBlockingEvent::Leave(int ClientId)
 			m_PrevSoloState.erase(it);
 		}
 	}
+
+	// restore cosmetics before the "you're out" message
+	RestoreCosmetics(ClientId);
 
 	// restore specials state is intentionally left unchanged; players may re-enable after event
 	static const char *s_randomStrings[] = {

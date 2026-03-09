@@ -577,6 +577,7 @@ private:
 	static void ConUnmuteId(IConsole::IResult *pResult, void *pUserData);
 	static void ConMutes(IConsole::IResult *pResult, void *pUserData);
 	static void ConModerate(IConsole::IResult *pResult, void *pUserData);
+	static void ConChangeName(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConList(IConsole::IResult *pResult, void *pUserData);
 	static void ConSetDDRTeam(IConsole::IResult *pResult, void *pUserData);

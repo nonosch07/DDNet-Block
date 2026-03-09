@@ -93,6 +93,9 @@ public:
 	void SaveWeapons(int ClientId);
 	void LoadWeapons(int ClientId);
 
+	void SaveAndClearCosmetics(int ClientId);
+	void RestoreCosmetics(int ClientId);
+
 	int PlayerHookedGroundFor(int ClientId) const;
 
 	// state
@@ -103,6 +106,7 @@ public:
 
 	std::map<int, std::unique_ptr<class CSaveTee>> m_pSavedPlayers;
 	std::map<int, std::array<CCharacterCore::WeaponStat, NUM_WEAPONS>> m_SavedWeapons;
+	std::map<int, CEventComponent::SCosmeticsSnapshot> m_SavedCosmetics;
 
 	std::vector<int> m_Candidates;
 	std::vector<int> m_Participants;

@@ -19,7 +19,7 @@ void CGameContext::ConCredits(IConsole::IResult *pResult, void *pUserData)
 	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
 		"This server has been developped by Nouaa.");
 	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-		"Thanks to contributors.");
+		"Thanks to /contributors.");
 }
 
 void CGameContext::ConInfo(IConsole::IResult *pResult, void *pUserData)

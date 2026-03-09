@@ -83,6 +83,9 @@ void CTeamDeathmatchEvent::SaveAndPrepareParticipants()
 {
 	for(int ClientId : m_Participants)
 	{
+		// save cosmetics snapshot before ApplyParticipantVisuals strips them
+		SaveAndClearCosmetics(ClientId);
+
 		SaveWeapons(ClientId);
 		SavePosition(ClientId);
 
@@ -1104,12 +1107,8 @@ bool CTeamDeathmatchEvent::Join(int ClientId)
 
 	if(auto *pPlayer = GameServer()->GetPlayer(ClientId))
 	{
+		SaveAndClearCosmetics(ClientId);
 		pPlayer->ClearCosmetics();
-		pPlayer->SetSkinMani(-1);
-		pPlayer->SetGunDesign(-1);
-		pPlayer->SetKnockout(-1);
-		if(pPlayer->GetCurrentSpecial() != -1)
-			pPlayer->ToggleSpecial(pPlayer->GetCurrentSpecial());
 
 		if(auto *pChar = GameServer()->GetPlayerChar(ClientId))
 			pChar->ResetVelocity();
@@ -1148,6 +1147,7 @@ bool CTeamDeathmatchEvent::Leave(int ClientId)
 	GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, 0);
 	m_ClientTeam.erase(ClientId);
 	RestoreParticipantVisuals(ClientId);
+	RestoreCosmetics(ClientId);
 
 	// restore solo/collision for this player
 	if(auto itSolo = m_PrevSoloState.find(ClientId); itSolo != m_PrevSoloState.end())

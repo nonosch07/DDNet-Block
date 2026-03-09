@@ -55,6 +55,9 @@ void CEventComponent::SetState(CEventComponent::EEventState NewState)
 
 void CEventComponent::SaveAndClearCosmetics(int ClientId)
 {
+	if(m_SavedCosmetics.count(ClientId) > 0)
+		return;
+
 	CPlayer *pPlayer = GameServer()->GetPlayer(ClientId);
 	if(!pPlayer)
 		return;

@@ -358,12 +358,8 @@ bool CZCatchGrenadeEvent::Join(int ClientId)
 
 	if(auto *pPlayer = GameServer()->GetPlayer(ClientId))
 	{
+		SaveAndClearCosmetics(ClientId);
 		pPlayer->ClearCosmetics();
-		pPlayer->SetSkinMani(-1);
-		pPlayer->SetGunDesign(-1);
-		pPlayer->SetKnockout(-1);
-		if(pPlayer->GetCurrentSpecial() != -1)
-			pPlayer->ToggleSpecial(pPlayer->GetCurrentSpecial());
 	}
 
 	return true;
@@ -419,6 +415,7 @@ bool CZCatchGrenadeEvent::Leave(int ClientId)
 	}
 
 	m_Scores.erase(ClientId);
+	RestoreCosmetics(ClientId);
 	return true;
 }
 

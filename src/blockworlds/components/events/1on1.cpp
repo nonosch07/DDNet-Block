@@ -161,6 +161,9 @@ bool COneOnOneEvent::InitializeConfigPhase(int Player1ID, int Player2ID, int Wag
 	}
 
 	// kill & respawn at prep arena positions (no freeze during warmup)
+	SaveAndClearCosmetics(m_Player1ID);
+	SaveAndClearCosmetics(m_Player2ID);
+
 	if(p1 && p1->GetCharacter())
 		p1->KillCharacter(WEAPON_WORLD, false);
 	if(p2 && p2->GetCharacter())
@@ -169,16 +172,10 @@ bool COneOnOneEvent::InitializeConfigPhase(int Player1ID, int Player2ID, int Wag
 	if(p1 && m_SpawnReservation.pos1Idx >= 0 && m_SpawnReservation.pos1Idx < (int)spawnPosition.size())
 	{
 		p1->ForceSpawn(spawnPosition[m_SpawnReservation.pos1Idx], false);
-		p1->SetSkinMani(-1);
-		if(p1->GetCurrentSpecial() != -1)
-			p1->ToggleSpecial(p1->GetCurrentSpecial());
 	}
 	if(p2 && m_SpawnReservation.pos2Idx >= 0 && m_SpawnReservation.pos2Idx < (int)spawnPosition.size())
 	{
 		p2->ForceSpawn(spawnPosition[m_SpawnReservation.pos2Idx], false);
-		p2->SetSkinMani(-1);
-		if(p2->GetCurrentSpecial() != -1)
-			p2->ToggleSpecial(p2->GetCurrentSpecial());
 	}
 
 	m_StartTimer = 0;
@@ -647,37 +644,22 @@ bool COneOnOneEvent::StartEvent()
 	if(p2 && p2->GetCharacter())
 		p2->KillCharacter(WEAPON_WORLD, false);
 
+	// save & disable cosmetics before spawning (guard prevents double-save if InitializeConfigPhase ran first)
+	SaveAndClearCosmetics(m_Player1ID);
+	SaveAndClearCosmetics(m_Player2ID);
+
 	// directly spawn players at their reserved 1on1 positions
 	if(p1 && m_SpawnReservation.pos1Idx >= 0 && m_SpawnReservation.pos1Idx < (int)spawnPosition.size())
 	{
 		p1->ForceSpawn(spawnPosition[m_SpawnReservation.pos1Idx], false);
-		p1->SetSkinMani(-1);
-		if(p1->GetCurrentSpecial() != -1)
-			p1->ToggleSpecial(p1->GetCurrentSpecial());
 		if(p1->GetCharacter())
 			p1->GetCharacter()->FreezeForce(3);
 	}
 	if(p2 && m_SpawnReservation.pos2Idx >= 0 && m_SpawnReservation.pos2Idx < (int)spawnPosition.size())
 	{
 		p2->ForceSpawn(spawnPosition[m_SpawnReservation.pos2Idx], false);
-		p2->SetSkinMani(-1);
-		if(p2->GetCurrentSpecial() != -1)
-			p2->ToggleSpecial(p2->GetCurrentSpecial());
 		if(p2->GetCharacter())
 			p2->GetCharacter()->FreezeForce(3);
-	}
-
-	if(p1)
-	{
-		p1->SetSkinMani(-1);
-		if(p1->GetCurrentSpecial() != -1)
-			p1->ToggleSpecial(p1->GetCurrentSpecial());
-	}
-	if(p2)
-	{
-		p2->SetSkinMani(-1);
-		if(p2->GetCurrentSpecial() != -1)
-			p2->ToggleSpecial(p2->GetCurrentSpecial());
 	}
 
 	m_StartTimer = 0;
@@ -779,6 +761,11 @@ void COneOnOneEvent::OnTick()
 		}
 
 		m_DeferFinishRestore = false;
+
+		// restore cosmetics for both players now that they are back in the world
+		RestoreCosmetics(m_Player1ID);
+		RestoreCosmetics(m_Player2ID);
+
 		SetState(EEventState::Finished);
 		return;
 	}
@@ -1509,6 +1496,9 @@ bool COneOnOneEvent::Leave(int ClientId)
 
 void COneOnOneEvent::OnPlayerDropping(int ClientId)
 {
+	// always restore cosmetics for a disconnecting participant regardless of state
+	RestoreCosmetics(ClientId);
+
 	if(GetState() == EEventState::Active || GetState() == EEventState::Preparation)
 	{
 		if(ClientId == m_Player1ID || ClientId == m_Player2ID)
@@ -1688,6 +1678,10 @@ void COneOnOneEvent::AbortAndRefund(const char *pReason)
 		m_Participants.clear();
 	}
 
+	// restore cosmetics before marking finished
+	RestoreCosmetics(m_Player1ID);
+	RestoreCosmetics(m_Player2ID);
+
 	SetState(EEventState::Finished);
 }
 
@@ -1770,6 +1764,54 @@ void COneOnOneEvent::SaveWeapons(int ClientId)
 void COneOnOneEvent::LoadWeapons(int ClientId)
 {
 	LoadWeaponsHelper(GameServer(), m_SavedWeapons, ClientId);
+}
+
+void COneOnOneEvent::SaveAndClearCosmetics(int ClientId)
+{
+	// Guard: only save once per match to avoid overwriting with already-stripped state
+	if(m_SavedCosmetics.count(ClientId) > 0)
+		return;
+
+	CPlayer *pPlayer = GameServer()->GetPlayer(ClientId);
+	if(!pPlayer)
+		return;
+
+	CEventComponent::SCosmeticsSnapshot Snap;
+	Snap.m_Special = pPlayer->GetCurrentSpecial();
+	Snap.m_SkinMani = pPlayer->GetSkinMani();
+	Snap.m_GunDesign = pPlayer->GetGunDesign();
+	Snap.m_Knockout = pPlayer->GetKnockout();
+	Snap.m_FlagExpireTick = pPlayer->GetFlagExpireTick();
+	m_SavedCosmetics[ClientId] = Snap;
+
+	pPlayer->DisableCosmeticsForEvent();
+}
+
+void COneOnOneEvent::RestoreCosmetics(int ClientId)
+{
+	auto It = m_SavedCosmetics.find(ClientId);
+	if(It == m_SavedCosmetics.end())
+		return;
+
+	const CEventComponent::SCosmeticsSnapshot &Snap = It->second;
+	CPlayer *pPlayer = GameServer()->GetPlayer(ClientId);
+	if(pPlayer)
+	{
+		pPlayer->SetSkinMani(Snap.m_SkinMani);
+		pPlayer->SetGunDesign(Snap.m_GunDesign);
+		pPlayer->SetKnockout(Snap.m_Knockout);
+		if(Snap.m_Special >= 0)
+			pPlayer->ToggleSpecial(Snap.m_Special);
+		if(Snap.m_FlagExpireTick > Server()->Tick())
+		{
+			int RemainingTicks = Snap.m_FlagExpireTick - Server()->Tick();
+			int RemainingMinutes = RemainingTicks / Server()->TickSpeed() / 60;
+			if(RemainingMinutes > 0)
+				pPlayer->GiveFlag(RemainingMinutes);
+		}
+	}
+
+	m_SavedCosmetics.erase(It);
 }
 
 int COneOnOneEvent::PlayerHookedGroundFor(int ClientId) const

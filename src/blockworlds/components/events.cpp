@@ -72,6 +72,7 @@ void CEvents::OnDisable()
 	DEF("events_end", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsForceEnd, this, "Forcefully end current event") \
 \
 	DEF("join", "", CFGFLAG_CHAT | CFGFLAG_ANNOUNCE, ConJoin, this, "Chat command, try to register to current event") \
+	DEF("sub", "", CFGFLAG_CHAT | CFGFLAG_ANNOUNCE, ConJoin, this, "Chat command, try to register to current event") \
 	DEF("leave", "", CFGFLAG_CHAT | CFGFLAG_ANNOUNCE, ConLeave, this, "Chat command, try to deregister from current event")
 
 void CEvents::OnConsoleInit()
