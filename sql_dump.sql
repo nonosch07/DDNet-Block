@@ -88,8 +88,7 @@ CREATE TABLE `Blockworlds_accounts_progress` (
   `killstreak` int(11) DEFAULT 0,
   `weekly_day` int(11) DEFAULT 0,
   `weekly_last_claim` int(11) DEFAULT 0,
-  `weekly_exp_boost_until` bigint(20) DEFAULT 0,
-  `autologin_enabled` int(11) NOT NULL DEFAULT 1
+  `weekly_exp_boost_until` bigint(20) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- --------------------------------------------------------
@@ -187,32 +186,6 @@ ALTER TABLE `Blockworlds_clans`
 --
 -- Contraintes pour les tables déchargées
 --
-
---
--- Structure de la table `Blockworlds_accounts_autologin`
---
-
-CREATE TABLE `Blockworlds_accounts_autologin` (
-  `account_id` int(11) NOT NULL,
-  `token_hash` char(64) NOT NULL,
-  `ip_hash` char(64) NOT NULL,
-  `expires_at` timestamp NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
--- --------------------------------------------------------
-
---
--- Index pour la table `Blockworlds_accounts_autologin`
---
-ALTER TABLE `Blockworlds_accounts_autologin`
-  ADD PRIMARY KEY (`account_id`),
-  ADD KEY `ix_autologin_lookup` (`token_hash`,`ip_hash`);
-
---
--- Contraintes pour la table `Blockworlds_accounts_autologin`
---
-ALTER TABLE `Blockworlds_accounts_autologin`
-  ADD CONSTRAINT `fk_autologin_core` FOREIGN KEY (`account_id`) REFERENCES `Blockworlds_accounts_core` (`id`) ON DELETE CASCADE;
 
 --
 -- Contraintes pour la table `Blockworlds_accounts_busy`

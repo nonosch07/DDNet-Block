@@ -11,7 +11,6 @@
 #define TBL_ACCOUNTS_INVENTORY BW_TBL("accounts_inventory")
 #define TBL_ACCOUNTS_RANKED BW_TBL("accounts_ranked")
 #define TBL_ACCOUNTS_BUSY BW_TBL("accounts_busy")
-#define TBL_ACCOUNTS_AUTOLOGIN BW_TBL("accounts_autologin")
 #define TBL_CLANS BW_TBL("clans")
 #define TBL_WHOIS_CONNECTIONS BW_TBL("whois_connections")
 // aggregated whois tables (SQLite-local)

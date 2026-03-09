@@ -1949,13 +1949,6 @@ void CPlayer::OnPlayerLogin()
 	// KillCharacter(); - no need to kill since we allow using /login only at spawn
 	GameServer()->SendChatTarget(m_ClientId, "Login successfully");
 
-	if(GameServer()->Accounts() && m_aTimeoutCode[0] && m_Account.m_AutoLoginEnabled)
-	{
-		char aIp[64];
-		Server()->GetClientAddr(m_ClientId, aIp, sizeof(aIp));
-		GameServer()->Accounts()->WriteAutoLoginToken(m_Account.m_Id, m_aTimeoutCode, aIp);
-	}
-
 	// Log account info to whois now that we have it (join event fires before login)
 	if(GameServer()->WhoIs())
 		GameServer()->WhoIs()->LogJoin(m_ClientId, "login");
@@ -2133,10 +2126,6 @@ void CPlayer::OnPlayerLogout()
 		m_Account = CAccountData();
 		return;
 	}
-
-	// invalidate the auto-login token so next connect requires manual /login
-	if(GameServer()->Accounts())
-		GameServer()->Accounts()->DeleteAutoLoginToken(m_Account.m_Id);
 
 	GameServer()->ClearVotes(GetCid());
 	GameServer()->ProgressVoteOptions(GetCid());

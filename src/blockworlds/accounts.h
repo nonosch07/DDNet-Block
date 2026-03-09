@@ -109,7 +109,6 @@ struct CAccountData
 	char m_aGundesign[256];
 	char m_aSkinmani[256];
 	int m_Passive;
-	int m_AutoLoginEnabled;
 	char m_RegisterDate[64];
 	int m_RankedGames;
 	int m_RankedKills;
@@ -141,7 +140,7 @@ struct CAccountData
 };
 
 inline CAccountData::CAccountData() :
-	m_ClientId(-1), m_Id(0), m_Vip(0), m_Pages(0), m_Level(1), m_Experience(0), m_Weaponkits(0), m_Ranking(0), m_ClanId(0), m_AuthLevel(ClanAuthLevel::NONE), m_Blockpoints(0), m_Passive(0), m_AutoLoginEnabled(1), m_RankedGames(0), m_RankedKills(0), m_RankedDeaths(0), m_RankedWins(0), m_Kills(0), m_Deaths(0), m_TourneyWin(0), m_Playtime(0), m_Killstreak(0), m_WeeklyDay(0), m_WeeklyLastClaim(0), m_WeeklyExpBoostUntil(0), m_LastBodyColor(0), m_LastFeetColor(0)
+	m_ClientId(-1), m_Id(0), m_Vip(0), m_Pages(0), m_Level(1), m_Experience(0), m_Weaponkits(0), m_Ranking(0), m_ClanId(0), m_AuthLevel(ClanAuthLevel::NONE), m_Blockpoints(0), m_Passive(0), m_RankedGames(0), m_RankedKills(0), m_RankedDeaths(0), m_RankedWins(0), m_Kills(0), m_Deaths(0), m_TourneyWin(0), m_Playtime(0), m_Killstreak(0), m_WeeklyDay(0), m_WeeklyLastClaim(0), m_WeeklyExpBoostUntil(0), m_LastBodyColor(0), m_LastFeetColor(0)
 {
 	m_aName[0] = m_aPassword[0] = m_aAddress[0] = m_aKnockouts[0] = m_aGundesign[0] = m_aSkinmani[0] = m_RegisterDate[0] = m_aLastName[0] = m_aLastSkin[0] = '\0';
 }
@@ -323,30 +322,6 @@ struct CSqlCleanZombieAccountsData : ISqlData
 	int m_Port;
 };
 
-struct CSqlAutoLoginRequest : ISqlData
-{
-	CSqlAutoLoginRequest(std::shared_ptr<CAccountResult> pResult, CGameContext *pGameContext) :
-		ISqlData(std::move(pResult)), m_pGameContext(pGameContext)
-	{
-	}
-	CGameContext *m_pGameContext;
-	int m_ClientId;
-	char m_aTokenHash[65]; // SHA256 hex (64 chars + NUL)
-	char m_aIpHash[65];    // SHA256 hex (64 chars + NUL)
-};
-
-struct CSqlAutoLoginWriteData : ISqlData
-{
-	CSqlAutoLoginWriteData() :
-		ISqlData(nullptr)
-	{
-	}
-	int m_AccountId;
-	char m_aTokenHash[65]; // SHA256 hex (64 chars + NUL)
-	char m_aIpHash[65];    // SHA256 hex (64 chars + NUL)
-	int m_ExpiryDays;
-};
-
 struct CSqlStringData : ISqlData
 {
 	CSqlStringData() :
@@ -400,11 +375,6 @@ class CAccounts
 
 	static bool SetVipByNameAdminThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 
-	// Auto-login
-	static bool WriteAutoLoginTokenThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
-	static bool DeleteAutoLoginTokenThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
-	static bool AutoLoginLookupThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
-
 	// returns new SqlResult bound to the player, if no current Thread is active for this player
 	std::shared_ptr<CAccountResult> NewSqlAccountResult(int ClientId);
 	std::shared_ptr<CAdminCommandResult> NewSqlAdminCommandResult(int ClientId);
@@ -453,11 +423,6 @@ public:
 	void ExecuteSql(const char *pQuery);
 
 	bool SyncSaveBlocking(int ClientId, const CAccountData &Acc, int TimeoutMs = 500);
-
-	// Auto-login
-	void WriteAutoLoginToken(int AccountId, const char *pTimeoutCode, const char *pIp);
-	void DeleteAutoLoginToken(int AccountId);
-	void AutoLoginLookup(int ClientId, const char *pTimeoutCode, const char *pIp);
 
 	void ShowTopLevel(int ClientId);
 	void ShowTopBlockpoints(int ClientId);

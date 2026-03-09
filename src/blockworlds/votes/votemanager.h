@@ -42,7 +42,6 @@ public:
 		OpenCosmeticsCategory, // data = category index
 		ToggleCosmeticItem, // data = (category index, item index)
 		ToggleHideCosmetics,
-		ToggleAutoLogin,
 		SetScoreMode, // data = mode (0=level, 1=blockpoints, 2=time)
 		OpenShop,
 		OpenShopCategory, // data = shop category index (0=skinmani, 1=gundesign, 2=knockout, 3=utility)

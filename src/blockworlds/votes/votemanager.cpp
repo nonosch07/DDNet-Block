@@ -344,18 +344,6 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 					RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
 				}
 				return true;
-			case EActionKind::ToggleAutoLogin:
-				if(pPlayer && pPlayer->IsLoggedIn())
-				{
-					pPlayer->m_Account.m_AutoLoginEnabled = pPlayer->m_Account.m_AutoLoginEnabled ? 0 : 1;
-					pPlayer->m_Account.m_DirtyProgress = true;
-					pGameContext->SendChatTarget(ClientId, pPlayer->m_Account.m_AutoLoginEnabled ? "Auto-login enabled." : "Auto-login disabled.");
-					pGameContext->ClearVotes(ClientId);
-					if(IsAtRoot(ClientId))
-						pGameContext->ProgressVoteOptions(ClientId, true);
-					RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
-				}
-				return true;
 			case EActionKind::SetScoreMode:
 				if(pPlayer)
 				{
@@ -714,17 +702,6 @@ void CVoteManager::BuildRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, C
 			HideLine = std::string("☐ ") + SmallCaps("Hide Cosmetics");
 		OutLabels.emplace_back(HideLine);
 		OutActions.emplace_back(Action{EActionKind::ToggleHideCosmetics});
-	}
-
-	if(pPlayer && pPlayer->IsLoggedIn())
-	{
-		std::string AutoLoginLine;
-		if(pPlayer->m_Account.m_AutoLoginEnabled)
-			AutoLoginLine = std::string("☑ ") + SmallCaps("Auto-Login");
-		else
-			AutoLoginLine = std::string("☐ ") + SmallCaps("Auto-Login");
-		OutLabels.emplace_back(AutoLoginLine);
-		OutActions.emplace_back(Action{EActionKind::ToggleAutoLogin});
 	}
 
 	// Score display mode (radio-button style checkboxes)
