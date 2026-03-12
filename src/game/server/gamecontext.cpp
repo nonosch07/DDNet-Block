@@ -149,10 +149,16 @@ void CGameContext::Construct(int Resetting)
 
 		// default: weaponkits allowed (persisted via config)
 		m_WeaponkitsAllowed = g_Config.m_SvWeaponkitsAllowed;
+	}
 
-		m_LastGlobalWeaponkitsVoteCall = 0;
-		m_LastGlobalEventVoteCall = 0;
+	// always reset vote cooldown timestamps on any init (including hot-reload)
+	// they're tick-based; if the tick counter resets (map change / soft reload)
+	// but the timestamps are not cleared, the remaining cooldown becomes big as shit
+	m_LastGlobalWeaponkitsVoteCall = 0;
+	m_LastGlobalEventVoteCall = 0;
 
+	if(Resetting == NO_RESET)
+	{
 		// default: LMB enabled (persisted via config)
 		// LMB enable/disable toggle removed; votes will only start events via "events_start lmb"
 	}
@@ -418,6 +424,18 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon, bool NoDamag
 			pChr->TakeDamage(ForceDir * Dmg * 2, Pos, (int)Dmg, Owner, Weapon);
 		}
 	}
+}
+
+void CGameContext::CreateExplosionVisual(vec2 Pos, CClientMask Mask)
+{
+	// purely visual: grenade-explosion particle + sound, no force/damage applied
+	CNetEvent_Explosion *pEvent = m_Events.Create<CNetEvent_Explosion>(Mask);
+	if(pEvent)
+	{
+		pEvent->m_X = (int)Pos.x;
+		pEvent->m_Y = (int)Pos.y;
+	}
+	CreateSound(Pos, SOUND_GRENADE_EXPLODE, Mask);
 }
 
 void CGameContext::CreatePlayerSpawn(vec2 Pos, CClientMask Mask)

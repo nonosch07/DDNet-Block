@@ -733,7 +733,12 @@ bool CBlockTracker::OnPlayerKill(int ClientID)
 	CCharacter *pChr = m_pGameContext->GetPlayerChar(ClientID);
 	if(CPlayer *pPlayer = pChr->GetPlayer(); pPlayer && pPlayer->IsLoggedIn())
 	{
-		pPlayer->SetPlayerDeaths(pPlayer->GetPlayerDeaths() + 1);
+		// don't count account-level deaths during active server events
+		bool InEvent = false;
+		if(auto pEvents = g_ComponentRegistry.Get<CEvents>(); pEvents && pEvents->GetActiveEvent())
+			InEvent = true;
+		if(!InEvent)
+			pPlayer->SetPlayerDeaths(pPlayer->GetPlayerDeaths() + 1);
 	}
 
 	return ExpKillMsgSent;

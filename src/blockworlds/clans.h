@@ -133,6 +133,11 @@ class CClanManager
 	std::vector<CClansData> m_vClansData;
 	std::vector<std::shared_ptr<ISqlResult>> *m_pShutdownCollector = nullptr;
 
+	// true once the initial DB load has succeeded at least once
+	bool m_ClansLoaded = false;
+	// server tick of the most recent LoadAllClans dispatch (for retry throttle)
+	int m_LastLoadAttemptTick = 0;
+
 	void ExecClanThread(bool (*pFuncPtr)(IDbConnection *, const ISqlData *, char *, int),
 		const char *pThreadName,
 		int ClientId,
@@ -191,6 +196,8 @@ public:
 	void AddClanExp(int ClanId, int Amount);
 
 	void AutosaveTick();
+
+	bool IsClansLoaded() const { return m_ClansLoaded; }
 
 	bool IsClanJoinable(int ClanId) const;
 

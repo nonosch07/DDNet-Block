@@ -138,21 +138,44 @@ void CZCatchEvent::FinishEvent()
 					std::vector<std::pair<int, int>> vSorted(m_Scores.begin(), m_Scores.end());
 					std::sort(vSorted.begin(), vSorted.end(), [](const auto &a, const auto &b) { return a.second > b.second; });
 
+					// strip emoji/non-ASCII so the monospace table columns stay aligned
+					auto SanitizeName = [](const char *pSrc, char *pDst, int DstSize) {
+						if(!pSrc || DstSize <= 0)
+						{
+							if(DstSize > 0)
+								pDst[0] = '\0';
+							return;
+						}
+						int out = 0;
+						for(int i = 0; pSrc[i] && out < DstSize - 1; ++i)
+						{
+							unsigned char c = (unsigned char)pSrc[i];
+							if(c >= 0x20 && c <= 0x7E) // printable ASCII only
+								pDst[out++] = pSrc[i];
+						}
+						pDst[out] = '\0';
+					};
+
+					char aSafeWinner[22];
+					SanitizeName(pWinnerName ? pWinnerName : "?", aSafeWinner, sizeof(aSafeWinner));
+
 					char aDiscord[1024];
 					char aTmp[128];
 
 					str_format(aDiscord, sizeof(aDiscord),
 						"**zCatch Result**\n"
-						"**Winner: %s** | %d catches\n"
+						"**Winner: %s** | %d kills\n"
 						"```\n"
-						"Rank  Player               Catches\n",
-						pWinnerName ? pWinnerName : "?", WinScore);
+						"Rank  Player               Kills\n",
+						aSafeWinner, WinScore);
 
 					for(int i = 0; i < 3 && i < (int)vSorted.size(); ++i)
 					{
 						const char *pName = Server()->ClientName(vSorted[i].first);
-						str_format(aTmp, sizeof(aTmp), "#%d    %-20.20s  %d\n",
-							i + 1, pName ? pName : "?", vSorted[i].second);
+						char aSafeName[21];
+						SanitizeName(pName ? pName : "?", aSafeName, sizeof(aSafeName));
+						str_format(aTmp, sizeof(aTmp), "#%-4d  %-20.20s  %d\n",
+							i + 1, aSafeName, vSorted[i].second);
 						str_append(aDiscord, aTmp);
 					}
 

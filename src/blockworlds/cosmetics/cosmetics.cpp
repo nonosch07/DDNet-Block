@@ -225,8 +225,8 @@ void CCosmeticsHandler::DoKnockoutEffectRaw(vec2 Pos, int Effect)
 
 	if(Effect == KNOCKOUT_EXPLOSION)
 	{
-		GameServer()->CreateSound(Pos, SOUND_GRENADE_EXPLODE);
-		GameServer()->CreateExplosion(Pos, -1, WEAPON_GRENADE, true, 0);
+		// Visual-only: grenade explosion appearance + sound without physics push
+		GameServer()->CreateExplosionVisual(Pos);
 	}
 	else if(Effect == KNOCKOUT_HAMMERHIT)
 		GameServer()->CreateHammerHit(Pos);

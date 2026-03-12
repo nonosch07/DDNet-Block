@@ -1002,14 +1002,25 @@ void COneOnOneEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 	if(p2)
 		p2->m_allowDeath = false;
 
-	// during Active phase, freeze on spawn; during warmup, let them move freely
 	if(GetState() == EEventState::Active)
 	{
+		std::vector<vec2> spawnPos;
+		if(m_Config.m_SpawnMode == 1)
+			spawnPos = GameServer()->ZoneManager()->Get1on1ArenaPositions(-1);
+		else
+			spawnPos = GameServer()->ZoneManager()->GetNamedQuadCenters("1on1_spawn");
+
+		int reservedIdx = (ClientId == m_Player1ID) ? m_SpawnReservation.pos1Idx : m_SpawnReservation.pos2Idx;
+
 		CCharacter *pSpawned = GameServer()->GetPlayerChar(ClientId);
 		if(pSpawned)
 		{
 			pSpawned->ResetVelocity();
 			pSpawned->FreezeForce(3);
+
+			// teleport to reserved arena slot if we have a valid position
+			if(reservedIdx >= 0 && reservedIdx < (int)spawnPos.size())
+				GameServer()->Teleport(pSpawned, spawnPos[reservedIdx]);
 		}
 	}
 

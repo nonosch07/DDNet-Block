@@ -2106,7 +2106,7 @@ void CServer::CacheServerInfo(CCache *pCache, int Type, bool SendClients)
 	int PlayerCount = 0, ClientCount = 0;
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
-		if(m_aClients[i].IncludedInServerInfo() && !m_aClients[i].m_IsClientDummy)
+		if(m_aClients[i].IncludedInServerInfo() /*&& !m_aClients[i].m_IsClientDummy*/)
 		{
 			if(GameServer()->IsClientPlayer(i))
 				PlayerCount++;
@@ -2238,7 +2238,7 @@ void CServer::CacheServerInfo(CCache *pCache, int Type, bool SendClients)
 
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
-		if(m_aClients[i].IncludedInServerInfo() && m_aClients[i].m_State != CClient::STATE_NPC && (!m_aClients[i].m_IsClientDummy))
+		if(m_aClients[i].IncludedInServerInfo() && m_aClients[i].m_State != CClient::STATE_NPC)
 		{
 			if(Remaining == 0)
 			{

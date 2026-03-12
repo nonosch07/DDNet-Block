@@ -961,6 +961,25 @@ void CTeamDeathmatchEvent::AnnounceResults()
 			bool BlueWins = m_ScoreTeam[0] > m_ScoreTeam[1];
 			bool RedWins = m_ScoreTeam[1] > m_ScoreTeam[0];
 
+			// strip emoji/non-ASCII bytes from a name so monospace table columns don't shift
+			// %-16.16s counts BYTES, but emoji can be 2-4 bytes wide yet only ~1 visual char
+			auto SanitizeName = [](const char *pSrc, char *pDst, int DstSize) {
+				if(!pSrc || DstSize <= 0)
+				{
+					if(DstSize > 0)
+						pDst[0] = '\0';
+					return;
+				}
+				int out = 0;
+				for(int i = 0; pSrc[i] && out < DstSize - 1; ++i)
+				{
+					unsigned char c = (unsigned char)pSrc[i];
+					if(c >= 0x20 && c <= 0x7E) // printable ASCII only
+						pDst[out++] = pSrc[i];
+				}
+				pDst[out] = '\0';
+			};
+
 			char aDiscord[2000];
 			char aTmp[128];
 
@@ -989,9 +1008,11 @@ void CTeamDeathmatchEvent::AnnounceResults()
 				if(i < (int)blue.size())
 				{
 					const char *pName = Server()->ClientName(blue[i].ClientId);
+					char aSafeName[17];
+					SanitizeName(pName ? pName : "?", aSafeName, sizeof(aSafeName));
 					int kdi = (int)(blue[i].KD * 100.0f + 0.5f);
 					str_format(aTmp, sizeof(aTmp), "#%d  %-16.16s %3d  %3d  %d.%02d\n",
-						i + 1, pName ? pName : "?", blue[i].K, blue[i].D, kdi / 100, kdi % 100);
+						i + 1, aSafeName, blue[i].K, blue[i].D, kdi / 100, kdi % 100);
 				}
 				else
 					str_format(aTmp, sizeof(aTmp), "#%d  -\n", i + 1);
@@ -1004,9 +1025,11 @@ void CTeamDeathmatchEvent::AnnounceResults()
 				if(i < (int)red.size())
 				{
 					const char *pName = Server()->ClientName(red[i].ClientId);
+					char aSafeName[17];
+					SanitizeName(pName ? pName : "?", aSafeName, sizeof(aSafeName));
 					int kdi = (int)(red[i].KD * 100.0f + 0.5f);
 					str_format(aTmp, sizeof(aTmp), "#%d  %-16.16s %3d  %3d  %d.%02d\n",
-						i + 1, pName ? pName : "?", red[i].K, red[i].D, kdi / 100, kdi % 100);
+						i + 1, aSafeName, red[i].K, red[i].D, kdi / 100, kdi % 100);
 				}
 				else
 					str_format(aTmp, sizeof(aTmp), "#%d  -\n", i + 1);

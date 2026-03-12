@@ -1,5 +1,7 @@
 #include "experience.h"
 #include <blockworlds/accounts.h>
+#include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/components/events.h>
 
 #include <game/generated/protocol.h>
 #include <game/server/gamecontext.h>
@@ -64,7 +66,14 @@ void CExperience::Tick()
 		{
 			int Amount = m_Amount; // dynamic amount
 			pPlayer->AddPlayerExp(Amount);
-			pPlayer->SetPlayerKills(pPlayer->GetPlayerKills() + 1);
+
+			// Don't count account-level kills during active server events
+			bool InEvent = false;
+			if(auto pEvents = g_ComponentRegistry.Get<CEvents>(); pEvents && pEvents->GetActiveEvent())
+				InEvent = true;
+			if(!InEvent)
+				pPlayer->SetPlayerKills(pPlayer->GetPlayerKills() + 1);
+
 			pPlayer->SetPlayerBlockpoints(pPlayer->GetPlayerBlockpoints() + 1);
 
 			if(pPlayer->GetClanId())

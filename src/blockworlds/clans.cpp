@@ -272,6 +272,8 @@ void CClanManager::RemoveFromClan(int ClientId, const char *AccountName, int Cla
 
 void CClanManager::LoadAllClans()
 {
+	m_ClansLoaded = false;
+	m_LastLoadAttemptTick = GameServer()->Server()->Tick();
 	std::shared_ptr<CClanListResult> pResult = std::make_shared<CClanListResult>();
 	auto pRequest = std::make_unique<CSqlClanListRequest>(pResult, this);
 	m_pPool->Execute(LoadClansThread, std::move(pRequest), "load clans");
@@ -1625,6 +1627,7 @@ void CClanManager::OnClansLoaded(const std::vector<CClansData> &vClans)
 		g_ClanIdMap[clan.m_Id] = clan; // m_Dirty already false
 		g_ClanNameToId[nameLower] = clan.m_Id;
 	}
+	m_ClansLoaded = true;
 	dbg_msg("clan", "Loaded %d clans into memory (map size: %zu)", (int)m_vClansData.size(), g_ClanIdMap.size());
 }
 
@@ -1983,8 +1986,23 @@ int CClanManager::SaveAllClansOnShutdown()
 
 void CClanManager::AutosaveTick()
 {
-	int IntervalTicks = GameServer()->Server()->TickSpeed() * g_Config.m_SvClanSaveInterval;
 	int Now = GameServer()->Server()->Tick();
+
+	if(!m_ClansLoaded)
+	{
+		const int RetryIntervalTicks = GameServer()->Server()->TickSpeed() * 30;
+		if(Now - m_LastLoadAttemptTick >= RetryIntervalTicks)
+		{
+			dbg_msg("clan", "Clan data not loaded yet - retrying LoadAllClans...");
+			m_LastLoadAttemptTick = Now;
+			std::shared_ptr<CClanListResult> pResult = std::make_shared<CClanListResult>();
+			auto pRequest = std::make_unique<CSqlClanListRequest>(pResult, this);
+			m_pPool->Execute(LoadClansThread, std::move(pRequest), "load clans retry");
+		}
+		return; // don't try to autosave when data isn't loaded yet
+	}
+
+	int IntervalTicks = GameServer()->Server()->TickSpeed() * g_Config.m_SvClanSaveInterval;
 	std::vector<int> ToSave;
 	{
 		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
