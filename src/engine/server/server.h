@@ -252,6 +252,16 @@ public:
 	unsigned m_aCurrentMapCrc[NUM_MAP_TYPES];
 	unsigned char *m_apCurrentMapData[NUM_MAP_TYPES];
 	unsigned int m_aCurrentMapSize[NUM_MAP_TYPES];
+
+
+	bool m_bHasPubMap;
+	char m_aPubMap[IO_MAX_PATH_LENGTH]; // "<name>_pub" full path key
+	const char *m_pCurrentPubMapName;  // fs_filename of m_aPubMap
+	SHA256_DIGEST m_aPubMapSha256[NUM_MAP_TYPES];
+	unsigned m_aPubMapCrc[NUM_MAP_TYPES];
+	unsigned char *m_apPubMapData[NUM_MAP_TYPES];
+	unsigned int m_aPubMapSize[NUM_MAP_TYPES];
+
 	char m_aMapDownloadUrl[256];
 
 	CDemoRecorder m_aDemoRecorder[NUM_RECORDERS];

@@ -282,6 +282,15 @@ CServer::CServer()
 		m_aCurrentMapSize[i] = 0;
 	}
 
+	m_bHasPubMap = false;
+	m_aPubMap[0] = '\0';
+	m_pCurrentPubMapName = m_aPubMap;
+	for(int i = 0; i < NUM_MAP_TYPES; i++)
+	{
+		m_apPubMapData[i] = 0;
+		m_aPubMapSize[i] = 0;
+	}
+
 	m_MapReload = false;
 	m_SameMapReload = false;
 	m_ReloadedWhenEmpty = false;
@@ -1255,9 +1264,9 @@ void CServer::SendRconType(int ClientId, bool UsernameReq)
 void CServer::GetMapInfo(char *pMapName, int MapNameSize, int *pMapSize, SHA256_DIGEST *pMapSha256, int *pMapCrc)
 {
 	str_copy(pMapName, GetMapName(), MapNameSize);
-	*pMapSize = m_aCurrentMapSize[MAP_TYPE_SIX];
-	*pMapSha256 = m_aCurrentMapSha256[MAP_TYPE_SIX];
-	*pMapCrc = m_aCurrentMapCrc[MAP_TYPE_SIX];
+	*pMapSize = m_bHasPubMap ? m_aPubMapSize[MAP_TYPE_SIX] : m_aCurrentMapSize[MAP_TYPE_SIX];
+	*pMapSha256 = m_bHasPubMap ? m_aPubMapSha256[MAP_TYPE_SIX] : m_aCurrentMapSha256[MAP_TYPE_SIX];
+	*pMapCrc = m_bHasPubMap ? m_aPubMapCrc[MAP_TYPE_SIX] : m_aCurrentMapCrc[MAP_TYPE_SIX];
 }
 
 void CServer::SendCapabilities(int ClientId)
@@ -1271,25 +1280,29 @@ void CServer::SendCapabilities(int ClientId)
 void CServer::SendMap(int ClientId)
 {
 	int MapType = IsSixup(ClientId) ? MAP_TYPE_SIXUP : MAP_TYPE_SIX;
+	// when a pub map variant is loaded, send its data so players download it instead of normal map
+	const SHA256_DIGEST &MapSha256 = m_bHasPubMap ? m_aPubMapSha256[MapType] : m_aCurrentMapSha256[MapType];
+	const unsigned MapCrc = m_bHasPubMap ? m_aPubMapCrc[MapType] : m_aCurrentMapCrc[MapType];
+	const unsigned int MapSize = m_bHasPubMap ? m_aPubMapSize[MapType] : m_aCurrentMapSize[MapType];
 	{
 		CMsgPacker Msg(NETMSG_MAP_DETAILS, true);
 		Msg.AddString(GetMapName(), 0);
-		Msg.AddRaw(&m_aCurrentMapSha256[MapType].data, sizeof(m_aCurrentMapSha256[MapType].data));
-		Msg.AddInt(m_aCurrentMapCrc[MapType]);
-		Msg.AddInt(m_aCurrentMapSize[MapType]);
+		Msg.AddRaw(&MapSha256.data, sizeof(MapSha256.data));
+		Msg.AddInt(MapCrc);
+		Msg.AddInt(MapSize);
 		Msg.AddString("", 0); // HTTPS map download URL
 		SendMsg(&Msg, MSGFLAG_VITAL, ClientId);
 	}
 	{
 		CMsgPacker Msg(NETMSG_MAP_CHANGE, true);
 		Msg.AddString(GetMapName(), 0);
-		Msg.AddInt(m_aCurrentMapCrc[MapType]);
-		Msg.AddInt(m_aCurrentMapSize[MapType]);
+		Msg.AddInt(MapCrc);
+		Msg.AddInt(MapSize);
 		if(MapType == MAP_TYPE_SIXUP)
 		{
 			Msg.AddInt(Config()->m_SvMapWindow);
 			Msg.AddInt(1024 - 128);
-			Msg.AddRaw(m_aCurrentMapSha256[MapType].data, sizeof(m_aCurrentMapSha256[MapType].data));
+			Msg.AddRaw(MapSha256.data, sizeof(MapSha256.data));
 		}
 		SendMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_FLUSH, ClientId);
 	}
@@ -1300,17 +1313,21 @@ void CServer::SendMap(int ClientId)
 void CServer::SendMapData(int ClientId, int Chunk)
 {
 	int MapType = IsSixup(ClientId) ? MAP_TYPE_SIXUP : MAP_TYPE_SIX;
+	// load pub map data to clients when possible
+	const unsigned char *pMapData = m_bHasPubMap ? m_apPubMapData[MapType] : m_apCurrentMapData[MapType];
+	const unsigned int TotalMapSize = m_bHasPubMap ? m_aPubMapSize[MapType] : m_aCurrentMapSize[MapType];
+	const unsigned MapCrc = m_bHasPubMap ? m_aPubMapCrc[MapType] : m_aCurrentMapCrc[MapType];
 	unsigned int ChunkSize = 1024 - 128;
 	unsigned int Offset = Chunk * ChunkSize;
 	int Last = 0;
 
 	// drop faulty map data requests
-	if(Chunk < 0 || Offset > m_aCurrentMapSize[MapType])
+	if(Chunk < 0 || Offset > TotalMapSize)
 		return;
 
-	if(Offset + ChunkSize >= m_aCurrentMapSize[MapType])
+	if(Offset + ChunkSize >= TotalMapSize)
 	{
-		ChunkSize = m_aCurrentMapSize[MapType] - Offset;
+		ChunkSize = TotalMapSize - Offset;
 		Last = 1;
 	}
 
@@ -1318,11 +1335,11 @@ void CServer::SendMapData(int ClientId, int Chunk)
 	if(MapType == MAP_TYPE_SIX)
 	{
 		Msg.AddInt(Last);
-		Msg.AddInt(m_aCurrentMapCrc[MAP_TYPE_SIX]);
+		Msg.AddInt(MapCrc);
 		Msg.AddInt(Chunk);
 		Msg.AddInt(ChunkSize);
 	}
-	Msg.AddRaw(&m_apCurrentMapData[MapType][Offset], ChunkSize);
+	Msg.AddRaw(&pMapData[Offset], ChunkSize);
 	SendMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_FLUSH, ClientId);
 
 	if(Config()->m_Debug)
@@ -2147,8 +2164,8 @@ void CServer::CacheServerInfo(CCache *pCache, int Type, bool SendClients)
 
 	if(Type == SERVERINFO_EXTENDED)
 	{
-		ADD_INT(p, m_aCurrentMapCrc[MAP_TYPE_SIX]);
-		ADD_INT(p, m_aCurrentMapSize[MAP_TYPE_SIX]);
+		ADD_INT(p, m_bHasPubMap ? m_aPubMapCrc[MAP_TYPE_SIX] : m_aCurrentMapCrc[MAP_TYPE_SIX]);
+		ADD_INT(p, m_bHasPubMap ? m_aPubMapSize[MAP_TYPE_SIX] : m_aCurrentMapSize[MAP_TYPE_SIX]);
 	}
 
 	// gametype
@@ -2485,7 +2502,7 @@ void CServer::UpdateRegisterServerInfo()
 	int MaxClients = maximum(m_NetServer.MaxClients() - g_Config.m_SvReservedSlots, ClientCount);
 	char aMapSha256[SHA256_MAXSTRSIZE];
 
-	sha256_str(m_aCurrentMapSha256[MAP_TYPE_SIX], aMapSha256, sizeof(aMapSha256));
+	sha256_str(m_bHasPubMap ? m_aPubMapSha256[MAP_TYPE_SIX] : m_aCurrentMapSha256[MAP_TYPE_SIX], aMapSha256, sizeof(aMapSha256));
 
 	CJsonStringWriter JsonWriter;
 
@@ -2521,7 +2538,7 @@ void CServer::UpdateRegisterServerInfo()
 	JsonWriter.WriteAttribute("sha256");
 	JsonWriter.WriteStrValue(aMapSha256);
 	JsonWriter.WriteAttribute("size");
-	JsonWriter.WriteIntValue(m_aCurrentMapSize[MAP_TYPE_SIX]);
+	JsonWriter.WriteIntValue(m_bHasPubMap ? m_aPubMapSize[MAP_TYPE_SIX] : m_aCurrentMapSize[MAP_TYPE_SIX]);
 	if(m_aMapDownloadUrl[0])
 	{
 		JsonWriter.WriteAttribute("url");
@@ -2796,6 +2813,60 @@ int CServer::LoadMap(const char *pMapName)
 	{
 		free(m_apCurrentMapData[MAP_TYPE_SIXUP]);
 		m_apCurrentMapData[MAP_TYPE_SIXUP] = 0;
+	}
+
+	// try to load the public (client-facing) map variant: maps/<name>_pub.map
+	// When found, clients download this stripped map while game logic runs on the server map.
+	{
+		char aPubPath[IO_MAX_PATH_LENGTH];
+		str_format(aPubPath, sizeof(aPubPath), "maps/%s_pub.map", pMapName);
+		void *pPubData = nullptr;
+		unsigned int PubSize = 0;
+		if(Storage()->ReadFile(aPubPath, IStorage::TYPE_ALL, &pPubData, &PubSize))
+		{
+			m_bHasPubMap = true;
+			free(m_apPubMapData[MAP_TYPE_SIX]);
+			m_apPubMapData[MAP_TYPE_SIX] = (unsigned char *)pPubData;
+			m_aPubMapSize[MAP_TYPE_SIX] = PubSize;
+			m_aPubMapSha256[MAP_TYPE_SIX] = sha256(m_apPubMapData[MAP_TYPE_SIX], m_aPubMapSize[MAP_TYPE_SIX]);
+			m_aPubMapCrc[MAP_TYPE_SIX] = crc32(0, m_apPubMapData[MAP_TYPE_SIX], m_aPubMapSize[MAP_TYPE_SIX]);
+			str_format(m_aPubMap, sizeof(m_aPubMap), "%s_pub", pMapName);
+			m_pCurrentPubMapName = fs_filename(m_aPubMap);
+			{
+				char aPubSha256[SHA256_MAXSTRSIZE];
+				sha256_str(m_aPubMapSha256[MAP_TYPE_SIX], aPubSha256, sizeof(aPubSha256));
+				char aBufMsg2[256];
+				str_format(aBufMsg2, sizeof(aBufMsg2), "%s sha256 is %s (pub/client map)", aPubPath, aPubSha256);
+				Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "server", aBufMsg2);
+			}
+			// load sixup pub variant
+			free(m_apPubMapData[MAP_TYPE_SIXUP]);
+			m_apPubMapData[MAP_TYPE_SIXUP] = nullptr;
+			m_aPubMapSize[MAP_TYPE_SIXUP] = 0;
+			if(Config()->m_SvSixup)
+			{
+				str_format(aPubPath, sizeof(aPubPath), "maps7/%s_pub.map", pMapName);
+				void *pPubData7 = nullptr;
+				unsigned int PubSize7 = 0;
+				if(Storage()->ReadFile(aPubPath, IStorage::TYPE_ALL, &pPubData7, &PubSize7))
+				{
+					m_apPubMapData[MAP_TYPE_SIXUP] = (unsigned char *)pPubData7;
+					m_aPubMapSize[MAP_TYPE_SIXUP] = PubSize7;
+					m_aPubMapSha256[MAP_TYPE_SIXUP] = sha256(m_apPubMapData[MAP_TYPE_SIXUP], m_aPubMapSize[MAP_TYPE_SIXUP]);
+					m_aPubMapCrc[MAP_TYPE_SIXUP] = crc32(0, m_apPubMapData[MAP_TYPE_SIXUP], m_aPubMapSize[MAP_TYPE_SIXUP]);
+				}
+			}
+		}
+		else
+		{
+			m_bHasPubMap = false;
+			free(m_apPubMapData[MAP_TYPE_SIX]);
+			m_apPubMapData[MAP_TYPE_SIX] = nullptr;
+			m_aPubMapSize[MAP_TYPE_SIX] = 0;
+			free(m_apPubMapData[MAP_TYPE_SIXUP]);
+			m_apPubMapData[MAP_TYPE_SIXUP] = nullptr;
+			m_aPubMapSize[MAP_TYPE_SIXUP] = 0;
+		}
 	}
 
 	for(int i = 0; i < MAX_CLIENTS; i++)
