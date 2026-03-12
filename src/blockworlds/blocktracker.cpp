@@ -480,6 +480,9 @@ float CBlockTracker::AfkVictimRatio(int KillerID) const
 
 void CBlockTracker::RecordKill(int KillerID, int VictimID, bool VictimWasAfk, int64_t NowTick)
 {
+	if(KillerID < 0 || KillerID >= MAX_CLIENTS)
+		return;
+
 	SKillerRecent &KS = m_aKillerStats[KillerID];
 	int TickSpeed = m_pGameContext->Server()->TickSpeed();
 	int Window = g_Config.m_SvExpSameVictimWindowSec * TickSpeed;
