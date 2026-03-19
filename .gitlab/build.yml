@@ -26,14 +26,14 @@ build_cmake_release:
     - mkdir build && cd build
     - export CC=clang
     - export CXX=clang++
-    - cmake -GNinja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=OFF -DUPNP=OFF -DWEBSOCKETS=OFF -DVULKAN=OFF -DGFX=OFF ..
+    - cmake -GNinja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=ON -DUPNP=OFF -DWEBSOCKETS=OFF -DVULKAN=OFF -DGFX=OFF ..
     - ninja game-server
     - cp DDNet-Server ../blockworlds
     # Build Debug
     - rm -rf *
     - export CC=clang
     - export CXX=clang++
-    - cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=OFF -DUPNP=OFF -DWEBSOCKETS=OFF -DVULKAN=OFF -DGFX=OFF ..
+    - cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=ON -DUPNP=OFF -DWEBSOCKETS=OFF -DVULKAN=OFF -DGFX=OFF ..
     - ninja game-server
     - cp DDNet-Server ../blockworlds_d
 
