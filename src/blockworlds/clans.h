@@ -21,7 +21,7 @@ struct CClansData
 	int m_LastSavedTick;
 	bool m_Dirty; // true if EXP/level changed since last successful save
 };
-
+ 
 // Maximum number of members in a clan (including leaders & co-leaders)
 static constexpr int MAX_CLAN_MEMBERS = 25;
 
