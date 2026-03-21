@@ -196,7 +196,7 @@ void CDiscordWebhook::Send(const char *pContent, const SSendOptions *pOpt)
 	}
 	std::string sanitized = SanitizeMentions(pContent);
 
-	CDiscordWebhookQueueManager::Instance().Init(m_pEngine, m_pHttp);
+	CDiscordWebhookQueueManager::Instance().Init(m_pEngine);
 	CDiscordWebhookQueueManager::Instance().Enqueue(pUrl, sanitized.c_str());
 }
 

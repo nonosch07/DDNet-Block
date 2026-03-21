@@ -91,22 +91,29 @@ CDiscordWebhookQueueManager &CDiscordWebhookQueueManager::Instance()
 	return s_Instance;
 }
 
-void CDiscordWebhookQueueManager::Init(IEngine *pEngine, IHttp *pHttp)
+void CDiscordWebhookQueueManager::Init(IEngine *pEngine)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
 	if(m_Initialized)
 		return;
 	m_pEngine = pEngine;
-	m_pHttp = pHttp;
+	if(!m_Http.Init(std::chrono::seconds{2}))
+	{
+		log_error("discord", "failed to initialize dedicated HTTP client for webhooks");
+		return;
+	}
 	m_Initialized = true;
 }
 
 void CDiscordWebhookQueueManager::Shutdown()
 {
-	std::lock_guard<std::mutex> Lock(m_Mutex);
-	m_Running = false;
-	m_Queues.clear();
-	m_pProcessJob.reset();
+	{
+		std::lock_guard<std::mutex> Lock(m_Mutex);
+		m_Running = false;
+		m_Queues.clear();
+		m_pProcessJob.reset();
+	}
+	m_Http.Shutdown();
 }
 
 void CDiscordWebhookQueueManager::Enqueue(const char *pUrl, const char *pMessage)
@@ -227,7 +234,7 @@ void CDiscordWebhookQueueManager::ProcessQueues()
 		W.EndObject();
 		std::string Payload = W.GetOutputString();
 
-		auto pJob = std::make_shared<CDiscordSendJob>(m_pHttp, SendPair.first, Payload);
+		auto pJob = std::make_shared<CDiscordSendJob>(&m_Http, SendPair.first, Payload);
 		m_pEngine->AddJob(pJob);
 	}
 }
