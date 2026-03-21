@@ -325,15 +325,6 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		str_copy(pResult->m_aaMessages[0], "Clan name must be between 3 and 32 characters (after trimming).", sizeof(pResult->m_aaMessages[0]));
 		return false;
 	}
-	for(int i = 0; aNormalizedName[i]; i++)
-	{
-		char c = aNormalizedName[i];
-		if(!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == ' '))
-		{
-			str_copy(pResult->m_aaMessages[0], "Clan name can only contain letters, numbers, underscore, dash and spaces.", sizeof(pResult->m_aaMessages[0]));
-			return false;
-		}
-	}
 
 	str_format(aBuf, sizeof(aBuf), "SELECT clanID FROM %s WHERE account_id = ? LIMIT 1;", TBL_ACCOUNTS_PROGRESS);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
