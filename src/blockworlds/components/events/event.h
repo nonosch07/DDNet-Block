@@ -116,6 +116,8 @@ public:
 
 	// returns true if this event allows the given participant to kill themselves
 	[[nodiscard]] virtual bool AllowKillCommandFor(int /*ClientId*/) const { return false; }
+	// returns true if this event allows the given participant to zoom
+	[[nodiscard]] virtual bool AllowZoomFor(int /*ClientId*/) const { return true; }
 
 	// optional per-event team index for presenting teams to clients (e.g., vanilla UI teams).
 	// Return 0 for red, 1 for blue, or nullopt if not applicable/not a participant.

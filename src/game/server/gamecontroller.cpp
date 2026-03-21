@@ -655,6 +655,10 @@ void IGameController::Snap(int SnappingClient)
 						pGameInfoObj->m_GameFlags |= GAMEFLAG_TEAMS;
 					}
 				}
+				if(!ev->AllowZoomFor(SnappingClient))
+				{
+					pGameInfoEx->m_Flags &= ~GAMEINFOFLAG_ALLOW_ZOOM;
+				}
 			}
 		}
 	}

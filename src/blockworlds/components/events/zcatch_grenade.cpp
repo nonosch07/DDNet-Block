@@ -614,6 +614,19 @@ void CZCatchGrenadeEvent::OnTick()
 	}
 }
 
+bool CZCatchGrenadeEvent::AllowZoomFor(int ClientId) const
+{
+	if(GetState() != EEventState::Active)
+		return true;
+	if(!IsParticipant(ClientId))
+		return true;
+
+	if(IsCaught(ClientId))
+		return true;
+
+	return false;
+}
+
 int CZCatchGrenadeEvent::GetMinCandidates() const
 {
 	return Config()->m_SvZCatchMinimumCandidates;
