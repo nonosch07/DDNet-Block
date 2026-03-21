@@ -26,8 +26,8 @@ enum class ClanAuthLevel : int
 
 #include <game/server/gamecontext.h>
 
-#include "common.h"
 #include "clans.h"
+#include "common.h"
 
 struct ISqlData;
 class IDbConnection;

@@ -61,7 +61,6 @@ protected:
 	bool m_EmergencyShutdown;
 	char m_EmergencyMessage[256];
 
-
 	void SaveAndClearCosmetics(int ClientId);
 	void RestoreCosmetics(int ClientId);
 
