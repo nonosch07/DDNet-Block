@@ -2359,15 +2359,15 @@ void CPlayer::ProcessWeeklyReward()
 		str_copy(aBuf, "[Weekly Day 6/7] +2 hours of Passive Protection!", sizeof(aBuf));
 		break;
 	}
-	case 6: // Day 7: 150 BP + x2 EXP for 48h of ingame time
+	case 6: // Day 7: 150 BP + x2 EXP for 2h of ingame time
 	{
 		SetPlayerBlockpoints(GetPlayerBlockpoints() + 150);
-		// x2 EXP boost for 48h of account playtime (in seconds)
-		long long BoostEndPlaytime = GetPlayerPlaytime() + 48LL * 3600;
+		// x2 EXP boost for 2h of account playtime (in seconds)
+		long long BoostEndPlaytime = GetPlayerPlaytime() + 2LL * 3600;
 		SetWeeklyExpBoostUntil(BoostEndPlaytime);
-		// Activate the multiplier for 48h of real playtime (2880 minutes)
-		AddExpMultiplier(200, 2880);
-		str_copy(aBuf, "[Weekly Day 7/7] +150 Blockpoints + x2 EXP for 48h (ingame time)! Streak complete!", sizeof(aBuf));
+		// Activate the multiplier for 2h of real playtime (120 minutes)
+		AddExpMultiplier(200, 120);
+		str_copy(aBuf, "[Weekly Day 7/7] +150 Blockpoints + x2 EXP for 2h (ingame time)! Streak complete!", sizeof(aBuf));
 		break;
 	}
 	default:

@@ -59,6 +59,7 @@ private:
 
 	// spawns: use only shared event start positions (tdm_spawn gamezone quads)
 	std::vector<vec2> m_EventStartPositions;
+	std::set<int> m_UsedSpawnIndices;
 	// reserved unique spawn index for the very first spawn at event start
 	std::unordered_map<int, int> m_AssignedSpawnIndex; // ClientId -> index in m_EventStartPositions
 

@@ -26,6 +26,7 @@ enum class ClanAuthLevel : int
 
 #include <game/server/gamecontext.h>
 
+#include "common.h"
 #include "clans.h"
 
 struct ISqlData;
@@ -278,7 +279,7 @@ struct CSqlAccountRequest : ISqlData
 	char m_aUsername[12];
 	char m_aPassword[64];
 	char m_aNewPassword[64];
-	char m_aClanName[33];
+	char m_aClanName[BW_CLAN_NAME_BUFFER_SIZE];
 	int m_AccountId;
 	int m_ClientId;
 };

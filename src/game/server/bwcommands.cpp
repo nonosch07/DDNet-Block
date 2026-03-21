@@ -13,6 +13,7 @@
 
 #include <blockworlds/accounts.h>
 #include <blockworlds/clans.h>
+#include <blockworlds/common.h>
 #include <blockworlds/components/requests.h>
 
 #include <blockworlds/components/core/component_registry.h>
@@ -1979,7 +1980,7 @@ void CGameContext::ConClanCreate(IConsole::IResult *pResult, void *pUserData)
 
 	if(ClanNameLength < 3)
 		return pSelf->SendChatTarget(ClientId, "Clan name must be at least 3 characters long!");
-	if(ClanNameLength > 11)
+	if(ClanNameLength > BW_CLAN_NAME_MAX_LENGTH)
 		return pSelf->SendChatTarget(ClientId, "Clan name is too long (max 11 characters)!");
 
 	if(pSelf->Clans()->GetClanIdByName(pClanName) != -1)
@@ -2380,11 +2381,8 @@ void CGameContext::ConClanRename(IConsole::IResult *pResult, void *pUserData)
 
 	if(ClanNameLength < 3)
 		return pSelf->SendChatTarget(ClientId, "Clan name must be at least 3 characters long!");
-	if(ClanNameLength > 11)
+	if(ClanNameLength > BW_CLAN_NAME_MAX_LENGTH)
 		return pSelf->SendChatTarget(ClientId, "Clan name is too long (max 11 characters)!");
-
-	if(!CheckValidChars(pNewClanName))
-		return pSelf->SendChatTarget(ClientId, "Only A-Z and 0-9 are allowed in clan names!");
 
 	if(pSelf->Clans()->GetClanIdByName(pNewClanName) != -1)
 		return pSelf->SendChatTarget(ClientId, "This clan name is already taken!");
@@ -2676,7 +2674,6 @@ void CGameContext::Con1on1Ready(IConsole::IResult *pResult, void *pUserData)
 void CGameContext::ConJoinEvent(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
-	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 	return pSelf->SendChatTarget(pResult->m_ClientId, "use /join instead.");
 }
 

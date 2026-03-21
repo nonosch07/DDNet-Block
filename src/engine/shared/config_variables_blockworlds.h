@@ -172,6 +172,7 @@ MACRO_CONFIG_STR(SvDiscordWebhookUrlTdm, sv_discord_webhook_url_tdm, 512, "", CF
 MACRO_CONFIG_STR(SvDiscordWebhookUrlZCatch, sv_discord_webhook_url_zcatch, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for zCatch results (winner and top 3)")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlChat, sv_discord_webhook_url_chat, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for chat relay")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlChatFilter, sv_discord_webhook_url_chatfilter, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for chat filter mutes")
+MACRO_CONFIG_STR(SvDiscordWebhookUrlAntibot, sv_discord_webhook_url_antibot, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for antibot logs")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlRconLogs, sv_discord_webhook_url_rcon_logs, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL used for RCON logs")
 
 // 1on1 duel settings
