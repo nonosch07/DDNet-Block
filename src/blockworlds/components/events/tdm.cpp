@@ -146,37 +146,16 @@ std::optional<vec2> CTeamDeathmatchEvent::ChooseSpawnFor(int ClientId)
 		if(it != m_AssignedSpawnIndex.end())
 		{
 			int idx = it->second;
-			m_AssignedSpawnIndex.erase(it); // consume reservation so later respawns use least-crowded logic
+			m_AssignedSpawnIndex.erase(it); // consume reservation
 			if(idx >= 0 && idx < (int)m_EventStartPositions.size())
+			{
+				m_UsedSpawnIndices.insert(idx);
 				return m_EventStartPositions[(size_t)idx];
+			}
 		}
 
-		// choose the least-crowded start position
-		int bestIdx = -1;
-		int bestCount = 0x7fffffff;
-		const float R = 100.0f;
-		for(int i = 0; i < (int)m_EventStartPositions.size(); ++i)
-		{
-			vec2 pos = m_EventStartPositions[(size_t)i];
-			int nearby = 0;
-			for(int pid : m_Participants)
-			{
-				if(pid == ClientId)
-					continue;
-				auto *pChr = GameServer()->GetPlayerChar(pid);
-				if(!pChr || !pChr->IsAlive())
-					continue;
-				if(distance(pChr->m_Pos, pos) <= R)
-					nearby++;
-			}
-			if(nearby < bestCount)
-			{
-				bestCount = nearby;
-				bestIdx = i;
-			}
-		}
-		if(bestIdx >= 0)
-			return m_EventStartPositions[(size_t)bestIdx];
+		
+		return RandomSpawnPos(m_EventStartPositions, m_UsedSpawnIndices);
 	}
 	// no tdm_spawn gamezone quads: do not teleport (fallback is saved position)
 	(void)ClientId;
@@ -330,6 +309,7 @@ void CTeamDeathmatchEvent::ResetTransientState()
 	m_RespawnAtTick.clear();
 	m_LastRespawnSeconds.clear();
 	m_AssignedSpawnIndex.clear();
+m_UsedSpawnIndices.clear();
 	m_SetSpecAtTick.clear();
 	m_LastDeathHandledTick.clear();
 	m_LastImpactByVictim.clear();
@@ -443,6 +423,7 @@ void CTeamDeathmatchEvent::UpdateSetSpectators()
 void CTeamDeathmatchEvent::AssignUniqueStartSpawns()
 {
 	m_AssignedSpawnIndex.clear();
+m_UsedSpawnIndices.clear();
 	if(m_EventStartPositions.empty())
 		return;
 

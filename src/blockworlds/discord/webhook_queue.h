@@ -5,6 +5,7 @@
 #include <base/system.h>
 
 #include <deque>
+#include <engine/shared/http.h>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -31,7 +32,7 @@ class CDiscordWebhookQueueManager
 	std::mutex m_Mutex;
 	std::unordered_map<std::string, SDiscordMessageQueue> m_Queues;
 	IEngine *m_pEngine = nullptr;
-	IHttp *m_pHttp = nullptr;
+	CHttp m_Http; // dedicated HTTP so webhooks don't starve master server registration
 	std::shared_ptr<CDiscordQueueJob> m_pProcessJob;
 	bool m_Running = false;
 	bool m_Initialized = false;
@@ -50,7 +51,7 @@ class CDiscordWebhookQueueManager
 public:
 	static CDiscordWebhookQueueManager &Instance();
 
-	void Init(IEngine *pEngine, IHttp *pHttp);
+	void Init(IEngine *pEngine);
 	void Shutdown();
 
 	void Enqueue(const char *pUrl, const char *pMessage);

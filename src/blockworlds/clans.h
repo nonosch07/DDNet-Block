@@ -2,6 +2,8 @@
 #define BLOCKWORLDS_CLANS_H
 
 #include "engine/server/databases/connection_pool.h"
+#include "engine/shared/config.h"
+#include "common.h"
 #include <memory>
 #include <string>
 #include <unordered_set>
@@ -14,7 +16,7 @@ class CGameContext;
 struct CClansData
 {
 	int m_Id;
-	char m_ClanName[33]; // Match SQL schema varchar(32) + null terminator
+	char m_ClanName[BW_CLAN_NAME_BUFFER_SIZE];
 	int m_Level;
 	int m_Experience;
 
@@ -23,7 +25,7 @@ struct CClansData
 };
  
 // Maximum number of members in a clan (including leaders & co-leaders)
-static constexpr int MAX_CLAN_MEMBERS = 25;
+#define MAX_CLAN_MEMBERS (g_Config.m_SvClanMaxMembers)
 
 struct CClanListResult : ISqlResult
 {
@@ -95,8 +97,8 @@ struct CClanResult : ISqlResult
 	// while m_ActionPlayerName / m_ActionNewAuthLevel2 apply to the other (by name)
 	int m_ActionNewAuthLevel2 = 0;
 	int m_ActionResetClanId = 0; // for ACTION_RESET_CLAN_PLAYERS
-	char m_ActionOldClanName[33]{}; // for ACTION_NOTIFY_CLAN_RENAME
-	char m_ActionNewClanName[33]{}; // for ACTION_NOTIFY_CLAN_RENAME
+	char m_ActionOldClanName[BW_CLAN_NAME_BUFFER_SIZE]{};
+	char m_ActionNewClanName[BW_CLAN_NAME_BUFFER_SIZE]{};
 	int m_ActionChargeClientId = -1; // client to charge on success
 	int m_ActionChargeAmount = 0; // blockpoints to deduct on success
 };
@@ -110,13 +112,13 @@ struct CSqlClanRequest : ISqlData
 		m_aUsername[0] = '\0';
 		m_aNewClanName[0] = '\0';
 	}
-	char m_aClanName[33]; // Match SQL schema varchar(32) + null terminator
+	char m_aClanName[BW_CLAN_NAME_BUFFER_SIZE];
 	char m_aUsername[12]; // Match SQL schema varchar(11) + null terminator
 	int m_AccountId;
 	int m_ClientId;
 	int m_ClanId;
 	int m_NewAuthLevel;
-	char m_aNewClanName[33]; // Match SQL schema varchar(32) + null terminator
+	char m_aNewClanName[BW_CLAN_NAME_BUFFER_SIZE];
 	CClanManager *m_pClanManager;
 };
 

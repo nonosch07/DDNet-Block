@@ -10,12 +10,22 @@
 #include "engine/shared/config.h"
 #include "sql_prefix.h"
 
-#define MAX_CLAN_NAME_LENGTH 32
-
 void ToLowercase(char *str)
 {
 	for(; *str; ++str)
-		*str = std::tolower(*str);
+	{
+		if(*str >= 'A' && *str <= 'Z')
+			*str = (char)(*str - 'A' + 'a');
+	}
+}
+
+static void ToLowercaseAscii(std::string &Str)
+{
+	for(char &c : Str)
+	{
+		if(c >= 'A' && c <= 'Z')
+			c = (char)(c - 'A' + 'a');
+	}
 }
 
 // --- Utility: trim leading and trailing spaces (ASCII) in-place ---
@@ -317,12 +327,13 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 
 	pResult->SetVariant(CClanResult::DIRECT);
 
-	char aNormalizedName[MAX_CLAN_NAME_LENGTH + 1];
+	char aNormalizedName[BW_CLAN_NAME_BUFFER_SIZE];
 	str_copy(aNormalizedName, pData->m_aClanName, sizeof(aNormalizedName));
 	TrimSpaces(aNormalizedName);
-	if(str_length(aNormalizedName) < 3 || str_length(aNormalizedName) > MAX_CLAN_NAME_LENGTH)
+	const int NameChars = str_length(aNormalizedName);
+	if(NameChars < 3 || NameChars > BW_CLAN_NAME_MAX_LENGTH)
 	{
-		str_copy(pResult->m_aaMessages[0], "Clan name must be between 3 and 32 characters (after trimming).", sizeof(pResult->m_aaMessages[0]));
+		str_copy(pResult->m_aaMessages[0], "Clan name must be between 3 and 11 characters (after trimming).", sizeof(pResult->m_aaMessages[0]));
 		return false;
 	}
 
@@ -476,7 +487,7 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		NewClan.m_Id = ClanId;
 		str_copy(NewClan.m_ClanName, aNormalizedName, sizeof(NewClan.m_ClanName));
 		// keep the stored name as given, but map keys are lowercase
-		char aNameLower[MAX_CLAN_NAME_LENGTH + 1];
+		char aNameLower[BW_CLAN_NAME_BUFFER_SIZE];
 		str_copy(aNameLower, aNormalizedName, sizeof(aNameLower));
 		ToLowercase(aNameLower);
 		NewClan.m_Level = 1;
@@ -632,7 +643,7 @@ bool CClanManager::DeleteClanThread(IDbConnection *pSqlServer, const ISqlData *p
 			{
 				// erase from vector
 				std::string nameLower(it->m_ClanName);
-				std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
+				ToLowercaseAscii(nameLower);
 				int id = it->m_Id;
 				vec.erase(it);
 				// erase from maps as well
@@ -1410,25 +1421,15 @@ bool CClanManager::RenameClanThread(IDbConnection *pSqlServer, const ISqlData *p
 
 	pResult->SetVariant(CClanResult::DIRECT);
 
-	char aNormalizedName[MAX_CLAN_NAME_LENGTH + 1];
+	char aNormalizedName[BW_CLAN_NAME_BUFFER_SIZE];
 	str_copy(aNormalizedName, pData->m_aNewClanName, sizeof(aNormalizedName));
 	TrimSpaces(aNormalizedName);
-	int NewNameLen = str_length(aNormalizedName);
-	if(NewNameLen < 3 || NewNameLen > MAX_CLAN_NAME_LENGTH)
+	const int NewNameLen = str_length(aNormalizedName);
+	if(NewNameLen < 3 || NewNameLen > BW_CLAN_NAME_MAX_LENGTH)
 	{
 		pResult->SetVariant(CClanResult::DIRECT);
-		str_copy(pResult->m_aaMessages[0], "Clan name must be between 3 and 32 characters (after trimming).", sizeof(pResult->m_aaMessages[0]));
+		str_copy(pResult->m_aaMessages[0], "Clan name must be between 3 and 11 characters (after trimming).", sizeof(pResult->m_aaMessages[0]));
 		return false;
-	}
-	for(int i = 0; aNormalizedName[i]; ++i)
-	{
-		char c = aNormalizedName[i];
-		if(!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == ' '))
-		{
-			pResult->SetVariant(CClanResult::DIRECT);
-			str_copy(pResult->m_aaMessages[0], "Clan name can only contain letters, numbers, underscore, dash and spaces.", sizeof(pResult->m_aaMessages[0]));
-			return false;
-		}
 	}
 
 	if(!CheckClanPermission(pSqlServer, pData->m_AccountId, pData->m_ClanId, 3, pError, ErrorSize))
@@ -1514,14 +1515,14 @@ bool CClanManager::RenameClanThread(IDbConnection *pSqlServer, const ISqlData *p
 			if(it != g_ClanIdMap.end())
 			{
 				// remove old name mapping
-				std::transform(oldNameLower.begin(), oldNameLower.end(), oldNameLower.begin(), ::tolower);
+				ToLowercaseAscii(oldNameLower);
 				if(!oldNameLower.empty())
 					g_ClanNameToId.erase(oldNameLower);
 				// set new name in id map and add name->id map
 				it->second.m_ClanName[0] = '\0';
 				str_copy(it->second.m_ClanName, aNormalizedName, sizeof(it->second.m_ClanName));
 				std::string newLower(aNormalizedName);
-				std::transform(newLower.begin(), newLower.end(), newLower.begin(), ::tolower);
+				ToLowercaseAscii(newLower);
 				g_ClanNameToId[newLower] = pData->m_ClanId;
 			}
 		}
@@ -1576,7 +1577,16 @@ bool CClanManager::LoadClansThread(IDbConnection *pSqlServer, const ISqlData *pG
 		{
 			CClansData Data;
 			Data.m_Id = pSqlServer->GetInt(1);
-			pSqlServer->GetString(2, Data.m_ClanName, sizeof(Data.m_ClanName));
+			// read into a larger buffer first to avoid assertion if DB has oversized names
+			char aNameBuf[256];
+			pSqlServer->GetString(2, aNameBuf, sizeof(aNameBuf));
+			if(str_length(aNameBuf) > BW_CLAN_NAME_MAX_LENGTH)
+			{
+				dbg_msg("clan", "WARNING: clan id=%d name '%s' exceeds %d byte limit (%d bytes), skipping",
+					Data.m_Id, aNameBuf, BW_CLAN_NAME_MAX_LENGTH, str_length(aNameBuf));
+				continue;
+			}
+			str_copy(Data.m_ClanName, aNameBuf, sizeof(Data.m_ClanName));
 			Data.m_Level = pSqlServer->GetInt(3);
 			Data.m_Experience = pSqlServer->GetInt(4);
 			Data.m_LastSavedTick = 0;
@@ -1609,7 +1619,7 @@ void CClanManager::OnClansLoaded(const std::vector<CClansData> &vClans)
 			continue;
 		}
 		std::string nameLower(clan.m_ClanName);
-		std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
+		ToLowercaseAscii(nameLower);
 		if(g_ClanNameToId.count(nameLower))
 		{
 			dbg_msg("clan", "Duplicate clan name '%s' detected!", clan.m_ClanName);
@@ -1626,7 +1636,7 @@ void CClanManager::OnClansLoaded(const std::vector<CClansData> &vClans)
 int CClanManager::GetClanIdByName(const char *pClanName)
 {
 	std::string nameLower(pClanName);
-	std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
+	ToLowercaseAscii(nameLower);
 	std::lock_guard<std::mutex> lock(g_ClansDataMutex);
 	auto it = g_ClanNameToId.find(nameLower);
 	if(it != g_ClanNameToId.end())
@@ -1834,7 +1844,7 @@ bool CClanManager::ShowTopClansThread(IDbConnection *pSqlServer, const ISqlData 
 	while(!pSqlServer->Step(&End, pError, ErrorSize) && !End)
 	{
 		*pError = '\0';
-		char aClanName[32];
+		char aClanName[BW_CLAN_NAME_BUFFER_SIZE];
 		int Level = 0;
 
 		pSqlServer->GetString(1, aClanName, sizeof(aClanName));
@@ -1890,7 +1900,7 @@ bool CClanManager::ShowClanMembersThread(IDbConnection *pSqlServer, const ISqlDa
 		return false;
 	}
 
-	char aClanName[33] = {0};
+	char aClanName[BW_CLAN_NAME_BUFFER_SIZE] = {0};
 	if(pData->m_pClanManager)
 	{
 		auto nameStr = pData->m_pClanManager->GetClanNameCopy(pData->m_ClanId);

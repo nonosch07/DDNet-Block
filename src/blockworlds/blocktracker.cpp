@@ -739,7 +739,15 @@ bool CBlockTracker::OnPlayerKill(int ClientID)
 		// don't count account-level deaths during active server events
 		bool InEvent = false;
 		if(auto pEvents = g_ComponentRegistry.Get<CEvents>(); pEvents && pEvents->GetActiveEvent())
+			{
+	auto pActiveEvent = pEvents->GetActiveEvent();
+	if(pActiveEvent->GetState() == CEventComponent::EEventState::Active || pActiveEvent->GetState() == CEventComponent::EEventState::Preparation)
+	{
+		const auto& Participants = pActiveEvent->Participants();
+		if(std::find(Participants.begin(), Participants.end(), ClientID) != Participants.end())
 			InEvent = true;
+	}
+}
 		if(!InEvent)
 			pPlayer->SetPlayerDeaths(pPlayer->GetPlayerDeaths() + 1);
 	}

@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include <blockworlds/common.h>
 #include "core/component.h"
 
 class CRequests : public CComponent
@@ -40,8 +41,8 @@ public:
 		int m_Item{}; // shop item id
 		int m_ExpireTick{};
 		char m_aUsername[12]{}; //for ClanKickConfirm: target account name (varchar(11) + null)
-		char m_aOldClanName[33]{}; // for ClanRenameNotice
-		char m_aNewClanName[33]{}; // for ClanRenameNotice
+		char m_aOldClanName[BW_CLAN_NAME_BUFFER_SIZE]{}; // for ClanRenameNotice
+		char m_aNewClanName[BW_CLAN_NAME_BUFFER_SIZE]{}; // for ClanRenameNotice
 		// NOTE: for BlockpointTransfer we reuse m_Wager to store transfer amount to avoiding expanding struct size.
 	};
 

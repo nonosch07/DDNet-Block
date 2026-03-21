@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "experience.h"
 #include <blockworlds/accounts.h>
 #include <blockworlds/components/core/component_registry.h>
@@ -70,7 +71,15 @@ void CExperience::Tick()
 			// Don't count account-level kills during active server events
 			bool InEvent = false;
 			if(auto pEvents = g_ComponentRegistry.Get<CEvents>(); pEvents && pEvents->GetActiveEvent())
-				InEvent = true;
+			{
+				auto pActiveEvent = pEvents->GetActiveEvent();
+				if(pActiveEvent->GetState() == CEventComponent::EEventState::Active || pActiveEvent->GetState() == CEventComponent::EEventState::Preparation)
+				{
+					const auto& Participants = pActiveEvent->Participants();
+					if(std::find(Participants.begin(), Participants.end(), pPlayer->GetCid()) != Participants.end())
+						InEvent = true;
+				}
+			}
 			if(!InEvent)
 				pPlayer->SetPlayerKills(pPlayer->GetPlayerKills() + 1);
 

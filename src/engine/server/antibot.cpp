@@ -8,6 +8,8 @@
 #include <engine/kernel.h>
 #include <engine/server.h>
 #include <game/server/gamecontext.h>
+#include <engine/shared/config.h>
+#include <blockworlds/discord/webhook.h>
 
 class IEngineAntibot;
 
@@ -52,6 +54,18 @@ void CAntibot::Report(int ClientId, const char *pMessage, void *pUser)
 				str_format(aChatMsg, sizeof(aChatMsg), "[ANTIBOT] %s", pMessage);
 				pGameContext->SendChatTarget(i, aChatMsg);
 			}
+		}
+
+		const char *pAntibotUrl = g_Config.m_SvDiscordWebhookUrlAntibot[0] ? g_Config.m_SvDiscordWebhookUrlAntibot : nullptr;
+		if(pAntibotUrl)
+		{
+			CDiscordWebhook Discord(pGameContext->Engine(), pGameContext->Http());
+			CDiscordWebhook::SSendOptions Opt;
+			Opt.m_pWebhookUrl = pAntibotUrl;
+			Opt.m_pUsername = "Antibot";
+			char aContent[512];
+			str_format(aContent, sizeof(aContent), "```%s```", pMessage);
+			Discord.Send(aContent, Opt);
 		}
 	}
 }
