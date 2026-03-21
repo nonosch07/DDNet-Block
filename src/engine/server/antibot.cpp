@@ -65,8 +65,7 @@ void CAntibot::Report(int ClientId, const char *pMessage, void *pUser)
 			Opt.m_pUsername = "Antibot";
 			char aContent[512];
 			str_format(aContent, sizeof(aContent), "```%s```", pMessage);
-			Opt.m_pContent = aContent;
-			Discord.Send(Opt);
+			Discord.Send(aContent, Opt);
 		}
 	}
 }
