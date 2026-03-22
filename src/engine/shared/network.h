@@ -9,6 +9,9 @@
 #include <base/math.h>
 #include <base/system.h>
 
+#include <set>
+#include <string>
+
 class CHuffman;
 class CNetBan;
 class CPacker;
@@ -398,6 +401,8 @@ class CNetServer
 	int m_MaxClients;
 	int m_MaxClientsPerIp;
 
+	std::set<std::string> m_IpWhitelist;
+
 	NETFUNC_NEWCLIENT m_pfnNewClient;
 	NETFUNC_NEWCLIENT_NOAUTH m_pfnNewClientNoAuth;
 	NETFUNC_DELCLIENT m_pfnDelClient;
@@ -460,6 +465,9 @@ public:
 
 	//
 	void SetMaxClientsPerIp(int Max);
+	void AddWhitelistedIp(const char *pIp);
+	void RemoveWhitelistedIp(const char *pIp);
+	const std::set<std::string> &GetWhitelistedIps() const { return m_IpWhitelist; }
 	bool SetTimedOut(int ClientId, int OrigId);
 	void SetTimeoutProtected(int ClientId);
 

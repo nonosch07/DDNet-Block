@@ -216,10 +216,15 @@ int CNetServer::TryAcceptClient(NETADDR &Addr, SECURITY_TOKEN SecurityToken, boo
 	// check for sv_max_clients_per_ip
 	if(NumClientsWithAddr(Addr) + 1 > m_MaxClientsPerIp)
 	{
-		char aBuf[128];
-		str_format(aBuf, sizeof(aBuf), "Only %d players with the same IP are allowed", m_MaxClientsPerIp);
-		CNetBase::SendControlMsg(m_Socket, &Addr, 0, NET_CTRLMSG_CLOSE, aBuf, str_length(aBuf) + 1, SecurityToken, Sixup);
-		return -1; // failed to add client
+		char aAddrStr[NETADDR_MAXSTRSIZE];
+		net_addr_str(&Addr, aAddrStr, sizeof(aAddrStr), false);
+		if(m_IpWhitelist.find(aAddrStr) == m_IpWhitelist.end())
+		{
+			char aBuf[128];
+			str_format(aBuf, sizeof(aBuf), "Only %d players with the same IP are allowed", m_MaxClientsPerIp);
+			CNetBase::SendControlMsg(m_Socket, &Addr, 0, NET_CTRLMSG_CLOSE, aBuf, str_length(aBuf) + 1, SecurityToken, Sixup);
+			return -1; // failed to add client
+		}
 	}
 
 	int Slot = -1;
@@ -789,6 +794,16 @@ void CNetServer::SetMaxClientsPerIp(int Max)
 		Max = NET_MAX_CLIENTS;
 
 	m_MaxClientsPerIp = Max;
+}
+
+void CNetServer::AddWhitelistedIp(const char *pIp)
+{
+	m_IpWhitelist.insert(pIp);
+}
+
+void CNetServer::RemoveWhitelistedIp(const char *pIp)
+{
+	m_IpWhitelist.erase(pIp);
 }
 
 bool CNetServer::SetTimedOut(int ClientId, int OrigId)

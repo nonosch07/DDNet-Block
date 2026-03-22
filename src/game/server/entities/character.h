@@ -234,6 +234,7 @@ public:
 	int m_TileFIndex;
 
 	bool m_IsOnPassiveTile = false;
+	bool m_IsOnRandomCosmeticTile = false;
 
 	int64_t m_LastStartWarning;
 	int64_t m_LastRescue;

@@ -3945,6 +3945,95 @@ void CServer::ConchainMaxclientsperipUpdate(IConsole::IResult *pResult, void *pU
 		((CServer *)pUserData)->m_NetServer.SetMaxClientsPerIp(pResult->GetInteger(0));
 }
 
+void CServer::ConIpWhitelistAdd(IConsole::IResult *pResult, void *pUserData)
+{
+	CServer *pServer = static_cast<CServer *>(pUserData);
+	const char *pIp = pResult->GetString(0);
+	pServer->m_NetServer.AddWhitelistedIp(pIp);
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "IP '%s' added to per-IP whitelist", pIp);
+	pServer->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+	pServer->SaveIpWhitelist();
+}
+
+void CServer::ConIpWhitelistRemove(IConsole::IResult *pResult, void *pUserData)
+{
+	CServer *pServer = static_cast<CServer *>(pUserData);
+	const char *pIp = pResult->GetString(0);
+	const auto &List = pServer->m_NetServer.GetWhitelistedIps();
+	if(List.find(pIp) == List.end())
+	{
+		char aBuf[128];
+		str_format(aBuf, sizeof(aBuf), "IP '%s' is not in the per-IP whitelist", pIp);
+		pServer->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+		return;
+	}
+	pServer->m_NetServer.RemoveWhitelistedIp(pIp);
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "IP '%s' removed from per-IP whitelist", pIp);
+	pServer->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+	pServer->SaveIpWhitelist();
+}
+
+void CServer::ConIpWhitelistList(IConsole::IResult *pResult, void *pUserData)
+{
+	CServer *pServer = static_cast<CServer *>(pUserData);
+	const auto &Ips = pServer->m_NetServer.GetWhitelistedIps();
+	if(Ips.empty())
+	{
+		pServer->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Per-IP whitelist is empty");
+		return;
+	}
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "Per-IP whitelisted IPs (%d):", (int)Ips.size());
+	pServer->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+	for(const auto &Ip : Ips)
+	{
+		str_format(aBuf, sizeof(aBuf), "  %s", Ip.c_str());
+		pServer->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+	}
+}
+
+void CServer::SaveIpWhitelist()
+{
+	IOHANDLE File = io_open("data/ip_whitelist.txt", IOFLAG_WRITE);
+	if(!File)
+	{
+		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "Failed to save IP whitelist");
+		return;
+	}
+	const auto &Ips = m_NetServer.GetWhitelistedIps();
+	for(const auto &Ip : Ips)
+	{
+		io_write(File, Ip.c_str(), Ip.size());
+		io_write_newline(File);
+	}
+	io_close(File);
+}
+
+void CServer::LoadIpWhitelist()
+{
+	CLineReader LineReader;
+	IOHANDLE File = io_open("data/ip_whitelist.txt", IOFLAG_READ);
+	if(!LineReader.OpenFile(File))
+		return;
+	int Count = 0;
+	while(const char *pLine = LineReader.Get())
+	{
+		if(pLine[0] != '\0')
+		{
+			m_NetServer.AddWhitelistedIp(pLine);
+			Count++;
+		}
+	}
+	if(Count > 0)
+	{
+		char aBuf[128];
+		str_format(aBuf, sizeof(aBuf), "IP whitelist loaded | Entries: %d", Count);
+		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
+	}
+}
+
 void CServer::ConchainCommandAccessUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData)
 {
 	if(pResult->NumArguments() == 2)
@@ -4208,6 +4297,12 @@ void CServer::RegisterCommands()
 	Console()->Chain("sv_spectator_slots", ConchainSpecialInfoupdate, this);
 
 	Console()->Chain("sv_max_clients_per_ip", ConchainMaxclientsperipUpdate, this);
+
+	Console()->Register("ip_whitelist_add", "s[ip]", CFGFLAG_SERVER, ConIpWhitelistAdd, this, "Add an IP to the per-IP client limit whitelist");
+	Console()->Register("ip_whitelist_remove", "s[ip]", CFGFLAG_SERVER, ConIpWhitelistRemove, this, "Remove an IP from the per-IP client limit whitelist");
+	Console()->Register("ip_whitelist_list", "", CFGFLAG_SERVER, ConIpWhitelistList, this, "List all whitelisted IPs for per-IP client limit");
+	LoadIpWhitelist();
+
 	Console()->Chain("access_level", ConchainCommandAccessUpdate, this);
 
 	Console()->Chain("sv_rcon_password", ConchainRconPasswordChange, this);

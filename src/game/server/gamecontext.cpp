@@ -1407,6 +1407,20 @@ void CGameContext::OnTick()
 					if(m_apPlayers[i]->m_LocalPassiveDuration == 0)
 						SendChatTarget(i, "Your passive protection has expired.");
 				}
+				if(m_apPlayers[i]->m_RandomCosmeticDuration > 0)
+				{
+					m_apPlayers[i]->m_RandomCosmeticDuration--;
+					if(m_apPlayers[i]->m_RandomCosmeticDuration == 0)
+					{
+						m_apPlayers[i]->SetSkinMani(-1);
+						m_apPlayers[i]->SetKnockout(-1);
+						m_apPlayers[i]->SetGunDesign(-1);
+						m_apPlayers[i]->m_RandomCosmeticSkinmani = -1;
+						m_apPlayers[i]->m_RandomCosmeticKnockout = -1;
+						m_apPlayers[i]->m_RandomCosmeticGundesign = -1;
+						SendChatTarget(i, "Your random cosmetics have expired.");
+					}
+				}
 			}
 		}
 	}

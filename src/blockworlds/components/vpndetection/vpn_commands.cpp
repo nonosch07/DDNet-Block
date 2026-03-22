@@ -980,4 +980,50 @@ void ConVPNCheckForce(IConsole::IResult *pResult, void *pUserData)
 	PerformVPNCheck(pResult, pUserData, true);
 }
 
+void ConVPNWhitelistAdd(IConsole::IResult *pResult, void *pUserData)
+{
+	auto *pVpn = static_cast<CVpnDetectionComponent *>(pUserData);
+	const char *pIp = pResult->GetString(0);
+	pVpn->WhitelistIpAdd(pIp);
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "IP '%s' added to VPN whitelist", pIp);
+	pVpn->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+}
+
+void ConVPNWhitelistRemove(IConsole::IResult *pResult, void *pUserData)
+{
+	auto *pVpn = static_cast<CVpnDetectionComponent *>(pUserData);
+	const char *pIp = pResult->GetString(0);
+	if(pVpn->GetWhitelistedIps().find(pIp) == pVpn->GetWhitelistedIps().end())
+	{
+		char aBuf[128];
+		str_format(aBuf, sizeof(aBuf), "IP '%s' is not in the VPN whitelist", pIp);
+		pVpn->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+		return;
+	}
+	pVpn->WhitelistIpRemove(pIp);
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "IP '%s' removed from VPN whitelist", pIp);
+	pVpn->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+}
+
+void ConVPNWhitelistList(IConsole::IResult *pResult, void *pUserData)
+{
+	auto *pVpn = static_cast<CVpnDetectionComponent *>(pUserData);
+	const auto &Ips = pVpn->GetWhitelistedIps();
+	if(Ips.empty())
+	{
+		pVpn->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", "VPN whitelist is empty");
+		return;
+	}
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "VPN whitelisted IPs (%d):", (int)Ips.size());
+	pVpn->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+	for(const auto &Ip : Ips)
+	{
+		str_format(aBuf, sizeof(aBuf), "  %s", Ip.c_str());
+		pVpn->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+	}
+}
+
 } // namespace VpnCommands

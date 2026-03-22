@@ -24,6 +24,7 @@
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
 #include <blockworlds/components/events/event.h>
+#include <blockworlds/cosmetics/cosmetics.h>
 #include <blockworlds/shop/storemanager.h>
 
 MACRO_ALLOC_POOL_ID_IMPL(CCharacter, MAX_CLIENTS)
@@ -1748,6 +1749,36 @@ void CCharacter::HandleTiles(int Index)
 	else if(!onPassiveTile && m_IsOnPassiveTile)
 	{
 		m_IsOnPassiveTile = false;
+	}
+
+	// random cosmetic tile
+	bool onRandomCosmeticTile = ((m_TileIndex == TILE_BW_RANDOM_COSMETIC) || (m_TileFIndex == TILE_BW_RANDOM_COSMETIC));
+	if(onRandomCosmeticTile && !m_IsOnRandomCosmeticTile)
+	{
+		int skinmani = rand() % CCosmeticsHandler::NUM_SKINMANIS;
+		int knockout = rand() % CCosmeticsHandler::NUM_KNOCKOUTS;
+		int gundesign = rand() % CCosmeticsHandler::NUM_GUNDESIGNS;
+
+		m_pPlayer->m_RandomCosmeticDuration = 600;
+		m_pPlayer->m_RandomCosmeticSkinmani = skinmani;
+		m_pPlayer->m_RandomCosmeticKnockout = knockout;
+		m_pPlayer->m_RandomCosmeticGundesign = gundesign;
+
+		m_pPlayer->SetSkinMani(skinmani);
+		m_pPlayer->SetKnockout(knockout);
+		m_pPlayer->SetGunDesign(gundesign);
+
+		char aBuf[256];
+		str_format(aBuf, sizeof(aBuf), "\xE2\x9C\xA8 Random cosmetics activated for 10 minutes! Skinmani: %s, Knockout: %s, Gundesign: %s",
+			CCosmeticsHandler::ms_SkinmaniNames[skinmani],
+			CCosmeticsHandler::ms_KnockoutNames[knockout],
+			CCosmeticsHandler::ms_GundesignNames[gundesign]);
+		GameServer()->SendChatTarget(GetPlayer()->GetCid(), aBuf);
+		m_IsOnRandomCosmeticTile = true;
+	}
+	else if(!onRandomCosmeticTile && m_IsOnRandomCosmeticTile)
+	{
+		m_IsOnRandomCosmeticTile = false;
 	}
 
 	// freeze

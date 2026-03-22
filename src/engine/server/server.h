@@ -432,6 +432,11 @@ public:
 
 	static void ConchainSpecialInfoupdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
 	static void ConchainMaxclientsperipUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
+	static void ConIpWhitelistAdd(IConsole::IResult *pResult, void *pUserData);
+	static void ConIpWhitelistRemove(IConsole::IResult *pResult, void *pUserData);
+	static void ConIpWhitelistList(IConsole::IResult *pResult, void *pUserData);
+	void SaveIpWhitelist();
+	void LoadIpWhitelist();
 	static void ConchainCommandAccessUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
 
 	void LogoutClient(int ClientId, const char *pReason);

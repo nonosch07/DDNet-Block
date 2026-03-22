@@ -8,6 +8,7 @@
 
 #include <engine/server.h>
 #include <engine/shared/config.h>
+#include <engine/shared/linereader.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
@@ -70,7 +71,10 @@ CVpnDetectionComponent::CVpnDetectionComponent(CGameContext *pGameServer) :
 	DEF("vpn_service_default", "s[service_name]", CFGFLAG_SERVER, VpnCommands::ConVPNSetDefaultService, this, "Set the default VPN detection service") \
 	DEF("vpn_service_list", "", CFGFLAG_SERVER, VpnCommands::ConVPNServiceList, this, "List all registered VPN services") \
 	DEF("vpn_check", "s[id_or_ip] ?s[service_name]", CFGFLAG_SERVER, VpnCommands::ConVPNCheck, this, "Test VPN detection on a client ID or IP address (service optional, allows 'all')") \
-	DEF("vpn_check_force", "s[id_or_ip] ?s[service_name]", CFGFLAG_SERVER, VpnCommands::ConVPNCheckForce, this, "Force fresh VPN check, bypassing cache (service optional, allows 'all')")
+	DEF("vpn_check_force", "s[id_or_ip] ?s[service_name]", CFGFLAG_SERVER, VpnCommands::ConVPNCheckForce, this, "Force fresh VPN check, bypassing cache (service optional, allows 'all')") \
+	DEF("vpn_whitelist_add", "s[ip]", CFGFLAG_SERVER, VpnCommands::ConVPNWhitelistAdd, this, "Add an IP to the VPN detection whitelist") \
+	DEF("vpn_whitelist_remove", "s[ip]", CFGFLAG_SERVER, VpnCommands::ConVPNWhitelistRemove, this, "Remove an IP from the VPN detection whitelist") \
+	DEF("vpn_whitelist_list", "", CFGFLAG_SERVER, VpnCommands::ConVPNWhitelistList, this, "List all whitelisted IPs for VPN detection")
 
 void CVpnDetectionComponent::OnConsoleInit()
 {
@@ -166,6 +170,8 @@ void CVpnDetectionComponent::OnConsoleInit()
 	{
 		LogDebug("VPN cache file not found or empty, starting with fresh cache");
 	}
+
+	LoadWhitelist();
 }
 
 void CVpnDetectionComponent::OnTick()
@@ -266,7 +272,7 @@ void CVpnDetectionComponent::OnPlayerEnter(int ClientId)
 			 str_startswith(aAddrStr, "172.16.") ||
 			 str_startswith(aAddrStr, "127.");
 
-	if(IsLocalIP)
+	if(IsLocalIP || IsIpWhitelisted(aAddrStr))
 	{
 		auto pLocalResult = std::make_shared<CVpnServiceResult>();
 		pLocalResult->m_ServiceName = "local";
@@ -514,8 +520,20 @@ void CVpnDetectionComponent::ProcessResult(int ClientId, std::shared_ptr<IVpnSer
 
 		if(m_BanEnabled && pResult->IsBadIP())
 		{
-			const char *pReason = "VPN/Proxy detected. Appeal at .gg/fYaBTzY";
-			BanClient(ClientId, pReason);
+			NETADDR Addr;
+			Server()->GetClientAddr(ClientId, &Addr);
+			char aAddrStr[NETADDR_MAXSTRSIZE];
+			net_addr_str(&Addr, aAddrStr, sizeof(aAddrStr), false);
+
+			if(IsIpWhitelisted(aAddrStr))
+			{
+				Log("VPN detected but IP is whitelisted | Client: %d | IP: %s", ClientId, aAddrStr);
+			}
+			else
+			{
+				const char *pReason = "VPN/Proxy detected. Appeal at .gg/fYaBTzY";
+				BanClient(ClientId, pReason);
+			}
 		}
 	}
 	else
@@ -713,4 +731,52 @@ void CVpnDetectionComponent::SetServiceRateLimit(const char *pServiceName, int R
 		It->second.m_RateLimitMs = RateLimitMs;
 		LogDebug("Rate limit updated | Service: %s | Rate limit: %dms", pServiceName, RateLimitMs);
 	}
+}
+
+bool CVpnDetectionComponent::IsIpWhitelisted(const char *pIp) const
+{
+	return m_WhitelistedIps.find(pIp) != m_WhitelistedIps.end();
+}
+
+void CVpnDetectionComponent::WhitelistIpAdd(const char *pIp)
+{
+	m_WhitelistedIps.insert(pIp);
+	SaveWhitelist();
+}
+
+void CVpnDetectionComponent::WhitelistIpRemove(const char *pIp)
+{
+	m_WhitelistedIps.erase(pIp);
+	SaveWhitelist();
+}
+
+void CVpnDetectionComponent::SaveWhitelist()
+{
+	IOHANDLE File = io_open("data/vpn_whitelist.txt", IOFLAG_WRITE);
+	if(!File)
+	{
+		Log("Failed to save VPN whitelist");
+		return;
+	}
+	for(const auto &Ip : m_WhitelistedIps)
+	{
+		io_write(File, Ip.c_str(), Ip.size());
+		io_write_newline(File);
+	}
+	io_close(File);
+}
+
+void CVpnDetectionComponent::LoadWhitelist()
+{
+	CLineReader LineReader;
+	IOHANDLE File = io_open("data/vpn_whitelist.txt", IOFLAG_READ);
+	if(!LineReader.OpenFile(File))
+		return;
+	while(const char *pLine = LineReader.Get())
+	{
+		if(pLine[0] != '\0')
+			m_WhitelistedIps.insert(pLine);
+	}
+	if(!m_WhitelistedIps.empty())
+		Log("VPN whitelist loaded | Entries: %d", (int)m_WhitelistedIps.size());
 }

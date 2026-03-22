@@ -606,6 +606,12 @@ public:
 
 	int m_LocalPassiveDuration = 0;
 
+	// random cosmetic tile (temporary, not account-bound)
+	int m_RandomCosmeticDuration = 0; // seconds remaining
+	int m_RandomCosmeticSkinmani = -1;
+	int m_RandomCosmeticKnockout = -1;
+	int m_RandomCosmeticGundesign = -1;
+
 	// banhammer (one-time use, set via rcon for now)
 	bool m_BanhammerActive = false;
 
