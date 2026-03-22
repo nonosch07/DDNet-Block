@@ -603,6 +603,23 @@ void CCharacter::FireWeapon()
 			if(m_FreezeHammer)
 				pTarget->Freeze();
 
+			if(m_pPlayer->m_BanhammerActive && !pTarget->GetPlayer()->m_IsDummy)
+			{
+				m_pPlayer->m_BanhammerActive = false;
+				int BanSecs = g_Config.m_SvBanhammerDuration;
+				int TargetCid = pTarget->GetPlayer()->GetCid();
+				vec2 TargetPos = pTarget->m_Pos;
+				char aBuf[256];
+				str_format(aBuf, sizeof(aBuf), "\U0001F528 %s has been struck by the BANHAMMER! Banned for %d seconds.",
+					Server()->ClientName(TargetCid), BanSecs);
+				GameServer()->SendChat(-1, TEAM_ALL, aBuf);
+				GameServer()->CreateExplosion(TargetPos, -1, WEAPON_GRENADE, true, -1);
+				GameServer()->CreateSoundGlobal(SOUND_GRENADE_EXPLODE);
+				Server()->Ban(TargetCid, BanSecs, "Struck by the Banhammer!", false);
+				Hits++;
+				break;
+			}
+
 			Antibot()->OnHammerHit(m_pPlayer->GetCid(), pTarget->GetPlayer()->GetCid());
 			GameServer()->m_pController->m_BlockTracker.OnPlayerImpacted(pTarget->m_pPlayer->GetCid(), m_pPlayer->GetCid());
 

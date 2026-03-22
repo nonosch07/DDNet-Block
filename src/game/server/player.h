@@ -294,6 +294,11 @@ public:
 		m_Account.m_Pages = Pages;
 		m_Account.m_DirtyInventory = true;
 	}
+	void SetPlayerPassiveRemovers(int Count)
+	{
+		m_Account.m_PassiveRemovers = Count;
+		m_Account.m_DirtyInventory = true;
+	}
 	void SetPlayerLevel(int Level)
 	{
 		m_Account.m_Level = Level;
@@ -455,6 +460,7 @@ public:
 	const char *GetPlayerAddress() { return m_Account.m_aAddress; }
 	int GetPlayerVip() { return m_Account.m_Vip; }
 	int GetPlayerPages() { return m_Account.m_Pages; }
+	int GetPlayerPassiveRemovers() { return m_Account.m_PassiveRemovers; }
 	int GetPlayerLevel() { return m_Account.m_Level; }
 	int GetClanLevel()
 	{
@@ -599,6 +605,9 @@ public:
 	}
 
 	int m_LocalPassiveDuration = 0;
+
+	// banhammer (one-time use, set via rcon for now)
+	bool m_BanhammerActive = false;
 
 	// specials
 	int m_CurrentSpecial = -1;

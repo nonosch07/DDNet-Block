@@ -1475,6 +1475,70 @@ void CGameContext::ConDeathnote(IConsole::IResult *pResult, void *pUserData)
 	pPlayer->m_LastDeathnote = pServer->Tick();
 }
 
+void CGameContext::ConPassiveRemover(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	if(!g_Config.m_SvAccountsystem)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+	if(!pPlayer)
+		return;
+
+	if(!pPlayer->IsLoggedIn())
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You are not logged in.");
+
+	if(!pResult->NumArguments())
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Usage: /passiveremover [player]");
+
+	if(pPlayer->GetPlayerPassiveRemovers() < 1)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You don't have any passive removers! Purchase one from the shop.");
+
+	CPlayer *pTarget = pSelf->GetPlayerByName(pResult->GetString(0));
+	if(!pTarget)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Player not found.");
+
+	if(pTarget->GetCid() == pResult->m_ClientId)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You can't use a passive remover on yourself.");
+
+	if(pSelf->isInEvent(pTarget->GetCid()))
+		return pSelf->SendChatTarget(pResult->m_ClientId, "You can't use a passive remover on a player in an event.");
+
+	// Check the target actually has passive
+	bool HasPassive = false;
+	if(pTarget->IsLoggedIn() && pTarget->GetPlayerPassive() > 0)
+		HasPassive = true;
+	else if(!pTarget->IsLoggedIn() && pTarget->m_LocalPassiveDuration > 0)
+		HasPassive = true;
+
+	if(!HasPassive)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "That player doesn't have passive protection.");
+
+	// Consume one passive remover
+	pPlayer->SetPlayerPassiveRemovers(pPlayer->GetPlayerPassiveRemovers() - 1);
+
+	// Strip target's passive
+	if(pTarget->IsLoggedIn())
+		pTarget->SetPlayerPassive(0);
+	pTarget->m_LocalPassiveDuration = 0;
+	pTarget->m_UsePassiveProtection = false;
+	pTarget->m_PassivePendingEnable = false;
+
+	// If target's character is currently passive, remove the flag
+	CCharacter *pTChar = pTarget->GetCharacter();
+	if(pTChar && pTChar->Core()->m_Passive)
+		pTChar->Core()->m_Passive = false;
+
+	char aBufFrom[128], aBufTo[128];
+	str_format(aBufFrom, sizeof(aBufFrom), "You stripped %s's passive protection! %d removers remaining.",
+		pSelf->Server()->ClientName(pTarget->GetCid()), pPlayer->GetPlayerPassiveRemovers());
+	str_format(aBufTo, sizeof(aBufTo), "'%s' used a Passive Remover on you! Your passive has been removed.",
+		pSelf->Server()->ClientName(pResult->m_ClientId));
+	pSelf->SendChatTarget(pResult->m_ClientId, aBufFrom);
+	pSelf->SendChatTarget(pTarget->GetCid(), aBufTo);
+}
+
 void CGameContext::ConExp(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
@@ -1641,7 +1705,7 @@ void CGameContext::ConAccountHelp(IConsole::IResult *pResult, void *pUserData)
 	pSelf->SendChatTarget(pResult->m_ClientId, "Account system commands:");
 	pSelf->SendChatTarget(pResult->m_ClientId, "/register <name> <pass> - Create an account");
 	pSelf->SendChatTarget(pResult->m_ClientId, "/login <name> <pass> - Log in");
-	pSelf->SendChatTarget(pResult->m_ClientId, "/logout_account - Log out");
+	pSelf->SendChatTarget(pResult->m_ClientId, "/logout - Log out");
 	pSelf->SendChatTarget(pResult->m_ClientId, "/password <old> <new> - Change password");
 	pSelf->SendChatTarget(pResult->m_ClientId, "/exp - Show your EXP");
 	pSelf->SendChatTarget(pResult->m_ClientId, "/profile [name] - View a profile");
@@ -2973,4 +3037,19 @@ void CGameContext::ConSetSpecialCosmetic(IConsole::IResult *pResult, void *pUser
 	if(!pPlayer)
 		return;
 	pPlayer->ToggleSpecial(Index);
+}
+
+void CGameContext::ConBanhammer(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int Victim = pResult->GetVictim();
+	if(!CheckClientId(Victim))
+		return;
+	CPlayer *pPlayer = pSelf->m_apPlayers[Victim];
+	if(!pPlayer)
+		return;
+	pPlayer->m_BanhammerActive = !pPlayer->m_BanhammerActive;
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "Banhammer %s for '%s'", pPlayer->m_BanhammerActive ? "enabled" : "disabled", pSelf->Server()->ClientName(Victim));
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
 }

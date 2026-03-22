@@ -4662,6 +4662,7 @@ void CGameContext::RegisterDDRaceCommands()
 	Console()->Register("c_set_skinmani", "i[type] ?v[id]", CFGFLAG_SERVER, ConSetSkinManiCosmetic, this, "Set players' skinmani cosmetic");
 	Console()->Register("c_set_special", "i[type] ?v[id]", CFGFLAG_SERVER, ConSetSpecialCosmetic, this, "Set players' special cosmetic");
 
+	Console()->Register("banhammer", "v[id]", CFGFLAG_SERVER, ConBanhammer, this, "Give a player the banhammer (one-time use, bans the next player they hammer)");
 	Console()->Register("set_pages", "v[id] i[amount]", CFGFLAG_SERVER, ConSetPages, this, "Set pages for player id");
 	Console()->Register("set_level", "v[id] i[amount]", CFGFLAG_SERVER, ConSetLevel, this, "Set level for player id");
 	Console()->Register("set_experience", "v[id] i[amount]", CFGFLAG_SERVER, ConSetExperience, this, "Set experience for player id");
@@ -6273,7 +6274,7 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("register", "s[username] s[password]", CFGFLAG_CHAT, ConRegister, this, "Create a new account.");
 	Console()->Register("login", "s[username] s[password]", CFGFLAG_CHAT, ConLogin, this, "Log in to your account.");
 
-	Console()->Register("logout_account", "", CFGFLAG_CHAT, ConAccountLogout, this, "Log out of your MySQL account.");
+	Console()->Register("logout", "", CFGFLAG_CHAT, ConAccountLogout, this, "Log out of your MySQL account.");
 	Console()->Register("password", "s[oldpassword] s[newpassword]", CFGFLAG_CHAT, ConChangePassword, this, "Change your account password.");
 	Console()->Register("exp", "", CFGFLAG_CHAT, ConExp, this, "Display your current experience progress.");
 
@@ -6286,6 +6287,7 @@ void CGameContext::RegisterBlockworldsChatCommands()
 	Console()->Register("getcid", "s[player name]", CFGFLAG_CHAT, ConGetCid, this, "Get a player's client id by name.");
 
 	Console()->Register("deathnote", "s[username]", CFGFLAG_CHAT, ConDeathnote, this, "Use one of your deathnote pages.");
+	Console()->Register("passiveremover", "s[username]", CFGFLAG_CHAT, ConPassiveRemover, this, "Use a passive remover on a player to strip their passive.");
 	Console()->Register("weapons", "", CFGFLAG_CHAT, ConWeaponKit, this, "Display how many weapon kits you have.");
 	Console()->Register("weaponkit", "", CFGFLAG_CHAT, ConWeaponKit, this, "Display how many weapon kits you have.");
 

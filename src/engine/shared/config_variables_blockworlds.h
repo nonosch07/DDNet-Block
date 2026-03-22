@@ -217,5 +217,11 @@ MACRO_CONFIG_INT(SvRaceFinishExp, sv_race_finish_exp, 3, 0, 1000, CFGFLAG_SERVER
 MACRO_CONFIG_INT(SvRaceFinishExpCooldown, sv_race_finish_exp_cooldown, 120, 0, 86400, CFGFLAG_SERVER, "Cooldown in seconds between race finish EXP awards per player (0=no cooldown)")
 MACRO_CONFIG_INT(SvRaceFinishExpMaxPerSession, sv_race_finish_exp_max_per_session, 10, 0, 10000, CFGFLAG_SERVER, "Maximum race finish EXP awards per session (0=unlimited)")
 
+// banhammer
+MACRO_CONFIG_INT(SvBanhammerDuration, sv_banhammer_duration, 60, 1, 86400, CFGFLAG_SERVER, "Duration in seconds a player is banned when hit by the banhammer (default 60)")
+
+// dual skinmani speed
+MACRO_CONFIG_INT(SvDualSkinmaniSpeed, sv_dual_skinmani_speed, 5, 1, 50, CFGFLAG_SERVER, "Speed divisor for dual skinmani effects (lower = faster, default 30)")
+
 // VPN detection
 MACRO_CONFIG_STR(SvVpnIphubApiKey, sv_vpn_iphub_api_key, 128, "", CFGFLAG_SERVER, "API key for IPHub.info VPN detetion service")

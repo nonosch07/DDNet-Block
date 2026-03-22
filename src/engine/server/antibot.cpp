@@ -38,6 +38,9 @@ void CAntibot::Log(const char *pMessage, void *pUser)
 }
 void CAntibot::Report(int ClientId, const char *pMessage, void *pUser)
 {
+	if(str_find(pMessage, "hookbot (2"))
+		return;
+
 	CAntibot *pAntibot = (CAntibot *)pUser;
 	char aBuf[256];
 	str_format(aBuf, sizeof(aBuf), "%d: %s", ClientId, pMessage);

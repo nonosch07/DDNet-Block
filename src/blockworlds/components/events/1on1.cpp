@@ -1441,24 +1441,47 @@ bool COneOnOneEvent::Leave(int ClientId)
 		m_PendingAwardTick = -1;
 		m_ForcedWinnerCid = opponent;
 
-		// static const char *s_RagequitMsgs[] = {
-		// 	"[1on1] - %s ragequited the match vs %s! What a dramatic exit.",
-		// 	"[1on1] - %s has abandoned the duel against %s - coward move!",
-		// 	"[1on1] - %s disconnected mid-fight vs %s. GG, we saw nothing...",
-		// 	"[1on1] - %s choked under pressure and fled from %s. Shame.",
-		// 	"[1on1] - %s decided running was the best strategy against %s. Classic."};
-		// const int NumMsgs = sizeof(s_RagequitMsgs) / sizeof(s_RagequitMsgs[0]);
-		// int idx = (int)((Server()->Tick() + leaver) % NumMsgs);
-		// char aBuf[256];
-		// str_format(aBuf, sizeof(aBuf), s_RagequitMsgs[idx], pLeaverName, pOpponentName);
-		// GameServer()->SendChatTarget(-1, aBuf);
+		int leaverScore = (leaver == m_Player1ID) ? m_Score1.load() : m_Score2.load();
+		int opponentScore = (leaver == m_Player1ID) ? m_Score2.load() : m_Score1.load();
+
+		static const char *s_RagequitPhrases[] = {
+			"couldn't handle the smoke",
+			"got absolutely shit on and dipped",
+			"left like the little b*tch they are",
+			"ran away crying like a baby",
+			"got destroyed and rage alt+F4'd",
+			"pissed their pants and disconnected",
+			"got clapped so hard they uninstalled",
+			"folded like a lawn chair",
+			"is officially the biggest pussy in blockworlds",
+			"couldn't take the L so they ran",
+			"ragequit harder than their dad left them",
+			"got their ass whooped and bounced",
+			"left the match and probably broke their keyboard",
+			"got humiliated and vanished like a coward",
+			"got dumpstered and pulled the plug",
+			"is crying in the corner right now",
+			"went back to playing minecraft after that beating",
+			"got farmed like a bot and disconnected",
+			"quit faster than their will to live",
+			"got rolled so hard they forgot how to play",
+		};
+		static const char *s_DiscordEmotes[] = {
+			":kappa:", ":horse:", ":KEKW:", ":OMEGALUL:",
+			":existentialdreadintensifies:", ":ghostmw2:", ":pepeenrage:",
+			":pepedespair:", ":pepetraumatized:", ":petercry:", ":yaw:",
+		};
+		static const int NumPhrases = sizeof(s_RagequitPhrases) / sizeof(s_RagequitPhrases[0]);
+		static const int NumEmotes = sizeof(s_DiscordEmotes) / sizeof(s_DiscordEmotes[0]);
+		int phraseIdx = (int)((unsigned)(Server()->Tick() + leaver) % NumPhrases);
+		int emoteIdx = (int)((unsigned)(Server()->Tick() + leaver + 7) % NumEmotes);
 
 		m_SuppressFinishBroadcast = true;
 
-		// announce ragequit (no score shown)
 		{
-			char aBuf[256];
-			str_format(aBuf, sizeof(aBuf), "[1on1] - %s ragequited the match vs %s!", pLeaverName, pOpponentName);
+			char aBuf[512];
+			str_format(aBuf, sizeof(aBuf), "[1on1] - %s ragequited the match vs %s! %s %d : %d - %s",
+				pLeaverName, pOpponentName, pOpponentName, opponentScore, leaverScore, s_RagequitPhrases[phraseIdx]);
 			GameServer()->SendChatTarget(-1, aBuf);
 		}
 
@@ -1494,8 +1517,9 @@ bool COneOnOneEvent::Leave(int ClientId)
 		const char *p1on1Url = g_Config.m_SvDiscordWebhookUrl1on1[0] ? g_Config.m_SvDiscordWebhookUrl1on1 : nullptr;
 		if(Discord.IsConfigured(p1on1Url))
 		{
-			char aMsg[256];
-			str_format(aMsg, sizeof(aMsg), "1on1 ragequit: %s left vs %s (score so far %d-%d)", pLeaverName, pOpponentName, m_Score1.load(), m_Score2.load());
+			char aMsg[512];
+			str_format(aMsg, sizeof(aMsg), "%s ragequit! %s: **%s** %d : %d %s - %s",
+				pLeaverName, s_DiscordEmotes[emoteIdx], pOpponentName, opponentScore, leaverScore, pLeaverName, s_RagequitPhrases[phraseIdx]);
 			CDiscordWebhook::SSendOptions Opt;
 			Opt.m_pWebhookUrl = p1on1Url;
 			Discord.Send(aMsg, Opt);
