@@ -1467,17 +1467,17 @@ bool COneOnOneEvent::Leave(int ClientId)
 			"got rolled so hard they forgot how to play",
 		};
 		static const char *s_DiscordEmotes[] = {
-			":kappa:",
+			"<:kappa:1106645597169143898>",
 			":horse:",
-			":KEKW:",
-			":OMEGALUL:",
-			":existentialdreadintensifies:",
-			":ghostmw2:",
-			":pepeenrage:",
-			":pepedespair:",
-			":pepetraumatized:",
-			":petercry:",
-			":yaw:",
+			"<:KEKW:712106151789199452>",
+			"<:OMEGALUL:685906612447084604>",
+			"<a:existentialdreadintensifies:980469156803674114>",
+			"<:ghostmw2:1106645590659584050>",
+			"<a:pepeenrage:1198206040093769808>",
+			"<a:pepedespair:1106630400543035494>",
+			"<a:pepetraumatized:1198206010087706727>",
+			"<a:petercry:980464935597404310>",
+			"<:yaw:980464943293956125>",
 		};
 		static const int NumPhrases = sizeof(s_RagequitPhrases) / sizeof(s_RagequitPhrases[0]);
 		static const int NumEmotes = sizeof(s_DiscordEmotes) / sizeof(s_DiscordEmotes[0]);
@@ -1526,7 +1526,7 @@ bool COneOnOneEvent::Leave(int ClientId)
 		if(Discord.IsConfigured(p1on1Url))
 		{
 			char aMsg[512];
-			str_format(aMsg, sizeof(aMsg), "%s ragequit! %s: **%s** %d : %d %s - %s",
+			str_format(aMsg, sizeof(aMsg), "%s ragequit! %s : **%s** %d : %d %s - %s",
 				pLeaverName, s_DiscordEmotes[emoteIdx], pOpponentName, opponentScore, leaverScore, pLeaverName, s_RagequitPhrases[phraseIdx]);
 			CDiscordWebhook::SSendOptions Opt;
 			Opt.m_pWebhookUrl = p1on1Url;
