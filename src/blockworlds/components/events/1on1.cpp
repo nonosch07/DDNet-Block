@@ -1467,9 +1467,17 @@ bool COneOnOneEvent::Leave(int ClientId)
 			"got rolled so hard they forgot how to play",
 		};
 		static const char *s_DiscordEmotes[] = {
-			":kappa:", ":horse:", ":KEKW:", ":OMEGALUL:",
-			":existentialdreadintensifies:", ":ghostmw2:", ":pepeenrage:",
-			":pepedespair:", ":pepetraumatized:", ":petercry:", ":yaw:",
+			":kappa:",
+			":horse:",
+			":KEKW:",
+			":OMEGALUL:",
+			":existentialdreadintensifies:",
+			":ghostmw2:",
+			":pepeenrage:",
+			":pepedespair:",
+			":pepetraumatized:",
+			":petercry:",
+			":yaw:",
 		};
 		static const int NumPhrases = sizeof(s_RagequitPhrases) / sizeof(s_RagequitPhrases[0]);
 		static const int NumEmotes = sizeof(s_DiscordEmotes) / sizeof(s_DiscordEmotes[0]);

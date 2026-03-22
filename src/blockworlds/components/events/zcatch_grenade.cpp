@@ -683,6 +683,9 @@ void CZCatchGrenadeEvent::LockToSpectator(int VictimId, int WatchedId)
 		return;
 	if(pVictimPlayer->GetTeam() != TEAM_SPECTATORS)
 		pVictimPlayer->SetTeam(TEAM_SPECTATORS, false);
+	// clear stale input so held keys don't carry over on respawn
+	mem_zero(&GameServer()->m_aLastPlayerInput[VictimId], sizeof(GameServer()->m_aLastPlayerInput[VictimId]));
+	GameServer()->m_aPlayerHasInput[VictimId] = false;
 	pVictimPlayer->m_SpectatorId = WatchedId;
 }
 

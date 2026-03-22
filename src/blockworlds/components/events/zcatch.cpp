@@ -834,6 +834,9 @@ void CZCatchEvent::LockToSpectator(int VictimId, int WatchedId)
 	// Only change team if not already in spectator (avoids double KillCharacter calls)
 	if(pVictimPlayer->GetTeam() != TEAM_SPECTATORS)
 		pVictimPlayer->SetTeam(TEAM_SPECTATORS, false);
+	// clear stale input so held keys don't carry over on respawn
+	mem_zero(&GameServer()->m_aLastPlayerInput[VictimId], sizeof(GameServer()->m_aLastPlayerInput[VictimId]));
+	GameServer()->m_aPlayerHasInput[VictimId] = false;
 	// Override the spectator target to watch the catcher
 	pVictimPlayer->m_SpectatorId = WatchedId;
 }

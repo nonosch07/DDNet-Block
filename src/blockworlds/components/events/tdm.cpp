@@ -412,6 +412,9 @@ void CTeamDeathmatchEvent::UpdateSetSpectators()
 		if(!p->GetCharacter())
 		{
 			p->SetTeam(TEAM_SPECTATORS, false);
+			// clear stale input so held keys don't carry over on respawn
+			mem_zero(&GameServer()->m_aLastPlayerInput[cid], sizeof(GameServer()->m_aLastPlayerInput[cid]));
+			GameServer()->m_aPlayerHasInput[cid] = false;
 			done.push_back(cid);
 		}
 	}
