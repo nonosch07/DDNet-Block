@@ -69,6 +69,13 @@ const char *CCosmeticsHandler::ms_SkinmaniNames[NUM_SKINMANIS] = {
 	"Epi Rainbow (VIP)",
 	"Hook Rainbow (VIP)",
 	"Electric (VIP)",
+	"Dual BlackWhite",
+	"Dual Fire",
+	"Dual Water",
+	"Dual Poison",
+	"Sunset Fade",
+	"Ocean Drift",
+	"Aurora",
 };
 
 // specials
@@ -800,6 +807,105 @@ void CCosmeticsHandler::SnapSkinmaniRaw(int64_t Tick, CNetObj_ClientInfo *pClien
 		pClientInfo->m_ColorBody = HslToCc(HSLBody);
 		pClientInfo->m_UseCustomColor = 1;
 	}
+	else if(Effect == SKINMANI_DUAL_BLACKWHITE)
+	{
+		float Speed = (float)g_Config.m_SvDualSkinmaniSpeed;
+		float t = (sinf(TickDef / Speed) + 1.0f) / 2.0f;
+		vec3 Body, Feet;
+		Body.h = 0.0f;
+		Body.s = 0.0f;
+		Body.l = 0.5f + 0.5f * t;
+		Feet.h = 0.0f;
+		Feet.s = 0.0f;
+		Feet.l = 0.5f + 0.5f * (1.0f - t);
+		pClientInfo->m_ColorBody = HslToCc(Body);
+		pClientInfo->m_ColorFeet = HslToCc(Feet);
+		pClientInfo->m_UseCustomColor = 1;
+	}
+	else if(Effect == SKINMANI_DUAL_FIRE)
+	{
+		float Speed = (float)g_Config.m_SvDualSkinmaniSpeed;
+		float t = (sinf(TickDef / Speed) + 1.0f) / 2.0f;
+		vec3 Body, Feet;
+		Body.h = 0.0f;
+		Body.s = t;
+		Body.l = 0.5f;
+		Feet.h = 0.0f;
+		Feet.s = 1.0f - t;
+		Feet.l = 0.5f;
+		pClientInfo->m_ColorBody = HslToCc(Body);
+		pClientInfo->m_ColorFeet = HslToCc(Feet);
+		pClientInfo->m_UseCustomColor = 1;
+	}
+	else if(Effect == SKINMANI_DUAL_WATER)
+	{
+		float Speed = (float)g_Config.m_SvDualSkinmaniSpeed;
+		float t = (sinf(TickDef / Speed) + 1.0f) / 2.0f;
+		vec3 Body, Feet;
+		Body.h = 0.6f;
+		Body.s = t;
+		Body.l = 0.5f;
+		Feet.h = 0.6f;
+		Feet.s = 1.0f - t;
+		Feet.l = 0.5f;
+		pClientInfo->m_ColorBody = HslToCc(Body);
+		pClientInfo->m_ColorFeet = HslToCc(Feet);
+		pClientInfo->m_UseCustomColor = 1;
+	}
+	else if(Effect == SKINMANI_DUAL_POISON)
+	{
+		float Speed = (float)g_Config.m_SvDualSkinmaniSpeed;
+		float t = (sinf(TickDef / Speed) + 1.0f) / 2.0f;
+		vec3 Body, Feet;
+		Body.h = 0.3f;
+		Body.s = t;
+		Body.l = 0.5f;
+		Feet.h = 0.3f;
+		Feet.s = 1.0f - t;
+		Feet.l = 0.5f;
+		pClientInfo->m_ColorBody = HslToCc(Body);
+		pClientInfo->m_ColorFeet = HslToCc(Feet);
+		pClientInfo->m_UseCustomColor = 1;
+	}
+	else if(Effect == SKINMANI_SUNSET_FADE)
+	{
+		// Smooth warm hue: pink(0.93) -> red(0.0) -> orange(0.10), using circular hue wrap
+		float t = (sinf(TickDef / 150.0f) + 1.0f) / 2.0f;
+		float hue = fmodf(0.93f + t * 0.17f, 1.0f);
+		HSLBody.h = hue;
+		HSLBody.s = 0.85f;
+		HSLBody.l = 0.55f;
+		pClientInfo->m_ColorBody = HslToCc(HSLBody);
+		pClientInfo->m_ColorFeet = HslToCc(HSLBody);
+		pClientInfo->m_UseCustomColor = 1;
+	}
+	else if(Effect == SKINMANI_OCEAN_DRIFT)
+	{
+		// Smooth cool hue cycling: teal(0.45) -> blue(0.66) -> purple(0.80)
+		float t = (sinf(TickDef / 130.0f) + 1.0f) / 2.0f;
+		float hue = 0.45f + t * 0.35f;
+		HSLBody.h = hue;
+		HSLBody.s = 0.7f;
+		HSLBody.l = 0.55f;
+		pClientInfo->m_ColorBody = HslToCc(HSLBody);
+		pClientInfo->m_ColorFeet = HslToCc(HSLBody);
+		pClientInfo->m_UseCustomColor = 1;
+	}
+	else if(Effect == SKINMANI_AURORA)
+	{
+		// Smooth full-spectrum pastel rainbow using sin for seamless loop
+		float t = (sinf(TickDef / 200.0f) + 1.0f) / 2.0f;
+		HSLBody.h = t;
+		HSLBody.s = 0.5f;
+		HSLBody.l = 0.6f;
+		vec3 Feet;
+		Feet.h = (sinf(TickDef / 200.0f + 0.6f) + 1.0f) / 2.0f; // slight phase offset
+		Feet.s = 0.5f;
+		Feet.l = 0.6f;
+		pClientInfo->m_ColorBody = HslToCc(HSLBody);
+		pClientInfo->m_ColorFeet = HslToCc(Feet);
+		pClientInfo->m_UseCustomColor = 1;
+	}
 }
 
 // TODO: don't hardcode the PreviewPos
@@ -867,6 +973,55 @@ bool CCosmeticsHandler::ShopInfoSkinmani(int Index, int &Price, int &Level, vec2
 		Price = 1700;
 		Level = 130;
 		PreviewPos = vec2(5710.0f, 2193.0f);
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::SKINMANI_DUAL_BLACKWHITE)
+	{
+		Price = 2700;
+		Level = 350;
+		PreviewPos = vec2(6094.0f, 2193.0f);
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::SKINMANI_DUAL_FIRE)
+	{
+		Price = 2200;
+		Level = 200;
+		PreviewPos = vec2(6478.0f, 2193.0f);
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::SKINMANI_DUAL_WATER)
+	{
+		Price = 2400;
+		Level = 200;
+		PreviewPos = vec2(6862.0f, 2193.0f);
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::SKINMANI_DUAL_POISON)
+	{
+		Price = 2600;
+		Level = 200;
+		PreviewPos = vec2(7246.0f, 2193.0f);
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::SKINMANI_SUNSET_FADE)
+	{
+		Price = 3000;
+		Level = 200;
+		PreviewPos = vec2(7630.0f, 2193.0f);
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::SKINMANI_OCEAN_DRIFT)
+	{
+		Price = 3500;
+		Level = 220;
+		PreviewPos = vec2(8014.0f, 2193.0f);
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::SKINMANI_AURORA)
+	{
+		Price = 4000;
+		Level = 250;
+		PreviewPos = vec2(8398.0f, 2193.0f);
 		return true;
 	}
 	else
@@ -1073,6 +1228,13 @@ bool CCosmeticsHandler::ShopInfoUtility(int Index, int &Price, int &Level, vec2 
 		Price = 30;
 		Level = 10;
 		PreviewPos = vec2(50.0f, 0.0f);
+		return true;
+	}
+	else if(Index == CCosmeticsHandler::UTILITY_PASSIVE_REMOVER)
+	{
+		Price = 100;
+		Level = 10;
+		PreviewPos = vec2(100.0f, 0.0f);
 		return true;
 	}
 	return false;

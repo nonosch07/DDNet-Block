@@ -518,6 +518,19 @@ bool CZCatchEvent::AllowKillCommandFor(int ClientId) const
 	return it != m_LastImpactorOf.end() && IsParticipant(it->second) && !IsCaught(it->second);
 }
 
+bool CZCatchEvent::AllowZoomFor(int ClientId) const
+{
+	if(GetState() != EEventState::Active)
+		return true;
+	if(!IsParticipant(ClientId))
+		return true;
+
+	if(IsCaught(ClientId))
+		return true;
+
+	return false;
+}
+
 void CZCatchEvent::OnPlayerImpacted(int VictimId, int InitiatorId)
 {
 	if(GetState() != EEventState::Active)
@@ -821,6 +834,9 @@ void CZCatchEvent::LockToSpectator(int VictimId, int WatchedId)
 	// Only change team if not already in spectator (avoids double KillCharacter calls)
 	if(pVictimPlayer->GetTeam() != TEAM_SPECTATORS)
 		pVictimPlayer->SetTeam(TEAM_SPECTATORS, false);
+	// clear stale input so held keys don't carry over on respawn
+	mem_zero(&GameServer()->m_aLastPlayerInput[VictimId], sizeof(GameServer()->m_aLastPlayerInput[VictimId]));
+	GameServer()->m_aPlayerHasInput[VictimId] = false;
 	// Override the spectator target to watch the catcher
 	pVictimPlayer->m_SpectatorId = WatchedId;
 }

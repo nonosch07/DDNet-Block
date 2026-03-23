@@ -154,7 +154,6 @@ std::optional<vec2> CTeamDeathmatchEvent::ChooseSpawnFor(int ClientId)
 			}
 		}
 
-		
 		return RandomSpawnPos(m_EventStartPositions, m_UsedSpawnIndices);
 	}
 	// no tdm_spawn gamezone quads: do not teleport (fallback is saved position)
@@ -309,7 +308,7 @@ void CTeamDeathmatchEvent::ResetTransientState()
 	m_RespawnAtTick.clear();
 	m_LastRespawnSeconds.clear();
 	m_AssignedSpawnIndex.clear();
-m_UsedSpawnIndices.clear();
+	m_UsedSpawnIndices.clear();
 	m_SetSpecAtTick.clear();
 	m_LastDeathHandledTick.clear();
 	m_LastImpactByVictim.clear();
@@ -413,6 +412,9 @@ void CTeamDeathmatchEvent::UpdateSetSpectators()
 		if(!p->GetCharacter())
 		{
 			p->SetTeam(TEAM_SPECTATORS, false);
+			// clear stale input so held keys don't carry over on respawn
+			mem_zero(&GameServer()->m_aLastPlayerInput[cid], sizeof(GameServer()->m_aLastPlayerInput[cid]));
+			GameServer()->m_aPlayerHasInput[cid] = false;
 			done.push_back(cid);
 		}
 	}
@@ -423,7 +425,7 @@ void CTeamDeathmatchEvent::UpdateSetSpectators()
 void CTeamDeathmatchEvent::AssignUniqueStartSpawns()
 {
 	m_AssignedSpawnIndex.clear();
-m_UsedSpawnIndices.clear();
+	m_UsedSpawnIndices.clear();
 	if(m_EventStartPositions.empty())
 		return;
 

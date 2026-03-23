@@ -13,6 +13,9 @@ void ConVPNSetDefaultService(IConsole::IResult *pResult, void *pUserData);
 void ConVPNServiceList(IConsole::IResult *pResult, void *pUserData);
 void ConVPNCheck(IConsole::IResult *pResult, void *pUserData);
 void ConVPNCheckForce(IConsole::IResult *pResult, void *pUserData);
+void ConVPNWhitelistAdd(IConsole::IResult *pResult, void *pUserData);
+void ConVPNWhitelistRemove(IConsole::IResult *pResult, void *pUserData);
+void ConVPNWhitelistList(IConsole::IResult *pResult, void *pUserData);
 } // namespace VpnCommands
 
 #endif // BLOCKWORLDS_COMPONENTS_VPN_COMMANDS_H

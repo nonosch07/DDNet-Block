@@ -1,5 +1,5 @@
-#include <algorithm>
 #include "experience.h"
+#include <algorithm>
 #include <blockworlds/accounts.h>
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
@@ -75,7 +75,7 @@ void CExperience::Tick()
 				auto pActiveEvent = pEvents->GetActiveEvent();
 				if(pActiveEvent->GetState() == CEventComponent::EEventState::Active || pActiveEvent->GetState() == CEventComponent::EEventState::Preparation)
 				{
-					const auto& Participants = pActiveEvent->Participants();
+					const auto &Participants = pActiveEvent->Participants();
 					if(std::find(Participants.begin(), Participants.end(), pPlayer->GetCid()) != Participants.end())
 						InEvent = true;
 				}

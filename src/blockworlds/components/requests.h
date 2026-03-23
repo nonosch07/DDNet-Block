@@ -7,8 +7,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include <blockworlds/common.h>
 #include "core/component.h"
+#include <blockworlds/common.h>
 
 class CRequests : public CComponent
 {

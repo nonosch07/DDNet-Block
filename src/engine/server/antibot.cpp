@@ -4,12 +4,12 @@
 
 #include <base/system.h>
 
+#include <blockworlds/discord/webhook.h>
 #include <engine/console.h>
 #include <engine/kernel.h>
 #include <engine/server.h>
-#include <game/server/gamecontext.h>
 #include <engine/shared/config.h>
-#include <blockworlds/discord/webhook.h>
+#include <game/server/gamecontext.h>
 
 class IEngineAntibot;
 
@@ -38,6 +38,9 @@ void CAntibot::Log(const char *pMessage, void *pUser)
 }
 void CAntibot::Report(int ClientId, const char *pMessage, void *pUser)
 {
+	if(str_find(pMessage, "hookbot (2"))
+		return;
+
 	CAntibot *pAntibot = (CAntibot *)pUser;
 	char aBuf[256];
 	str_format(aBuf, sizeof(aBuf), "%d: %s", ClientId, pMessage);

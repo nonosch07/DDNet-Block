@@ -737,6 +737,7 @@ private:
 	static void ConGetCid(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConDeathnote(IConsole::IResult *pResult, void *pUserData);
+	static void ConPassiveRemover(IConsole::IResult *pResult, void *pUserData);
 	static void ConWeaponKit(IConsole::IResult *pResult, void *pUserData);
 	static void ConDisplayPages(IConsole::IResult *pResult, void *pUserData);
 
@@ -799,6 +800,7 @@ private:
 	static void ConSetKnockoutCosmetic(IConsole::IResult *pResult, void *pUserData);
 	static void ConSetSkinManiCosmetic(IConsole::IResult *pResult, void *pUserData);
 	static void ConSetSpecialCosmetic(IConsole::IResult *pResult, void *pUserData);
+	static void ConBanhammer(IConsole::IResult *pResult, void *pUserData);
 
 public:
 	template<typename... TArgs>

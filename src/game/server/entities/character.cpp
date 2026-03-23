@@ -24,6 +24,7 @@
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
 #include <blockworlds/components/events/event.h>
+#include <blockworlds/cosmetics/cosmetics.h>
 #include <blockworlds/shop/storemanager.h>
 
 MACRO_ALLOC_POOL_ID_IMPL(CCharacter, MAX_CLIENTS)
@@ -602,6 +603,23 @@ void CCharacter::FireWeapon()
 
 			if(m_FreezeHammer)
 				pTarget->Freeze();
+
+			if(m_pPlayer->m_BanhammerActive && !pTarget->GetPlayer()->m_IsDummy)
+			{
+				m_pPlayer->m_BanhammerActive = false;
+				int BanSecs = g_Config.m_SvBanhammerDuration;
+				int TargetCid = pTarget->GetPlayer()->GetCid();
+				vec2 TargetPos = pTarget->m_Pos;
+				char aBuf[256];
+				str_format(aBuf, sizeof(aBuf), "\U0001F528 %s has been struck by the BANHAMMER! Banned for %d seconds.",
+					Server()->ClientName(TargetCid), BanSecs);
+				GameServer()->SendChat(-1, TEAM_ALL, aBuf);
+				GameServer()->CreateExplosion(TargetPos, -1, WEAPON_GRENADE, true, -1);
+				GameServer()->CreateSoundGlobal(SOUND_GRENADE_EXPLODE);
+				Server()->Ban(TargetCid, BanSecs, "Struck by the Banhammer!", false);
+				Hits++;
+				break;
+			}
 
 			Antibot()->OnHammerHit(m_pPlayer->GetCid(), pTarget->GetPlayer()->GetCid());
 			GameServer()->m_pController->m_BlockTracker.OnPlayerImpacted(pTarget->m_pPlayer->GetCid(), m_pPlayer->GetCid());
@@ -1731,6 +1749,36 @@ void CCharacter::HandleTiles(int Index)
 	else if(!onPassiveTile && m_IsOnPassiveTile)
 	{
 		m_IsOnPassiveTile = false;
+	}
+
+	// random cosmetic tile
+	bool onRandomCosmeticTile = ((m_TileIndex == TILE_BW_RANDOM_COSMETIC) || (m_TileFIndex == TILE_BW_RANDOM_COSMETIC));
+	if(onRandomCosmeticTile && !m_IsOnRandomCosmeticTile)
+	{
+		int skinmani = rand() % CCosmeticsHandler::NUM_SKINMANIS;
+		int knockout = rand() % CCosmeticsHandler::NUM_KNOCKOUTS;
+		int gundesign = rand() % CCosmeticsHandler::NUM_GUNDESIGNS;
+
+		m_pPlayer->m_RandomCosmeticDuration = 600;
+		m_pPlayer->m_RandomCosmeticSkinmani = skinmani;
+		m_pPlayer->m_RandomCosmeticKnockout = knockout;
+		m_pPlayer->m_RandomCosmeticGundesign = gundesign;
+
+		m_pPlayer->SetSkinMani(skinmani);
+		m_pPlayer->SetKnockout(knockout);
+		m_pPlayer->SetGunDesign(gundesign);
+
+		char aBuf[256];
+		str_format(aBuf, sizeof(aBuf), "\xE2\x9C\xA8 Random cosmetics activated for 10 minutes! Skinmani: %s, Knockout: %s, Gundesign: %s",
+			CCosmeticsHandler::ms_SkinmaniNames[skinmani],
+			CCosmeticsHandler::ms_KnockoutNames[knockout],
+			CCosmeticsHandler::ms_GundesignNames[gundesign]);
+		GameServer()->SendChatTarget(GetPlayer()->GetCid(), aBuf);
+		m_IsOnRandomCosmeticTile = true;
+	}
+	else if(!onRandomCosmeticTile && m_IsOnRandomCosmeticTile)
+	{
+		m_IsOnRandomCosmeticTile = false;
 	}
 
 	// freeze

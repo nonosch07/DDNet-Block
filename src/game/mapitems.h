@@ -186,6 +186,7 @@ enum
 	// Blockworlds
 	TILE_BW_PASSIVE = 176,
 	TILE_BW_VIP = 177,
+	TILE_BW_RANDOM_COSMETIC = 178,
 
 	//End of higher tiles
 	//Layers

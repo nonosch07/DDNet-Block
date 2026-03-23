@@ -118,6 +118,13 @@ public:
 	 */
 	void QueueResult(int ClientId, std::shared_ptr<IVpnServiceResult> pResult);
 
+	bool IsIpWhitelisted(const char *pIp) const;
+	void WhitelistIpAdd(const char *pIp);
+	void WhitelistIpRemove(const char *pIp);
+	const std::set<std::string> &GetWhitelistedIps() const { return m_WhitelistedIps; }
+	void SaveWhitelist();
+	void LoadWhitelist();
+
 	char m_aGetipintelContact[128];
 	char m_aBanTimeString[VPN_BAN_TIME_STRING_MAX];
 	float m_GetipintelThreshold;
@@ -167,6 +174,8 @@ private:
 	};
 	std::vector<SPendingResult> m_PendingResults;
 	std::mutex m_ResultMutex;
+
+	std::set<std::string> m_WhitelistedIps;
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_VPN_DETECTION_H

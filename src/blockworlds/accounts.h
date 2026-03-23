@@ -26,8 +26,8 @@ enum class ClanAuthLevel : int
 
 #include <game/server/gamecontext.h>
 
-#include "common.h"
 #include "clans.h"
+#include "common.h"
 
 struct ISqlData;
 class IDbConnection;
@@ -77,6 +77,7 @@ struct CAccountInventory
 	int m_Vip;
 	int m_Pages;
 	int m_Weaponkits;
+	int m_PassiveRemovers;
 	char m_aKnockouts[256];
 	char m_aGundesign[256];
 	char m_aSkinmani[256];
@@ -102,6 +103,7 @@ struct CAccountData
 	int m_Level;
 	int m_Experience;
 	int m_Weaponkits;
+	int m_PassiveRemovers;
 	int m_Ranking;
 	int m_ClanId;
 	ClanAuthLevel m_AuthLevel;
@@ -141,7 +143,7 @@ struct CAccountData
 };
 
 inline CAccountData::CAccountData() :
-	m_ClientId(-1), m_Id(0), m_Vip(0), m_Pages(0), m_Level(1), m_Experience(0), m_Weaponkits(0), m_Ranking(0), m_ClanId(0), m_AuthLevel(ClanAuthLevel::NONE), m_Blockpoints(0), m_Passive(0), m_RankedGames(0), m_RankedKills(0), m_RankedDeaths(0), m_RankedWins(0), m_Kills(0), m_Deaths(0), m_TourneyWin(0), m_Playtime(0), m_Killstreak(0), m_WeeklyDay(0), m_WeeklyLastClaim(0), m_WeeklyExpBoostUntil(0), m_LastBodyColor(0), m_LastFeetColor(0)
+	m_ClientId(-1), m_Id(0), m_Vip(0), m_Pages(0), m_Level(1), m_Experience(0), m_Weaponkits(0), m_PassiveRemovers(0), m_Ranking(0), m_ClanId(0), m_AuthLevel(ClanAuthLevel::NONE), m_Blockpoints(0), m_Passive(0), m_RankedGames(0), m_RankedKills(0), m_RankedDeaths(0), m_RankedWins(0), m_Kills(0), m_Deaths(0), m_TourneyWin(0), m_Playtime(0), m_Killstreak(0), m_WeeklyDay(0), m_WeeklyLastClaim(0), m_WeeklyExpBoostUntil(0), m_LastBodyColor(0), m_LastFeetColor(0)
 {
 	m_aName[0] = m_aPassword[0] = m_aAddress[0] = m_aKnockouts[0] = m_aGundesign[0] = m_aSkinmani[0] = m_RegisterDate[0] = m_aLastName[0] = m_aLastSkin[0] = '\0';
 }
@@ -161,7 +163,7 @@ inline CAccountCore CAccountData::ToCore() const
 inline CAccountProgress CAccountData::ToProgress() const { return CAccountProgress{m_Level, m_Experience, m_Ranking, m_ClanId, m_AuthLevel, m_Blockpoints, m_Passive, m_Kills, m_Deaths, m_TourneyWin, m_Playtime, m_Killstreak, m_WeeklyDay, m_WeeklyLastClaim, m_WeeklyExpBoostUntil}; }
 inline CAccountInventory CAccountData::ToInventory() const
 {
-	CAccountInventory inv{m_Vip, m_Pages, m_Weaponkits, {0}, {0}, {0}};
+	CAccountInventory inv{m_Vip, m_Pages, m_Weaponkits, m_PassiveRemovers, {0}, {0}, {0}};
 	str_copy(inv.m_aKnockouts, m_aKnockouts, sizeof(inv.m_aKnockouts));
 	str_copy(inv.m_aGundesign, m_aGundesign, sizeof(inv.m_aGundesign));
 	str_copy(inv.m_aSkinmani, m_aSkinmani, sizeof(inv.m_aSkinmani));

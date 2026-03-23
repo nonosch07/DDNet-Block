@@ -1,9 +1,9 @@
 #ifndef BLOCKWORLDS_CLANS_H
 #define BLOCKWORLDS_CLANS_H
 
+#include "common.h"
 #include "engine/server/databases/connection_pool.h"
 #include "engine/shared/config.h"
-#include "common.h"
 #include <memory>
 #include <string>
 #include <unordered_set>
@@ -23,7 +23,7 @@ struct CClansData
 	int m_LastSavedTick;
 	bool m_Dirty; // true if EXP/level changed since last successful save
 };
- 
+
 // Maximum number of members in a clan (including leaders & co-leaders)
 #define MAX_CLAN_MEMBERS (g_Config.m_SvClanMaxMembers)
 

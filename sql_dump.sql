@@ -1,11 +1,11 @@
 -- phpMyAdmin SQL Dump
--- version 5.2.2deb1
+-- version 5.2.2deb1+deb13u1
 -- https://www.phpmyadmin.net/
 --
 -- Hôte : localhost:3306
--- Généré le : ven. 24 oct. 2025 à 15:41
--- Version du serveur : 11.8.3-MariaDB-0+deb13u1 from Debian
--- Version de PHP : 8.4.11
+-- Généré le : dim. 22 mars 2026 à 19:53
+-- Version du serveur : 11.8.6-MariaDB-0+deb13u1 from Debian
+-- Version de PHP : 8.4.16
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -18,7 +18,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Base de données : `testdb`
+-- Base de données : `blockworlds`
 --
 
 -- --------------------------------------------------------
@@ -61,9 +61,10 @@ CREATE TABLE `Blockworlds_accounts_inventory` (
   `vip` int(11) DEFAULT 0,
   `pages` int(11) DEFAULT 0,
   `weaponkits` int(11) DEFAULT 0,
-  `knockouts` varchar(256) DEFAULT '00000000000',
-  `gundesign` varchar(256) DEFAULT '0000000000',
-  `skinmani` varchar(256) DEFAULT '0000000000'
+  `passive_removers` int(11) NOT NULL DEFAULT 0,
+  `knockouts` varchar(256) DEFAULT '000000000000000',
+  `gundesign` varchar(256) DEFAULT '00000000000000',
+  `skinmani` varchar(256) DEFAULT '000000000000000000000'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- --------------------------------------------------------

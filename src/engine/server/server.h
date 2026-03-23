@@ -253,10 +253,9 @@ public:
 	unsigned char *m_apCurrentMapData[NUM_MAP_TYPES];
 	unsigned int m_aCurrentMapSize[NUM_MAP_TYPES];
 
-
 	bool m_bHasPubMap;
 	char m_aPubMap[IO_MAX_PATH_LENGTH]; // "<name>_pub" full path key
-	const char *m_pCurrentPubMapName;  // fs_filename of m_aPubMap
+	const char *m_pCurrentPubMapName; // fs_filename of m_aPubMap
 	SHA256_DIGEST m_aPubMapSha256[NUM_MAP_TYPES];
 	unsigned m_aPubMapCrc[NUM_MAP_TYPES];
 	unsigned char *m_apPubMapData[NUM_MAP_TYPES];
@@ -433,6 +432,11 @@ public:
 
 	static void ConchainSpecialInfoupdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
 	static void ConchainMaxclientsperipUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
+	static void ConIpWhitelistAdd(IConsole::IResult *pResult, void *pUserData);
+	static void ConIpWhitelistRemove(IConsole::IResult *pResult, void *pUserData);
+	static void ConIpWhitelistList(IConsole::IResult *pResult, void *pUserData);
+	void SaveIpWhitelist();
+	void LoadIpWhitelist();
 	static void ConchainCommandAccessUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
 
 	void LogoutClient(int ClientId, const char *pReason);

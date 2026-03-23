@@ -1357,6 +1357,8 @@ void CVoteManager::BuildShopCategory(CPlayer *pPlayer, int ClientID, IServer *pS
 				pName = "Weapon Kit";
 			else if(i == 1)
 				pName = "Deathnote Page";
+			else if(i == 2)
+				pName = "Passive Remover";
 			else
 				pName = "Utility Item";
 		}

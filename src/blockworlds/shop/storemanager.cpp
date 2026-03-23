@@ -149,6 +149,8 @@ bool CShop::SetProductInfo(int Category, int Cosmetics)
 				m_pCosmeticName = "Weapon Kit";
 			else if(Cosmetics == 1)
 				m_pCosmeticName = "Deathnote Page";
+			else if(Cosmetics == 2)
+				m_pCosmeticName = "Passive Remover";
 			else
 				m_pCosmeticName = "Utility Item";
 		}
@@ -270,6 +272,11 @@ void CShop::Purchase()
 			// grant one deathnote page as an account page
 			m_pOwner->SetPlayerPages(m_pOwner->GetPlayerPages() + 1);
 		}
+		else if(m_pProduct == 2)
+		{
+			// grant one passive remover
+			m_pOwner->SetPlayerPassiveRemovers(m_pOwner->GetPlayerPassiveRemovers() + 1);
+		}
 		break;
 
 	default:
@@ -365,6 +372,8 @@ bool CShop::InstantPurchase(CGameContext *pGameContext, CPlayer *pOwner, int Cat
 				pName = "Weapon Kit";
 			else if(Cosmetics == 1)
 				pName = "Deathnote Page";
+			else if(Cosmetics == 2)
+				pName = "Passive Remover";
 			else
 				pName = "Utility Item";
 		}
@@ -412,6 +421,8 @@ bool CShop::InstantPurchase(CGameContext *pGameContext, CPlayer *pOwner, int Cat
 			pOwner->SetPlayerWeaponkits(pOwner->GetPlayerWeaponkits() + 1);
 		else if(Cosmetics == 1)
 			pOwner->SetPlayerPages(pOwner->GetPlayerPages() + 1);
+		else if(Cosmetics == 2)
+			pOwner->SetPlayerPassiveRemovers(pOwner->GetPlayerPassiveRemovers() + 1);
 		break;
 	default: break;
 	}

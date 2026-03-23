@@ -44,6 +44,8 @@ public:
 	void EmergencyShutdown(const char *pMsg) override;
 
 	[[nodiscard]] std::optional<int> GetScoreOf(int ClientId) const override;
+	// Allow zoom only for currently dead players
+	[[nodiscard]] bool AllowZoomFor(int ClientId) const override;
 	[[nodiscard]] int GetMinCandidates() const override;
 
 private:
