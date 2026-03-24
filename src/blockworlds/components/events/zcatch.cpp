@@ -518,19 +518,6 @@ bool CZCatchEvent::AllowKillCommandFor(int ClientId) const
 	return it != m_LastImpactorOf.end() && IsParticipant(it->second) && !IsCaught(it->second);
 }
 
-bool CZCatchEvent::AllowZoomFor(int ClientId) const
-{
-	if(GetState() != EEventState::Active)
-		return true;
-	if(!IsParticipant(ClientId))
-		return true;
-
-	if(IsCaught(ClientId))
-		return true;
-
-	return false;
-}
-
 void CZCatchEvent::OnPlayerImpacted(int VictimId, int InitiatorId)
 {
 	if(GetState() != EEventState::Active)

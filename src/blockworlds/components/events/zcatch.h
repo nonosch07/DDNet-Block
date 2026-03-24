@@ -48,8 +48,6 @@ public:
 
 	// allow selfkills only when there is a valid last impactor who can receive the catch credit
 	[[nodiscard]] bool AllowKillCommandFor(int ClientId) const override;
-	// Allow zoom only for currently dead players
-	[[nodiscard]] bool AllowZoomFor(int ClientId) const override;
 	[[nodiscard]] int GetMinCandidates() const override;
 
 	[[nodiscard]] std::optional<int> GetScoreOf(int ClientId) const override;
