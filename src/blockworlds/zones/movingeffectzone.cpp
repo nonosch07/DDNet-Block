@@ -315,7 +315,7 @@ void CMovingEffectZone::Tick()
 		{
 			CCharacterCore *pCore = pChar->Core();
 
-			// allow platform riding
+			// --- Solid collision & platform logic ---
 			for(int qi = 0; qi < (int)m_vQuads.size(); qi++)
 			{
 				CMovingQuad &mq = m_vQuads[qi];
@@ -328,51 +328,67 @@ void CMovingEffectZone::Tick()
 				for(int c = 0; c < 4; c++)
 					Trans[c] = mq.m_aBasePoints[c] + CurOffset;
 
-				// feet check: bottom of collision box inside quad, center outside
-				vec2 FeetCheck = pChar->m_Pos + vec2(0, 28.0f);
-				if(!point_in_polygon_local(Trans.data(), 4, pChar->m_Pos) &&
-					point_in_polygon_local(Trans.data(), 4, FeetCheck))
+				bool CenterInside = point_in_polygon_local(Trans.data(), 4, pChar->m_Pos);
+
+				if(CenterInside)
 				{
-					vec2 Delta = CurOffset - mq.m_PrevOffset;
-					pCore->m_Pos += Delta;
-					pChar->m_Pos = pCore->m_Pos;
-				}
-			}
-
-			// solid collision: push player out of quads
-			for(int qi = 0; qi < (int)m_vQuads.size(); qi++)
-			{
-				CMovingQuad &mq = m_vQuads[qi];
-				float OffX = 0.0f, OffY = 0.0f;
-				if(mq.m_PosEnv >= 0)
-					EvalPositionEnvelope(mq.m_PosEnv, mq.m_PosEnvOffset, OffX, OffY);
-
-				std::array<vec2, 4> Trans;
-				for(int c = 0; c < 4; c++)
-					Trans[c] = mq.m_aBasePoints[c] + vec2(OffX, OffY);
-
-				if(point_in_polygon_local(Trans.data(), 4, pChar->m_Pos))
-				{
+					// Stop player at boundary like MoveBox: find nearest edge,
+					// snap to it, and zero velocity on the blocked axis.
 					vec2 Push = PushOutConvex(pChar->m_Pos, Trans.data(), 4);
 					if(length(Push) > 0.01f)
 					{
 						pCore->m_Pos += Push;
 						pChar->m_Pos = pCore->m_Pos;
 
-						// cancel velocity going into the surface
-						vec2 PushDir = normalize(Push);
-						float VelDot = dot(pCore->m_Vel, PushDir);
-						if(VelDot < 0.0f)
-							pCore->m_Vel -= PushDir * VelDot;
-
-						// if pushed upward, player landed on platform → apply delta
-						if(Push.y < -0.5f)
+						// Zero velocity on the blocked axis (like MoveBox with elasticity 0)
+						if(std::abs(Push.x) > std::abs(Push.y))
 						{
-							vec2 CurOffset(OffX, OffY);
-							vec2 Delta = CurOffset - mq.m_PrevOffset;
-							pCore->m_Pos += Delta;
-							pChar->m_Pos = pCore->m_Pos;
+							// hit vertical wall → zero X velocity
+							pCore->m_Vel.x = 0;
 						}
+						else
+						{
+							// hit horizontal surface → zero Y velocity
+							pCore->m_Vel.y = 0;
+
+							// pushed upward = landed on top
+							if(Push.y < 0)
+							{
+								// ground friction (same as GroundFriction tuning = 0.5)
+								if(pCore->m_Direction == 0)
+									pCore->m_Vel.x *= pCore->m_Tuning.m_GroundFriction;
+
+								// reset jumps like standing on solid ground
+								pCore->m_Jumped &= ~2;
+								pCore->m_JumpedTotal = 0;
+
+								// ride with moving platform
+								vec2 Delta = CurOffset - mq.m_PrevOffset;
+								pCore->m_Pos += Delta;
+								pChar->m_Pos = pCore->m_Pos;
+							}
+						}
+					}
+				}
+				else
+				{
+					// feet check: standing on top without center penetration
+					vec2 FeetCheck = pChar->m_Pos + vec2(0, 28.0f);
+					if(point_in_polygon_local(Trans.data(), 4, FeetCheck))
+					{
+						// ground friction
+						pCore->m_Vel.y = 0;
+						if(pCore->m_Direction == 0)
+							pCore->m_Vel.x *= pCore->m_Tuning.m_GroundFriction;
+
+						// reset jumps
+						pCore->m_Jumped &= ~2;
+						pCore->m_JumpedTotal = 0;
+
+						// ride with moving platform
+						vec2 Delta = CurOffset - mq.m_PrevOffset;
+						pCore->m_Pos += Delta;
+						pChar->m_Pos = pCore->m_Pos;
 					}
 				}
 			}
