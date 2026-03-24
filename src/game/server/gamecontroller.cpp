@@ -431,7 +431,9 @@ void IGameController::OnPlayerDisconnect(class CPlayer *pPlayer, const char *pRe
 	if(Server()->ClientIngame(ClientId))
 	{
 		char aBuf[512];
-		if(pReason && *pReason)
+		if(pReason && str_comp(pReason, "changed server") == 0)
+			str_format(aBuf, sizeof(aBuf), "\xE2\x9C\x88 '%s' has changed server", Server()->ClientName(ClientId));
+		else if(pReason && *pReason)
 			str_format(aBuf, sizeof(aBuf), "'%s' has left the game (%s)", Server()->ClientName(ClientId), pReason);
 		else
 			str_format(aBuf, sizeof(aBuf), "'%s' has left the game", Server()->ClientName(ClientId));

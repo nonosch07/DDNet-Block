@@ -1407,6 +1407,23 @@ void CGameContext::OnTick()
 					if(m_apPlayers[i]->m_LocalPassiveDuration == 0)
 						SendChatTarget(i, "Your passive protection has expired.");
 				}
+				if(m_apPlayers[i]->m_PassiveRaceCooldown > 0)
+				{
+					m_apPlayers[i]->m_PassiveRaceCooldown--;
+					if(m_apPlayers[i]->m_PassiveRaceCooldown == 0 && m_apPlayers[i]->m_PassivePendingGrant)
+					{
+						m_apPlayers[i]->m_PassivePendingGrant = false;
+						if(!m_apPlayers[i]->IsLoggedIn())
+							m_apPlayers[i]->m_LocalPassiveDuration = 7200;
+						else
+							m_apPlayers[i]->SetPlayerPassive(7200);
+						SendChatTarget(i, "Wayblock Protection is now active for 2 hours!");
+					}
+				}
+				if(m_apPlayers[i]->m_PassiveRemoverUseCooldown > 0)
+				{
+					m_apPlayers[i]->m_PassiveRemoverUseCooldown--;
+				}
 				if(m_apPlayers[i]->m_RandomCosmeticDuration > 0)
 				{
 					m_apPlayers[i]->m_RandomCosmeticDuration--;

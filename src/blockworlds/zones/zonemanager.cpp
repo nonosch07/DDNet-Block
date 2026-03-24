@@ -11,6 +11,7 @@
 #include "nocollisionzone.h"
 #include "noexpzone.h"
 #include "passivezone.h"
+#include "redirectzone.h"
 #include "shoppointzone.h"
 #include "shopzone.h"
 #include "spawnzone.h"
@@ -139,6 +140,29 @@ void CZoneManager::Init(CGameContext *pGameServer)
 						m_vExtraZones.push_back(pArenaZone); // ownership for deletion
 						m_v1on1Arenas.push_back(pArenaZone); // indexed access (borrowed)
 						dbg_msg("zones", "loaded 1on1 arena zone '%s' (idx=%d) with %d quads", aName, arenaIdx, pQuads->m_NumQuads);
+					}
+					else if(str_comp_nocase_num(aName, "redi_", 5) == 0)
+					{
+						const char *pPortStr = aName + 5;
+						if(pPortStr[0] != '\0' && isdigit(pPortStr[0]))
+						{
+							int Port = str_toint(pPortStr);
+							if(Port >= 1024 && Port <= 65535)
+							{
+								CRedirectZone *pRedirectZone = new CRedirectZone(GameServer(), Port);
+								pRedirectZone->Init(pQuads);
+								m_vExtraZones.push_back(pRedirectZone);
+								dbg_msg("zones", "loaded redirect zone '%s' -> port %d with %d quads", aName, Port, pQuads->m_NumQuads);
+							}
+							else
+							{
+								dbg_msg("zones", "redirect zone '%s' has invalid port %d (must be 1024-65535)", aName, Port);
+							}
+						}
+						else
+						{
+							dbg_msg("zones", "redirect zone '%s' has no valid port number", aName);
+						}
 					}
 					else if(str_comp_nocase_num(aName, "shop", 4) == 0)
 					{

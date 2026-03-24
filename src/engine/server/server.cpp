@@ -3247,7 +3247,7 @@ int CServer::Run()
 					{
 						if(time_get() > m_aClients[i].m_RedirectDropTime)
 						{
-							m_NetServer.Drop(i, "redirected");
+							m_NetServer.Drop(i, "changed server");
 						}
 					}
 				}
