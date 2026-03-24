@@ -4,6 +4,7 @@
 #include <engine/map.h>
 #include <engine/shared/map.h>
 #include <game/server/entities/character.h>
+#include <game/server/entities/projectile.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
@@ -28,6 +29,7 @@ CMovingEffectZone::CMovingEffectZone(CGameContext *pGameServer, int Effect) :
 	IZone(pGameServer, -1), m_Effect(Effect)
 {
 	mem_zero(m_aWasInZone, sizeof(m_aWasInZone));
+	mem_zero(m_aHookableTrack, sizeof(m_aHookableTrack));
 	m_pEnvPoints = nullptr;
 	m_NumEnvPoints = 0;
 }
@@ -76,6 +78,15 @@ void CMovingEffectZone::InitMoving(CMapItemLayerQuads *pQuadsLayer)
 		mq.m_PosEnvOffset = Q.m_PosEnvOffset;
 
 		m_vQuads.push_back(mq);
+	}
+
+	// initialize prev offsets for platform delta computation
+	for(auto &q : m_vQuads)
+	{
+		float ox = 0.0f, oy = 0.0f;
+		if(q.m_PosEnv >= 0)
+			EvalPositionEnvelope(q.m_PosEnv, q.m_PosEnvOffset, ox, oy);
+		q.m_PrevOffset = vec2(ox, oy);
 	}
 
 	Enable();
@@ -166,6 +177,59 @@ void CMovingEffectZone::EvalPositionEnvelope(int EnvIndex, int OffsetMs, float &
 	OutY = fx2f(pPoints[NumPoints - 1].m_aValues[1]);
 }
 
+// Push a point out of a convex polygon. Returns zero vector if point is outside.
+static vec2 PushOutConvex(vec2 Point, const vec2 *pVertices, int NumVertices)
+{
+	// determine winding direction from cross product of first two edges
+	vec2 E0 = pVertices[1] - pVertices[0];
+	vec2 E1 = pVertices[2] - pVertices[1];
+	float Cross = E0.x * E1.y - E0.y * E1.x;
+	float WindSign = (Cross > 0.0f) ? 1.0f : -1.0f;
+
+	float MinDepth = 1e18f;
+	vec2 BestNormal(0, 0);
+
+	for(int i = 0; i < NumVertices; i++)
+	{
+		vec2 A = pVertices[i];
+		vec2 B = pVertices[(i + 1) % NumVertices];
+		vec2 Edge = B - A;
+		float EdgeLen = length(Edge);
+		if(EdgeLen < 0.001f)
+			continue;
+
+		// outward normal (direction depends on winding)
+		vec2 Normal = vec2(Edge.y, -Edge.x) * WindSign / EdgeLen;
+		float Dist = dot(Point - A, Normal);
+
+		if(Dist > 0.0f)
+			return vec2(0, 0); // already outside
+
+		float Depth = -Dist;
+		if(Depth < MinDepth)
+		{
+			MinDepth = Depth;
+			BestNormal = Normal;
+		}
+	}
+
+	return BestNormal * (MinDepth + 1.0f); // +1 margin to prevent re-entry
+}
+
+bool CMovingEffectZone::IsPointInMovingQuad(vec2 Point, int QuadIndex) const
+{
+	const CMovingQuad &mq = m_vQuads[QuadIndex];
+	float OffX = 0.0f, OffY = 0.0f;
+	if(mq.m_PosEnv >= 0)
+		EvalPositionEnvelope(mq.m_PosEnv, mq.m_PosEnvOffset, OffX, OffY);
+
+	std::array<vec2, 4> Translated;
+	for(int i = 0; i < 4; i++)
+		Translated[i] = mq.m_aBasePoints[i] + vec2(OffX, OffY);
+
+	return point_in_polygon_local(Translated.data(), 4, Point);
+}
+
 bool CMovingEffectZone::IsPlayerInMovingZone(vec2 PlayerPos) const
 {
 	for(const auto &mq : m_vQuads)
@@ -193,6 +257,7 @@ void CMovingEffectZone::Tick()
 		if(!pPlayer)
 		{
 			m_aWasInZone[i] = false;
+			m_aHookableTrack[i].m_Active = false;
 			continue;
 		}
 
@@ -200,6 +265,7 @@ void CMovingEffectZone::Tick()
 		if(!pChar)
 		{
 			m_aWasInZone[i] = false;
+			m_aHookableTrack[i].m_Active = false;
 			continue;
 		}
 
@@ -212,7 +278,7 @@ void CMovingEffectZone::Tick()
 				pChar->Freeze();
 			break;
 
-		case MOVINGEFFECT_HOOK:
+		case MOVINGEFFECT_GRABME:
 			if(InZone)
 			{
 				// pull player toward the nearest quad center
@@ -245,12 +311,151 @@ void CMovingEffectZone::Tick()
 			}
 			break;
 
-		case MOVINGEFFECT_UNHOOK:
-			if(InZone && !pChar->Core()->m_Super && !pChar->Core()->m_Invincible)
-				pChar->UnFreeze();
+		case MOVINGEFFECT_HOOKABLE:
+		{
+			CCharacterCore *pCore = pChar->Core();
+
+			// allow platform riding
+			for(int qi = 0; qi < (int)m_vQuads.size(); qi++)
+			{
+				CMovingQuad &mq = m_vQuads[qi];
+				float OffX = 0.0f, OffY = 0.0f;
+				if(mq.m_PosEnv >= 0)
+					EvalPositionEnvelope(mq.m_PosEnv, mq.m_PosEnvOffset, OffX, OffY);
+				vec2 CurOffset(OffX, OffY);
+
+				std::array<vec2, 4> Trans;
+				for(int c = 0; c < 4; c++)
+					Trans[c] = mq.m_aBasePoints[c] + CurOffset;
+
+				// feet check: bottom of collision box inside quad, center outside
+				vec2 FeetCheck = pChar->m_Pos + vec2(0, 28.0f);
+				if(!point_in_polygon_local(Trans.data(), 4, pChar->m_Pos) &&
+					point_in_polygon_local(Trans.data(), 4, FeetCheck))
+				{
+					vec2 Delta = CurOffset - mq.m_PrevOffset;
+					pCore->m_Pos += Delta;
+					pChar->m_Pos = pCore->m_Pos;
+				}
+			}
+
+			// solid collision: push player out of quads
+			for(int qi = 0; qi < (int)m_vQuads.size(); qi++)
+			{
+				CMovingQuad &mq = m_vQuads[qi];
+				float OffX = 0.0f, OffY = 0.0f;
+				if(mq.m_PosEnv >= 0)
+					EvalPositionEnvelope(mq.m_PosEnv, mq.m_PosEnvOffset, OffX, OffY);
+
+				std::array<vec2, 4> Trans;
+				for(int c = 0; c < 4; c++)
+					Trans[c] = mq.m_aBasePoints[c] + vec2(OffX, OffY);
+
+				if(point_in_polygon_local(Trans.data(), 4, pChar->m_Pos))
+				{
+					vec2 Push = PushOutConvex(pChar->m_Pos, Trans.data(), 4);
+					if(length(Push) > 0.01f)
+					{
+						pCore->m_Pos += Push;
+						pChar->m_Pos = pCore->m_Pos;
+
+						// cancel velocity going into the surface
+						vec2 PushDir = normalize(Push);
+						float VelDot = dot(pCore->m_Vel, PushDir);
+						if(VelDot < 0.0f)
+							pCore->m_Vel -= PushDir * VelDot;
+
+						// if pushed upward, player landed on platform → apply delta
+						if(Push.y < -0.5f)
+						{
+							vec2 CurOffset(OffX, OffY);
+							vec2 Delta = CurOffset - mq.m_PrevOffset;
+							pCore->m_Pos += Delta;
+							pChar->m_Pos = pCore->m_Pos;
+						}
+					}
+				}
+			}
+
+			// hook attachment: track hooks onto moving quads
+			if(m_aHookableTrack[i].m_Active)
+			{
+				if(pCore->m_HookState != HOOK_GRABBED)
+				{
+					m_aHookableTrack[i].m_Active = false;
+				}
+				else
+				{
+					int qi = m_aHookableTrack[i].m_QuadIndex;
+					if(qi >= 0 && qi < (int)m_vQuads.size())
+					{
+						const CMovingQuad &mq = m_vQuads[qi];
+						float OffX = 0.0f, OffY = 0.0f;
+						if(mq.m_PosEnv >= 0)
+							EvalPositionEnvelope(mq.m_PosEnv, mq.m_PosEnvOffset, OffX, OffY);
+
+						pCore->m_HookPos = m_aHookableTrack[i].m_HookBasePos + vec2(OffX, OffY);
+					}
+				}
+			}
+
+			if(!m_aHookableTrack[i].m_Active && pCore->m_HookState == HOOK_FLYING)
+			{
+				for(int qi = 0; qi < (int)m_vQuads.size(); qi++)
+				{
+					if(IsPointInMovingQuad(pCore->m_HookPos, qi))
+					{
+						const CMovingQuad &mq = m_vQuads[qi];
+						float OffX = 0.0f, OffY = 0.0f;
+						if(mq.m_PosEnv >= 0)
+							EvalPositionEnvelope(mq.m_PosEnv, mq.m_PosEnvOffset, OffX, OffY);
+
+						pCore->m_HookState = HOOK_GRABBED;
+						pCore->m_TriggeredEvents |= COREEVENT_HOOK_ATTACH_GROUND;
+						pCore->SetHookedPlayer(-1);
+
+						m_aHookableTrack[i].m_Active = true;
+						m_aHookableTrack[i].m_QuadIndex = qi;
+						m_aHookableTrack[i].m_HookBasePos = pCore->m_HookPos - vec2(OffX, OffY);
+						break;
+					}
+				}
+			}
 			break;
+		}
 		}
 
 		m_aWasInZone[i] = InZone;
+	}
+
+	// projectile blocking
+	if(m_Effect == MOVINGEFFECT_HOOKABLE)
+	{
+		for(CProjectile *pProj = (CProjectile *)GameServer()->m_World.FindFirst(CGameWorld::ENTTYPE_PROJECTILE);
+			pProj;
+			pProj = (CProjectile *)pProj->TypeNext())
+		{
+			float Ct = (GameServer()->Server()->Tick() - pProj->GetStartTick()) / (float)GameServer()->Server()->TickSpeed();
+			vec2 ProjPos = pProj->GetPos(Ct);
+
+			for(int qi = 0; qi < (int)m_vQuads.size(); qi++)
+			{
+				if(IsPointInMovingQuad(ProjPos, qi))
+				{
+					GameServer()->CreateExplosionVisual(ProjPos);
+					pProj->Reset();
+					break;
+				}
+			}
+		}
+
+		// update prev offsets for next tick's delta computation
+		for(auto &mq : m_vQuads)
+		{
+			float OffX = 0.0f, OffY = 0.0f;
+			if(mq.m_PosEnv >= 0)
+				EvalPositionEnvelope(mq.m_PosEnv, mq.m_PosEnvOffset, OffX, OffY);
+			mq.m_PrevOffset = vec2(OffX, OffY);
+		}
 	}
 }
