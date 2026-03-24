@@ -10,6 +10,7 @@
 #include "1on1prepzone.h"
 #include "nocollisionzone.h"
 #include "noexpzone.h"
+#include "movingeffectzone.h"
 #include "passivezone.h"
 #include "redirectzone.h"
 #include "shoppointzone.h"
@@ -163,6 +164,27 @@ void CZoneManager::Init(CGameContext *pGameServer)
 						{
 							dbg_msg("zones", "redirect zone '%s' has no valid port number", aName);
 						}
+					}
+					else if(str_comp_nocase(aName, "mv_freeze") == 0)
+					{
+						CMovingEffectZone *pZone = new CMovingEffectZone(GameServer(), MOVINGEFFECT_FREEZE);
+						pZone->InitMoving(pQuads);
+						m_vExtraZones.push_back(pZone);
+						dbg_msg("zones", "loaded moving freeze zone with %d quads", pQuads->m_NumQuads);
+					}
+					else if(str_comp_nocase(aName, "mv_hook") == 0)
+					{
+						CMovingEffectZone *pZone = new CMovingEffectZone(GameServer(), MOVINGEFFECT_HOOK);
+						pZone->InitMoving(pQuads);
+						m_vExtraZones.push_back(pZone);
+						dbg_msg("zones", "loaded moving hook zone with %d quads", pQuads->m_NumQuads);
+					}
+					else if(str_comp_nocase(aName, "mv_unhook") == 0)
+					{
+						CMovingEffectZone *pZone = new CMovingEffectZone(GameServer(), MOVINGEFFECT_UNHOOK);
+						pZone->InitMoving(pQuads);
+						m_vExtraZones.push_back(pZone);
+						dbg_msg("zones", "loaded moving unhook (unfreeze) zone with %d quads", pQuads->m_NumQuads);
 					}
 					else if(str_comp_nocase_num(aName, "shop", 4) == 0)
 					{
