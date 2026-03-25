@@ -157,20 +157,20 @@ void CServerBan::ConBanExt(IConsole::IResult *pResult, void *pUser)
 	int Minutes = pResult->NumArguments() > 1 ? clamp(pResult->GetInteger(1), 0, 525600) : 10;
 	const char *pReason = pResult->NumArguments() > 2 ? pResult->GetString(2) : "No reason given";
 
-	// discord logging: only when executed by an in-game admin
-	if(pResult->m_ClientId >= 0 && pResult->m_ClientId < MAX_CLIENTS && pThis->m_pServer->m_pDiscordWebhook)
+	if(pResult->m_ClientId >= 0 && pResult->m_ClientId < MAX_CLIENTS)
 	{
+		CDiscordWebhook Discord(pThis->Server()->Engine(), &pThis->Server()->m_Http);
 		const char *pUrl = g_Config.m_SvDiscordWebhookUrlRconLogs[0] ? g_Config.m_SvDiscordWebhookUrlRconLogs : nullptr;
-		if(pThis->m_pServer->m_pDiscordWebhook->IsConfigured(pUrl))
+		if(Discord.IsConfigured(pUrl))
 		{
-			const char *pExec = pThis->m_pServer->ClientName(pResult->m_ClientId);
+			const char *pExec = pThis->Server()->ClientName(pResult->m_ClientId);
 			if(!pExec || !pExec[0])
 				pExec = "Unknown";
 			char aTarget[128];
 			if(str_isallnum(pStr))
 			{
 				int TargetId = str_toint(pStr);
-				const char *pTargetName = (TargetId >= 0 && TargetId < MAX_CLIENTS) ? pThis->m_pServer->ClientName(TargetId) : nullptr;
+				const char *pTargetName = (TargetId >= 0 && TargetId < MAX_CLIENTS) ? pThis->Server()->ClientName(TargetId) : nullptr;
 				str_copy(aTarget, (pTargetName && pTargetName[0]) ? pTargetName : pStr, sizeof(aTarget));
 			}
 			else
@@ -183,7 +183,8 @@ void CServerBan::ConBanExt(IConsole::IResult *pResult, void *pUser)
 			CDiscordWebhook::SSendOptions Opt;
 			Opt.m_pWebhookUrl = pUrl;
 			Opt.m_pUsername = g_Config.m_SvDiscordWebhookUsername[0] ? g_Config.m_SvDiscordWebhookUsername : nullptr;
-			pThis->m_pServer->m_pDiscordWebhook->Send(aMsg, Opt);
+			Opt.m_Tts = 0;
+			Discord.Send(aMsg, Opt);
 		}
 	}
 
@@ -1896,6 +1897,27 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 					m_RconClientId = ClientId;
 					m_RconAuthLevel = m_aClients[ClientId].m_Authed;
 					Console()->SetAccessLevel(m_aClients[ClientId].m_Authed == AUTHED_ADMIN ? IConsole::ACCESS_LEVEL_ADMIN : m_aClients[ClientId].m_Authed == AUTHED_MOD ? IConsole::ACCESS_LEVEL_MOD : m_aClients[ClientId].m_Authed == AUTHED_HELPER ? IConsole::ACCESS_LEVEL_HELPER : IConsole::ACCESS_LEVEL_USER);
+
+					// log ALL moderator commands to discord
+					if(m_aClients[ClientId].m_Authed == AUTHED_MOD)
+					{
+						CDiscordWebhook Discord(Engine(), &m_Http);
+						const char *pUrl = g_Config.m_SvDiscordWebhookUrlRconLogs[0] ? g_Config.m_SvDiscordWebhookUrlRconLogs : nullptr;
+						if(Discord.IsConfigured(pUrl))
+						{
+							const char *pExec = ClientName(ClientId);
+							if(!pExec || !pExec[0])
+								pExec = "Unknown";
+							char aMsg[512];
+							str_format(aMsg, sizeof(aMsg), "**[MOD]** **%s** executed: `%s`", pExec, pCmd);
+							CDiscordWebhook::SSendOptions Opt;
+							Opt.m_pWebhookUrl = pUrl;
+							Opt.m_pUsername = g_Config.m_SvDiscordWebhookUsername[0] ? g_Config.m_SvDiscordWebhookUsername : nullptr;
+							Opt.m_Tts = 0;
+							Discord.Send(aMsg, Opt);
+						}
+					}
+
 					{
 						CRconClientLogger Logger(this, ClientId);
 						CLogScope Scope(&Logger);

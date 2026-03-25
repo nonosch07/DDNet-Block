@@ -68,7 +68,7 @@ public:
 
 		auto upReq = HttpPostJson(m_Url.c_str(), m_Payload.c_str());
 		upReq->HeaderString("Content-Type", "application/json");
-		upReq->Timeout(CTimeout{5000, 15000, 500, 5});
+		upReq->Timeout(CTimeout{10000, 30000, 100, 10});
 		upReq->FailOnErrorStatus(false);
 		std::shared_ptr<CHttpRequest> pReq(std::move(upReq));
 		m_pHttp->Run(pReq);
