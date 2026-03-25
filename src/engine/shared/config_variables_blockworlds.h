@@ -82,6 +82,10 @@ MACRO_CONFIG_INT(SvWeekendExpMultiplier, sv_weekend_exp_multiplier, 200, 100, 10
 // Deathnote settings:
 MACRO_CONFIG_INT(SvDeathNoteCoolDown, sv_deathnote_cooldown, 600, 60, 3600, CFGFLAG_SERVER, "Cooldown time (in seconds) a player must wait before reusing the Deathnote.")
 
+// Passive remover settings:
+MACRO_CONFIG_INT(SvPassiveRemoverCooldown, sv_passive_remover_cooldown, 600, 0, 3600, CFGFLAG_SERVER, "Cooldown time (in seconds) before a player can redo the passive race after being hit by a Passive Remover.")
+MACRO_CONFIG_INT(SvPassiveRemoverUseCooldown, sv_passive_remover_use_cooldown, 600, 0, 3600, CFGFLAG_SERVER, "Cooldown time (in seconds) before the same player can use a Passive Remover again.")
+
 // Shop server setting:
 MACRO_CONFIG_INT(SvShopServer, sv_shop_server, 0, 0, 1, CFGFLAG_SERVER, "Set to 1 if this is a shop server; otherwise, set to 0.")
 

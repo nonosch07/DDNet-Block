@@ -605,6 +605,9 @@ public:
 	}
 
 	int m_LocalPassiveDuration = 0;
+	int m_PassiveRaceCooldown = 0; // seconds remaining before player can redo the passive race
+	bool m_PassivePendingGrant = false; // grant passive when cooldown expires
+	int m_PassiveRemoverUseCooldown = 0; // seconds remaining before player can use a passive remover again
 
 	// random cosmetic tile (temporary, not account-bound)
 	int m_RandomCosmeticDuration = 0; // seconds remaining

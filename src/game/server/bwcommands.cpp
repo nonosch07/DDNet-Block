@@ -1495,6 +1495,18 @@ void CGameContext::ConPassiveRemover(IConsole::IResult *pResult, void *pUserData
 	if(pPlayer->GetPlayerPassiveRemovers() < 1)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "You don't have any passive removers! Purchase one from the shop.");
 
+	if(pPlayer->m_PassiveRemoverUseCooldown > 0)
+	{
+		int mins = pPlayer->m_PassiveRemoverUseCooldown / 60;
+		int secs = pPlayer->m_PassiveRemoverUseCooldown % 60;
+		char aCooldownBuf[128];
+		if(mins > 0)
+			str_format(aCooldownBuf, sizeof(aCooldownBuf), "You can use a Passive Remover again in %d min.", mins);
+		else
+			str_format(aCooldownBuf, sizeof(aCooldownBuf), "You can use a Passive Remover again in %d sec.", secs);
+		return pSelf->SendChatTarget(pResult->m_ClientId, aCooldownBuf);
+	}
+
 	CPlayer *pTarget = pSelf->GetPlayerByName(pResult->GetString(0));
 	if(!pTarget)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "Player not found.");
@@ -1530,13 +1542,25 @@ void CGameContext::ConPassiveRemover(IConsole::IResult *pResult, void *pUserData
 	if(pTChar && pTChar->Core()->m_Passive)
 		pTChar->Core()->m_Passive = false;
 
-	char aBufFrom[128], aBufTo[128];
+	// Set a cooldown before the target can redo the passive race
+	pTarget->m_PassiveRaceCooldown = g_Config.m_SvPassiveRemoverCooldown;
+
+	char aBufFrom[128], aBufTo[256];
 	str_format(aBufFrom, sizeof(aBufFrom), "You stripped %s's passive protection! %d removers remaining.",
 		pSelf->Server()->ClientName(pTarget->GetCid()), pPlayer->GetPlayerPassiveRemovers());
-	str_format(aBufTo, sizeof(aBufTo), "'%s' used a Passive Remover on you! Your passive has been removed.",
-		pSelf->Server()->ClientName(pResult->m_ClientId));
+	int cooldownMins = g_Config.m_SvPassiveRemoverCooldown / 60;
+	int cooldownSecs = g_Config.m_SvPassiveRemoverCooldown % 60;
+	if(g_Config.m_SvPassiveRemoverCooldown > 0)
+		str_format(aBufTo, sizeof(aBufTo), "'%s' used a Passive Remover on you! Your passive has been removed. You cannot redo the passive race for %d:%02d minutes.",
+			pSelf->Server()->ClientName(pResult->m_ClientId), cooldownMins, cooldownSecs);
+	else
+		str_format(aBufTo, sizeof(aBufTo), "'%s' used a Passive Remover on you! Your passive has been removed.",
+			pSelf->Server()->ClientName(pResult->m_ClientId));
 	pSelf->SendChatTarget(pResult->m_ClientId, aBufFrom);
 	pSelf->SendChatTarget(pTarget->GetCid(), aBufTo);
+
+	// Set use cooldown on the triggerer
+	pPlayer->m_PassiveRemoverUseCooldown = g_Config.m_SvPassiveRemoverUseCooldown;
 }
 
 void CGameContext::ConExp(IConsole::IResult *pResult, void *pUserData)

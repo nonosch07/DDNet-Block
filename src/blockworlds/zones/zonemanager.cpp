@@ -10,7 +10,9 @@
 #include "1on1prepzone.h"
 #include "nocollisionzone.h"
 #include "noexpzone.h"
+#include "movingeffectzone.h"
 #include "passivezone.h"
+#include "redirectzone.h"
 #include "shoppointzone.h"
 #include "shopzone.h"
 #include "spawnzone.h"
@@ -103,7 +105,7 @@ void CZoneManager::Init(CGameContext *pGameServer)
 						CPassiveZone *pProtectionZone = new CPassiveZone(GameServer());
 						pProtectionZone->Init(pQuads);
 						m_aZones[ZONE_PASSIVE] = static_cast<IZone *>(pProtectionZone);
-						dbg_msg("zones", "loaded passive zone with %d quads", pQuads->m_NumQuads);
+						// dbg_msg("zones", "loaded passive zone with %d quads", pQuads->m_NumQuads);
 					}
 					else if(!m_aZones[ZONE_NOCOLL] && str_comp_nocase(aName, "no_coll") == 0)
 					{
@@ -128,7 +130,7 @@ void CZoneManager::Init(CGameContext *pGameServer)
 						C1on1PrepZone *pPrepZone = new C1on1PrepZone(GameServer());
 						pPrepZone->Init(pQuads);
 						m_aZones[ZONE_1ON1_PREP] = static_cast<IZone *>(pPrepZone);
-						dbg_msg("zones", "loaded 1on1 prep zone with %d quads", pQuads->m_NumQuads);
+						// dbg_msg("zones", "loaded 1on1 prep zone with %d quads", pQuads->m_NumQuads);
 					}
 					else if(str_comp_nocase_num(aName, "1on1_", 5) == 0)
 					{
@@ -138,7 +140,51 @@ void CZoneManager::Init(CGameContext *pGameServer)
 						pArenaZone->Init(pQuads);
 						m_vExtraZones.push_back(pArenaZone); // ownership for deletion
 						m_v1on1Arenas.push_back(pArenaZone); // indexed access (borrowed)
-						dbg_msg("zones", "loaded 1on1 arena zone '%s' (idx=%d) with %d quads", aName, arenaIdx, pQuads->m_NumQuads);
+						// dbg_msg("zones", "loaded 1on1 arena zone '%s' (idx=%d) with %d quads", aName, arenaIdx, pQuads->m_NumQuads);
+					}
+					else if(str_comp_nocase_num(aName, "redi_", 5) == 0)
+					{
+						const char *pPortStr = aName + 5;
+						if(pPortStr[0] != '\0' && isdigit(pPortStr[0]))
+						{
+							int Port = str_toint(pPortStr);
+							if(Port >= 1024 && Port <= 65535)
+							{
+								CRedirectZone *pRedirectZone = new CRedirectZone(GameServer(), Port);
+								pRedirectZone->Init(pQuads);
+								m_vExtraZones.push_back(pRedirectZone);
+								// dbg_msg("zones", "loaded redirect zone '%s' -> port %d with %d quads", aName, Port, pQuads->m_NumQuads);
+							}
+							else
+							{
+								// dbg_msg("zones", "redirect zone '%s' has invalid port %d (must be 1024-65535)", aName, Port);
+							}
+						}
+						else
+						{
+							// dbg_msg("zones", "redirect zone '%s' has no valid port number", aName);
+						}
+					}
+					else if(str_comp_nocase(aName, "mv_freeze") == 0)
+					{
+						CMovingEffectZone *pZone = new CMovingEffectZone(GameServer(), MOVINGEFFECT_FREEZE);
+						pZone->InitMoving(pQuads);
+						m_vExtraZones.push_back(pZone);
+						// dbg_msg("zones", "loaded moving freeze zone with %d quads", pQuads->m_NumQuads);
+					}
+					else if(str_comp_nocase(aName, "mv_grabme") == 0)
+					{
+						CMovingEffectZone *pZone = new CMovingEffectZone(GameServer(), MOVINGEFFECT_GRABME);
+						pZone->InitMoving(pQuads);
+						m_vExtraZones.push_back(pZone);
+						// dbg_msg("zones", "loaded moving grabme zone with %d quads", pQuads->m_NumQuads);
+					}
+					else if(str_comp_nocase(aName, "mv_hook") == 0)
+					{
+						CMovingEffectZone *pZone = new CMovingEffectZone(GameServer(), MOVINGEFFECT_HOOKABLE);
+						pZone->InitMoving(pQuads);
+						m_vExtraZones.push_back(pZone);
+						// dbg_msg("zones", "loaded moving hookable zone with %d quads", pQuads->m_NumQuads);
 					}
 					else if(str_comp_nocase_num(aName, "shop", 4) == 0)
 					{

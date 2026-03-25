@@ -1232,7 +1232,7 @@ bool CCosmeticsHandler::ShopInfoUtility(int Index, int &Price, int &Level, vec2 
 	}
 	else if(Index == CCosmeticsHandler::UTILITY_PASSIVE_REMOVER)
 	{
-		Price = 100;
+		Price = 750;
 		Level = 10;
 		PreviewPos = vec2(100.0f, 0.0f);
 		return true;

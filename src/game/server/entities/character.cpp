@@ -1737,12 +1737,27 @@ void CCharacter::HandleTiles(int Index)
 	bool onPassiveTile = ((m_TileIndex == TILE_BW_PASSIVE) || (m_TileFIndex == TILE_BW_PASSIVE));
 	if(onPassiveTile && !m_IsOnPassiveTile)
 	{
-		GameServer()->SendChatTarget(GetPlayer()->GetCid(), "Wayblock Protection unlocked for 2 hours!");
-
-		if(!m_pPlayer->IsLoggedIn())
-			m_pPlayer->m_LocalPassiveDuration = 7200;
+		if(m_pPlayer->m_PassiveRaceCooldown > 0)
+		{
+			int mins = m_pPlayer->m_PassiveRaceCooldown / 60;
+			int secs = m_pPlayer->m_PassiveRaceCooldown % 60;
+			char aBuf[128];
+			if(mins > 0)
+				str_format(aBuf, sizeof(aBuf), "Wayblock Protection unlocked (in %d min) for 2 hours!", mins);
+			else
+				str_format(aBuf, sizeof(aBuf), "Wayblock Protection unlocked (in %d sec) for 2 hours!", secs);
+			GameServer()->SendChatTarget(GetPlayer()->GetCid(), aBuf);
+			m_pPlayer->m_PassivePendingGrant = true;
+		}
 		else
-			m_pPlayer->SetPlayerPassive(7200);
+		{
+			GameServer()->SendChatTarget(GetPlayer()->GetCid(), "Wayblock Protection unlocked for 2 hours!");
+
+			if(!m_pPlayer->IsLoggedIn())
+				m_pPlayer->m_LocalPassiveDuration = 7200;
+			else
+				m_pPlayer->SetPlayerPassive(7200);
+		}
 
 		m_IsOnPassiveTile = true;
 	}
