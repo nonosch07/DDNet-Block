@@ -1169,22 +1169,22 @@ bool CCosmeticsHandler::ShopInfoUtility(int Index, int &Price, int &Level, vec2 
 {
 	if(Index == CCosmeticsHandler::UTILITY_WEAPONKIT)
 	{
-		Price = 15;
+		Price = 50;
 		Level = 10;
 		PreviewPos = vec2(0.0f, 0.0f); // placeholder for now
 		return true;
 	}
 	else if(Index == CCosmeticsHandler::UTILITY_DEATHNOTE_PAGE)
 	{
-		Price = 30;
+		Price = 75;
 		Level = 10;
 		PreviewPos = vec2(50.0f, 0.0f);
 		return true;
 	}
 	else if(Index == CCosmeticsHandler::UTILITY_PASSIVE_REMOVER)
 	{
-		Price = 750;
-		Level = 10;
+		Price = 2000;
+		Level = 30;
 		PreviewPos = vec2(100.0f, 0.0f);
 		return true;
 	}

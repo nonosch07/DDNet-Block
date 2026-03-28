@@ -1481,6 +1481,8 @@ void CGameContext::ConPassiveRemover(IConsole::IResult *pResult, void *pUserData
 
 	if(!g_Config.m_SvAccountsystem)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+	if (!g_Config.m_SvPassiveRemoverEnabled)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Passive Remover feature is currently disabled.");
 
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 	if(!pPlayer)
