@@ -428,11 +428,13 @@ void IGameController::OnPlayerDisconnect(class CPlayer *pPlayer, const char *pRe
 	pPlayer->OnPlayerSave(true);
 	pPlayer->OnDisconnect();
 	int ClientId = pPlayer->GetCid();
-	if(Server()->ClientIngame(ClientId))
+	if((Server()->ClientIngame(ClientId) ||
+		   (pReason && str_comp(pReason, "changed server") == 0)) &&
+		!pPlayer->m_IsNpc)
 	{
 		char aBuf[512];
 		if(pReason && str_comp(pReason, "changed server") == 0)
-			str_format(aBuf, sizeof(aBuf), "\xE2\x9C\x88 '%s' has changed server", Server()->ClientName(ClientId));
+			str_format(aBuf, sizeof(aBuf), "\xE2\x9C\x88 '%s' has joined another server!", Server()->ClientName(ClientId));
 		else if(pReason && *pReason)
 			str_format(aBuf, sizeof(aBuf), "'%s' has left the game (%s)", Server()->ClientName(ClientId), pReason);
 		else

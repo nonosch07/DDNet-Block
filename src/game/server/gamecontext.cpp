@@ -4125,8 +4125,17 @@ void CGameContext::ConSetTeamAll(IConsole::IResult *pResult, void *pUserData)
 void CGameContext::ConHotReload(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	// clean up shop NPCs before reload to avoid stale state
+	if(g_Config.m_SvShopServer)
+		pSelf->m_ShopPreview.Init(pSelf);
+
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
+		// skip NPC players cuz they don't need state saving
+		if(pSelf->m_apPlayers[i] && pSelf->m_apPlayers[i]->m_IsNpc)
+			continue;
+
 		if(!pSelf->GetPlayerChar(i))
 			continue;
 
@@ -5258,6 +5267,10 @@ void CGameContext::OnShutdown(void *pPersistentData)
 	{
 		pPersistent->m_PrevGameUuid = m_GameUuid;
 	}
+
+	// clean up shop NPC players before shutdown to prevent stale pointers on reload
+	if(m_ShopPreview.GameServer())
+		m_ShopPreview.Init(this);
 
 	Antibot()->RoundEnd();
 
@@ -6527,7 +6540,7 @@ void CGameContext::BW_OnTick()
 	}
 
 	// periodic top 3 session players broadcast (kills, deaths, best streak)
-	// Uses BlockTracker hourly stats — not account-bound, covers all ingame players.
+	// Uses BlockTracker hourly stats - not account-bound, covers all ingame players.
 	if(g_Config.m_SvSessionStatsEnabled)
 	{
 		int64_t IntervalTicks = (int64_t)Server()->TickSpeed() * clamp(g_Config.m_SvSessionStatsInterval, 60, 86400);

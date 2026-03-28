@@ -700,7 +700,7 @@ const char *CServer::ClientName(int ClientId) const
 {
 	if(ClientId < 0 || ClientId >= MAX_CLIENTS || m_aClients[ClientId].m_State == CServer::CClient::STATE_EMPTY)
 		return "(invalid)";
-	if(m_aClients[ClientId].m_State == CServer::CClient::STATE_INGAME || m_aClients[ClientId].m_State == CClient::STATE_NPC)
+	if(m_aClients[ClientId].m_State == CServer::CClient::STATE_INGAME || m_aClients[ClientId].m_State == CClient::STATE_NPC || m_aClients[ClientId].m_State == CClient::STATE_REDIRECTED)
 		return m_aClients[ClientId].m_aName;
 	else
 		return "(connecting)";
@@ -1244,7 +1244,12 @@ int CServer::DelClientCallback(int ClientId, const char *pReason, void *pUser)
 
 	// notify the mod about the drop
 	if(pThis->m_aClients[ClientId].m_State >= CClient::STATE_READY)
-		pThis->GameServer()->OnClientDrop(ClientId, pReason);
+	{
+		const char *pDropReason = pReason;
+		if(pThis->m_aClients[ClientId].m_State == CClient::STATE_REDIRECTED)
+			pDropReason = "changed server";
+		pThis->GameServer()->OnClientDrop(ClientId, pDropReason);
+	}
 
 	pThis->m_aClients[ClientId].m_State = CClient::STATE_EMPTY;
 	pThis->m_aClients[ClientId].m_aName[0] = 0;

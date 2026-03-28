@@ -153,6 +153,19 @@ void CAnimationHandler::Laserwrite(const char *pText, vec2 StartPos, float Size,
 	}
 }
 
+void CAnimationHandler::RemoveAnimationsNear(vec2 Pos, float Radius)
+{
+	for(size_t i = 0; i < m_lpAnimations.size(); i++)
+	{
+		if(distance(m_lpAnimations[i]->GetPos(), Pos) <= Radius)
+		{
+			delete m_lpAnimations[i];
+			m_lpAnimations.erase(m_lpAnimations.begin() + i);
+			i--;
+		}
+	}
+}
+
 void CAnimationHandler::DoAnimation(vec2 Pos, int Index)
 {
 	switch(Index)

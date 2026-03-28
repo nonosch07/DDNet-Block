@@ -1349,13 +1349,12 @@ void COneOnOneEvent::FinishEvent()
 		if(Discord.IsConfigured(p1on1Url))
 		{
 			char aMsg[512];
-			const char *pMap = Server()->GetMapName();
 			int winnerScore = (winnerCid == m_Player1ID) ? m_Score1.load() : m_Score2.load();
 			int loserScore = (winnerCid == m_Player1ID) ? m_Score2.load() : m_Score1.load();
 			int bp = m_Wager > 0 ? m_Wager : 0;
 			const char *pWinnerBracket = pWinnerName;
 			const char *pLoserName = (winnerCid == m_Player1ID) ? pName2 : pName1;
-			str_format(aMsg, sizeof(aMsg), "[**%s**]  %d : %d  [%s]  ->  BP: %d (**%s**)", pWinnerBracket, winnerScore, loserScore, pLoserName, bp, pMap ? pMap : "<invalid>");
+			str_format(aMsg, sizeof(aMsg), "[**%s**]  %d : %d  [%s]  ->  BP: %d", pWinnerBracket, winnerScore, loserScore, pLoserName, bp);
 			CDiscordWebhook::SSendOptions Opt;
 			Opt.m_pWebhookUrl = p1on1Url;
 			Discord.Send(aMsg, Opt);
@@ -1488,8 +1487,8 @@ bool COneOnOneEvent::Leave(int ClientId)
 
 		{
 			char aBuf[512];
-			str_format(aBuf, sizeof(aBuf), "[1on1] - %s ragequited the match vs %s! %s %d : %d - %s",
-				pLeaverName, pOpponentName, pOpponentName, opponentScore, leaverScore, s_RagequitPhrases[phraseIdx]);
+			str_format(aBuf, sizeof(aBuf), "[1on1] - %s ragequited the match vs %s! %s %d : %d",
+				pLeaverName, pOpponentName, pOpponentName, opponentScore, leaverScore);
 			GameServer()->SendChatTarget(-1, aBuf);
 		}
 
