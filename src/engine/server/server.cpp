@@ -559,8 +559,10 @@ void CServer::RedirectClient(int ClientId, int Port, bool Verbose, bool Force)
 	Msg.AddInt(Port);
 	SendMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_FLUSH, ClientId);
 
-	m_aClients[ClientId].m_RedirectDropTime = time_get() + time_freq() * 10;
-	m_aClients[ClientId].m_State = CClient::STATE_REDIRECTED;
+	if (!Force) { //TODO: shouldn't be like this
+		m_aClients[ClientId].m_RedirectDropTime = time_get() + time_freq() * 10;
+		m_aClients[ClientId].m_State = CClient::STATE_REDIRECTED;
+	}
 }
 
 int64_t CServer::TickStartTime(int Tick)
