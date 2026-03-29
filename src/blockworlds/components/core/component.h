@@ -11,6 +11,19 @@
 #include <utility>
 #include <vector>
 
+#define DECLARE_COMPONENT(ClassName, Name) \
+public: \
+	explicit ClassName(CGameContext *pGameServer); \
+	static const char *GetNameStatic() { return Name; } \
+	const char *GetName() const override { return GetNameStatic(); } \
+	using ThisComponent = ClassName; \
+	\
+	template<typename... TArgs> \
+	static void Log(const char *pFmt, TArgs &&...Args) \
+	{ \
+		dbg_msg(ThisComponent::GetNameStatic(), pFmt, std::forward<TArgs>(Args)...); \
+	}
+
 class CComponent
 {
 	class CGameContext *m_pGameServer;
@@ -70,6 +83,8 @@ public:
 	virtual void OnPlayerEnter(int ClientId) {}
 	virtual void OnPlayerDropping(int ClientId) {}
 	virtual void OnPlayerDrop(int ClientId) {}
+
+	virtual bool OnClientJoin(int ClientId) { return false; }
 
 	virtual void OnPlayerAuthorized(int ClientId, int Level) {}
 	virtual void OnPlayerUnAuthorized(int ClientId) {}

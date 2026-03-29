@@ -1,0 +1,79 @@
+#include "port_proxy.h"
+
+#include <engine/server.h>
+#include <engine/shared/config.h>
+
+#include "engine/server/server.h"
+
+CPortProxy::CPortProxy(CGameContext *pGameServer) : CComponent(pGameServer) {}
+
+int CPortProxy::NextFreePort() const {
+    int Base = Config()->m_SvProxyRangeStart;
+    int Length = Config()->m_SvProxyRangeLength;
+
+    int NextPort = Config()->m_SvPort;
+    if (m_PortsTaken.size() >= Length)
+        return NextPort;
+
+    do {
+        NextPort = secure_rand_below(Length) + Base;
+    } while (IsPortTaken(NextPort));
+
+    return NextPort;
+}
+
+bool CPortProxy::IsPortTaken(int Port) const {
+    return std::any_of(m_PortsTaken.begin(), m_PortsTaken.end(), [Port](auto PortEntry){ return PortEntry.m_Port == Port; });
+}
+
+void CPortProxy::OnTick() {
+    for (auto PortEntry = m_PortsTaken.begin(); PortEntry != m_PortsTaken.end();) {
+        if (PortEntry->m_Waiting && PortEntry->m_WaitingUntil < Server()->Tick()) {
+            Log("Port %d expired", PortEntry->m_Port);
+            PortEntry = m_PortsTaken.erase(PortEntry);
+        }
+        else
+            ++PortEntry;
+    }
+}
+
+bool CPortProxy::OnClientJoin(int ClientId) {
+    NETADDR ClientAddr = *((CServer*)Server())->m_NetServer.ClientAddr(ClientId);
+
+    Log("Client %s joins", ((CServer*)Server())->m_NetServer.ClientAddrString(ClientId));
+
+    for (auto PortEntry : m_PortsTaken) {
+        if (!PortEntry.m_Waiting)
+            continue;
+
+        if (PortEntry.m_ClientAddr == ClientAddr) {
+            PortEntry.m_Waiting = false;
+            PortEntry.m_ClientId = ClientId;
+            Log("Client %d accepted on port %d", ClientId, PortEntry.m_Port);
+            return false;
+        }
+    }
+
+    SPort PortEntry;
+
+    int Port = NextFreePort();
+    PortEntry.m_Port = Port;
+    PortEntry.m_Waiting = true;
+    PortEntry.m_WaitingUntil = Server()->Tick() + Config()->m_SvProxyRedirectTimeout;
+    PortEntry.m_ClientAddr = ClientAddr;
+    m_PortsTaken.push_back(PortEntry);
+    Log("Client %d redirected to port %d", ClientId, Port);
+    Server()->RedirectClient(ClientId, Port, true, true);
+    return true;
+}
+
+void CPortProxy::OnPlayerDropping(int ClientId) {
+    for (auto it = m_PortsTaken.begin(); it != m_PortsTaken.end();) {
+        if (!it->m_Waiting && it->m_ClientId == ClientId) {
+            Log("Dropping port %d (Client %d)", it->m_Port, ClientId);
+            it = m_PortsTaken.erase(it);
+        }
+        else
+            ++it;
+    }
+}

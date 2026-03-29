@@ -42,6 +42,7 @@
 #include <blockworlds/components/events.h>
 #include <blockworlds/components/events/tdm.h>
 #include <blockworlds/components/oneonone_manager.h>
+#include <blockworlds/components/port_proxy/port_proxy.h>
 #include <blockworlds/components/promises.h>
 #include <blockworlds/components/requests.h>
 #include <blockworlds/components/vpndetection/vpn_detection.h>
@@ -179,6 +180,7 @@ void CGameContext::Construct(int Resetting)
 		g_ComponentRegistry.Register<CChatFilterComponent>(CChatFilterComponent::GetNameStatic());
 		g_ComponentRegistry.Register<CClientDetectComponent>(CClientDetectComponent::GetNameStatic());
 		g_ComponentRegistry.Register<CVpnDetectionComponent>(CVpnDetectionComponent::GetNameStatic());
+		g_ComponentRegistry.Register<CPortProxy>(CPortProxy::GetNameStatic());
 
 		g_ComponentRegistry.Create<COneOnOneManager>(this);
 	}
