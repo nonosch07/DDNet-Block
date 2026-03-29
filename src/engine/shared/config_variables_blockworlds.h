@@ -234,4 +234,4 @@ MACRO_CONFIG_STR(SvVpnIphubApiKey, sv_vpn_iphub_api_key, 128, "", CFGFLAG_SERVER
 MACRO_CONFIG_INT(SvProxyDebug, sv_proxy_debug, 0, 0, 1, CFGFLAG_SERVER, "")
 MACRO_CONFIG_INT(SvProxyRangeStart, sv_proxy_range_start, 20000, 1, 65535, CFGFLAG_SERVER, "")
 MACRO_CONFIG_INT(SvProxyRangeLength, sv_proxy_range_length, 100, 1, 65535, CFGFLAG_SERVER, "")
-MACRO_CONFIG_INT(SvProxyRedirectTimeout, sv_proxy_timeout, 50, 1, 99999999, CFGFLAG_SERVER, "")
+MACRO_CONFIG_INT(SvProxyRedirectTimeout, sv_proxy_timeout, 100, 1, 99999999, CFGFLAG_SERVER, "")

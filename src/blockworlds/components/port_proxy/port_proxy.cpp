@@ -47,7 +47,7 @@ bool CPortProxy::OnClientJoin(int ClientId) {
         if (!PortEntry.m_Waiting)
             continue;
 
-        if (PortEntry.m_ClientAddr == ClientAddr) {
+        if (net_addr_comp_noport(&PortEntry.m_ClientAddr, &ClientAddr) == 0) {
             PortEntry.m_Waiting = false;
             PortEntry.m_ClientId = ClientId;
             LogDebug("Client %s accepted on port %d", PortEntry.m_pClientAddrStr, PortEntry.m_Port);
