@@ -9,6 +9,8 @@
 class CPortProxy : public CComponent {
 	DECLARE_COMPONENT(CPortProxy, "portproxy")
 
+	[[nodiscard]] int ClientPort(int ClientId) const;
+
 private:
 	struct SPort {
 		int m_Port = 0;

@@ -37,6 +37,7 @@
 #include <memory>
 
 #include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/components/port_proxy/port_proxy.h>
 
 #ifdef CONF_RUST_BRIDGE
 #include <engine/shared/rust_version.h>
@@ -3468,9 +3469,18 @@ void CServer::ConStatus(IConsole::IResult *pResult, void *pUser)
 			{
 				pClientPrefix = "0.7:";
 			}
-			str_format(aBuf, sizeof(aBuf), "id=%d addr=<{%s}> name='%s' client=%s%d secure=%s flags=%d%s%s",
-				i, aAddrStr, pThis->m_aClients[i].m_aName, pClientPrefix, pThis->m_aClients[i].m_DDNetVersion,
-				pThis->m_NetServer.HasSecurityToken(i) ? "yes" : "no", pThis->m_aClients[i].m_Flags, aDnsblStr, aAuthStr);
+
+			if (const auto &pProxy = g_ComponentRegistry.Get<CPortProxy>()) {
+				const int ClientPort = pProxy->ClientPort(i);
+				str_format(aBuf, sizeof(aBuf), "id=%d addr=<{%s}> port_proxy=%d name='%s' client=%s%d secure=%s flags=%d%s%s",
+					i, aAddrStr, ClientPort, pThis->m_aClients[i].m_aName, pClientPrefix, pThis->m_aClients[i].m_DDNetVersion,
+					pThis->m_NetServer.HasSecurityToken(i) ? "yes" : "no", pThis->m_aClients[i].m_Flags, aDnsblStr, aAuthStr);
+			}
+			else {
+				str_format(aBuf, sizeof(aBuf), "id=%d addr=<{%s}> name='%s' client=%s%d secure=%s flags=%d%s%s",
+					i, aAddrStr, pThis->m_aClients[i].m_aName, pClientPrefix, pThis->m_aClients[i].m_DDNetVersion,
+					pThis->m_NetServer.HasSecurityToken(i) ? "yes" : "no", pThis->m_aClients[i].m_Flags, aDnsblStr, aAuthStr);
+			}
 		}
 		else
 		{
