@@ -41,6 +41,7 @@ build_cmake_release:
     paths:
       - blockworlds
       - blockworlds_d
+      - libantibot.so
     when: on_success
     expire_in: 7 days
   only:

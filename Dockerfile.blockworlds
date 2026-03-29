@@ -7,6 +7,7 @@ WORKDIR /blockworlds
 
 COPY blockworlds blockworlds
 COPY blockworlds_d blockworlds_d
+COPY libantibot.so libantibot.so
 COPY storage.cfg .
 COPY start.sh .
 
