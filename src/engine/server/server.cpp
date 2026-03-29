@@ -36,6 +36,8 @@
 #include <engine/shared/snapshot.h>
 #include <memory>
 
+#include <blockworlds/components/core/component_registry.h>
+
 #ifdef CONF_RUST_BRIDGE
 #include <engine/shared/rust_version.h>
 #endif
@@ -532,13 +534,13 @@ void CServer::Ban(int ClientId, int Seconds, const char *pReason, bool VerbatimR
 	m_NetServer.NetBan()->BanAddr(&Addr, Seconds, pReason, VerbatimReason);
 }
 
-void CServer::RedirectClient(int ClientId, int Port, bool Verbose)
+void CServer::RedirectClient(int ClientId, int Port, bool Verbose, bool Force)
 {
 	if(ClientId < 0 || ClientId >= MAX_CLIENTS)
 		return;
 
 	char aBuf[512];
-	bool SupportsRedirect = GetClientVersion(ClientId) >= VERSION_DDNET_REDIRECT;
+	bool SupportsRedirect = Force || GetClientVersion(ClientId) >= VERSION_DDNET_REDIRECT;
 	if(Verbose)
 	{
 		str_format(aBuf, sizeof(aBuf), "redirecting '%s' to port %d supported=%d", ClientName(ClientId), Port, SupportsRedirect);
@@ -1130,6 +1132,12 @@ int CServer::NewClientNoAuthCallback(int ClientId, void *pUser)
 	pThis->GameServer()->TeehistorianRecordPlayerJoin(ClientId, false);
 	pThis->Antibot()->OnEngineClientJoin(ClientId, false);
 
+	bool Interrupt = false;
+	for (const auto &Component : g_ComponentRegistry.Active())
+		Interrupt = Interrupt || Component->OnClientJoin(ClientId);
+	if (Interrupt)
+		return 0;
+
 	pThis->SendCapabilities(ClientId);
 	pThis->SendMap(ClientId);
 #if defined(CONF_FAMILY_UNIX)
@@ -1162,6 +1170,12 @@ int CServer::NewClientCallback(int ClientId, void *pUser, bool Sixup)
 
 	pThis->GameServer()->TeehistorianRecordPlayerJoin(ClientId, Sixup);
 	pThis->Antibot()->OnEngineClientJoin(ClientId, Sixup);
+
+	bool Interrupt = false;
+	for (const auto &Component : g_ComponentRegistry.Active())
+		Interrupt = Interrupt || Component->OnClientJoin(ClientId);
+	if (Interrupt)
+		return 0;
 
 	pThis->m_aClients[ClientId].m_Sixup = Sixup;
 
