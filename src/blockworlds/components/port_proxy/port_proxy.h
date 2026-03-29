@@ -15,6 +15,7 @@ private:
 
 		std::optional<int> m_ClientId;
 		NETADDR m_ClientAddr {};
+		const char *m_pClientAddrStr = nullptr;
 
 		bool m_Waiting = false;
 		int m_WaitingUntil = 0;
@@ -26,6 +27,8 @@ private:
 	[[nodiscard]] bool IsPortTaken(int Port) const;
 
 protected:
+	bool IsDebug() const override;
+
 	void OnTick() override;
 
 	bool OnClientJoin(int ClientId) override;
