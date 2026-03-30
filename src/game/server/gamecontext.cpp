@@ -2176,6 +2176,9 @@ void CGameContext::OnClientConnected(int ClientId, void *pData)
 	m_apPlayers[ClientId]->SetInitialAfk(Afk);
 	m_NextUniqueClientId += 1;
 
+	for(const auto &Component : g_ComponentRegistry.Active())
+		Component->OnPlayerConnected(ClientId);
+
 	SendMotd(ClientId);
 	SendSettings(ClientId);
 
