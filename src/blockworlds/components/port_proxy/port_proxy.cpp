@@ -6,6 +6,15 @@
 
 CPortProxy::CPortProxy(CGameContext *pGameServer) : CComponent(pGameServer) {}
 
+int CPortProxy::ClientPort(int ClientId) const {
+    for (auto PortEntry = m_PortsTaken.begin(); PortEntry != m_PortsTaken.end();) {
+        if (!PortEntry->m_Waiting && PortEntry->m_ClientId == ClientId) {
+            return PortEntry->m_Port;
+        }
+    }
+    return Config()->m_SvPort;
+}
+
 int CPortProxy::NextFreePort() const {
     int Base = Config()->m_SvProxyRangeStart;
     int Length = Config()->m_SvProxyRangeLength;
@@ -43,7 +52,7 @@ bool CPortProxy::OnClientJoin(int ClientId) {
     NETADDR ClientAddr = *((CServer*)Server())->m_NetServer.ClientAddr(ClientId);
     const char* pClientAddrStr = *((CServer*)Server())->m_NetServer.ClientAddrString(ClientId);
 
-    for (auto PortEntry : m_PortsTaken) {
+    for (auto &PortEntry : m_PortsTaken) {
         if (!PortEntry.m_Waiting)
             continue;
 
@@ -72,7 +81,7 @@ bool CPortProxy::OnClientJoin(int ClientId) {
 void CPortProxy::OnPlayerDropping(int ClientId) {
     for (auto it = m_PortsTaken.begin(); it != m_PortsTaken.end();) {
         if (!it->m_Waiting && it->m_ClientId == ClientId) {
-            LogDebug("Dropping port %d of client", it->m_Port, it->m_pClientAddrStr);
+            LogDebug("Dropping port %d of client %s", it->m_Port, it->m_pClientAddrStr);
             it = m_PortsTaken.erase(it);
         }
         else
