@@ -172,9 +172,12 @@ void CGameContext::Construct(int Resetting)
 
 	if(Resetting == NO_RESET)
 	{
+		// required
+		g_ComponentRegistry.Register<COneOnOneManager>(COneOnOneManager::GetNameStatic(), true);
+
+		// common
 		g_ComponentRegistry.Register<CPromises>(CPromises::GetNameStatic());
 		g_ComponentRegistry.Register<CEvents>(CEvents::GetNameStatic());
-		g_ComponentRegistry.Register<COneOnOneManager>(COneOnOneManager::GetNameStatic());
 		g_ComponentRegistry.Register<CRequests>(CRequests::GetNameStatic());
 		g_ComponentRegistry.Register<CAiBotComponent>(CAiBotComponent::GetNameStatic());
 		g_ComponentRegistry.Register<CChatFilterComponent>(CChatFilterComponent::GetNameStatic());
@@ -182,7 +185,6 @@ void CGameContext::Construct(int Resetting)
 		g_ComponentRegistry.Register<CVpnDetectionComponent>(CVpnDetectionComponent::GetNameStatic());
 		g_ComponentRegistry.Register<CPortProxy>(CPortProxy::GetNameStatic());
 
-		g_ComponentRegistry.Create<COneOnOneManager>(this);
 	}
 }
 
@@ -4180,7 +4182,7 @@ void CGameContext::AddVote(const char *pDescription, const char *pCommand)
 	}
 
 	// check for valid option
-	if(!Console()->LineIsValid(pCommand) || str_length(pCommand) >= VOTE_CMD_LENGTH)
+	if(str_length(pCommand) >= VOTE_CMD_LENGTH)
 	{
 		char aBuf[256];
 		str_format(aBuf, sizeof(aBuf), "skipped invalid command '%s'", pCommand);
@@ -5011,6 +5013,12 @@ void CGameContext::OnInit(const void *pPersistentData)
 	CreateAllEntities(true);
 
 	m_pAntibot->RoundStart(this);
+
+	g_ComponentRegistry.CreateRequired(this);
+	for(auto &pComponent : g_ComponentRegistry.Required())
+		dbg_msg("Components", "Required Component created: %s (%p)", pComponent->GetName(), &*pComponent);
+
+	ProcessComponentsQueue();
 
 	if(!m_pAccounts)
 		m_pAccounts = new CAccounts(this, ((CServer *)Server())->DbPool());
@@ -6624,5 +6632,21 @@ void CGameContext::BW_OnTick()
 			// reset hourly stats so each broadcast window is independent
 			m_pController->m_BlockTracker.ResetAllHourlyStats();
 		}
+	}
+}
+
+void CGameContext::ProcessComponentsQueue() {
+	while(!m_ComponentsQueue.empty())
+	{
+		auto ComponentName = m_ComponentsQueue.front();
+		m_ComponentsQueue.pop();
+
+		auto pComponent = g_ComponentRegistry.Create(ComponentName, this);
+		if(!pComponent)
+		{
+			dbg_msg("Components", "Component creation failed");
+			return;
+		}
+		dbg_msg("Components", "Component created: %s (%p)", pComponent->GetName(), &*pComponent);
 	}
 }

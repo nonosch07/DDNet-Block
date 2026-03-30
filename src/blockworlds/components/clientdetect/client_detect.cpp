@@ -1,29 +1,16 @@
 #include "client_detect.h"
 
 #include <engine/server.h>
+#include <engine/server/server.h>
 #include <engine/shared/config.h>
+#include <engine/shared/console.h>
 #include <game/server/gamecontext.h>
+
 
 CClientDetectComponent::CClientDetectComponent(CGameContext *pGameServer) :
 	CComponent(pGameServer)
 {
-}
-
-#define LIST_OF_ALL_COMMANDS(DEF) \
-	DEF("status_client", "?r[name]", CFGFLAG_SERVER, ConStatusClient, this, "List client versions")
-
-void CClientDetectComponent::OnConsoleInit()
-{
-#define CommandRegister(name, args, flags, callback, user, help) Console()->Register(name, args, flags, callback, user, help);
-	LIST_OF_ALL_COMMANDS(CommandRegister)
-#undef CommandRegister
-}
-
-void CClientDetectComponent::OnConsoleTerminate()
-{
-#define CommandDeregister(name, ...) Console()->Deregister(name);
-	LIST_OF_ALL_COMMANDS(CommandDeregister)
-#undef CommandDeregister
+	CONSOLE_COMMAND("status_client", "?r[name]", ConStatusClient, "List client versions")
 }
 
 void CClientDetectComponent::ConStatusClient(IConsole::IResult *pResult, void *pUserData)

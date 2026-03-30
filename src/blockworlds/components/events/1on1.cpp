@@ -1,6 +1,7 @@
 #include "1on1.h"
 #include "1on1_utils.h"
 #include <base/system.h>
+#include <engine/server/server.h>
 #include <engine/shared/config.h>
 #include <game/mapitems.h>
 #include <game/server/entities/character.h>

@@ -6,16 +6,7 @@
 
 class CClientDetectComponent final : public CComponent
 {
-public:
-	static const char *GetNameStatic() { return "clientdetect"; }
-
-public:
-	explicit CClientDetectComponent(class CGameContext *pGameServer);
-
-public:
-	const char *GetName() const override { return GetNameStatic(); }
-	void OnConsoleInit() override;
-	void OnConsoleTerminate() override;
+	DECLARE_COMPONENT(CClientDetectComponent, "clientdetect")
 
 private:
 	static void ConStatusClient(IConsole::IResult *pResult, void *pUserData);

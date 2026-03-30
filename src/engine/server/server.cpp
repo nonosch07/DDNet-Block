@@ -1451,6 +1451,84 @@ void CServer::SendRconCmdRem(const IConsole::CCommandInfo *pCommandInfo, int Cli
 	SendMsg(&Msg, MSGFLAG_VITAL, ClientId);
 }
 
+void CServer::SendRconCmdGroupStart(int ClientId)
+{
+	CMsgPacker Msg(NETMSG_RCON_CMD_GROUP_START, true);
+	Msg.AddInt(NumRconCommands(ClientId));
+	SendMsg(&Msg, MSGFLAG_VITAL, ClientId);
+}
+
+void CServer::SendRconCmdGroupEnd(int ClientId)
+{
+	CMsgPacker Msg(NETMSG_RCON_CMD_GROUP_END, true);
+	SendMsg(&Msg, MSGFLAG_VITAL, ClientId);
+}
+
+
+void CServer::SendChatCmdAdd(const IConsole::CCommandInfo *pCommandInfo, int ClientId)
+{
+	const char *pName = pCommandInfo->m_pName;
+
+	if(IsSixup(ClientId))
+	{
+		if(!str_comp_nocase(pName, "w") || !str_comp_nocase(pName, "whisper"))
+			return;
+
+		if(!str_comp_nocase(pName, "r"))
+			pName = "rescue";
+
+		protocol7::CNetMsg_Sv_CommandInfo Msg{};
+		Msg.m_pName = pName;
+		Msg.m_pArgsFormat = pCommandInfo->m_pParams;
+		Msg.m_pHelpText = pCommandInfo->m_pHelp;
+		SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, ClientId);
+	}
+	else
+	{
+		CNetMsg_Sv_CommandInfo Msg;
+		Msg.m_pName = pName;
+		Msg.m_pArgsFormat = pCommandInfo->m_pParams;
+		Msg.m_pHelpText = pCommandInfo->m_pHelp;
+		SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, ClientId);
+	}
+}
+
+void CServer::SendChatCmdRem(const IConsole::CCommandInfo *pCommandInfo, int ClientId)
+{
+	const char *pName = pCommandInfo->m_pName;
+
+	if(IsSixup(ClientId))
+	{
+		if(!str_comp_nocase(pName, "w") || !str_comp_nocase(pName, "whisper"))
+			return;
+
+		if(!str_comp_nocase(pName, "r"))
+			pName = "rescue";
+
+		protocol7::CNetMsg_Sv_CommandInfoRemove Msg{};
+		Msg.m_pName = pName;
+		SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, ClientId);
+	}
+	else
+	{
+		CNetMsg_Sv_CommandInfoRemove Msg{};
+		Msg.m_pName = pName;
+		SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, ClientId);
+	}
+}
+
+void CServer::SendChatCmdGroupStart(int ClientId)
+{
+	CNetMsg_Sv_CommandInfoGroupStart Msg;
+	SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, ClientId);
+}
+
+void CServer::SendChatCmdGroupEnd(int ClientId)
+{
+	CNetMsg_Sv_CommandInfoGroupEnd Msg;
+	SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, ClientId);
+}
+
 int CServer::GetConsoleAccessLevel(int ClientId)
 {
 	return m_aClients[ClientId].m_Authed == AUTHED_ADMIN ? IConsole::ACCESS_LEVEL_ADMIN : m_aClients[ClientId].m_Authed == AUTHED_MOD ? IConsole::ACCESS_LEVEL_MOD : IConsole::ACCESS_LEVEL_HELPER;

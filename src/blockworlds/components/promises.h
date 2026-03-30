@@ -14,9 +14,7 @@ struct SPromise
 
 class CPromises final : public CComponent
 {
-public:
-	static constexpr const char *GetNameStatic() { return "promises"; }
-	[[nodiscard]] const char *GetName() const override { return GetNameStatic(); }
+	DECLARE_COMPONENT(CPromises, "promises")
 
 protected:
 	void OnTick() override;
@@ -24,8 +22,6 @@ protected:
 	void OnDisable() override;
 
 public:
-	explicit CPromises(CGameContext *pGameServer);
-
 	const SPromise *AddPromise(int ExecuteTick, std::weak_ptr<void> pUserData, std::function<void(std::shared_ptr<void>)> FnCallback);
 
 private:

@@ -13,10 +13,8 @@
 
 class CEvents final : public CComponent
 {
-public:
-	static constexpr const char *GetNameStatic() { return "events"; }
-	[[nodiscard]] const char *GetName() const override { return GetNameStatic(); };
-	[[nodiscard]] std::vector<ComponentAccessor<CComponent>> GetSubComponents() const override;
+	DECLARE_COMPONENT(CEvents, "events")
+	[[nodiscard]] std::vector<CComponentAccessor<CComponent>> GetSubComponents() const override;
 
 public:
 	// high-level category for events
@@ -28,9 +26,6 @@ public:
 
 protected:
 	void OnDisable() override;
-
-	void OnConsoleInit() override;
-	void OnConsoleTerminate() override;
 
 	void OnTick() override;
 	void OnPostTick() override;
@@ -48,7 +43,6 @@ protected:
 	static void ConLeave(IConsole::IResult *pResult, void *pUserData);
 
 public:
-	explicit CEvents(CGameContext *pGameServer);
 	~CEvents() override;
 
 	std::shared_ptr<CEventComponent> CreateEventByName(const char *pName);
