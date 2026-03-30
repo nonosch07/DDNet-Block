@@ -33,6 +33,6 @@ protected:
 
 	void OnTick() override;
 
-	bool OnClientJoin(int ClientId) override;
+	void OnPlayerConnected(int ClientId) override;
 	void OnPlayerDropping(int ClientId) override;
 };

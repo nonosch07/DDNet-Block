@@ -48,9 +48,9 @@ void CPortProxy::OnTick() {
     }
 }
 
-bool CPortProxy::OnClientJoin(int ClientId) {
-    NETADDR ClientAddr = *((CServer*)Server())->m_NetServer.ClientAddr(ClientId);
-    const char* pClientAddrStr = *((CServer*)Server())->m_NetServer.ClientAddrString(ClientId);
+void CPortProxy::OnPlayerConnected(int ClientId) {
+    NETADDR ClientAddr = *Server()->m_NetServer.ClientAddr(ClientId);
+    const char* pClientAddrStr = *Server()->m_NetServer.ClientAddrString(ClientId);
 
     for (auto &PortEntry : m_PortsTaken) {
         if (!PortEntry.m_Waiting)
@@ -60,7 +60,7 @@ bool CPortProxy::OnClientJoin(int ClientId) {
             PortEntry.m_Waiting = false;
             PortEntry.m_ClientId = ClientId;
             LogDebug("Client %s accepted on port %d", PortEntry.m_pClientAddrStr, PortEntry.m_Port);
-            return false;
+            return;
         }
     }
 
@@ -75,7 +75,6 @@ bool CPortProxy::OnClientJoin(int ClientId) {
     m_PortsTaken.push_back(PortEntry);
     LogDebug("Client %d redirected to port %d", ClientId, Port);
     Server()->RedirectClient(ClientId, Port, true, true);
-    return true;
 }
 
 void CPortProxy::OnPlayerDropping(int ClientId) {
