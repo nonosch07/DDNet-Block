@@ -39,28 +39,38 @@ std::function<void(TArgs...)> MakeSafeCallback(void (T::*pMemberFunc)(TArgs...),
 }
 
 /**
- * ComponentAccessor is made to explicitly prohibit storing (copying) shared_ptr
+ * CComponentAccessor is made to explicitly prohibit storing (copying) shared_ptr
  * However you can access weak_ptr to store it
  * This was done to remove chance of accidental copying shared_ptr of any component
  * As it will result in potentially infinite lifetime, when only ComponentRegistry owns and manages them
  * (unique_ptr adds too much pain in the ass, shared_ptr allows to make some mistakes in architecture)
  */
 template<typename T>
-class ComponentAccessor
+class CComponentAccessor
 {
 	friend class CComponentRegistry;
+	template<typename U> friend class CComponentAccessor;
 
 public:
-	explicit ComponentAccessor(std::shared_ptr<T> pPtr) :
+	explicit CComponentAccessor(std::shared_ptr<T> pPtr) :
 		m_pPtr(std::move(pPtr)) {}
-	ComponentAccessor(std::nullptr_t) noexcept :
+	CComponentAccessor(std::nullptr_t) noexcept :
 		m_pPtr(nullptr) {} // lol
 
-	ComponentAccessor(const ComponentAccessor &) = delete;
-	ComponentAccessor &operator=(const ComponentAccessor &) = delete;
+	CComponentAccessor(const CComponentAccessor &) = delete;
+	CComponentAccessor &operator=(const CComponentAccessor &) = delete;
 
-	ComponentAccessor(ComponentAccessor &&) noexcept = default;
-	ComponentAccessor &operator=(ComponentAccessor &&) noexcept = default;
+	CComponentAccessor(CComponentAccessor &&) noexcept = default;
+	CComponentAccessor &operator=(CComponentAccessor &&) noexcept = default;
+
+	template <typename U, typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
+	CComponentAccessor(CComponentAccessor<U>&& other) noexcept : m_pPtr(std::move(other.m_pPtr)) {}
+
+	template<typename U>
+	CComponentAccessor<U> Cast() &&
+	{
+		return CComponentAccessor<U>(std::static_pointer_cast<U>(std::move(m_pPtr)));
+	}
 
 	T *operator->() const noexcept { return m_pPtr.get(); }
 	T &operator*() const noexcept { return *m_pPtr; }

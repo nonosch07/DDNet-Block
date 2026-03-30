@@ -43,6 +43,7 @@ public:
 	CAnimationHandler();
 
 	void Laserwrite(const char *pText, vec2 StartPos, float Size, int Ticks, bool Shotgun = false);
+	void RemoveAnimationsNear(vec2 Pos, float Radius);
 	void DoAnimation(vec2 Pos, int Index);
 	void DoAnimationGundesign(vec2 Pos, int Index, vec2 Direction);
 

@@ -1,8 +1,7 @@
-#ifndef BLOCKWORLDS_COMPONENTS_CORE_COMPONENT_REGISTRY_H
-#define BLOCKWORLDS_COMPONENTS_CORE_COMPONENT_REGISTRY_H
+#pragma once
 
 #include <functional>
-#include <map>
+#include <set>
 #include <memory>
 #include <string>
 #include <typeindex>
@@ -22,35 +21,47 @@ private:
 	std::unordered_map<std::string, std::type_index> m_NameToType;
 	std::unordered_map<std::type_index, std::string> m_TypeToName;
 
+	std::set<std::type_index> m_RequiredComponents;
+
 	std::unordered_map<std::type_index, std::shared_ptr<CComponent>> m_Components;
 
 public:
 	template<typename T>
-	void Register(const std::string &Name)
+	void Register(const std::string &Name, bool Required = false)
 	{
-		static_assert(std::is_base_of_v<CComponent, T>, "T must derive from CComponent");
+		static_assert(std::is_base_of_v<CComponent, T>, "T must derive from CServerComponent");
 		m_TypeToFactory[typeid(T)] = [](class CGameContext *pGameServer) { return std::make_shared<T>(pGameServer); };
 		m_NameToType.try_emplace(Name, typeid(T));
 		m_TypeToName.try_emplace(typeid(T), Name);
+		if(Required)
+			m_RequiredComponents.emplace(typeid(T));
 	}
 
 	template<typename T>
-	ComponentAccessor<T> Create(class CGameContext *pGameServer)
+	CComponentAccessor<T> Create(class CGameContext *pGameServer, bool InitConsole = true)
 	{
 		static_assert(std::is_base_of_v<CComponent, T>, "T must derive from CComponent");
-		return ComponentAccessor(std::static_pointer_cast<T>(Create(typeid(T), pGameServer).m_pPtr));
+		return CComponentAccessor(std::static_pointer_cast<T>(Create(typeid(T), pGameServer).m_pPtr, InitConsole));
 	}
-	ComponentAccessor<CComponent> Create(std::type_index Type, class CGameContext *pGameServer);
-	ComponentAccessor<CComponent> Create(const std::string &Name, class CGameContext *pGameServer);
+	CComponentAccessor<CComponent> Create(std::type_index Type, class CGameContext *pGameServer, bool InitConsole = true);
+	CComponentAccessor<CComponent> Create(const std::string &Name, class CGameContext *pGameServer, bool InitConsole = true);
+
+	std::vector<CComponentAccessor<CComponent>> CreateRequired(class CGameContext *pGameServer)
+	{
+		std::vector<CComponentAccessor<CComponent>> vCreated;
+		for (auto TComponent : m_RequiredComponents)
+			vCreated.emplace_back(Create(TComponent, pGameServer, false));
+		return vCreated;
+	}
 
 	template<typename T>
-	ComponentAccessor<T> Get()
+	CComponentAccessor<T> Get()
 	{
 		static_assert(std::is_base_of_v<CComponent, T>, "T must derive from CComponent");
-		return ComponentAccessor<T>(std::static_pointer_cast<T>(Get(typeid(T)).m_pPtr));
+		return CComponentAccessor<T>(std::static_pointer_cast<T>(Get(typeid(T)).m_pPtr));
 	}
-	ComponentAccessor<CComponent> Get(std::type_index Type);
-	ComponentAccessor<CComponent> Get(const std::string &Name);
+	CComponentAccessor<CComponent> Get(std::type_index Type);
+	CComponentAccessor<CComponent> Get(const std::string &Name);
 
 	template<typename T>
 	bool Remove()
@@ -60,8 +71,9 @@ public:
 	bool Remove(std::type_index Type);
 	bool Remove(const std::string &Name);
 
-	std::vector<ComponentAccessor<CComponent>> Active();
-	std::unordered_map<std::type_index, ComponentAccessor<CComponent>> All();
+	std::vector<CComponentAccessor<CComponent>> Required();
+	std::vector<CComponentAccessor<CComponent>> Active();
+	std::unordered_map<std::type_index, CComponentAccessor<CComponent>> All();
 
 	template<typename T>
 	std::string Name()
@@ -82,5 +94,3 @@ public:
 };
 
 extern CComponentRegistry g_ComponentRegistry;
-
-#endif // BLOCKWORLDS_COMPONENTS_CORE_COMPONENT_REGISTRY_H

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include <engine/server/server.h>
 #include <engine/shared/config.h>
 
 #include "event_helpers.h"

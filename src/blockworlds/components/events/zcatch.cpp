@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include <engine/server/server.h>
 #include <engine/shared/config.h>
 
 #include "event_helpers.h"
@@ -14,6 +15,7 @@
 
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/discord/webhook.h>
+
 
 CZCatchEvent::CZCatchEvent(CGameContext *pGameServer) :
 	CEventComponent(pGameServer)

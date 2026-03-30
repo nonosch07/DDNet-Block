@@ -13,7 +13,11 @@ CShopPreview::CShopPreview() :
 	m_pGameContext(nullptr),
 	m_pCosmeticsHandler(nullptr),
 	m_pPlayer(nullptr),
-	m_LastUpdateTime(0)
+	m_LastPriceToggle(0),
+	m_LastSlowEffects(0),
+	m_LastMediumEffects(0),
+	m_LastFastEffects(0),
+	m_ShowPrice(true)
 {
 	m_pNpcManager = new CNpcManager();
 }
@@ -27,87 +31,197 @@ CShopPreview::CShopPreview(CGameContext *pGameContext) :
 
 CShopPreview::~CShopPreview()
 {
-	if(m_pNpcManager)
-	{
-		m_pNpcManager->RemoveAll();
-		delete m_pNpcManager;
-		m_pNpcManager = nullptr;
-	}
+	delete m_pNpcManager;
+	m_pNpcManager = nullptr;
 }
 
 void CShopPreview::Init(CGameContext *pGameServer)
 {
 	m_pGameContext = pGameServer;
+	m_LastPriceToggle = 0;
+	m_LastSlowEffects = 0;
+	m_LastMediumEffects = 0;
+	m_LastFastEffects = 0;
+	m_ShowPrice = true;
+	m_vPickups.clear();
 	if(m_pNpcManager)
 		m_pNpcManager->Init(pGameServer);
 }
 
 void CShopPreview::Tick()
 {
-	const int TickInterval = GameServer()->Server()->TickSpeed() * 3;
-	if(GameServer()->Server()->Tick() - m_LastUpdateTime >= TickInterval)
+	int Tick = GameServer()->Server()->Tick();
+	int Rate = GameServer()->Server()->TickSpeed();
+
+	// === 3-second cycle: price/level text toggle, skin manipulations, persistent animations ===
+	if(Tick - m_LastPriceToggle >= Rate * 3)
 	{
-		m_LastUpdateTime = GameServer()->Server()->Tick();
-		DisplayCosmetics();
+		m_LastPriceToggle = Tick;
+		m_ShowPrice = !m_ShowPrice;
 		DisplayPricesAndLevels();
+	}
+
+	if(Tick - m_LastSlowEffects >= Rate * 3)
+	{
+		m_LastSlowEffects = Tick;
+		DisplaySlowKnockouts();
+		DisplayPickupGundesigns();
+		DisplaySkinManipulations();
+	}
+
+	// === 1-second cycle: laserwrite knockouts, noisy instant knockouts ===
+	if(Tick - m_LastMediumEffects >= Rate)
+	{
+		m_LastMediumEffects = Tick;
+		DisplayMediumKnockouts();
+	}
+
+	// === 0.25-second cycle: silent damage-indicator knockouts, burst gundesigns ===
+	if(Tick - m_LastFastEffects >= Rate / 4)
+	{
+		m_LastFastEffects = Tick;
+		DisplayFastGundesigns();
+		DisplayFastKnockouts();
+	}
+
+	// maintain NPC positions and properties every tick
+	if(m_pNpcManager)
+		m_pNpcManager->Tick();
+}
+
+// ─── Gun Designs ──────────────────────────────────────────────────────────────
+
+void CShopPreview::DisplayPickupGundesigns()
+{
+	int NumGundesigns = GameServer()->Cosmetics()->NUM_GUNDESIGNS;
+	if((int)m_vPickups.size() < NumGundesigns)
+		m_vPickups.resize(NumGundesigns, nullptr);
+
+	for(int i = 0; i < NumGundesigns; i++)
+	{
+		int Price = 0, Level = 0;
+		vec2 PreviewPos;
+		if(!m_pGameContext->Cosmetics()->ShopInfoGundesign(i, Price, Level, PreviewPos))
+			continue;
+
+		if(m_vPickups[i] != nullptr)
+			continue;
+
+		if(i == CCosmeticsHandler::GUNDESIGN_ARMOR)
+		{
+			m_vPickups[i] = new CPickup(&GameServer()->m_World, 1, 1, 1, 0);
+			m_vPickups[i]->m_Pos = PreviewPos;
+		}
+		else if(i == CCosmeticsHandler::GUNDESIGN_HEART)
+		{
+			m_vPickups[i] = new CPickup(&GameServer()->m_World, 0, 0, 1, 0);
+			m_vPickups[i]->m_Pos = PreviewPos;
+		}
+		else if(i == CCosmeticsHandler::GUNDESIGN_BLINKING)
+		{
+			m_vPickups[i] = new CPickup(&GameServer()->m_World, CGameWorld::ENTTYPE_PICKUP, 1, 1, 0);
+			m_vPickups[i]->m_Pos = PreviewPos;
+		}
 	}
 }
 
-void CShopPreview::DisplayCosmetics()
+// Fast gun designs: star bursts, PEW, damage-indicator effects — all very short-lived
+void CShopPreview::DisplayFastGundesigns()
 {
-	DisplayGundesign();
-	DisplayKnockouts();
-	DisplaySkinManipulations();
-}
-
-void CShopPreview::DisplayGundesign()
-{
-	static std::vector<CPickup *> s_Pickups(GameServer()->Cosmetics()->NUM_GUNDESIGNS, nullptr);
-
 	for(int i = 0; i < GameServer()->Cosmetics()->NUM_GUNDESIGNS; i++)
 	{
 		int Price = 0, Level = 0;
 		vec2 PreviewPos;
+		if(!m_pGameContext->Cosmetics()->ShopInfoGundesign(i, Price, Level, PreviewPos))
+			continue;
 
-		if(m_pGameContext->Cosmetics()->ShopInfoGundesign(i, Price, Level, PreviewPos))
+		switch(i)
 		{
+		case CCosmeticsHandler::GUNDESIGN_CLOCKWISE:
+		case CCosmeticsHandler::GUNDESIGN_COUNTERCLOCK:
+		case CCosmeticsHandler::GUNDESIGN_TWOCLOCK:
+		case CCosmeticsHandler::GUNDESIGN_REVERSE:
+		case CCosmeticsHandler::GUNDESIGN_STARX:
+		case CCosmeticsHandler::GUNDESIGN_VIP_STARGUN:
+		case CCosmeticsHandler::GUNDESIGN_SHURIKEN:
+		case CCosmeticsHandler::GUNDESIGN_SPARKLER:
+		case CCosmeticsHandler::GUNDESIGN_PEW:
 			GameServer()->Cosmetics()->DoGundesignRaw(PreviewPos, i, vec2(1, 0));
-		}
-
-		if(s_Pickups[i] == nullptr)
-		{
-			if(i == GameServer()->Cosmetics()->GUNDESIGN_ARMOR)
-			{
-				s_Pickups[i] = new CPickup(&GameServer()->m_World, 1, 1, 1, 0);
-				s_Pickups[i]->m_Pos = PreviewPos;
-			}
-			else if(i == GameServer()->Cosmetics()->GUNDESIGN_HEART)
-			{
-				s_Pickups[i] = new CPickup(&GameServer()->m_World, 0, 0, 1, 0);
-				s_Pickups[i]->m_Pos = PreviewPos;
-			}
-			else if(i == GameServer()->Cosmetics()->GUNDESIGN_BLINKING)
-			{
-				s_Pickups[i] = new CPickup(&GameServer()->m_World, CGameWorld::ENTTYPE_PICKUP, 1, 1, 0);
-				s_Pickups[i]->m_Pos = PreviewPos;
-			}
+			break;
+		default:
+			break;
 		}
 	}
 }
 
-void CShopPreview::DisplayKnockouts()
+// ─── Knockout Effects ─────────────────────────────────────────────────────────
+
+// Slow knockouts: Love (3s), Thunderstorm (3s), Splash (shrinks over ~1s)
+void CShopPreview::DisplaySlowKnockouts()
 {
-	for(int i = 0; i < GameServer()->Cosmetics()->NUM_KNOCKOUTS; i++)
+	static const int SlowKnockouts[] = {
+		CCosmeticsHandler::KNOCKOUT_LOVE,
+		CCosmeticsHandler::KNOCKOUT_THUNDERSTORM,
+		CCosmeticsHandler::KNOCKOUT_VIP_SPLASH,
+	};
+
+	for(int ko : SlowKnockouts)
 	{
 		int Price = 0, Level = 0;
 		vec2 PreviewPos;
-
-		if(m_pGameContext->Cosmetics()->ShopInfoKnockout(i, Price, Level, PreviewPos))
+		if(m_pGameContext->Cosmetics()->ShopInfoKnockout(ko, Price, Level, PreviewPos))
 		{
-			GameServer()->Cosmetics()->DoKnockoutEffectRaw(PreviewPos, i);
+			GameServer()->Cosmetics()->DoKnockoutEffectRaw(PreviewPos, ko);
 		}
 	}
 }
+
+// medium knockouts: laserwrite effects + noisy instant effects (explosion, starexplosion, hammerhit)
+void CShopPreview::DisplayMediumKnockouts()
+{
+	static const int MediumKnockouts[] = {
+		CCosmeticsHandler::KNOCKOUT_KORIP,
+		CCosmeticsHandler::KNOCKOUT_KOEZ,
+		CCosmeticsHandler::KNOCKOUT_KONOOB,
+		CCosmeticsHandler::KNOCKOUT_SORRY,
+		CCosmeticsHandler::KNOCKOUT_PRO,
+		CCosmeticsHandler::KNOCKOUT_GG,
+		CCosmeticsHandler::KNOCKOUT_EXPLOSION,
+		CCosmeticsHandler::KNOCKOUT_STAREXPLOSION,
+		CCosmeticsHandler::KNOCKOUT_HAMMERHIT,
+	};
+
+	for(int ko : MediumKnockouts)
+	{
+		int Price = 0, Level = 0;
+		vec2 PreviewPos;
+		if(m_pGameContext->Cosmetics()->ShopInfoKnockout(ko, Price, Level, PreviewPos))
+		{
+			GameServer()->Cosmetics()->DoKnockoutEffectRaw(PreviewPos, ko);
+		}
+	}
+}
+
+// fast knockouts: silent single-frame damage-indicator effects that need frequent refresh
+void CShopPreview::DisplayFastKnockouts()
+{
+	static const int FastKnockouts[] = {
+		CCosmeticsHandler::KNOCKOUT_KOSTARS,
+		CCosmeticsHandler::KNOCKOUT_STARRING,
+	};
+
+	for(int ko : FastKnockouts)
+	{
+		int Price = 0, Level = 0;
+		vec2 PreviewPos;
+		if(m_pGameContext->Cosmetics()->ShopInfoKnockout(ko, Price, Level, PreviewPos))
+		{
+			GameServer()->Cosmetics()->DoKnockoutEffectRaw(PreviewPos, ko);
+		}
+	}
+}
+
+// ─── Skin Manipulations ──────────────────────────────────────────────────────
 
 void CShopPreview::DisplaySkinManipulations()
 {
@@ -128,15 +242,21 @@ void CShopPreview::DisplaySkinManipulations()
 	}
 }
 
+// ─── Price / Level Labels ────────────────────────────────────────────────────
+
 void CShopPreview::DisplayPriceLevel(const vec2 &PreviewPos, int Price, int Level)
 {
 	char aBuf[128];
-	if((GameServer()->Server()->Tick() / (GameServer()->Server()->TickSpeed() * 3)) % 2 == 0)
+	if(m_ShowPrice)
 		str_format(aBuf, sizeof(aBuf), "BP: %d", Price);
 	else
 		str_format(aBuf, sizeof(aBuf), "LVL: %d", Level);
 
-	GameServer()->Animations()->Laserwrite(aBuf, PreviewPos - vec2(0, -100.0f), 5.0f, GameServer()->Server()->TickSpeed() * 3, true);
+	vec2 TextPos = PreviewPos - vec2(0, -100.0f);
+	GameServer()->Animations()->RemoveAnimationsNear(TextPos, 200.0f);
+
+	const int Lifetime = GameServer()->Server()->TickSpeed() * 3;
+	GameServer()->Animations()->Laserwrite(aBuf, TextPos, 5.0f, Lifetime, true);
 }
 
 void CShopPreview::DisplayPricesAndLevels()
@@ -146,9 +266,7 @@ void CShopPreview::DisplayPricesAndLevels()
 		int Price = 0, Level = 0;
 		vec2 PreviewPos;
 		if(m_pGameContext->Cosmetics()->ShopInfoGundesign(i, Price, Level, PreviewPos))
-		{
 			DisplayPriceLevel(PreviewPos, Price, Level);
-		}
 	}
 
 	for(int i = 0; i < GameServer()->Cosmetics()->NUM_KNOCKOUTS; i++)
@@ -156,9 +274,7 @@ void CShopPreview::DisplayPricesAndLevels()
 		int Price = 0, Level = 0;
 		vec2 PreviewPos;
 		if(m_pGameContext->Cosmetics()->ShopInfoKnockout(i, Price, Level, PreviewPos))
-		{
 			DisplayPriceLevel(PreviewPos, Price, Level);
-		}
 	}
 
 	for(int i = 0; i < GameServer()->Cosmetics()->NUM_SKINMANIS; i++)
@@ -166,8 +282,6 @@ void CShopPreview::DisplayPricesAndLevels()
 		int Price = 0, Level = 0;
 		vec2 PreviewPos;
 		if(m_pGameContext->Cosmetics()->ShopInfoSkinmani(i, Price, Level, PreviewPos))
-		{
 			DisplayPriceLevel(PreviewPos, Price, Level);
-		}
 	}
 }

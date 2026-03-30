@@ -12,9 +12,7 @@
 
 class CRequests : public CComponent
 {
-public:
-	static constexpr const char *GetNameStatic() { return "requests"; }
-	[[nodiscard]] const char *GetName() const override { return GetNameStatic(); };
+	DECLARE_COMPONENT(CRequests, "requests")
 
 	struct SRequest
 	{
@@ -48,8 +46,6 @@ public:
 
 	// helper conversion
 	inline int ToInt(SRequest::EType t) { return static_cast<int>(t); }
-
-	explicit CRequests(class CGameContext *pGameServer);
 
 	// create requests
 	int Create1on1Invite(int FromClient, int ToClient, int Wager, int ExpireSeconds);

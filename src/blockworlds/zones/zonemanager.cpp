@@ -8,9 +8,9 @@
 
 #include "1on1arenazone.h"
 #include "1on1prepzone.h"
+#include "movingeffectzone.h"
 #include "nocollisionzone.h"
 #include "noexpzone.h"
-#include "movingeffectzone.h"
 #include "passivezone.h"
 #include "redirectzone.h"
 #include "shoppointzone.h"

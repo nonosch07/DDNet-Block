@@ -2,9 +2,11 @@
 #define BLOCKWORLDS_SHOP_PREVIEW_H
 
 #include "base/vmath.h"
+#include <vector>
 class CGameContext;
 class CCosmeticsHandler;
 class CPlayer;
+class CPickup;
 
 class CShopPreview
 {
@@ -14,12 +16,19 @@ private:
 	CPlayer *m_pPlayer;
 	class CNpcManager *m_pNpcManager;
 
-	int m_LastUpdateTime;
-	void DisplayGundesign();
-	void DisplayKnockouts();
-	void DisplaySkinmanis();
-	void DisplayCosmetics();
+	// timers for different refresh rates
+	int m_LastPriceToggle; // 3s — toggles BP/LVL text
+	int m_LastSlowEffects; // 3s — persistent/long animations (love, thunderstorm, splash, skin manis)
+	int m_LastMediumEffects; // 1s — medium-duration effects (laserwrite knockouts, PEW)
+	int m_LastFastEffects; // 0.25s — very short burst effects (star gundesigns, damage-ind gundesigns)
+	bool m_ShowPrice;
+	std::vector<CPickup *> m_vPickups;
 
+	void DisplayPickupGundesigns();
+	void DisplaySlowKnockouts();
+	void DisplayMediumKnockouts();
+	void DisplayFastKnockouts();
+	void DisplayFastGundesigns();
 	void DisplaySkinManipulations();
 
 	void DisplayPricesAndLevels();
@@ -36,6 +45,7 @@ public:
 
 	CGameContext *GameServer() { return m_pGameContext; }
 	CCosmeticsHandler *CosmeticsHandler() { return m_pCosmeticsHandler; }
+	CNpcManager *NpcManager() { return m_pNpcManager; }
 };
 
 #endif // BLOCKWORLDS_SHOP_PREVIEW_H

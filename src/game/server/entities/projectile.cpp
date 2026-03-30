@@ -245,9 +245,7 @@ void CProjectile::Tick()
 			if(pTargetChr && m_Owner >= 0 && GameServer()->m_apPlayers[m_Owner])
 			{
 				int GD = GameServer()->m_apPlayers[m_Owner]->GetGunDesign();
-				if(GD == CCosmeticsHandler::GUNDESIGN_LASERDOTS)
-					GameServer()->SendEmoticon(pTargetChr->GetPlayer()->GetCid(), EMOTICON_GHOST, -1);
-				else if(GD == CCosmeticsHandler::GUNDESIGN_HEART)
+				if(GD == CCosmeticsHandler::GUNDESIGN_HEART)
 					GameServer()->SendEmoticon(pTargetChr->GetPlayer()->GetCid(), EMOTICON_HEARTS, -1);
 			}
 			if(!GameServer()->Cosmetics()->DoGundesign(m_Owner, CurPos, m_Direction))

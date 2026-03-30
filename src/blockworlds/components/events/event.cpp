@@ -2,6 +2,7 @@
 #include "game/teamscore.h"
 
 #include <algorithm>
+#include <engine/server/server.h>
 #include <engine/shared/config.h>
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
@@ -133,6 +134,7 @@ void CEventComponent::OnTick()
 {
 	if(g_Config.m_SvEventsTestMode && m_State == EEventState::Registration)
 	{
+#ifdef CONF_DEBUG
 		const int NeedDummies = GetMinCandidates();
 		if(g_Config.m_DbgDummies < NeedDummies)
 			g_Config.m_DbgDummies = NeedDummies;
@@ -144,6 +146,7 @@ void CEventComponent::OnTick()
 			if(GameServer()->GetPlayer(i) && std::find(m_Candidates.begin(), m_Candidates.end(), i) == m_Candidates.end())
 				Register(i);
 		}
+#endif
 	}
 	// process both queues independently and requeue items that could not be completed yet
 	// this makes restoration robust whenn a player has no character this tick (e.g., in spec, paused, timing issues)

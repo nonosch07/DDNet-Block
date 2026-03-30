@@ -1481,6 +1481,8 @@ void CGameContext::ConPassiveRemover(IConsole::IResult *pResult, void *pUserData
 
 	if(!g_Config.m_SvAccountsystem)
 		return pSelf->SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+	if (!g_Config.m_SvPassiveRemoverEnabled)
+		return pSelf->SendChatTarget(pResult->m_ClientId, "Passive Remover feature is currently disabled.");
 
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 	if(!pPlayer)
@@ -2895,35 +2897,25 @@ void CGameContext::ConComponentList(IConsole::IResult *pResult, void *pUserData)
 
 void CGameContext::ConComponentPlug(IConsole::IResult *pResult, void *pUserData)
 {
+	CGameContext *pSelf = (CGameContext *)pUserData;
+
 	char aName[64];
 	str_copy(aName, pResult->GetString(0));
 	str_clean_whitespaces(aName);
 
-	CGameContext *pSelf = (CGameContext *)pUserData;
-
-	// snapshot cmd names before creation
-	std::set<std::string> setBefore;
-	for(const IConsole::CCommandInfo *pCmd = pSelf->Console()->FirstCommandInfo(IConsole::ACCESS_LEVEL_ADMIN, CFGFLAG_SERVER);
-		pCmd; pCmd = pCmd->NextCommandInfo(IConsole::ACCESS_LEVEL_ADMIN, CFGFLAG_SERVER))
+	if(!pSelf->m_pScore)
 	{
-		setBefore.insert(pCmd->m_pName);
+		pSelf->m_ComponentsQueue.emplace(aName);
+		return;
 	}
 
-	auto pComponent = g_ComponentRegistry.Create(aName, pSelf);
+	auto pComponent = g_ComponentRegistry.Create(aName, (CGameContext *)pUserData);
 	if(!pComponent)
 	{
 		dbg_msg("Components", "Component creation failed");
 		return;
 	}
 	dbg_msg("Components", "Component created: %s (%p)", pComponent->GetName(), &*pComponent);
-
-	// send targeted RCON_CMD_ADD only for newly registered commands
-	for(const IConsole::CCommandInfo *pCmd = pSelf->Console()->FirstCommandInfo(IConsole::ACCESS_LEVEL_ADMIN, CFGFLAG_SERVER);
-		pCmd; pCmd = pCmd->NextCommandInfo(IConsole::ACCESS_LEVEL_ADMIN, CFGFLAG_SERVER))
-	{
-		if(setBefore.find(pCmd->m_pName) == setBefore.end())
-			pSelf->Server()->BroadcastNewRconCmd(pCmd->m_pName);
-	}
 }
 
 void CGameContext::ConComponentUnPlug(IConsole::IResult *pResult, void *pUserData)
@@ -2932,33 +2924,10 @@ void CGameContext::ConComponentUnPlug(IConsole::IResult *pResult, void *pUserDat
 	str_copy(aName, pResult->GetString(0));
 	str_clean_whitespaces(aName);
 
-	CGameContext *pSelf = (CGameContext *)pUserData;
-
-	// Snapshot command names before removal
-	std::set<std::string> setBefore;
-	for(const IConsole::CCommandInfo *pCmd = pSelf->Console()->FirstCommandInfo(IConsole::ACCESS_LEVEL_ADMIN, CFGFLAG_SERVER);
-		pCmd; pCmd = pCmd->NextCommandInfo(IConsole::ACCESS_LEVEL_ADMIN, CFGFLAG_SERVER))
-	{
-		setBefore.insert(pCmd->m_pName);
-	}
-
 	bool Removed = g_ComponentRegistry.Remove(aName);
 	if(Removed)
 	{
 		dbg_msg("Components", "Component removed: %s", aName);
-
-		// Snapshot after removal, send targeted RCON_CMD_REM for commands that disappeared
-		std::set<std::string> setAfter;
-		for(const IConsole::CCommandInfo *pCmd = pSelf->Console()->FirstCommandInfo(IConsole::ACCESS_LEVEL_ADMIN, CFGFLAG_SERVER);
-			pCmd; pCmd = pCmd->NextCommandInfo(IConsole::ACCESS_LEVEL_ADMIN, CFGFLAG_SERVER))
-		{
-			setAfter.insert(pCmd->m_pName);
-		}
-		for(const auto &name : setBefore)
-		{
-			if(setAfter.find(name) == setAfter.end())
-				pSelf->Server()->BroadcastRemovedRconCmd(name.c_str());
-		}
 		return;
 	}
 	dbg_msg("Components", "Component removal failed");

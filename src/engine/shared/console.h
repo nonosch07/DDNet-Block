@@ -22,6 +22,8 @@ class CConsole : public IConsole
 
 		const CCommandInfo *NextCommandInfo(int AccessLevel, int FlagMask) const override;
 
+		int Flags() const override { return m_Flags; };
+
 		void SetAccessLevel(int AccessLevel) { m_AccessLevel = clamp(AccessLevel, (int)(ACCESS_LEVEL_ADMIN), (int)(ACCESS_LEVEL_USER)); }
 	};
 

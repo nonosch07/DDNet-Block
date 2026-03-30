@@ -18,6 +18,7 @@
 #include "teehistorian.h"
 
 #include <memory>
+#include <queue>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -784,6 +785,9 @@ private:
 	static void ConComponentList(IConsole::IResult *pResult, void *pUserData);
 	static void ConComponentPlug(IConsole::IResult *pResult, void *pUserData);
 	static void ConComponentUnPlug(IConsole::IResult *pResult, void *pUserData);
+
+	std::queue<std::string> m_ComponentsQueue; // to store components we should create in init
+	void ProcessComponentsQueue();
 
 	// Setter RCON commands for direct admin modification
 	static void ConSetPages(IConsole::IResult *pResult, void *pUserData);

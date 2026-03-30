@@ -580,6 +580,18 @@ void CPlayer::Snap(int SnappingClient)
 	pClientInfo->m_ColorBody = m_TeeInfos.m_ColorBody;
 	pClientInfo->m_ColorFeet = m_TeeInfos.m_ColorFeet;
 
+	if(m_IsNpc && SnappingClient != SERVER_DEMO_CLIENT && SnappingClient >= 0 && SnappingClient < MAX_CLIENTS)
+	{
+		CPlayer *pViewer = GameServer()->m_apPlayers[SnappingClient];
+		if(pViewer && !pViewer->m_IsNpc)
+		{
+			StrToInts(&pClientInfo->m_Skin0, 6, pViewer->m_TeeInfos.m_aSkinName);
+			pClientInfo->m_UseCustomColor = pViewer->m_TeeInfos.m_UseCustomColor;
+			pClientInfo->m_ColorBody = pViewer->m_TeeInfos.m_ColorBody;
+			pClientInfo->m_ColorFeet = pViewer->m_TeeInfos.m_ColorFeet;
+		}
+	}
+
 	CCharacter *pCharForRainbow = GameServer()->GetPlayerChar(m_ClientId);
 	if(pCharForRainbow && pCharForRainbow->IsHookRainbowActive())
 	{

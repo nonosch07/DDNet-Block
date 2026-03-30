@@ -85,6 +85,7 @@ MACRO_CONFIG_INT(SvDeathNoteCoolDown, sv_deathnote_cooldown, 600, 60, 3600, CFGF
 // Passive remover settings:
 MACRO_CONFIG_INT(SvPassiveRemoverCooldown, sv_passive_remover_cooldown, 600, 0, 3600, CFGFLAG_SERVER, "Cooldown time (in seconds) before a player can redo the passive race after being hit by a Passive Remover.")
 MACRO_CONFIG_INT(SvPassiveRemoverUseCooldown, sv_passive_remover_use_cooldown, 600, 0, 3600, CFGFLAG_SERVER, "Cooldown time (in seconds) before the same player can use a Passive Remover again.")
+MACRO_CONFIG_INT(SvPassiveRemoverEnabled, sv_passive_remover_enabled, 1, 0, 1, CFGFLAG_SERVER, "Enable (1) or disable (0) the Passive Remover feature.")
 
 // Shop server setting:
 MACRO_CONFIG_INT(SvShopServer, sv_shop_server, 0, 0, 1, CFGFLAG_SERVER, "Set to 1 if this is a shop server; otherwise, set to 0.")
@@ -229,3 +230,9 @@ MACRO_CONFIG_INT(SvDualSkinmaniSpeed, sv_dual_skinmani_speed, 5, 1, 50, CFGFLAG_
 
 // VPN detection
 MACRO_CONFIG_STR(SvVpnIphubApiKey, sv_vpn_iphub_api_key, 128, "", CFGFLAG_SERVER, "API key for IPHub.info VPN detetion service")
+
+// Port-proxy
+MACRO_CONFIG_INT(SvProxyDebug, sv_proxy_debug, 0, 0, 1, CFGFLAG_SERVER, "")
+MACRO_CONFIG_INT(SvProxyRangeStart, sv_proxy_range_start, 20000, 1, 65535, CFGFLAG_SERVER, "")
+MACRO_CONFIG_INT(SvProxyRangeLength, sv_proxy_range_length, 100, 1, 65535, CFGFLAG_SERVER, "")
+MACRO_CONFIG_INT(SvProxyRedirectTimeout, sv_proxy_timeout, 100, 1, 99999999, CFGFLAG_SERVER, "")

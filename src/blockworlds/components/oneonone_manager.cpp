@@ -1,6 +1,7 @@
 #include "oneonone_manager.h"
 #include <base/system.h>
 #include <engine/server.h>
+#include <engine/server/server.h>
 #include <engine/shared/config.h>
 #include <game/generated/protocol.h>
 #include <game/server/player.h>
@@ -9,6 +10,7 @@
 #include <blockworlds/votes/votemanager.h>
 
 #include <algorithm>
+
 
 COneOnOneManager::COneOnOneManager(CGameContext *pGameServer) :
 	CComponent(pGameServer)

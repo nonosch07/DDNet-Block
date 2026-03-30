@@ -36,6 +36,9 @@
 #include <engine/shared/snapshot.h>
 #include <memory>
 
+#include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/components/port_proxy/port_proxy.h>
+
 #ifdef CONF_RUST_BRIDGE
 #include <engine/shared/rust_version.h>
 #endif
@@ -533,13 +536,13 @@ void CServer::Ban(int ClientId, int Seconds, const char *pReason, bool VerbatimR
 	m_NetServer.NetBan()->BanAddr(&Addr, Seconds, pReason, VerbatimReason);
 }
 
-void CServer::RedirectClient(int ClientId, int Port, bool Verbose)
+void CServer::RedirectClient(int ClientId, int Port, bool Verbose, bool Force)
 {
 	if(ClientId < 0 || ClientId >= MAX_CLIENTS)
 		return;
 
 	char aBuf[512];
-	bool SupportsRedirect = GetClientVersion(ClientId) >= VERSION_DDNET_REDIRECT;
+	bool SupportsRedirect = Force || GetClientVersion(ClientId) >= VERSION_DDNET_REDIRECT;
 	if(Verbose)
 	{
 		str_format(aBuf, sizeof(aBuf), "redirecting '%s' to port %d supported=%d", ClientName(ClientId), Port, SupportsRedirect);
@@ -558,8 +561,10 @@ void CServer::RedirectClient(int ClientId, int Port, bool Verbose)
 	Msg.AddInt(Port);
 	SendMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_FLUSH, ClientId);
 
-	m_aClients[ClientId].m_RedirectDropTime = time_get() + time_freq() * 10;
-	m_aClients[ClientId].m_State = CClient::STATE_REDIRECTED;
+	if (!Force) { //TODO: shouldn't be like this
+		m_aClients[ClientId].m_RedirectDropTime = time_get() + time_freq() * 10;
+		m_aClients[ClientId].m_State = CClient::STATE_REDIRECTED;
+	}
 }
 
 int64_t CServer::TickStartTime(int Tick)
@@ -696,7 +701,7 @@ const char *CServer::ClientName(int ClientId) const
 {
 	if(ClientId < 0 || ClientId >= MAX_CLIENTS || m_aClients[ClientId].m_State == CServer::CClient::STATE_EMPTY)
 		return "(invalid)";
-	if(m_aClients[ClientId].m_State == CServer::CClient::STATE_INGAME || m_aClients[ClientId].m_State == CClient::STATE_NPC)
+	if(m_aClients[ClientId].m_State == CServer::CClient::STATE_INGAME || m_aClients[ClientId].m_State == CClient::STATE_NPC || m_aClients[ClientId].m_State == CClient::STATE_REDIRECTED)
 		return m_aClients[ClientId].m_aName;
 	else
 		return "(connecting)";
@@ -1131,6 +1136,12 @@ int CServer::NewClientNoAuthCallback(int ClientId, void *pUser)
 	pThis->GameServer()->TeehistorianRecordPlayerJoin(ClientId, false);
 	pThis->Antibot()->OnEngineClientJoin(ClientId, false);
 
+	bool Interrupt = false;
+	for (const auto &Component : g_ComponentRegistry.Active())
+		Interrupt = Interrupt || Component->OnClientJoin(ClientId);
+	if (Interrupt)
+		return 0;
+
 	pThis->SendCapabilities(ClientId);
 	pThis->SendMap(ClientId);
 #if defined(CONF_FAMILY_UNIX)
@@ -1163,6 +1174,12 @@ int CServer::NewClientCallback(int ClientId, void *pUser, bool Sixup)
 
 	pThis->GameServer()->TeehistorianRecordPlayerJoin(ClientId, Sixup);
 	pThis->Antibot()->OnEngineClientJoin(ClientId, Sixup);
+
+	bool Interrupt = false;
+	for (const auto &Component : g_ComponentRegistry.Active())
+		Interrupt = Interrupt || Component->OnClientJoin(ClientId);
+	if (Interrupt)
+		return 0;
 
 	pThis->m_aClients[ClientId].m_Sixup = Sixup;
 
@@ -1228,7 +1245,12 @@ int CServer::DelClientCallback(int ClientId, const char *pReason, void *pUser)
 
 	// notify the mod about the drop
 	if(pThis->m_aClients[ClientId].m_State >= CClient::STATE_READY)
-		pThis->GameServer()->OnClientDrop(ClientId, pReason);
+	{
+		const char *pDropReason = pReason;
+		if(pThis->m_aClients[ClientId].m_State == CClient::STATE_REDIRECTED)
+			pDropReason = "changed server";
+		pThis->GameServer()->OnClientDrop(ClientId, pDropReason);
+	}
 
 	pThis->m_aClients[ClientId].m_State = CClient::STATE_EMPTY;
 	pThis->m_aClients[ClientId].m_aName[0] = 0;
@@ -1428,6 +1450,84 @@ void CServer::SendRconCmdRem(const IConsole::CCommandInfo *pCommandInfo, int Cli
 	CMsgPacker Msg(NETMSG_RCON_CMD_REM, true);
 	Msg.AddString(pCommandInfo->m_pName, 256);
 	SendMsg(&Msg, MSGFLAG_VITAL, ClientId);
+}
+
+void CServer::SendRconCmdGroupStart(int ClientId)
+{
+	CMsgPacker Msg(NETMSG_RCON_CMD_GROUP_START, true);
+	Msg.AddInt(NumRconCommands(ClientId));
+	SendMsg(&Msg, MSGFLAG_VITAL, ClientId);
+}
+
+void CServer::SendRconCmdGroupEnd(int ClientId)
+{
+	CMsgPacker Msg(NETMSG_RCON_CMD_GROUP_END, true);
+	SendMsg(&Msg, MSGFLAG_VITAL, ClientId);
+}
+
+
+void CServer::SendChatCmdAdd(const IConsole::CCommandInfo *pCommandInfo, int ClientId)
+{
+	const char *pName = pCommandInfo->m_pName;
+
+	if(IsSixup(ClientId))
+	{
+		if(!str_comp_nocase(pName, "w") || !str_comp_nocase(pName, "whisper"))
+			return;
+
+		if(!str_comp_nocase(pName, "r"))
+			pName = "rescue";
+
+		protocol7::CNetMsg_Sv_CommandInfo Msg{};
+		Msg.m_pName = pName;
+		Msg.m_pArgsFormat = pCommandInfo->m_pParams;
+		Msg.m_pHelpText = pCommandInfo->m_pHelp;
+		SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, ClientId);
+	}
+	else
+	{
+		CNetMsg_Sv_CommandInfo Msg;
+		Msg.m_pName = pName;
+		Msg.m_pArgsFormat = pCommandInfo->m_pParams;
+		Msg.m_pHelpText = pCommandInfo->m_pHelp;
+		SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, ClientId);
+	}
+}
+
+void CServer::SendChatCmdRem(const IConsole::CCommandInfo *pCommandInfo, int ClientId)
+{
+	const char *pName = pCommandInfo->m_pName;
+
+	if(IsSixup(ClientId))
+	{
+		if(!str_comp_nocase(pName, "w") || !str_comp_nocase(pName, "whisper"))
+			return;
+
+		if(!str_comp_nocase(pName, "r"))
+			pName = "rescue";
+
+		protocol7::CNetMsg_Sv_CommandInfoRemove Msg{};
+		Msg.m_pName = pName;
+		SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, ClientId);
+	}
+	else
+	{
+		CNetMsg_Sv_CommandInfoRemove Msg{};
+		Msg.m_pName = pName;
+		SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, ClientId);
+	}
+}
+
+void CServer::SendChatCmdGroupStart(int ClientId)
+{
+	CNetMsg_Sv_CommandInfoGroupStart Msg;
+	SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, ClientId);
+}
+
+void CServer::SendChatCmdGroupEnd(int ClientId)
+{
+	CNetMsg_Sv_CommandInfoGroupEnd Msg;
+	SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, ClientId);
 }
 
 int CServer::GetConsoleAccessLevel(int ClientId)
@@ -3474,9 +3574,18 @@ void CServer::ConStatus(IConsole::IResult *pResult, void *pUser)
 			{
 				pClientPrefix = "0.7:";
 			}
-			str_format(aBuf, sizeof(aBuf), "id=%d addr=<{%s}> name='%s' client=%s%d secure=%s flags=%d%s%s",
-				i, aAddrStr, pThis->m_aClients[i].m_aName, pClientPrefix, pThis->m_aClients[i].m_DDNetVersion,
-				pThis->m_NetServer.HasSecurityToken(i) ? "yes" : "no", pThis->m_aClients[i].m_Flags, aDnsblStr, aAuthStr);
+
+			if (const auto &pProxy = g_ComponentRegistry.Get<CPortProxy>()) {
+				const int ClientPort = pProxy->ClientPort(i);
+				str_format(aBuf, sizeof(aBuf), "id=%d addr=<{%s}> port_proxy=%d name='%s' client=%s%d secure=%s flags=%d%s%s",
+					i, aAddrStr, ClientPort, pThis->m_aClients[i].m_aName, pClientPrefix, pThis->m_aClients[i].m_DDNetVersion,
+					pThis->m_NetServer.HasSecurityToken(i) ? "yes" : "no", pThis->m_aClients[i].m_Flags, aDnsblStr, aAuthStr);
+			}
+			else {
+				str_format(aBuf, sizeof(aBuf), "id=%d addr=<{%s}> name='%s' client=%s%d secure=%s flags=%d%s%s",
+					i, aAddrStr, pThis->m_aClients[i].m_aName, pClientPrefix, pThis->m_aClients[i].m_DDNetVersion,
+					pThis->m_NetServer.HasSecurityToken(i) ? "yes" : "no", pThis->m_aClients[i].m_Flags, aDnsblStr, aAuthStr);
+			}
 		}
 		else
 		{

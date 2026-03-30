@@ -33,6 +33,18 @@ CEvents::CEvents(CGameContext *pGameServer) :
 	// Note: 1on1 is intentionally NOT registered here. 1on1 matches are managed by COneOnOneManager
 	m_EventsFactory.emplace("priv_tdm", SFactoryRec{EEventCategory::Private, [](class CGameContext *pGS) { return std::make_shared<CPrivateTdmEvent>(pGS); }});
 	m_EventsFactory.emplace("clanwar", SFactoryRec{EEventCategory::Private, [](class CGameContext *pGS) { return std::make_shared<CClanwarEvent>(pGS); }});
+
+	CONSOLE_COMMAND("events_status", "", ConEventsStatus, "Status of current event")
+	CONSOLE_COMMAND("events_list", "", ConEventsList, "List all events (public and private)")
+	CONSOLE_COMMAND("events_list_public", "", ConEventsListPublic, "List public events")
+	CONSOLE_COMMAND("events_list_private", "", ConEventsListPrivate, "List private events")
+	CONSOLE_COMMAND("events_start", "r[name]", ConEventsStart, "Start specified event")
+	CONSOLE_COMMAND("events_next_stage", "", ConEventsForceNextState, "Force current event to next stage")
+	CONSOLE_COMMAND("events_end", "", ConEventsForceEnd, "Forcefully end current event")
+
+	CHAT_COMMAND("join", "", ConJoin, "Chat command, try to register to current event")
+	CHAT_COMMAND("sub", "", ConJoin, "Chat command, try to register to current event")
+	CHAT_COMMAND("leave", "", ConLeave, "Chat command, try to deregister from current event")
 }
 
 CEvents::~CEvents()
@@ -44,9 +56,9 @@ CEvents::~CEvents()
 	}
 }
 
-std::vector<ComponentAccessor<CComponent>> CEvents::GetSubComponents() const
+std::vector<CComponentAccessor<CComponent>> CEvents::GetSubComponents() const
 {
-	std::vector<ComponentAccessor<CComponent>> vSubComponents;
+	std::vector<CComponentAccessor<CComponent>> vSubComponents;
 	if(m_pActiveEvent)
 		vSubComponents.emplace_back(m_pActiveEvent);
 	return vSubComponents;
@@ -62,25 +74,6 @@ void CEvents::OnDisable()
 	}
 }
 
-#define LIST_OF_ALL_COMMANDS(DEF) \
-	DEF("events_status", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsStatus, this, "Status of current event") \
-	DEF("events_list", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsList, this, "List all events (public and private)") \
-	DEF("events_list_public", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsListPublic, this, "List public events") \
-	DEF("events_list_private", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsListPrivate, this, "List private events") \
-	DEF("events_start", "r[name]", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsStart, this, "Start specified event") \
-	DEF("events_next_stage", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsForceNextState, this, "Force current event to next stage") \
-	DEF("events_end", "", CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, ConEventsForceEnd, this, "Forcefully end current event") \
-\
-	DEF("join", "", CFGFLAG_CHAT | CFGFLAG_ANNOUNCE, ConJoin, this, "Chat command, try to register to current event") \
-	DEF("sub", "", CFGFLAG_CHAT | CFGFLAG_ANNOUNCE, ConJoin, this, "Chat command, try to register to current event") \
-	DEF("leave", "", CFGFLAG_CHAT | CFGFLAG_ANNOUNCE, ConLeave, this, "Chat command, try to deregister from current event")
-
-void CEvents::OnConsoleInit()
-{
-#define CommandRegister(name, args, flags, callback, user, help) Console()->Register(name, args, flags, callback, user, help);
-	LIST_OF_ALL_COMMANDS(CommandRegister)
-#undef CommandRegister
-}
 
 std::shared_ptr<CEventComponent> CEvents::CreateEventByName(const char *pName)
 {
@@ -103,12 +96,6 @@ void CEvents::SetActiveEvent(std::shared_ptr<CEventComponent> pEvent)
 std::shared_ptr<CEventComponent> CEvents::GetActiveEvent() const
 {
 	return m_pActiveEvent;
-}
-void CEvents::OnConsoleTerminate()
-{
-#define CommandDeregister(name, ...) Console()->Deregister(name);
-	LIST_OF_ALL_COMMANDS(CommandDeregister)
-#undef CommandDeregister
 }
 
 void CEvents::OnTick()

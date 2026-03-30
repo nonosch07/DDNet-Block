@@ -2,14 +2,16 @@
 
 #include <engine/server/server.h>
 #include <engine/shared/config.h>
+#include <engine/shared/console.h>
+
+#include <game/server/gamecontext.h>
 
 #include <blockworlds/components/core/component_registry.h>
-#include <game/server/gamecontext.h>
 
 CGameContext *CComponent::GameServer() const { return m_pGameServer; }
 CConfig *CComponent::Config() const { return m_pGameServer->Config(); }
-IServer *CComponent::Server() const { return m_pGameServer->Server(); }
-IConsole *CComponent::Console() const { return m_pGameServer->Console(); }
+CServer *CComponent::Server() const { return (CServer*)m_pGameServer->Server(); }
+CConsole *CComponent::Console() const { return (CConsole*)m_pGameServer->Console(); }
 CComponentRegistry *CComponent::Registry() const { return &g_ComponentRegistry; }
 
 CComponent::CComponent(CGameContext *pGameServer)
@@ -20,4 +22,42 @@ CComponent::CComponent(CGameContext *pGameServer)
 bool CComponent::IsDebug() const
 {
 	return Config()->m_Debug;
+}
+
+void CComponent::OnConsoleInit()
+{
+	Server()->SendRconCmdGroupStart(-1);
+	Server()->SendChatCmdGroupStart(-1);
+	for(auto &Cmd : m_ConsoleCommands)
+	{
+		Console()->Register(Cmd.m_pName, Cmd.m_pParams, Cmd.m_Flags,
+			Cmd.m_pfnCallback, Cmd.m_pUserData, Cmd.m_pHelp);
+		const auto *Command = Console()->GetCommandInfo(Cmd.m_pName, Cmd.m_Flags, false);
+
+		for(int i = 0; i < MAX_CLIENTS; ++i)
+		{
+			if(Server()->ClientSlotEmpty(i))
+				continue;
+
+			if(Server()->GetConsoleAccessLevel(i) <= Command->GetAccessLevel()) {
+				Server()->SendRconCmdAdd(Command, i);
+				if(Command->Flags() & CFGFLAG_CHAT)
+					Server()->SendChatCmdAdd(Command, i);
+			}
+		}
+	}
+	Server()->SendChatCmdGroupEnd(-1);
+	Server()->SendRconCmdGroupEnd(-1);
+}
+
+void CComponent::OnConsoleTerminate()
+{
+	for(auto &Cmd : m_ConsoleCommands)
+	{
+		const auto *Command = Console()->GetCommandInfo(Cmd.m_pName, Cmd.m_Flags, false);
+		Server()->SendRconCmdRem(Command, -1);
+		if(Command->Flags() & CFGFLAG_CHAT)
+			Server()->SendChatCmdRem(Command, -1);
+		Console()->Deregister(Cmd.m_pName);
+	}
 }
