@@ -49,6 +49,7 @@ template<typename T>
 class CComponentAccessor
 {
 	friend class CComponentRegistry;
+	template<typename U> friend class CComponentAccessor;
 
 public:
 	explicit CComponentAccessor(std::shared_ptr<T> pPtr) :
@@ -61,6 +62,15 @@ public:
 
 	CComponentAccessor(CComponentAccessor &&) noexcept = default;
 	CComponentAccessor &operator=(CComponentAccessor &&) noexcept = default;
+
+	template <typename U, typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
+	CComponentAccessor(CComponentAccessor<U>&& other) noexcept : m_pPtr(std::move(other.m_pPtr)) {}
+
+	template<typename U>
+	CComponentAccessor<U> Cast() &&
+	{
+		return CComponentAccessor<U>(std::static_pointer_cast<U>(std::move(m_pPtr)));
+	}
 
 	T *operator->() const noexcept { return m_pPtr.get(); }
 	T &operator*() const noexcept { return *m_pPtr; }
