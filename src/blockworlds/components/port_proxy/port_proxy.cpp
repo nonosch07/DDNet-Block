@@ -49,8 +49,8 @@ void CPortProxy::OnTick() {
 }
 
 void CPortProxy::OnPlayerConnected(int ClientId) {
-    NETADDR ClientAddr = *Server()->m_NetServer.ClientAddr(ClientId);
-    const char* pClientAddrStr = *Server()->m_NetServer.ClientAddrString(ClientId);
+    NETADDR ClientAddr = *((CServer*)Server())->m_NetServer.ClientAddr(ClientId);
+    const char* pClientAddrStr = *((CServer*)Server())->m_NetServer.ClientAddrString(ClientId);
 
     for (auto &PortEntry : m_PortsTaken) {
         if (!PortEntry.m_Waiting)
