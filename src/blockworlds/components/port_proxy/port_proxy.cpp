@@ -7,9 +7,9 @@
 CPortProxy::CPortProxy(CGameContext *pGameServer) : CComponent(pGameServer) {}
 
 int CPortProxy::ClientPort(int ClientId) const {
-    for (auto PortEntry = m_PortsTaken.begin(); PortEntry != m_PortsTaken.end();) {
-        if (!PortEntry->m_Waiting && PortEntry->m_ClientId == ClientId) {
-            return PortEntry->m_Port;
+    for (const auto &PortEntry : m_PortsTaken) {
+        if (!PortEntry.m_Waiting && PortEntry.m_ClientId == ClientId) {
+            return PortEntry.m_Port;
         }
     }
     return Config()->m_SvPort;
