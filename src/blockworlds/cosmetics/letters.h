@@ -79,7 +79,7 @@ public:
 						pProj->m_Y = (int)Pos.y;
 						pProj->m_VelX = 0;
 						pProj->m_VelY = 0;
-						pProj->m_StartTick = Server()->Tick();
+						pProj->m_StartTick = Server()->Tick() - 2;
 						pProj->m_Type = WEAPON_SHOTGUN;
 					}
 				}
