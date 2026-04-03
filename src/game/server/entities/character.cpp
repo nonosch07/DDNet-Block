@@ -1443,7 +1443,7 @@ void CCharacter::Snap(int SnappingClient)
 		return;
 
 	pDDNetCharacter->m_Flags = 0;
-	if(m_Core.m_Solo || m_Core.m_Protected || m_Core.m_Passive)
+	if(m_Core.m_Solo || m_Core.m_Passive)
 		pDDNetCharacter->m_Flags |= CHARACTERFLAG_SOLO;
 	if(m_Core.m_Super)
 		pDDNetCharacter->m_Flags |= CHARACTERFLAG_SUPER;
@@ -1515,6 +1515,16 @@ void CCharacter::Snap(int SnappingClient)
 	}
 	pDDNetCharacter->m_TargetX = m_Core.m_Input.m_TargetX;
 	pDDNetCharacter->m_TargetY = m_Core.m_Input.m_TargetY;
+
+	if(m_Core.m_Protected)
+	{
+		pDDNetCharacter->m_Flags |= CHARACTERFLAG_COLLISION_DISABLED;
+		pDDNetCharacter->m_Flags |= CHARACTERFLAG_HOOK_HIT_DISABLED;
+		pDDNetCharacter->m_Flags |= CHARACTERFLAG_HAMMER_HIT_DISABLED;
+		pDDNetCharacter->m_Flags |= CHARACTERFLAG_SHOTGUN_HIT_DISABLED;
+		pDDNetCharacter->m_Flags |= CHARACTERFLAG_GRENADE_HIT_DISABLED;
+		pDDNetCharacter->m_Flags |= CHARACTERFLAG_LASER_HIT_DISABLED;
+	}
 }
 
 void CCharacter::PostSnap()
