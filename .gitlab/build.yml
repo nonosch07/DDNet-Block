@@ -30,6 +30,8 @@ build_cmake_release:
     - ninja game-server
     - cp DDNet-Server ../blockworlds
     - cp libantibot.so ../libantibot.so
+
+    
     # Build Debug
     - rm -rf *
     - export CC=clang
