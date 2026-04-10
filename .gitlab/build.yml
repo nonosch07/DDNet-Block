@@ -4,14 +4,24 @@ stages:
   - Build DDNet Server
   - Build docker image and deploy
 
-build_cmake_release:
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/.cargo
+  CCACHE_DIR: $CI_PROJECT_DIR/.ccache
+
+build_ddnet:
   stage: Build DDNet Server
+  cache:
+    key: "cache-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .cargo/
+      - .ccache/
+      - build/_deps/
   before_script:
     - apt-get update -y
     - apt-get upgrade -y
     - apt-get install
       pkg-config
-      clang rustc
+      clang rustc ccache
       cargo cmake ninja-build
       libmariadb-dev
       libcurl4-openssl-dev
@@ -26,19 +36,16 @@ build_cmake_release:
     - mkdir build && cd build
     - export CC=clang
     - export CXX=clang++
-    - cmake -GNinja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=ON -DUPNP=OFF -DWEBSOCKETS=OFF -DVULKAN=OFF -DGFX=OFF ..
+    - cmake -GNinja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=ON -DUPNP=OFF -DWEBSOCKETS=OFF -DVULKAN=OFF -DGFX=OFF ..
     - ninja game-server
     - cp DDNet-Server ../blockworlds
     - cp libantibot.so ../libantibot.so
+
     # Build Debug
-    - rm -rf *
-    - export CC=clang
-    - export CXX=clang++
-    - cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=ON -DUPNP=OFF -DWEBSOCKETS=OFF -DVULKAN=OFF -DGFX=OFF ..
+    - mkdir -p ../build_debug && cd ../build_debug
+    - cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=ON -DUPNP=OFF -DWEBSOCKETS=OFF -DVULKAN=OFF -DGFX=OFF ..
     - ninja game-server
     - cp DDNet-Server ../blockworlds_d
-    
-
   artifacts:
     paths:
       - blockworlds
@@ -60,9 +67,9 @@ package_main:
   script:
     - mkdir -p /kaniko/.docker
     - echo "{\"auths\":{\"registry.gitlab.com\":{\"auth\":\"$(printf "%s:%s" "${GL_DEPLOY_USER}" "${GL_DEPLOY_PASS}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor 
-      --context "${CI_PROJECT_DIR}" 
-      --dockerfile "${CI_PROJECT_DIR}/Dockerfile.blockworlds" 
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile.blockworlds"
       --destination "${IMAGE_LATEST}"
   only:
     - master
@@ -78,9 +85,9 @@ package_test:
   script:
     - mkdir -p /kaniko/.docker
     - echo "{\"auths\":{\"registry.gitlab.com\":{\"auth\":\"$(printf "%s:%s" "${GL_DEPLOY_USER}" "${GL_DEPLOY_PASS}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor 
-      --context "${CI_PROJECT_DIR}" 
-      --dockerfile "${CI_PROJECT_DIR}/Dockerfile.blockworlds" 
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile.blockworlds"
       --destination "${IMAGE_LATEST}"
   only:
     - test
