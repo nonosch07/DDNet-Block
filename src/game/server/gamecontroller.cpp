@@ -442,7 +442,11 @@ void IGameController::OnPlayerDisconnect(class CPlayer *pPlayer, const char *pRe
 		GameServer()->SendChat(-1, TEAM_ALL, aBuf, -1, CGameContext::FLAG_SIX);
 
 		str_format(aBuf, sizeof(aBuf), "leave player='%d:%s'", ClientId, Server()->ClientName(ClientId));
-		GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "game", aBuf);
+		char aAddrStr[NETADDR_MAXSTRSIZE];
+		Server()->GetClientAddr(ClientId, aAddrStr, sizeof(aAddrStr));
+		char aLeaveBuf[512];
+		str_format(aLeaveBuf, sizeof(aLeaveBuf), "leave player='%d:%s' ip=<{%s}>", ClientId, Server()->ClientName(ClientId), aAddrStr);
+		GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "game", aLeaveBuf);
 	}
 }
 

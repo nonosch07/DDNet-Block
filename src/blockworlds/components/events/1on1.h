@@ -55,6 +55,7 @@ public:
 
 	// Private F3/F4 vote overlay - called from CGameContext::OnVoteNetMessage
 	bool OnDuelVote(int ClientId, int Vote);
+	void ResetDuelReadyVotes(const char *pReason = nullptr);
 	void SendDuelVoteUi(); // sends/refreshes the vote overlay to both players
 	void ClearDuelVoteUi(); // clears the vote overlay for both players
 

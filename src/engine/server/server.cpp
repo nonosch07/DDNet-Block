@@ -3533,6 +3533,8 @@ void CServer::ConStatus(IConsole::IResult *pResult, void *pUser)
 	char aAddrStr[NETADDR_MAXSTRSIZE];
 	CServer *pThis = static_cast<CServer *>(pUser);
 	const char *pName = pResult->NumArguments() == 1 ? pResult->GetString(0) : "";
+	const int RequesterAuth = pResult->m_ClientId >= 0 && pResult->m_ClientId < MAX_CLIENTS ?
+		pThis->m_aClients[pResult->m_ClientId].m_Authed : AUTHED_ADMIN;
 
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
@@ -3544,7 +3546,11 @@ void CServer::ConStatus(IConsole::IResult *pResult, void *pUser)
 		if(!str_utf8_find_nocase(pThis->m_aClients[i].m_aName, pName))
 			continue;
 
-		net_addr_str(pThis->m_NetServer.ClientAddr(i), aAddrStr, sizeof(aAddrStr), true);
+		const bool HideAdminIp = RequesterAuth < AUTHED_ADMIN && pThis->m_aClients[i].m_Authed == AUTHED_ADMIN;
+		if(HideAdminIp)
+			str_copy(aAddrStr, "hidden", sizeof(aAddrStr));
+		else
+			net_addr_str(pThis->m_NetServer.ClientAddr(i), aAddrStr, sizeof(aAddrStr), true);
 		if(pThis->m_aClients[i].m_State == CClient::STATE_INGAME)
 		{
 			char aDnsblStr[64];

@@ -390,7 +390,10 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				auto match = mgr ? mgr->GetMatchForPlayer(ClientId) : nullptr;
 				if(match && match->IsInConfigPhase())
 				{
+					const bool Changed = match->m_Config.m_PointsLimit != A.A;
 					match->m_Config.m_PointsLimit = A.A;
+					if(Changed)
+						match->ResetDuelReadyVotes("[1on1] Settings changed - ready votes were reset.");
 					// re-render for both players
 					for(int cid : {match->m_Player1ID, match->m_Player2ID})
 					{
@@ -410,18 +413,16 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				auto match = mgr ? mgr->GetMatchForPlayer(ClientId) : nullptr;
 				if(match && match->IsInConfigPhase())
 				{
+					bool Changed = false;
 					int w = A.A;
 					if(w >= 0 && w < 6)
 					{
+						const bool Before = match->m_Config.m_aWeapons[w];
 						match->m_Config.m_aWeapons[w] = !match->m_Config.m_aWeapons[w];
-						// ensure at least one weapon stays enabled
-						bool anyEnabled = false;
-						for(int i = 0; i < 6; i++)
-							if(match->m_Config.m_aWeapons[i])
-								anyEnabled = true;
-						if(!anyEnabled)
-							match->m_Config.m_aWeapons[w] = true; // revert
+						Changed = Before != match->m_Config.m_aWeapons[w];
 					}
+					if(Changed)
+						match->ResetDuelReadyVotes("[1on1] Settings changed - ready votes were reset.");
 					for(int cid : {match->m_Player1ID, match->m_Player2ID})
 					{
 						CPlayer *pP = pGameContext->GetPlayer(cid);
@@ -441,6 +442,7 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				if(match && match->IsInConfigPhase())
 				{
 					match->m_Config.m_EndlessHook = !match->m_Config.m_EndlessHook;
+					match->ResetDuelReadyVotes("[1on1] Settings changed - ready votes were reset.");
 					for(int cid : {match->m_Player1ID, match->m_Player2ID})
 					{
 						CPlayer *pP = pGameContext->GetPlayer(cid);
@@ -459,7 +461,10 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				auto match = mgr ? mgr->GetMatchForPlayer(ClientId) : nullptr;
 				if(match && match->IsInConfigPhase())
 				{
+					const bool Changed = match->m_Config.m_TimeLimit != A.A;
 					match->m_Config.m_TimeLimit = A.A;
+					if(Changed)
+						match->ResetDuelReadyVotes("[1on1] Settings changed - ready votes were reset.");
 					for(int cid : {match->m_Player1ID, match->m_Player2ID})
 					{
 						CPlayer *pP = pGameContext->GetPlayer(cid);
@@ -478,7 +483,10 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				auto match = mgr ? mgr->GetMatchForPlayer(ClientId) : nullptr;
 				if(match && match->IsInConfigPhase())
 				{
+					const bool Changed = match->m_Config.m_SpawnMode != A.A;
 					match->m_Config.m_SpawnMode = A.A; // 0=normal, 1=random
+					if(Changed)
+						match->ResetDuelReadyVotes("[1on1] Settings changed - ready votes were reset.");
 					for(int cid : {match->m_Player1ID, match->m_Player2ID})
 					{
 						CPlayer *pP = pGameContext->GetPlayer(cid);
