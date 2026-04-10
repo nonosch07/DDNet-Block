@@ -44,7 +44,7 @@ struct CClanResult : ISqlResult
 {
 	enum
 	{
-		MAX_MESSAGES = 15,
+		MAX_MESSAGES = 26,
 	};
 
 	char m_aaMessages[MAX_MESSAGES][512];
