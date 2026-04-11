@@ -91,15 +91,32 @@ package_main:
   only:
     - master
 
+package_main:
+  stage: Build docker image and deploy
+  image: quay.io/buildah/stable:latest
+  variables:
+    IMAGE_LATEST: ${CI_REGISTRY_IMAGE}:latest
+    STORAGE_DRIVER: vfs 
+    BUILDAH_FORMAT: docker
+  before_script:
+    - buildah login -u "${GL_DEPLOY_USER}" -p "${GL_DEPLOY_PASS}" registry.gitlab.com
+  script:
+    - buildah build -f "${CI_PROJECT_DIR}/Dockerfile.blockworlds" -t "${IMAGE_LATEST}" "${CI_PROJECT_DIR}"
+    - buildah push "${IMAGE_LATEST}"
+  only:
+    - master
+
 package_test:
   stage: Build docker image and deploy
-  image: quay.io/buildah/stable:v1.35
+  image: quay.io/buildah/stable:latest
   variables:
     IMAGE_LATEST: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_BRANCH}
-    STORAGE_DRIVER: vfs
+    STORAGE_DRIVER: vfs 
+    BUILDAH_FORMAT: docker
+  before_script:
+    - buildah login -u "${GL_DEPLOY_USER}" -p "${GL_DEPLOY_PASS}" registry.gitlab.com
   script:
-    - buildah login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
-    - buildah bud --storage-driver=$STORAGE_DRIVER --tag "${IMAGE_LATEST}" -f Dockerfile.blockworlds .
-    - buildah push --storage-driver=$STORAGE_DRIVER "${IMAGE_LATEST}"
+    - buildah build -f "${CI_PROJECT_DIR}/Dockerfile.blockworlds" -t "${IMAGE_LATEST}" "${CI_PROJECT_DIR}"
+    - buildah push "${IMAGE_LATEST}"
   only:
     - test
