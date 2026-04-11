@@ -1,0 +1,26 @@
+FROM debian:bookworm-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    clang \
+    rustc \
+    ccache \
+    cargo \
+    cmake \
+    ninja-build \
+    libmariadb-dev \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    zlib1g-dev \
+    libsqlite3-dev \
+    sqlite3 \
+    libpng-dev \
+    valgrind \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Force l'utilisation de ccache pour clang
+RUN ln -s /usr/bin/ccache /usr/local/bin/clang && \
+    ln -s /usr/bin/ccache /usr/local/bin/clang++
