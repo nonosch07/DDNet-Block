@@ -44,7 +44,7 @@ struct CClanResult : ISqlResult
 {
 	enum
 	{
-		MAX_MESSAGES = 26,
+		MAX_MESSAGES = 26, // Must be > the amount of members of the clan
 	};
 
 	char m_aaMessages[MAX_MESSAGES][512];
