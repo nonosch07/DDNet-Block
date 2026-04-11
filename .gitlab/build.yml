@@ -1,15 +1,37 @@
-image: ubuntu:22.04
-
 stages:
+#  - Build buildtools image
   - Build DDNet Server
   - Build docker image and deploy
 
 variables:
   CARGO_HOME: $CI_PROJECT_DIR/.cargo
   CCACHE_DIR: $CI_PROJECT_DIR/.ccache
+  CARGO_INCREMENTAL: "true"
+
+# TODO: make this work
+# build_buildtools_image:
+#   stage: Build buildtools image
+#   image:
+#     name: gcr.io/kaniko-project/executor:v1.23.2-debug
+#     entrypoint: [""]
+#   variables:
+#     IMAGE_TAG: ${CI_REGISTRY_IMAGE}/buildtools:latest
+#   script:
+#     - mkdir -p /kaniko/.docker
+#     - echo "{\"auths\":{\"registry.gitlab.com\":{\"auth\":\"$(printf "%s:%s" "${GL_DEPLOY_USER}" "${GL_DEPLOY_PASS}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+#     - /kaniko/executor
+#       --snapshot-mode=redo
+#       --compressed-caching=false
+#       --context "${CI_PROJECT_DIR}"
+#       --dockerfile "${CI_PROJECT_DIR}/Dockerfile.buildtools"
+#       --destination "${IMAGE_TAG}"
+#   rules:
+#     - changes:
+#         - Dockerfile.buildtools
 
 build_ddnet:
   stage: Build DDNet Server
+  image: registry.gitlab.com/blockworlds1/blockworlds/buildtools:latest
   cache:
     key: "cache-$CI_COMMIT_REF_SLUG"
     paths:
@@ -63,7 +85,7 @@ package_main:
     name: gcr.io/kaniko-project/executor:v1.23.2-debug
     entrypoint: [""]
   variables:
-    IMAGE_LATEST: registry.gitlab.com/blockworlds1/blockworlds:latest
+    IMAGE_LATEST: ${CI_REGISTRY_IMAGE}:latest
   script:
     - mkdir -p /kaniko/.docker
     - echo "{\"auths\":{\"registry.gitlab.com\":{\"auth\":\"$(printf "%s:%s" "${GL_DEPLOY_USER}" "${GL_DEPLOY_PASS}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
@@ -81,7 +103,7 @@ package_test:
     name: gcr.io/kaniko-project/executor:v1.23.2-debug
     entrypoint: [""]
   variables:
-    IMAGE_LATEST: registry.gitlab.com/blockworlds1/blockworlds:${CI_COMMIT_BRANCH}
+    IMAGE_LATEST: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_BRANCH}
   script:
     - mkdir -p /kaniko/.docker
     - echo "{\"auths\":{\"registry.gitlab.com\":{\"auth\":\"$(printf "%s:%s" "${GL_DEPLOY_USER}" "${GL_DEPLOY_PASS}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
