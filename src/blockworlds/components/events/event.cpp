@@ -131,9 +131,11 @@ void CEventComponent::LoadWeapons(int ClientId)
 
 void CEventComponent::OnTick()
 {
+	#ifdef CONF_DEBUG
 	if(g_Config.m_SvEventsTestMode && m_State == EEventState::Registration)
 	{
 		const int NeedDummies = GetMinCandidates();
+
 		if(g_Config.m_DbgDummies < NeedDummies)
 			g_Config.m_DbgDummies = NeedDummies;
 
@@ -145,6 +147,7 @@ void CEventComponent::OnTick()
 				Register(i);
 		}
 	}
+	#endif
 	// process both queues independently and requeue items that could not be completed yet
 	// this makes restoration robust whenn a player has no character this tick (e.g., in spec, paused, timing issues)
 
