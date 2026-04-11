@@ -80,35 +80,26 @@ build_debug:
 
 package_main:
   stage: Build docker image and deploy
-  image:
-    name: gcr.io/kaniko-project/executor:v1.23.2-debug
-    entrypoint: [""]
+  image: quay.io/buildah/stable:v1.35
   variables:
     IMAGE_LATEST: ${CI_REGISTRY_IMAGE}:latest
+    STORAGE_DRIVER: vfs
   script:
-    - mkdir -p /kaniko/.docker
-    - echo "{\"auths\":{\"registry.gitlab.com\":{\"auth\":\"$(printf "%s:%s" "${GL_DEPLOY_USER}" "${GL_DEPLOY_PASS}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor
-      --context "${CI_PROJECT_DIR}"
-      --dockerfile "${CI_PROJECT_DIR}/Dockerfile.blockworlds"
-      --destination "${IMAGE_LATEST}"
+    - buildah login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
+    - buildah bud --storage-driver=$STORAGE_DRIVER --tag "${IMAGE_LATEST}" -f Dockerfile.blockworlds .
+    - buildah push --storage-driver=$STORAGE_DRIVER "${IMAGE_LATEST}"
   only:
     - master
 
-
 package_test:
   stage: Build docker image and deploy
-  image:
-    name: gcr.io/kaniko-project/executor:v1.23.2-debug
-    entrypoint: [""]
+  image: quay.io/buildah/stable:v1.35
   variables:
     IMAGE_LATEST: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_BRANCH}
+    STORAGE_DRIVER: vfs
   script:
-    - mkdir -p /kaniko/.docker
-    - echo "{\"auths\":{\"registry.gitlab.com\":{\"auth\":\"$(printf "%s:%s" "${GL_DEPLOY_USER}" "${GL_DEPLOY_PASS}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor
-      --context "${CI_PROJECT_DIR}"
-      --dockerfile "${CI_PROJECT_DIR}/Dockerfile.blockworlds"
-      --destination "${IMAGE_LATEST}"
+    - buildah login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
+    - buildah bud --storage-driver=$STORAGE_DRIVER --tag "${IMAGE_LATEST}" -f Dockerfile.blockworlds .
+    - buildah push --storage-driver=$STORAGE_DRIVER "${IMAGE_LATEST}"
   only:
     - test
