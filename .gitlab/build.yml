@@ -38,21 +38,6 @@ build_ddnet:
       - .cargo/
       - .ccache/
       - build/_deps/
-  before_script:
-    - apt-get update -y
-    - apt-get upgrade -y
-    - apt-get install
-      pkg-config
-      clang rustc ccache
-      cargo cmake ninja-build
-      libmariadb-dev
-      libcurl4-openssl-dev
-      libssl-dev
-      zlib1g-dev
-      libsqlite3-dev
-      sqlite3
-      libpng-dev
-      valgrind -y
   script:
     # Build Release
     - mkdir build && cd build
