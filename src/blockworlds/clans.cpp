@@ -1933,7 +1933,7 @@ bool CClanManager::ShowClanMembersThread(IDbConnection *pSqlServer, const ISqlDa
 	str_copy(pResult->m_aaMessages[Line++], aBuf, sizeof(pResult->m_aaMessages[0]));
 
 	str_format(aBuf, sizeof(aBuf),
-		"SELECT c.name, p.auth_level FROM %s p JOIN %s c ON p.account_id=c.id WHERE p.clanID = ? ORDER BY p.auth_level DESC, c.name ASC;",
+		"SELECT c.name, c.last_name, p.auth_level FROM %s p JOIN %s c ON p.account_id=c.id WHERE p.clanID = ? ORDER BY p.auth_level DESC, c.name ASC;",
 		TBL_ACCOUNTS_PROGRESS, TBL_ACCOUNTS_CORE);
 	if(pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -1946,11 +1946,13 @@ bool CClanManager::ShowClanMembersThread(IDbConnection *pSqlServer, const ISqlDa
 	{
 		char aName[32];
 		pSqlServer->GetString(1, aName, sizeof(aName));
-		int Auth = pSqlServer->GetInt(2);
+		char aLastName[32];
+		pSqlServer->GetString(2, aLastName, sizeof(aLastName));
+		int Auth = pSqlServer->GetInt(3);
 		const char *pRank = (Auth == (int)ClanAuthLevel::LEADER) ? "Leader" : (Auth == (int)ClanAuthLevel::COLEADER ? "Co-Leader" : "Member");
 
 		char aLine[96];
-		str_format(aLine, sizeof(aLine), "- %s [%s]", aName, pRank);
+		str_format(aLine, sizeof(aLine), "- %s %s [%s]", aName, aLastName, pRank);
 		if(Line < CClanResult::MAX_MESSAGES)
 			str_copy(pResult->m_aaMessages[Line++], aLine, sizeof(pResult->m_aaMessages[0]));
 		else
