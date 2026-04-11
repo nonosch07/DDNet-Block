@@ -29,40 +29,54 @@ variables:
 #     - changes:
 #         - Dockerfile.buildtools
 
-build_ddnet:
+
+.ddnet_build_base:
   stage: Build DDNet Server
   image: registry.gitlab.com/blockworlds1/blockworlds/buildtools:latest
   cache:
-    key: "cache-$CI_COMMIT_REF_SLUG"
+    key: "cache-$CI_COMMIT_REF_SLUG-$BUILD_TYPE"
     paths:
       - .cargo/
       - .ccache/
       - build/_deps/
-  script:
-    # Build Release
-    - mkdir build && cd build
+  before_script:
+    - export CCACHE_DIR=$CI_PROJECT_DIR/.ccache
+    - export CARGO_HOME=$CI_PROJECT_DIR/.cargo
     - export CC=clang
     - export CXX=clang++
-    - cmake -GNinja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=ON -DUPNP=OFF -DWEBSOCKETS=OFF -DVULKAN=OFF -DGFX=OFF ..
+  only:
+    - master
+    - test
+
+build_release:
+  extends: .ddnet_build_base
+  variables:
+    BUILD_TYPE: "Release"
+  script:
+    - mkdir build && cd build
+    - cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=ON -DUPNP=OFF -DWEBSOCKETS=OFF -DVULKAN=OFF -DGFX=OFF ..
     - ninja game-server
     - cp DDNet-Server ../blockworlds
     - cp libantibot.so ../libantibot.so
+  artifacts:
+    paths:
+      - blockworlds
+      - libantibot.so
+    expire_in: 7 days
 
-    # Build Debug
-    - mkdir -p ../build_debug && cd ../build_debug
-    - cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=ON -DUPNP=OFF -DWEBSOCKETS=OFF -DVULKAN=OFF -DGFX=OFF ..
+build_debug:
+  extends: .ddnet_build_base
+  variables:
+    BUILD_TYPE: "Debug"
+  script:
+    - mkdir build && cd build
+    - cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCLIENT=OFF -DTOOLS=OFF -DDEV=ON -DMYSQL=ON -DANTIBOT=ON -DUPNP=OFF -DWEBSOCKETS=OFF -DVULKAN=OFF -DGFX=OFF ..
     - ninja game-server
     - cp DDNet-Server ../blockworlds_d
   artifacts:
     paths:
-      - blockworlds
       - blockworlds_d
-      - libantibot.so
-    when: on_success
     expire_in: 7 days
-  only:
-    - master
-    - test
 
 package_main:
   stage: Build docker image and deploy
