@@ -6647,8 +6647,8 @@ void CGameContext::ProcessComponentsQueue() {
 		auto pComponent = g_ComponentRegistry.Create(ComponentName, this);
 		if(!pComponent)
 		{
-			dbg_msg("Components", "Component creation failed");
-			return;
+			dbg_msg("Components", "Component creation failed: %s", ComponentName.c_str());
+			continue;
 		}
 		dbg_msg("Components", "Component created: %s (%p)", pComponent->GetName(), &*pComponent);
 	}

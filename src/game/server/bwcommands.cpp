@@ -2912,7 +2912,7 @@ void CGameContext::ConComponentPlug(IConsole::IResult *pResult, void *pUserData)
 	auto pComponent = g_ComponentRegistry.Create(aName, (CGameContext *)pUserData);
 	if(!pComponent)
 	{
-		dbg_msg("Components", "Component creation failed");
+		dbg_msg("Components", "Component creation failed: %s", aName);
 		return;
 	}
 	dbg_msg("Components", "Component created: %s (%p)", pComponent->GetName(), &*pComponent);
