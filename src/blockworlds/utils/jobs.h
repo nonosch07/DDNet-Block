@@ -148,7 +148,7 @@ public:
 	/**
 	 * Returns the number of worker threads.
 	 */
-	size_t ThreadCount() const noexcept {
+	size_t ThreadCount() const {
 		return m_Workers.size();
 	}
 
@@ -225,12 +225,8 @@ private:
 				++m_active_workers;
 			}
 
-			try {
-				if (Task) {
-					Task();
-				}
-			} catch (...) {
-				// Exception is stored in the future by packaged_task
+			if (Task) {
+				Task();
 			}
 
 			// Mark worker as idle
