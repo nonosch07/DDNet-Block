@@ -59,6 +59,8 @@ class CHttpRequest : public IHttpRequest
 		HEAD,
 		POST,
 		POST_JSON,
+		PUT,
+		PUT_JSON,
 	};
 
 	static constexpr const char *GetRequestType(REQUEST Type)
@@ -72,6 +74,9 @@ class CHttpRequest : public IHttpRequest
 		case REQUEST::POST:
 		case REQUEST::POST_JSON:
 			return "POST";
+		case REQUEST::PUT:
+		case REQUEST::PUT_JSON:
+			return "PUT";
 		}
 
 		// Unreachable, maybe assert instead?
@@ -174,6 +179,20 @@ public:
 		m_pBody = (unsigned char *)malloc(m_BodyLength);
 		mem_copy(m_pBody, pJson, m_BodyLength);
 	}
+	void Put(const unsigned char *pData, size_t DataLength)
+	{
+		m_Type = REQUEST::PUT;
+		m_BodyLength = DataLength;
+		m_pBody = (unsigned char *)malloc(std::max((size_t)1, DataLength));
+		mem_copy(m_pBody, pData, DataLength);
+	}
+	void PutJson(const char *pJson)
+	{
+		m_Type = REQUEST::PUT_JSON;
+		m_BodyLength = str_length(pJson);
+		m_pBody = (unsigned char *)malloc(m_BodyLength);
+		mem_copy(m_pBody, pJson, m_BodyLength);
+	}
 	void Header(const char *pNameColonValue);
 	void HeaderString(const char *pName, const char *pValue)
 	{
@@ -254,6 +273,22 @@ inline std::unique_ptr<CHttpRequest> HttpPostJson(const char *pUrl, const char *
 {
 	auto pResult = std::make_unique<CHttpRequest>(pUrl);
 	pResult->PostJson(pJson);
+	pResult->Timeout(CTimeout{4000, 15000, 500, 5});
+	return pResult;
+}
+
+inline std::unique_ptr<CHttpRequest> HttpPut(const char *pUrl, const unsigned char *pData, size_t DataLength)
+{
+	auto pResult = std::make_unique<CHttpRequest>(pUrl);
+	pResult->Put(pData, DataLength);
+	pResult->Timeout(CTimeout{4000, 15000, 500, 5});
+	return pResult;
+}
+
+inline std::unique_ptr<CHttpRequest> HttpPutJson(const char *pUrl, const char *pJson)
+{
+	auto pResult = std::make_unique<CHttpRequest>(pUrl);
+	pResult->PutJson(pJson);
 	pResult->Timeout(CTimeout{4000, 15000, 500, 5});
 	return pResult;
 }

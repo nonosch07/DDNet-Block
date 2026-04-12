@@ -195,7 +195,9 @@ bool CHttpRequest::ConfigureHandle(void *pHandle)
 		break;
 	case REQUEST::POST:
 	case REQUEST::POST_JSON:
-		if(m_Type == REQUEST::POST_JSON)
+	case REQUEST::PUT:
+	case REQUEST::PUT_JSON:
+		if(m_Type == REQUEST::POST_JSON || m_Type == REQUEST::PUT_JSON)
 		{
 			Header("Content-Type: application/json");
 		}
@@ -206,6 +208,17 @@ bool CHttpRequest::ConfigureHandle(void *pHandle)
 		curl_easy_setopt(pH, CURLOPT_POSTFIELDS, m_pBody);
 		curl_easy_setopt(pH, CURLOPT_POSTFIELDSIZE, m_BodyLength);
 		break;
+	}
+
+	switch (m_Type) {
+		case REQUEST::POST:
+		case REQUEST::POST_JSON:
+			curl_easy_setopt(pH, CURLOPT_POST, 1L);
+		case REQUEST::PUT:
+		case REQUEST::PUT_JSON:
+			curl_easy_setopt(pH, CURLOPT_PUT, 1L);
+		default:
+			break;
 	}
 
 	curl_easy_setopt(pH, CURLOPT_HTTPHEADER, m_pHeaders);
