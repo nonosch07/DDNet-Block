@@ -214,9 +214,11 @@ bool CHttpRequest::ConfigureHandle(void *pHandle)
 		case REQUEST::POST:
 		case REQUEST::POST_JSON:
 			curl_easy_setopt(pH, CURLOPT_POST, 1L);
+			break;
 		case REQUEST::PUT:
 		case REQUEST::PUT_JSON:
 			curl_easy_setopt(pH, CURLOPT_PUT, 1L);
+			break;
 		default:
 			break;
 	}
