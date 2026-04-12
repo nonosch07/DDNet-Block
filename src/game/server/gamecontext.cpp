@@ -35,6 +35,7 @@
 #include <game/mapitems.h>
 #include <game/version.h>
 
+#include <blockworlds/components/agones/agones.h>
 #include <blockworlds/components/ai/ai_bot.h>
 #include <blockworlds/components/chatfilter/chat_filter.h>
 #include <blockworlds/components/clientdetect/client_detect.h>
@@ -184,7 +185,7 @@ void CGameContext::Construct(int Resetting)
 		g_ComponentRegistry.Register<CClientDetectComponent>(CClientDetectComponent::GetNameStatic());
 		g_ComponentRegistry.Register<CVpnDetectionComponent>(CVpnDetectionComponent::GetNameStatic());
 		g_ComponentRegistry.Register<CPortProxy>(CPortProxy::GetNameStatic());
-
+		g_ComponentRegistry.Register<CAgonesComponent>(CAgonesComponent::GetNameStatic());
 	}
 }
 

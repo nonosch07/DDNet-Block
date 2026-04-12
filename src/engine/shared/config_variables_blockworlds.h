@@ -236,3 +236,10 @@ MACRO_CONFIG_INT(SvProxyDebug, sv_proxy_debug, 0, 0, 1, CFGFLAG_SERVER, "")
 MACRO_CONFIG_INT(SvProxyRangeStart, sv_proxy_range_start, 20000, 1, 65535, CFGFLAG_SERVER, "")
 MACRO_CONFIG_INT(SvProxyRangeLength, sv_proxy_range_length, 100, 1, 65535, CFGFLAG_SERVER, "")
 MACRO_CONFIG_INT(SvProxyRedirectTimeout, sv_proxy_timeout, 100, 1, 99999999, CFGFLAG_SERVER, "")
+
+// Agones
+MACRO_CONFIG_INT(SvAgonesDebug, sv_agones_debug, 0, 0, 1, CFGFLAG_SERVER, "")
+MACRO_CONFIG_INT(SvAgonesThreads, sv_agones_threads, 2, 0, 64, CFGFLAG_SERVER, "")
+MACRO_CONFIG_INT(SvAgonesHealthFrequency, sv_agones_health_requency, 50, 1, 99999999, CFGFLAG_SERVER, "")
+MACRO_CONFIG_STR(SvAgonesBaseUrl, sv_agones_base_url, 128, "http://localhost", CFGFLAG_SERVER, "")
+MACRO_CONFIG_INT(SvAgonesPort, sv_agones_port, 0, 0, 65535, CFGFLAG_SERVER, "0 = try to retrieve from enviroment")
