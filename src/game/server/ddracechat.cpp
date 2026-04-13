@@ -275,15 +275,11 @@ void ToggleSpecPause(IConsole::IResult *pResult, void *pUserData, int PauseType)
 		{
 			if(active->GetState() == CEventComponent::EEventState::Active)
 			{
-				const char *pName = active->GetName();
-				if(str_comp(pName, "LMB") == 0 || str_comp(pName, "tdm") == 0)
+				const auto &parts = active->Participants();
+				if(std::find(parts.begin(), parts.end(), pResult->m_ClientId) != parts.end())
 				{
-					const auto &parts = active->Participants();
-					if(std::find(parts.begin(), parts.end(), pResult->m_ClientId) != parts.end())
-					{
-						pSelf->SendChatTarget(pResult->m_ClientId, "You can't use /spec or /pause during this event. Use /leave first.");
-						return;
-					}
+					pSelf->SendChatTarget(pResult->m_ClientId, "You can't use /spec or /pause during this event. Use /leave first.");
+					return;
 				}
 			}
 		}
@@ -327,6 +323,22 @@ void ToggleSpecPauseVoted(IConsole::IResult *pResult, void *pUserData, int Pause
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 	if(!pPlayer)
 		return;
+
+	if(auto events = g_ComponentRegistry.Get<CEvents>())
+	{
+		if(auto active = events->GetActiveEvent())
+		{
+			if(active->GetState() == CEventComponent::EEventState::Active)
+			{
+				const auto &parts = active->Participants();
+				if(std::find(parts.begin(), parts.end(), pResult->m_ClientId) != parts.end())
+				{
+					pSelf->SendChatTarget(pResult->m_ClientId, "You can't use /spec or /pause during this event. Use /leave first.");
+					return;
+				}
+			}
+		}
+	}
 
 	int PauseState = pPlayer->IsPaused();
 	if(PauseState > 0)

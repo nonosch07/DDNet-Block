@@ -17,15 +17,9 @@ class CCharacter;
 
 class CAiBotComponent : public CComponent
 {
-public:
-	static const char *GetNameStatic() { return "ai_bot"; }
-	const char *GetName() const override { return GetNameStatic(); }
-
-	CAiBotComponent(class CGameContext *pGameServer);
+	DECLARE_COMPONENT(CAiBotComponent, "ai_bot")
 	~CAiBotComponent() override = default;
 
-	void OnConsoleInit() override;
-	void OnConsoleTerminate() override;
 	void OnTick() override;
 	void OnShutdown() override;
 

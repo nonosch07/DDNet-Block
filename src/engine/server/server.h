@@ -348,6 +348,14 @@ public:
 
 	void SendRconCmdAdd(const IConsole::CCommandInfo *pCommandInfo, int ClientId);
 	void SendRconCmdRem(const IConsole::CCommandInfo *pCommandInfo, int ClientId);
+	void SendRconCmdGroupStart(int ClientId);
+	void SendRconCmdGroupEnd(int ClientId);
+
+	void SendChatCmdAdd(const IConsole::CCommandInfo *pCommandInfo, int ClientId);
+	void SendChatCmdRem(const IConsole::CCommandInfo *pCommandInfo, int ClientId);
+	void SendChatCmdGroupStart(int ClientId);
+	void SendChatCmdGroupEnd(int ClientId);
+
 	int GetConsoleAccessLevel(int ClientId);
 	int NumRconCommands(int ClientId);
 	void UpdateClientRconCommands();
@@ -462,6 +470,14 @@ public:
 	int SnapNewId() override;
 	void SnapFreeId(int Id) override;
 	void *SnapNewItem(int Type, int Id, int Size) override;
+
+	template<typename T>
+	T *SnapNewItem(int Id)
+	{
+		const int Type = protocol7::is_sixup<T>::value ? -T::ms_MsgId : T::ms_MsgId;
+		return static_cast<T *>(SnapNewItem(Type, Id, sizeof(T)));
+	}
+
 	void SnapSetStaticsize(int ItemType, int Size) override;
 
 	// DDRace

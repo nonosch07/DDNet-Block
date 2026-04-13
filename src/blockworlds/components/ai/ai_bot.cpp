@@ -5,6 +5,7 @@
 #include <engine/console.h>
 #include <engine/server/server.h>
 #include <engine/shared/config.h>
+#include <engine/shared/console.h>
 #include <engine/storage.h>
 #include <game/collision.h>
 #include <game/mapitems.h>
@@ -16,6 +17,7 @@
 #include <base/vmath.h>
 #include <cmath>
 #include <cstdio>
+
 
 void CAiBotComponent::SActionStats::Decay(float f)
 {
@@ -40,30 +42,15 @@ CAiBotComponent::CAiBotComponent(CGameContext *pGameServer) :
 	if(pMap && str_comp_nocase(pMap, "blmapV3ROYAL") == 0)
 		m_MapAllowed = true;
 	LoadModel();
-}
 
-#define LIST_OF_ALL_COMMANDS(DEF) \
-	DEF("ai_enable", "i[0|1]", CFGFLAG_SERVER | CFGFLAG_STORE, ConAiEnable, this, "") \
-	DEF("ai_stats", "", CFGFLAG_SERVER, ConAiStats, this, "") \
-	DEF("ai_spawn", "", CFGFLAG_SERVER, ConAiSpawn, this, "") \
-	DEF("ai_despawn", "", CFGFLAG_SERVER, ConAiDespawn, this, "") \
-	DEF("ai_reset", "", CFGFLAG_SERVER, ConAiReset, this, "") \
-	DEF("ai_set_min_samples", "i[value]", CFGFLAG_SERVER, ConAiSetMinSamples, this, "") \
-	DEF("ai_save", "", CFGFLAG_SERVER, ConAiSave, this, "") \
-	DEF("ai_learn_all", "i[0|1]", CFGFLAG_SERVER, ConAiLearnAll, this, "")
-
-void CAiBotComponent::OnConsoleInit()
-{
-#define CommandRegister(name, args, flags, callback, user, help) Console()->Register(name, args, flags, callback, user, help);
-	LIST_OF_ALL_COMMANDS(CommandRegister)
-#undef CommandRegister
-}
-
-void CAiBotComponent::OnConsoleTerminate()
-{
-#define CommandDeregister(name, ...) Console()->Deregister(name);
-	LIST_OF_ALL_COMMANDS(CommandDeregister)
-#undef CommandDeregister
+	CONSOLE_COMMAND("ai_enable", "i[0|1]", ConAiEnable, "") \
+	CONSOLE_COMMAND("ai_stats", "", ConAiStats, "") \
+	CONSOLE_COMMAND("ai_spawn", "", ConAiSpawn, "") \
+	CONSOLE_COMMAND("ai_despawn", "", ConAiDespawn, "") \
+	CONSOLE_COMMAND("ai_reset", "", ConAiReset, "") \
+	CONSOLE_COMMAND("ai_set_min_samples", "i[value]", ConAiSetMinSamples, "") \
+	CONSOLE_COMMAND("ai_save", "", ConAiSave, "") \
+	CONSOLE_COMMAND("ai_learn_all", "i[0|1]", ConAiLearnAll, "")
 }
 
 void CAiBotComponent::OnShutdown()

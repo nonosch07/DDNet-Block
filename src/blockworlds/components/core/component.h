@@ -1,15 +1,15 @@
-#ifndef BLOCKWORLDS_COMPONENTS_CORE_COMPONENT_H
-#define BLOCKWORLDS_COMPONENTS_CORE_COMPONENT_H
+#pragma once
 
 #include <base/system.h>
 #include <base/vmath.h>
 
+#include <engine/console.h>
+
 #include <blockworlds/utils/memory.h>
 
-#include <memory>
-#include <typeindex>
 #include <utility>
 #include <vector>
+
 
 #define DECLARE_COMPONENT(ClassName, Name) \
 public: \
@@ -24,33 +24,53 @@ public: \
 		dbg_msg(ThisComponent::GetNameStatic(), pFmt, std::forward<TArgs>(Args)...); \
 	}
 
+#define CONSOLE_COMMAND(Name, Args, Callback, Help) \
+	m_ConsoleCommands.push_back({Name, Args, CFGFLAG_SERVER | CFGFLAG_ANNOUNCE, \
+		reinterpret_cast<IConsole::FCommandCallback>(Callback), \
+		reinterpret_cast<void *>(this), \
+		Help});
+
+#define CHAT_COMMAND(Name, Args, Callback, Help) \
+	m_ConsoleCommands.push_back({Name, Args, CFGFLAG_SERVER | CFGFLAG_CHAT | CFGFLAG_ANNOUNCE, \
+		reinterpret_cast<IConsole::FCommandCallback>(Callback), \
+		reinterpret_cast<void *>(this), \
+		Help});
+
 class CComponent
 {
 	class CGameContext *m_pGameServer;
 
-protected:
+public:
 	CGameContext *GameServer() const;
-	class IServer *Server() const;
+	class CServer *Server() const;
 	class CConfig *Config() const;
-	class IConsole *Console() const;
+	class CConsole *Console() const;
 	class CComponentRegistry *Registry() const;
+
+protected:
+	struct SCommand
+	{
+		const char *m_pName;
+		const char *m_pParams;
+		int m_Flags;
+		IConsole::FCommandCallback m_pfnCallback;
+		void *m_pUserData;
+		const char *m_pHelp;
+	};
+	std::vector<SCommand> m_ConsoleCommands;
 
 public:
 	explicit CComponent(class CGameContext *pGameServer);
 	virtual ~CComponent() = default;
 
-	// TODO
-	//	struct SComponentDependency {
-	//		std::type_index m_Type;
-	//		bool m_Required;
-	//	};
-	//	virtual std::vector<SComponentDependency> GetDependencies() const { return {}; };
-	//	virtual void InjectDependency(const std::type_index& Type, CComponent* pComponent) {};
+	std::vector<SCommand> *GetConsoleCommands() { return &m_ConsoleCommands; }
 
-	[[nodiscard]] virtual std::vector<ComponentAccessor<CComponent>> GetSubComponents() const { return {}; }; // basically, it's set of components that are not registered, but require ticking, like events
+	virtual const char *GetName() const = 0;
+	virtual const char *GetPrintableName() const { return GetName(); }
+	virtual bool IsDebug() const;
+	virtual bool IsRequired() const { return false; }
 
-	[[nodiscard]] virtual const char *GetName() const = 0;
-	[[nodiscard]] virtual bool IsDebug() const;
+	[[nodiscard]] virtual std::vector<CComponentAccessor<CComponent>> GetSubComponents() const { return {}; }; // basically, it's set of components that are not registered, but require ticking, like events
 
 	template<typename... TArgs>
 	void Log(const char *pFmt, TArgs &&... Args) const
@@ -72,8 +92,8 @@ public:
 	virtual void OnEnable() {}
 	virtual void OnDisable() {}
 
-	virtual void OnConsoleInit() {}
-	virtual void OnConsoleTerminate() {}
+	virtual void OnConsoleInit();
+	virtual void OnConsoleTerminate();
 	virtual void OnShutdown() {}
 
 	virtual void OnSnapClientInfo(int ClientId, int SnappingClient, class CNetObj_ClientInfo *pClientInfo) {}
@@ -101,5 +121,3 @@ public:
 	// called when TakeDamage is invoked on a character by a real attacker (From >= 0)
 	virtual void OnCharacterTakeDamage(vec2 Force, vec2 Source, int Dmg, int From, int ClientId, int Weapon) {}
 };
-
-#endif // BLOCKWORLDS_COMPONENTS_CORE_COMPONENT_H

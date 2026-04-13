@@ -9,11 +9,13 @@
 
 #include <engine/console.h>
 #include <engine/shared/config.h>
+#include <engine/shared/console.h>
 #include <engine/shared/linereader.h>
 #include <engine/storage.h>
 
 #include <blockworlds/discord/webhook.h>
 #include <game/server/gamecontext.h>
+
 
 static const char *DEFAULT_CHATFILTER_FILENAME = "data/chatfilter_words.txt";
 
@@ -22,27 +24,12 @@ CChatFilterComponent::CChatFilterComponent(CGameContext *pGameServer) :
 	m_NWordRegex("\\b(n+[i1!l][gq9]{2}[a@4]+|n+[i1!l]+[gq9]{2}[e3]+r+|n[i1!l]gg[a@4]|n[i1!l]gg[e3]r)\\b", std::regex_constants::icase)
 {
 	Load();
-}
 
-#define LIST_OF_ALL_COMMANDS(DEF) \
-	DEF("chatfilter_add", "r[word]", CFGFLAG_SERVER, ConChatFilterAdd, this, "Add a word to the chat filter and persist") \
-	DEF("chatfilter_remove", "r[word]", CFGFLAG_SERVER, ConChatFilterRemove, this, "Remove a word from the chat filter and persist") \
-	DEF("chatfilter_list", "", CFGFLAG_SERVER, ConChatFilterList, this, "List filtered words") \
-	DEF("chatfilter_reload", "", CFGFLAG_SERVER, ConChatFilterReload, this, "Reload chat filter words from disk") \
-	DEF("chatfilter_save", "", CFGFLAG_SERVER, ConChatFilterSave, this, "Force-save chat filter words to disk")
-
-void CChatFilterComponent::OnConsoleInit()
-{
-#define CommandRegister(name, args, flags, callback, user, help) Console()->Register(name, args, flags, callback, user, help);
-	LIST_OF_ALL_COMMANDS(CommandRegister)
-#undef CommandRegister
-}
-
-void CChatFilterComponent::OnConsoleTerminate()
-{
-#define CommandDeregister(name, ...) Console()->Deregister(name);
-	LIST_OF_ALL_COMMANDS(CommandDeregister)
-#undef CommandDeregister
+	CONSOLE_COMMAND("chatfilter_add", "r[word]", ConChatFilterAdd, "Add a word to the chat filter and persist") \
+	CONSOLE_COMMAND("chatfilter_remove", "r[word]", ConChatFilterRemove, "Remove a word from the chat filter and persist") \
+	CONSOLE_COMMAND("chatfilter_list", "", ConChatFilterList, "List filtered words") \
+	CONSOLE_COMMAND("chatfilter_reload", "", ConChatFilterReload, "Reload chat filter words from disk") \
+	CONSOLE_COMMAND("chatfilter_save", "", ConChatFilterSave, "Force-save chat filter words to disk")
 }
 
 bool CChatFilterComponent::Load()

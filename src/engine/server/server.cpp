@@ -158,20 +158,20 @@ void CServerBan::ConBanExt(IConsole::IResult *pResult, void *pUser)
 	int Minutes = pResult->NumArguments() > 1 ? clamp(pResult->GetInteger(1), 0, 525600) : 10;
 	const char *pReason = pResult->NumArguments() > 2 ? pResult->GetString(2) : "No reason given";
 
-	// discord logging: only when executed by an in-game admin
-	if(pResult->m_ClientId >= 0 && pResult->m_ClientId < MAX_CLIENTS && pThis->m_pServer->m_pDiscordWebhook)
+	if(pResult->m_ClientId >= 0 && pResult->m_ClientId < MAX_CLIENTS)
 	{
+		CDiscordWebhook Discord(pThis->Server()->Engine(), &pThis->Server()->m_Http);
 		const char *pUrl = g_Config.m_SvDiscordWebhookUrlRconLogs[0] ? g_Config.m_SvDiscordWebhookUrlRconLogs : nullptr;
-		if(pThis->m_pServer->m_pDiscordWebhook->IsConfigured(pUrl))
+		if(Discord.IsConfigured(pUrl))
 		{
-			const char *pExec = pThis->m_pServer->ClientName(pResult->m_ClientId);
+			const char *pExec = pThis->Server()->ClientName(pResult->m_ClientId);
 			if(!pExec || !pExec[0])
 				pExec = "Unknown";
 			char aTarget[128];
 			if(str_isallnum(pStr))
 			{
 				int TargetId = str_toint(pStr);
-				const char *pTargetName = (TargetId >= 0 && TargetId < MAX_CLIENTS) ? pThis->m_pServer->ClientName(TargetId) : nullptr;
+				const char *pTargetName = (TargetId >= 0 && TargetId < MAX_CLIENTS) ? pThis->Server()->ClientName(TargetId) : nullptr;
 				str_copy(aTarget, (pTargetName && pTargetName[0]) ? pTargetName : pStr, sizeof(aTarget));
 			}
 			else
@@ -184,7 +184,8 @@ void CServerBan::ConBanExt(IConsole::IResult *pResult, void *pUser)
 			CDiscordWebhook::SSendOptions Opt;
 			Opt.m_pWebhookUrl = pUrl;
 			Opt.m_pUsername = g_Config.m_SvDiscordWebhookUsername[0] ? g_Config.m_SvDiscordWebhookUsername : nullptr;
-			pThis->m_pServer->m_pDiscordWebhook->Send(aMsg, Opt);
+			Opt.m_Tts = 0;
+			Discord.Send(aMsg, Opt);
 		}
 	}
 
@@ -700,7 +701,7 @@ const char *CServer::ClientName(int ClientId) const
 {
 	if(ClientId < 0 || ClientId >= MAX_CLIENTS || m_aClients[ClientId].m_State == CServer::CClient::STATE_EMPTY)
 		return "(invalid)";
-	if(m_aClients[ClientId].m_State == CServer::CClient::STATE_INGAME || m_aClients[ClientId].m_State == CClient::STATE_NPC)
+	if(m_aClients[ClientId].m_State == CServer::CClient::STATE_INGAME || m_aClients[ClientId].m_State == CClient::STATE_NPC || m_aClients[ClientId].m_State == CClient::STATE_REDIRECTED)
 		return m_aClients[ClientId].m_aName;
 	else
 		return "(connecting)";
@@ -1244,7 +1245,12 @@ int CServer::DelClientCallback(int ClientId, const char *pReason, void *pUser)
 
 	// notify the mod about the drop
 	if(pThis->m_aClients[ClientId].m_State >= CClient::STATE_READY)
-		pThis->GameServer()->OnClientDrop(ClientId, pReason);
+	{
+		const char *pDropReason = pReason;
+		if(pThis->m_aClients[ClientId].m_State == CClient::STATE_REDIRECTED)
+			pDropReason = "changed server";
+		pThis->GameServer()->OnClientDrop(ClientId, pDropReason);
+	}
 
 	pThis->m_aClients[ClientId].m_State = CClient::STATE_EMPTY;
 	pThis->m_aClients[ClientId].m_aName[0] = 0;
@@ -1444,6 +1450,84 @@ void CServer::SendRconCmdRem(const IConsole::CCommandInfo *pCommandInfo, int Cli
 	CMsgPacker Msg(NETMSG_RCON_CMD_REM, true);
 	Msg.AddString(pCommandInfo->m_pName, 256);
 	SendMsg(&Msg, MSGFLAG_VITAL, ClientId);
+}
+
+void CServer::SendRconCmdGroupStart(int ClientId)
+{
+	CMsgPacker Msg(NETMSG_RCON_CMD_GROUP_START, true);
+	Msg.AddInt(NumRconCommands(ClientId));
+	SendMsg(&Msg, MSGFLAG_VITAL, ClientId);
+}
+
+void CServer::SendRconCmdGroupEnd(int ClientId)
+{
+	CMsgPacker Msg(NETMSG_RCON_CMD_GROUP_END, true);
+	SendMsg(&Msg, MSGFLAG_VITAL, ClientId);
+}
+
+
+void CServer::SendChatCmdAdd(const IConsole::CCommandInfo *pCommandInfo, int ClientId)
+{
+	const char *pName = pCommandInfo->m_pName;
+
+	if(IsSixup(ClientId))
+	{
+		if(!str_comp_nocase(pName, "w") || !str_comp_nocase(pName, "whisper"))
+			return;
+
+		if(!str_comp_nocase(pName, "r"))
+			pName = "rescue";
+
+		protocol7::CNetMsg_Sv_CommandInfo Msg{};
+		Msg.m_pName = pName;
+		Msg.m_pArgsFormat = pCommandInfo->m_pParams;
+		Msg.m_pHelpText = pCommandInfo->m_pHelp;
+		SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, ClientId);
+	}
+	else
+	{
+		CNetMsg_Sv_CommandInfo Msg;
+		Msg.m_pName = pName;
+		Msg.m_pArgsFormat = pCommandInfo->m_pParams;
+		Msg.m_pHelpText = pCommandInfo->m_pHelp;
+		SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, ClientId);
+	}
+}
+
+void CServer::SendChatCmdRem(const IConsole::CCommandInfo *pCommandInfo, int ClientId)
+{
+	const char *pName = pCommandInfo->m_pName;
+
+	if(IsSixup(ClientId))
+	{
+		if(!str_comp_nocase(pName, "w") || !str_comp_nocase(pName, "whisper"))
+			return;
+
+		if(!str_comp_nocase(pName, "r"))
+			pName = "rescue";
+
+		protocol7::CNetMsg_Sv_CommandInfoRemove Msg{};
+		Msg.m_pName = pName;
+		SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, ClientId);
+	}
+	else
+	{
+		CNetMsg_Sv_CommandInfoRemove Msg{};
+		Msg.m_pName = pName;
+		SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, ClientId);
+	}
+}
+
+void CServer::SendChatCmdGroupStart(int ClientId)
+{
+	CNetMsg_Sv_CommandInfoGroupStart Msg;
+	SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, ClientId);
+}
+
+void CServer::SendChatCmdGroupEnd(int ClientId)
+{
+	CNetMsg_Sv_CommandInfoGroupEnd Msg;
+	SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, ClientId);
 }
 
 int CServer::GetConsoleAccessLevel(int ClientId)
@@ -1897,6 +1981,27 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 					m_RconClientId = ClientId;
 					m_RconAuthLevel = m_aClients[ClientId].m_Authed;
 					Console()->SetAccessLevel(m_aClients[ClientId].m_Authed == AUTHED_ADMIN ? IConsole::ACCESS_LEVEL_ADMIN : m_aClients[ClientId].m_Authed == AUTHED_MOD ? IConsole::ACCESS_LEVEL_MOD : m_aClients[ClientId].m_Authed == AUTHED_HELPER ? IConsole::ACCESS_LEVEL_HELPER : IConsole::ACCESS_LEVEL_USER);
+
+					// log ALL moderator commands to discord
+					if(m_aClients[ClientId].m_Authed == AUTHED_MOD)
+					{
+						CDiscordWebhook Discord(Engine(), &m_Http);
+						const char *pUrl = g_Config.m_SvDiscordWebhookUrlRconLogs[0] ? g_Config.m_SvDiscordWebhookUrlRconLogs : nullptr;
+						if(Discord.IsConfigured(pUrl))
+						{
+							const char *pExec = ClientName(ClientId);
+							if(!pExec || !pExec[0])
+								pExec = "Unknown";
+							char aMsg[512];
+							str_format(aMsg, sizeof(aMsg), "**[MOD]** **%s** executed: `%s`", pExec, pCmd);
+							CDiscordWebhook::SSendOptions Opt;
+							Opt.m_pWebhookUrl = pUrl;
+							Opt.m_pUsername = g_Config.m_SvDiscordWebhookUsername[0] ? g_Config.m_SvDiscordWebhookUsername : nullptr;
+							Opt.m_Tts = 0;
+							Discord.Send(aMsg, Opt);
+						}
+					}
+
 					{
 						CRconClientLogger Logger(this, ClientId);
 						CLogScope Scope(&Logger);
@@ -3428,6 +3533,8 @@ void CServer::ConStatus(IConsole::IResult *pResult, void *pUser)
 	char aAddrStr[NETADDR_MAXSTRSIZE];
 	CServer *pThis = static_cast<CServer *>(pUser);
 	const char *pName = pResult->NumArguments() == 1 ? pResult->GetString(0) : "";
+	const int RequesterAuth = pResult->m_ClientId >= 0 && pResult->m_ClientId < MAX_CLIENTS ?
+		pThis->m_aClients[pResult->m_ClientId].m_Authed : AUTHED_ADMIN;
 
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
@@ -3439,7 +3546,11 @@ void CServer::ConStatus(IConsole::IResult *pResult, void *pUser)
 		if(!str_utf8_find_nocase(pThis->m_aClients[i].m_aName, pName))
 			continue;
 
-		net_addr_str(pThis->m_NetServer.ClientAddr(i), aAddrStr, sizeof(aAddrStr), true);
+		const bool HideAdminIp = RequesterAuth < AUTHED_ADMIN && pThis->m_aClients[i].m_Authed == AUTHED_ADMIN;
+		if(HideAdminIp)
+			str_copy(aAddrStr, "hidden", sizeof(aAddrStr));
+		else
+			net_addr_str(pThis->m_NetServer.ClientAddr(i), aAddrStr, sizeof(aAddrStr), true);
 		if(pThis->m_aClients[i].m_State == CClient::STATE_INGAME)
 		{
 			char aDnsblStr[64];

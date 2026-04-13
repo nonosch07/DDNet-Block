@@ -5,11 +5,15 @@
 #include "vpn_service_request.h"
 
 #include <base/system.h>
+#include <engine/server/server.h>
 #include <engine/shared/config.h>
+#include <engine/shared/console.h>
 #include <game/server/player.h>
 
 #include <memory>
 #include <thread>
+
+
 
 namespace {
 bool IsPrivateIP(const char *pIpAddress)
@@ -29,7 +33,7 @@ void ConVPNEnable(IConsole::IResult *pResult, void *pUserData)
 
 	if(pResult->NumArguments() == 0)
 	{
-		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
 			pSelf->IsEnabled() ? "VPN detection: enabled" : "VPN detection: disabled");
 		return;
 	}
@@ -39,19 +43,19 @@ void ConVPNEnable(IConsole::IResult *pResult, void *pUserData)
 	if(Enable && !pSelf->IsEnabled())
 	{
 		pSelf->SetEnabled(true);
-		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
 			"VPN detection enabled successfully");
 		pSelf->CheckAllClientsDefaultService();
 	}
 	else if(!Enable && pSelf->IsEnabled())
 	{
 		pSelf->SetEnabled(false);
-		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
 			"VPN detection disabled successfully");
 	}
 	else
 	{
-		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
 			Enable ? "VPN detection is already enabled" : "VPN detection is already disabled");
 	}
 }
@@ -72,7 +76,7 @@ void ConVPNSetDefaultService(IConsole::IResult *pResult, void *pUserData)
 		{
 			str_format(aBuf, sizeof(aBuf), "Default service: %s", pDefaultService);
 		}
-		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 		return;
 	}
 
@@ -87,16 +91,16 @@ void ConVPNStatus(IConsole::IResult *pResult, void *pUserData)
 
 	char aBuf[256];
 
-	pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
 		"=== VPN Detection Status ===");
 
 	// Show configuration
 	str_format(aBuf, sizeof(aBuf), "Status: %s", pSelf->IsEnabled() ? "enabled" : "disabled");
-	pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 
 	// Show service queues
-	pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", "");
-	pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", "Services:");
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", "");
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", "Services:");
 
 	auto &ServiceQueues = pSelf->GetServiceQueues();
 	const char *pDefaultService = pSelf->GetDefaultService();
@@ -108,12 +112,12 @@ void ConVPNStatus(IConsole::IResult *pResult, void *pUserData)
 			IsDefault ? " (Default)" : "",
 			QueuePair.second.GetQueueSize(),
 			QueuePair.second.m_RateLimitMs);
-		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 	}
 
 	// Show connected clients
-	pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", "");
-	pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", "Connected Clients:");
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", "");
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", "Connected Clients:");
 
 	// Count clients that need checking (for full_check mode)
 	int TotalChecksNeeded = 0;
@@ -122,7 +126,7 @@ void ConVPNStatus(IConsole::IResult *pResult, void *pUserData)
 	// First pass: display current status and count checks needed
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
-		if(!pSelf->GetGameServer()->m_apPlayers[i])
+		if(!pSelf->GameServer()->m_apPlayers[i])
 			continue;
 
 		const CVpnClientInfo *pInfo = pSelf->GetClientInfo(i);
@@ -134,9 +138,9 @@ void ConVPNStatus(IConsole::IResult *pResult, void *pUserData)
 		{
 			str_format(aBuf, sizeof(aBuf), "Client %d (%s) | IP: %s | Private IP (skipped)",
 				i,
-				pSelf->GetServer()->ClientName(i),
+				pSelf->Server()->ClientName(i),
 				pInfo->m_IpAddress.c_str());
-			pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 			continue;
 		}
 
@@ -145,10 +149,10 @@ void ConVPNStatus(IConsole::IResult *pResult, void *pUserData)
 		// Display client info
 		str_format(aBuf, sizeof(aBuf), "Client %d (%s) | IP: %s | Results: %d",
 			i,
-			pSelf->GetServer()->ClientName(i),
+			pSelf->Server()->ClientName(i),
 			pInfo->m_IpAddress.c_str(),
 			(int)pInfo->m_Results.size());
-		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 
 		// Count missing services for this client
 		int MissingServices = 0;
@@ -182,7 +186,7 @@ void ConVPNStatus(IConsole::IResult *pResult, void *pUserData)
 					pServiceResult->GetServiceName(),
 					pServiceResult->GetErrorMessage()[0] ? pServiceResult->GetErrorMessage() : "Unknown error");
 			}
-			pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 		}
 
 		if(FullCheck)
@@ -195,13 +199,13 @@ void ConVPNStatus(IConsole::IResult *pResult, void *pUserData)
 		}
 	}
 
-	pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
 		"=== End VPN Status ===");
 
 	// If full check requested, queue the checks and provide ETA
 	if(FullCheck && TotalChecksNeeded > 0)
 	{
-		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", "");
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", "");
 
 		// Calculate ETA based on rate limits
 		int IpqueryRateLimit = 100; // Default
@@ -221,12 +225,12 @@ void ConVPNStatus(IConsole::IResult *pResult, void *pUserData)
 
 		str_format(aBuf, sizeof(aBuf), "Queueing %d checks for %d clients (ETA: ~%d seconds)...",
 			TotalChecksNeeded, TotalClients, EstimatedTimeSec);
-		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 
 		// Queue checks for all non-private IPs
 		for(int i = 0; i < MAX_CLIENTS; i++)
 		{
-			if(!pSelf->GetGameServer()->m_apPlayers[i])
+			if(!pSelf->GameServer()->m_apPlayers[i])
 				continue;
 
 			const CVpnClientInfo *pInfo = pSelf->GetClientInfo(i);
@@ -236,13 +240,13 @@ void ConVPNStatus(IConsole::IResult *pResult, void *pUserData)
 			pSelf->CheckClient(i, true);
 		}
 
-		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
 			"Checks queued. Results will appear asynchronously as they complete.");
 	}
 	else if(FullCheck && TotalChecksNeeded == 0)
 	{
-		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", "");
-		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", "");
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
 			"All clients already have complete VPN check results.");
 	}
 }
@@ -253,14 +257,14 @@ void ConVPNServiceList(IConsole::IResult *pResult, void *pUserData)
 
 	char aBuf[256];
 
-	pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
 		"=== VPN Services ===");
 
 	// List all services
 	auto &ServiceQueues = pSelf->GetServiceQueues();
 	if(ServiceQueues.empty())
 	{
-		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
 			"No services registered");
 	}
 	else
@@ -277,11 +281,11 @@ void ConVPNServiceList(IConsole::IResult *pResult, void *pUserData)
 				ServicePair.second.GetQueueSize(),
 				ServicePair.second.m_RateLimitMs);
 
-			pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 		}
 	}
 
-	pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
 		"=== End Service List ===");
 }
 
@@ -321,17 +325,17 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 
 	if(pResult->NumArguments() < 1)
 	{
-		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
 			ForceRefresh ? "Usage: vpn_check_force <client_id|ip_address> [service_name]" : "Usage: vpn_check <client_id|ip_address> [service_name]");
-		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
 			"Examples:");
-		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
 			ForceRefresh ? "  vpn_check_force 0              - Force check client 0 with default service" : "  vpn_check 0              - Check client 0 with default service");
-		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
 			ForceRefresh ? "  vpn_check_force 0 ipquery      - Force check client 0 with ipquery service" : "  vpn_check 0 ipquery      - Check client 0 with ipquery service");
-		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
 			ForceRefresh ? "  vpn_check_force 8.8.8.8        - Force check IP with default service" : "  vpn_check 8.8.8.8        - Check IP with default service");
-		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection",
 			ForceRefresh ? "  vpn_check_force 8.8.8.8 all    - Force check IP with all services" : "  vpn_check 8.8.8.8 all    - Check IP with all services");
 		return;
 	}
@@ -353,16 +357,16 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 		{
 			char aBuf[128];
 			str_format(aBuf, sizeof(aBuf), "Invalid client ID: %d (must be 0-%d)", ClientId, MAX_CLIENTS - 1);
-			pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 			return;
 		}
 
 		// Check if client is connected
-		if(!pSelf->GetGameServer()->m_apPlayers[ClientId])
+		if(!pSelf->GameServer()->m_apPlayers[ClientId])
 		{
 			char aBuf[128];
 			str_format(aBuf, sizeof(aBuf), "Client %d is not connected", ClientId);
-			pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 			return;
 		}
 
@@ -372,7 +376,7 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 		{
 			char aBuf[128];
 			str_format(aBuf, sizeof(aBuf), "Failed to get IP address for client %d", ClientId);
-			pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 			return;
 		}
 
@@ -383,8 +387,8 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 			char aBuf[256];
 			str_format(aBuf, sizeof(aBuf),
 				"Client %d (%s) | IP: %s | Service: local | Bad IP: false | Risk: 0 | ASN: Local Network | ISP: Private IP Address",
-				ClientId, pSelf->GetServer()->ClientName(ClientId), pIpAddress);
-			pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+				ClientId, pSelf->Server()->ClientName(ClientId), pIpAddress);
+			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 			return;
 		}
 
@@ -409,7 +413,7 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 						{
 							str_format(aBuf, sizeof(aBuf),
 								"Client %d (%s) | IP: %s | Service: %s | Bad IP: %s | Risk: %d%s%s%s%s | (cached)",
-								ClientId, pSelf->GetServer()->ClientName(ClientId),
+								ClientId, pSelf->Server()->ClientName(ClientId),
 								pIpAddress,
 								pSvcName,
 								pCachedResult->IsBadIP() ? "true" : "false",
@@ -423,12 +427,12 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 						{
 							str_format(aBuf, sizeof(aBuf),
 								"Client %d (%s) | IP: %s | Service: %s | Error: %s | (cached)",
-								ClientId, pSelf->GetServer()->ClientName(ClientId),
+								ClientId, pSelf->Server()->ClientName(ClientId),
 								pIpAddress,
 								pSvcName,
 								pCachedResult->GetErrorMessage()[0] ? pCachedResult->GetErrorMessage() : "Unknown error");
 						}
-						pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+						pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 					}
 					else
 					{
@@ -441,8 +445,8 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 
 						char aBuf[256];
 						str_format(aBuf, sizeof(aBuf), "Testing client %d (%s) IP '%s' with service '%s'...",
-							ClientId, pSelf->GetServer()->ClientName(ClientId), pIpAddress, pSvcName);
-						pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+							ClientId, pSelf->Server()->ClientName(ClientId), pIpAddress, pSvcName);
+						pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 
 						std::thread([pSelf, pRequest, ClientId]() {
 							auto pApiResult = pRequest->Execute();
@@ -501,7 +505,7 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 						{
 							str_format(aBuf, sizeof(aBuf),
 								"Client %d (%s) | IP: %s | Service: %s | Bad IP: %s | Risk: %d%s%s%s%s | (cached)",
-								ClientId, pSelf->GetServer()->ClientName(ClientId),
+								ClientId, pSelf->Server()->ClientName(ClientId),
 								pIpAddress,
 								pSvcName,
 								pCachedResult->IsBadIP() ? "true" : "false",
@@ -515,12 +519,12 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 						{
 							str_format(aBuf, sizeof(aBuf),
 								"Client %d (%s) | IP: %s | Service: %s | Error: %s | (cached)",
-								ClientId, pSelf->GetServer()->ClientName(ClientId),
+								ClientId, pSelf->Server()->ClientName(ClientId),
 								pIpAddress,
 								pSvcName,
 								pCachedResult->GetErrorMessage()[0] ? pCachedResult->GetErrorMessage() : "Unknown error");
 						}
-						pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+						pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 					}
 					else
 					{
@@ -533,8 +537,8 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 
 						char aBuf[256];
 						str_format(aBuf, sizeof(aBuf), "Testing client %d (%s) IP '%s' with service '%s'...",
-							ClientId, pSelf->GetServer()->ClientName(ClientId), pIpAddress, pSvcName);
-						pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+							ClientId, pSelf->Server()->ClientName(ClientId), pIpAddress, pSvcName);
+						pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 
 						std::thread([pSelf, pRequest, ClientId]() {
 							auto pApiResult = pRequest->Execute();
@@ -589,7 +593,7 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 			{
 				str_format(aBuf, sizeof(aBuf),
 					"Client %d (%s) | IP: %s | Service: %s | Bad IP: %s | Risk: %d%s%s%s%s | (cached)",
-					ClientId, pSelf->GetServer()->ClientName(ClientId),
+					ClientId, pSelf->Server()->ClientName(ClientId),
 					pIpAddress,
 					pServiceName,
 					pCachedResult->IsBadIP() ? "true" : "false",
@@ -603,12 +607,12 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 			{
 				str_format(aBuf, sizeof(aBuf),
 					"Client %d (%s) | IP: %s | Service: %s | Error: %s | (cached)",
-					ClientId, pSelf->GetServer()->ClientName(ClientId),
+					ClientId, pSelf->Server()->ClientName(ClientId),
 					pIpAddress,
 					pServiceName,
 					pCachedResult->GetErrorMessage()[0] ? pCachedResult->GetErrorMessage() : "Unknown error");
 			}
-			pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 			return;
 		}
 
@@ -617,7 +621,7 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 		{
 			char aBuf[128];
 			str_format(aBuf, sizeof(aBuf), "Service '%s' not found. Use vpn_service_list to see available services.", pServiceName);
-			pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 			return;
 		}
 
@@ -630,8 +634,8 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 
 		char aBuf[256];
 		str_format(aBuf, sizeof(aBuf), "Testing client %d (%s) IP '%s' with service '%s'...",
-			ClientId, pSelf->GetServer()->ClientName(ClientId), pIpAddress, pServiceName);
-		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+			ClientId, pSelf->Server()->ClientName(ClientId), pIpAddress, pServiceName);
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 
 		std::string IpCopy(pIpAddress);
 		std::string ServiceCopy(pServiceName);
@@ -686,7 +690,7 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 			str_format(aBuf, sizeof(aBuf),
 				"IP: %s | Service: local | Bad IP: false | Risk: 0 | ASN: Local Network | ISP: Private IP Address",
 				pIpAddress);
-			pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 			return;
 		}
 
@@ -728,7 +732,7 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 								pSvcName,
 								pCachedResult->GetErrorMessage()[0] ? pCachedResult->GetErrorMessage() : "Unknown error");
 						}
-						pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+						pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 					}
 					else
 					{
@@ -741,7 +745,7 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 
 						char aBuf[256];
 						str_format(aBuf, sizeof(aBuf), "Testing IP '%s' with service '%s'...", pIpAddress, pSvcName);
-						pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+						pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 
 						std::thread([pSelf, pRequest]() {
 							auto pApiResult = pRequest->Execute();
@@ -815,7 +819,7 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 								pSvcName,
 								pCachedResult->GetErrorMessage()[0] ? pCachedResult->GetErrorMessage() : "Unknown error");
 						}
-						pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+						pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 					}
 					else
 					{
@@ -828,7 +832,7 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 
 						char aBuf[256];
 						str_format(aBuf, sizeof(aBuf), "Testing IP '%s' with service '%s'...", pIpAddress, pSvcName);
-						pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+						pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 
 						std::thread([pSelf, pRequest]() {
 							auto pApiResult = pRequest->Execute();
@@ -898,7 +902,7 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 					pServiceName,
 					pCachedResult->GetErrorMessage()[0] ? pCachedResult->GetErrorMessage() : "Unknown error");
 			}
-			pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 			return;
 		}
 
@@ -907,7 +911,7 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 		{
 			char aBuf[128];
 			str_format(aBuf, sizeof(aBuf), "Service '%s' not found. Use vpn_service_list to see available services.", pServiceName);
-			pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+			pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 			return;
 		}
 
@@ -920,7 +924,7 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 
 		char aBuf[256];
 		str_format(aBuf, sizeof(aBuf), "Testing IP '%s' with service '%s'...", pIpAddress, pServiceName);
-		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 
 		std::string IpCopy(pIpAddress);
 		std::string ServiceCopy(pServiceName);
@@ -966,7 +970,7 @@ static void PerformVPNCheck(IConsole::IResult *pResult, void *pUserData, bool Fo
 	{
 		char aBuf[256];
 		str_format(aBuf, sizeof(aBuf), "Invalid input: '%s' (must be a client ID or IP address)", pInput);
-		pSelf->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 	}
 }
 
@@ -987,7 +991,7 @@ void ConVPNWhitelistAdd(IConsole::IResult *pResult, void *pUserData)
 	pVpn->WhitelistIpAdd(pIp);
 	char aBuf[128];
 	str_format(aBuf, sizeof(aBuf), "IP '%s' added to VPN whitelist", pIp);
-	pVpn->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+	pVpn->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 }
 
 void ConVPNWhitelistRemove(IConsole::IResult *pResult, void *pUserData)
@@ -998,13 +1002,13 @@ void ConVPNWhitelistRemove(IConsole::IResult *pResult, void *pUserData)
 	{
 		char aBuf[128];
 		str_format(aBuf, sizeof(aBuf), "IP '%s' is not in the VPN whitelist", pIp);
-		pVpn->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+		pVpn->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 		return;
 	}
 	pVpn->WhitelistIpRemove(pIp);
 	char aBuf[128];
 	str_format(aBuf, sizeof(aBuf), "IP '%s' removed from VPN whitelist", pIp);
-	pVpn->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+	pVpn->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 }
 
 void ConVPNWhitelistList(IConsole::IResult *pResult, void *pUserData)
@@ -1013,16 +1017,16 @@ void ConVPNWhitelistList(IConsole::IResult *pResult, void *pUserData)
 	const auto &Ips = pVpn->GetWhitelistedIps();
 	if(Ips.empty())
 	{
-		pVpn->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", "VPN whitelist is empty");
+		pVpn->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", "VPN whitelist is empty");
 		return;
 	}
 	char aBuf[128];
 	str_format(aBuf, sizeof(aBuf), "VPN whitelisted IPs (%d):", (int)Ips.size());
-	pVpn->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+	pVpn->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 	for(const auto &Ip : Ips)
 	{
 		str_format(aBuf, sizeof(aBuf), "  %s", Ip.c_str());
-		pVpn->GetConsole()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
+		pVpn->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
 	}
 }
 

@@ -35,6 +35,7 @@
 #include <game/mapitems.h>
 #include <game/version.h>
 
+#include <blockworlds/components/agones/agones.h>
 #include <blockworlds/components/ai/ai_bot.h>
 #include <blockworlds/components/chatfilter/chat_filter.h>
 #include <blockworlds/components/clientdetect/client_detect.h>
@@ -172,17 +173,19 @@ void CGameContext::Construct(int Resetting)
 
 	if(Resetting == NO_RESET)
 	{
+		// required
+		g_ComponentRegistry.Register<COneOnOneManager>(COneOnOneManager::GetNameStatic(), true);
+
+		// common
 		g_ComponentRegistry.Register<CPromises>(CPromises::GetNameStatic());
 		g_ComponentRegistry.Register<CEvents>(CEvents::GetNameStatic());
-		g_ComponentRegistry.Register<COneOnOneManager>(COneOnOneManager::GetNameStatic());
 		g_ComponentRegistry.Register<CRequests>(CRequests::GetNameStatic());
 		g_ComponentRegistry.Register<CAiBotComponent>(CAiBotComponent::GetNameStatic());
 		g_ComponentRegistry.Register<CChatFilterComponent>(CChatFilterComponent::GetNameStatic());
 		g_ComponentRegistry.Register<CClientDetectComponent>(CClientDetectComponent::GetNameStatic());
 		g_ComponentRegistry.Register<CVpnDetectionComponent>(CVpnDetectionComponent::GetNameStatic());
 		g_ComponentRegistry.Register<CPortProxy>(CPortProxy::GetNameStatic());
-
-		g_ComponentRegistry.Create<COneOnOneManager>(this);
+		g_ComponentRegistry.Register<CAgonesComponent>(CAgonesComponent::GetNameStatic());
 	}
 }
 
@@ -4128,8 +4131,17 @@ void CGameContext::ConSetTeamAll(IConsole::IResult *pResult, void *pUserData)
 void CGameContext::ConHotReload(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	// clean up shop NPCs before reload to avoid stale state
+	if(g_Config.m_SvShopServer)
+		pSelf->m_ShopPreview.Init(pSelf);
+
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
+		// skip NPC players cuz they don't need state saving
+		if(pSelf->m_apPlayers[i] && pSelf->m_apPlayers[i]->m_IsNpc)
+			continue;
+
 		if(!pSelf->GetPlayerChar(i))
 			continue;
 
@@ -4174,7 +4186,7 @@ void CGameContext::AddVote(const char *pDescription, const char *pCommand)
 	}
 
 	// check for valid option
-	if(!Console()->LineIsValid(pCommand) || str_length(pCommand) >= VOTE_CMD_LENGTH)
+	if(str_length(pCommand) >= VOTE_CMD_LENGTH)
 	{
 		char aBuf[256];
 		str_format(aBuf, sizeof(aBuf), "skipped invalid command '%s'", pCommand);
@@ -5006,6 +5018,12 @@ void CGameContext::OnInit(const void *pPersistentData)
 
 	m_pAntibot->RoundStart(this);
 
+	g_ComponentRegistry.CreateRequired(this);
+	for(auto &pComponent : g_ComponentRegistry.Required())
+		dbg_msg("Components", "Required Component created: %s (%p)", pComponent->GetName(), &*pComponent);
+
+	ProcessComponentsQueue();
+
 	if(!m_pAccounts)
 		m_pAccounts = new CAccounts(this, ((CServer *)Server())->DbPool());
 	if(!m_pClans)
@@ -5261,6 +5279,10 @@ void CGameContext::OnShutdown(void *pPersistentData)
 	{
 		pPersistent->m_PrevGameUuid = m_GameUuid;
 	}
+
+	// clean up shop NPC players before shutdown to prevent stale pointers on reload
+	if(m_ShopPreview.GameServer())
+		m_ShopPreview.Init(this);
 
 	Antibot()->RoundEnd();
 
@@ -6530,7 +6552,7 @@ void CGameContext::BW_OnTick()
 	}
 
 	// periodic top 3 session players broadcast (kills, deaths, best streak)
-	// Uses BlockTracker hourly stats — not account-bound, covers all ingame players.
+	// Uses BlockTracker hourly stats - not account-bound, covers all ingame players.
 	if(g_Config.m_SvSessionStatsEnabled)
 	{
 		int64_t IntervalTicks = (int64_t)Server()->TickSpeed() * clamp(g_Config.m_SvSessionStatsInterval, 60, 86400);
@@ -6614,5 +6636,21 @@ void CGameContext::BW_OnTick()
 			// reset hourly stats so each broadcast window is independent
 			m_pController->m_BlockTracker.ResetAllHourlyStats();
 		}
+	}
+}
+
+void CGameContext::ProcessComponentsQueue() {
+	while(!m_ComponentsQueue.empty())
+	{
+		auto ComponentName = m_ComponentsQueue.front();
+		m_ComponentsQueue.pop();
+
+		auto pComponent = g_ComponentRegistry.Create(ComponentName, this);
+		if(!pComponent)
+		{
+			dbg_msg("Components", "Component creation failed: %s", ComponentName.c_str());
+			continue;
+		}
+		dbg_msg("Components", "Component created: %s (%p)", pComponent->GetName(), &*pComponent);
 	}
 }

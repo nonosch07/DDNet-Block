@@ -2,6 +2,7 @@
 
 #include <base/system.h>
 #include <engine/server.h>
+#include <engine/server/server.h>
 
 CPromises::CPromises(CGameContext *pGameServer) :
 	CComponent(pGameServer) {}

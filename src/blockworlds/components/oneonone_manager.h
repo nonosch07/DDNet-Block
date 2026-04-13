@@ -9,12 +9,8 @@
 
 class COneOnOneManager : public CComponent
 {
-public:
-	explicit COneOnOneManager(CGameContext *pGameServer);
+	DECLARE_COMPONENT(COneOnOneManager, "oneonone_manager")
 	~COneOnOneManager() override = default;
-
-	[[nodiscard]] static const char *GetNameStatic() { return "oneonone_manager"; }
-	[[nodiscard]] const char *GetName() const override { return GetNameStatic(); }
 
 	std::shared_ptr<COneOnOneEvent> CreateMatch(int Player1ID, int Player2ID, int Wager = 0);
 	std::shared_ptr<COneOnOneEvent> CreateMatchWithConfig(int Player1ID, int Player2ID, int Wager = 0);

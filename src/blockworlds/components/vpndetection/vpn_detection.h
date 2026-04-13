@@ -39,9 +39,7 @@ constexpr int MAX_VPN_CLIENTS = 64;
 class CVpnDetectionComponent final : public CComponent
 {
 public:
-	static const char *GetNameStatic() { return "vpndetection"; }
-	explicit CVpnDetectionComponent(class CGameContext *pGameServer);
-	const char *GetName() const override { return GetNameStatic(); }
+	DECLARE_COMPONENT(CVpnDetectionComponent, "vpndetection")
 	bool IsDebug() const override;
 
 	void OnConsoleInit() override;
@@ -102,10 +100,6 @@ public:
 	const std::unordered_map<std::string, SVpnServiceQueue> &GetServiceQueues() const { return m_ServiceQueues; }
 	void CheckAllClientsDefaultService();
 	CVpnCache *GetCache() { return &m_Cache; }
-
-	IConsole *GetConsole() const { return Console(); }
-	IServer *GetServer() const { return Server(); }
-	CGameContext *GetGameServer() const { return GameServer(); }
 
 	/**
 	 * Queues a message for thread-safe asynchronous RCON output on next tick

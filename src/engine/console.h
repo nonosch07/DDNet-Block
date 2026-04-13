@@ -85,6 +85,7 @@ public:
 		virtual const CCommandInfo *NextCommandInfo(int AccessLevel, int FlagMask) const = 0;
 
 		int GetAccessLevel() const { return m_AccessLevel; }
+		virtual int Flags() const = 0;
 	};
 
 	typedef void (*FTeeHistorianCommandCallback)(int ClientId, int FlagMask, const char *pCmd, IResult *pResult, void *pUser);

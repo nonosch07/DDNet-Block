@@ -390,7 +390,10 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				auto match = mgr ? mgr->GetMatchForPlayer(ClientId) : nullptr;
 				if(match && match->IsInConfigPhase())
 				{
+					const bool Changed = match->m_Config.m_PointsLimit != A.A;
 					match->m_Config.m_PointsLimit = A.A;
+					if(Changed)
+						match->ResetDuelReadyVotes("[1on1] Settings changed - ready votes were reset.");
 					// re-render for both players
 					for(int cid : {match->m_Player1ID, match->m_Player2ID})
 					{
@@ -410,18 +413,16 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				auto match = mgr ? mgr->GetMatchForPlayer(ClientId) : nullptr;
 				if(match && match->IsInConfigPhase())
 				{
+					bool Changed = false;
 					int w = A.A;
 					if(w >= 0 && w < 6)
 					{
+						const bool Before = match->m_Config.m_aWeapons[w];
 						match->m_Config.m_aWeapons[w] = !match->m_Config.m_aWeapons[w];
-						// ensure at least one weapon stays enabled
-						bool anyEnabled = false;
-						for(int i = 0; i < 6; i++)
-							if(match->m_Config.m_aWeapons[i])
-								anyEnabled = true;
-						if(!anyEnabled)
-							match->m_Config.m_aWeapons[w] = true; // revert
+						Changed = Before != match->m_Config.m_aWeapons[w];
 					}
+					if(Changed)
+						match->ResetDuelReadyVotes("[1on1] Settings changed - ready votes were reset.");
 					for(int cid : {match->m_Player1ID, match->m_Player2ID})
 					{
 						CPlayer *pP = pGameContext->GetPlayer(cid);
@@ -441,6 +442,7 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				if(match && match->IsInConfigPhase())
 				{
 					match->m_Config.m_EndlessHook = !match->m_Config.m_EndlessHook;
+					match->ResetDuelReadyVotes("[1on1] Settings changed - ready votes were reset.");
 					for(int cid : {match->m_Player1ID, match->m_Player2ID})
 					{
 						CPlayer *pP = pGameContext->GetPlayer(cid);
@@ -459,7 +461,10 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				auto match = mgr ? mgr->GetMatchForPlayer(ClientId) : nullptr;
 				if(match && match->IsInConfigPhase())
 				{
+					const bool Changed = match->m_Config.m_TimeLimit != A.A;
 					match->m_Config.m_TimeLimit = A.A;
+					if(Changed)
+						match->ResetDuelReadyVotes("[1on1] Settings changed - ready votes were reset.");
 					for(int cid : {match->m_Player1ID, match->m_Player2ID})
 					{
 						CPlayer *pP = pGameContext->GetPlayer(cid);
@@ -478,7 +483,10 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				auto match = mgr ? mgr->GetMatchForPlayer(ClientId) : nullptr;
 				if(match && match->IsInConfigPhase())
 				{
+					const bool Changed = match->m_Config.m_SpawnMode != A.A;
 					match->m_Config.m_SpawnMode = A.A; // 0=normal, 1=random
+					if(Changed)
+						match->ResetDuelReadyVotes("[1on1] Settings changed - ready votes were reset.");
 					for(int cid : {match->m_Player1ID, match->m_Player2ID})
 					{
 						CPlayer *pP = pGameContext->GetPlayer(cid);
@@ -1120,21 +1128,72 @@ void CVoteManager::BuildCosmeticsRoot(CPlayer *pPlayer, int ClientID, IServer *p
 		return;
 	}
 
-	// categories ==
-	// 0=Skin Manipulations, 1=Gun Designs, 2=Knockout Effects, 3=VIP Items
-	struct Cat
-	{
-		const char *Name;
-		int Index;
-	} Cats[] = {
-		{"Skin Manipulations", 0}, {"Gun Designs", 1}, {"Knockout Effects", 2}, {"VIP Items", 3}};
+	bool AnyOwned = false;
 
-	for(const auto &C : Cats)
+	// helper to render one section
+	auto RenderSection = [&](const char *pTitle, const char **ppNames, int Count, int CategoryIndex, int ActiveIndex, auto HasFn) {
+		// collect owned indices
+		std::vector<int> OwnedIndices;
+		for(int i = 0; i < Count; ++i)
+		{
+			if(HasFn(i))
+				OwnedIndices.push_back(i);
+		}
+		if(OwnedIndices.empty())
+			return;
+
+		AnyOwned = true;
+
+		// section header
+		OutLabels.emplace_back("─── " + SmallCaps(pTitle) + " ───");
+		OutActions.emplace_back(Action{EActionKind::None});
+
+		for(int i : OwnedIndices)
+		{
+			const bool IsActive = (ActiveIndex == i);
+			std::string name = (ppNames && ppNames[i] ? ppNames[i] : "");
+			std::string Line = std::string(IsActive ? "☑ " : "☐ ") + SmallCaps(name);
+			OutLabels.emplace_back(Line);
+			OutActions.emplace_back(Action{EActionKind::ToggleCosmeticItem, CategoryIndex, i});
+		}
+	};
+
+	int Cid = pPlayer->GetCid();
+
+	// Skin Manipulations (category 0)
+	RenderSection("Skin Manipulations",
+		CCosmeticsHandler::ms_SkinmaniNames, CCosmeticsHandler::NUM_SKINMANIS,
+		0, pPlayer->GetSkinMani(),
+		[&](int i) { return pGameContext->Cosmetics()->HasSkinmani(Cid, i); });
+
+	// Gun Designs (category 1)
+	RenderSection("Gun Designs",
+		CCosmeticsHandler::ms_GundesignNames, CCosmeticsHandler::NUM_GUNDESIGNS,
+		1, pPlayer->GetGunDesign(),
+		[&](int i) { return pGameContext->Cosmetics()->HasGundesign(Cid, i); });
+
+	// Knockout Effects (category 2)
+	RenderSection("Knockout Effects",
+		CCosmeticsHandler::ms_KnockoutNames, CCosmeticsHandler::NUM_KNOCKOUTS,
+		2, pPlayer->GetKnockout(),
+		[&](int i) { return pGameContext->Cosmetics()->HasKnockoutEffect(Cid, i); });
+
+	// VIP Items (category 3) — only for VIP players
+	if(pPlayer->GetPlayerVip() || (pServer && pServer->ClientAuthed(Cid)))
 	{
-		std::string label = SmallCaps(C.Name);
-		label += " ›";
-		OutLabels.emplace_back(label);
-		OutActions.emplace_back(Action{EActionKind::OpenCosmeticsCategory, C.Index});
+		static const char *s_Vip[] = {"Ball", "Crown", "Epic Circle", "Halo"};
+		RenderSection("VIP Items",
+			s_Vip, 4,
+			3, pPlayer->GetCurrentSpecial(),
+			[&](int i) { return pGameContext->Cosmetics()->HasSpecial(Cid, i); });
+	}
+
+	if(!AnyOwned)
+	{
+		OutLabels.emplace_back(SmallCaps("No owned cosmetics."));
+		OutActions.emplace_back(Action{EActionKind::None});
+		OutLabels.emplace_back(SmallCaps("Buy some in the shop!"));
+		OutActions.emplace_back(Action{EActionKind::None});
 	}
 }
 

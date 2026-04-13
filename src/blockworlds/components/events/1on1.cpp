@@ -1,6 +1,7 @@
 #include "1on1.h"
 #include "1on1_utils.h"
 #include <base/system.h>
+#include <engine/server/server.h>
 #include <engine/shared/config.h>
 #include <game/mapitems.h>
 #include <game/server/entities/character.h>
@@ -12,6 +13,20 @@
 #include <blockworlds/discord/webhook.h>
 
 #include <blockworlds/votes/votemanager.h>
+
+namespace
+{
+void ForcePlayerIntoEvent(CPlayer *pPlayer)
+{
+	if(!pPlayer)
+		return;
+
+	if(pPlayer->IsPaused() != CPlayer::PAUSE_NONE)
+		pPlayer->Pause(CPlayer::PAUSE_NONE, true);
+	if(pPlayer->GetTeam() == TEAM_SPECTATORS)
+		pPlayer->SetTeam(TEAM_FLOCK, false);
+}
+}
 
 COneOnOneEvent::COneOnOneEvent(CGameContext *pGameServer) :
 	CComponent(pGameServer), m_Player1ID(-1), m_Player2ID(-1), m_Wager(0), m_Team(-1), m_StartTimer(0), m_CurrentTick(0), m_SuppressFinishBroadcast(false)
@@ -137,6 +152,10 @@ bool COneOnOneEvent::InitializeConfigPhase(int Player1ID, int Player2ID, int Wag
 		return false;
 	}
 
+	// make sure participants are not stuck in spec/pause when entering the event
+	ForcePlayerIntoEvent(p1);
+	ForcePlayerIntoEvent(p2);
+
 	std::vector<vec2> spawnPosition = GameServer()->ZoneManager()->Get1on1PrepPositions();
 	int spawncount = (int)spawnPosition.size();
 
@@ -206,7 +225,7 @@ bool COneOnOneEvent::InitializeConfigPhase(int Player1ID, int Player2ID, int Wag
 	GameServer()->SendChatTarget(m_Player2ID, "[1on1] You have been teleported to the arena.");
 	{
 		char aBuf[128];
-		str_format(aBuf, sizeof(aBuf), "[1on1] Use the vote menu to configure the match. F3=Start, F4=Cancel. Auto-starts in %ds.", g_Config.m_Sv1on1WarmupSeconds);
+		str_format(aBuf, sizeof(aBuf), "[1on1] Use the vote menu to configure the match. F3=Start, F4=Cancel. Auto-aborts in %ds.", g_Config.m_Sv1on1WarmupSeconds);
 		GameServer()->SendChatTarget(m_Player1ID, aBuf);
 		GameServer()->SendChatTarget(m_Player2ID, aBuf);
 	}
@@ -338,6 +357,30 @@ bool COneOnOneEvent::OnDuelVote(int ClientId, int Vote)
 	}
 
 	return true;
+}
+
+void COneOnOneEvent::ResetDuelReadyVotes(const char *pReason)
+{
+	if(GetState() != EEventState::Preparation)
+		return;
+
+	const bool HadVotes = m_aDuelVote[0] != 0 || m_aDuelVote[1] != 0;
+	m_aDuelVote[0] = 0;
+	m_aDuelVote[1] = 0;
+
+	CNetMsg_Sv_YourVote ResetVote = {0};
+	if(m_Player1ID >= 0 && Server()->ClientIngame(m_Player1ID))
+		Server()->SendPackMsg(&ResetVote, MSGFLAG_VITAL, m_Player1ID);
+	if(m_Player2ID >= 0 && Server()->ClientIngame(m_Player2ID))
+		Server()->SendPackMsg(&ResetVote, MSGFLAG_VITAL, m_Player2ID);
+
+	if(HadVotes && pReason && pReason[0] != '\0')
+	{
+		GameServer()->SendChatTarget(m_Player1ID, pReason);
+		GameServer()->SendChatTarget(m_Player2ID, pReason);
+	}
+
+	SendDuelVoteUi();
 }
 
 void COneOnOneEvent::StartMatchFromConfig()
@@ -612,6 +655,10 @@ bool COneOnOneEvent::StartEvent()
 		return false;
 	}
 
+	// make sure participants are not stuck in spec/pause when entering the event
+	ForcePlayerIntoEvent(p1);
+	ForcePlayerIntoEvent(p2);
+
 	std::vector<vec2> spawnPosition;
 	if(m_Config.m_SpawnMode == 1)
 		spawnPosition = GameServer()->ZoneManager()->Get1on1ArenaPositions(-1);
@@ -811,6 +858,32 @@ void COneOnOneEvent::OnTick()
 	// All freeze/stalemate/scoring logic only applies during Active phase
 	if(GetState() == EEventState::Active)
 	{
+		// Keep configured ninja active for the full round by refreshing its timer.
+		if(m_Config.m_aWeapons[WEAPON_NINJA])
+		{
+			for(int cid : {m_Player1ID, m_Player2ID})
+			{
+				if(CCharacter *pChr = GameServer()->GetPlayerChar(cid))
+				{
+					if(!pChr->GetWeaponGot(WEAPON_NINJA))
+						pChr->GiveWeapon(WEAPON_NINJA);
+					else
+						pChr->SetNinjaActivationTick(Server()->Tick());
+				}
+			}
+		}
+		else
+		{
+			for(int cid : {m_Player1ID, m_Player2ID})
+			{
+				if(CCharacter *pChr = GameServer()->GetPlayerChar(cid))
+				{
+					if(pChr->GetWeaponGot(WEAPON_NINJA))
+						pChr->GiveWeapon(WEAPON_NINJA, true);
+				}
+			}
+		}
+
 		const int GraceTicks = Config()->m_Sv1on1DrawFreezeGrace * Server()->TickSpeed();
 		const int StalemateThresholdTicks = Config()->m_Sv1on1DrawFreezeStalemate * Server()->TickSpeed();
 		CCharacter *pChr1 = GameServer()->GetPlayerChar(m_Player1ID);
@@ -960,6 +1033,57 @@ void COneOnOneEvent::OnTick()
 	{
 		int WarmupSec = g_Config.m_Sv1on1WarmupSeconds;
 		int elapsed = (int)((m_CurrentTick - m_ConfigStartTick) / Server()->TickSpeed());
+		int remaining = WarmupSec - elapsed;
+		if(remaining < 0)
+			remaining = 0;
+
+		char aTimeLimit[32];
+		if(m_Config.m_TimeLimit <= 0)
+			str_copy(aTimeLimit, "No limit", sizeof(aTimeLimit));
+		else
+			str_format(aTimeLimit, sizeof(aTimeLimit), "%d:%02d", m_Config.m_TimeLimit / 60, m_Config.m_TimeLimit % 60);
+
+		char aWeapons[128];
+		aWeapons[0] = '\0';
+		static const char *s_apWeaponNames[6] = {"Hammer", "Gun", "Shotgun", "Grenade", "Laser", "Ninja"};
+		for(int i = 0; i < 6; ++i)
+		{
+			if(!m_Config.m_aWeapons[i])
+				continue;
+			if(aWeapons[0] != '\0')
+				str_append(aWeapons, ", ", sizeof(aWeapons));
+			str_append(aWeapons, s_apWeaponNames[i], sizeof(aWeapons));
+		}
+		if(aWeapons[0] == '\0')
+			str_copy(aWeapons, "None", sizeof(aWeapons));
+
+		const char *pSpawnMode = m_Config.m_SpawnMode == 1 ? "Random" : "Normal";
+		const char *pEndlessHook = m_Config.m_EndlessHook ? "ON" : "OFF";
+		const int Pot = maximum(0, m_Wager) * 2;
+
+		char aCfgBroadcast[768];
+		str_format(aCfgBroadcast, sizeof(aCfgBroadcast),
+			"------------------------------\n"
+			"Pot: %d BP\n"
+			"Points: %d   Time: %s\n"
+			"Spawn: %s   Endless Hook: %s\n"
+			"Weapons: %s\n"
+			"F3 Start | F4 Cancel | Abort: %ds",
+			Pot,
+			m_Config.m_PointsLimit,
+			aTimeLimit,
+			pSpawnMode,
+			pEndlessHook,
+			aWeapons,
+			remaining);
+
+		char aCfgBroadcastUnderVote[1024];
+		str_format(aCfgBroadcastUnderVote, sizeof(aCfgBroadcastUnderVote), "\n\n\n\n\n\n%s", aCfgBroadcast);
+
+		if(auto *pP1 = GameServer()->m_apPlayers[m_Player1ID])
+			pP1->SendBroadcastAlignedLeft("%s", aCfgBroadcastUnderVote);
+		if(auto *pP2 = GameServer()->m_apPlayers[m_Player2ID])
+			pP2->SendBroadcastAlignedLeft("%s", aCfgBroadcastUnderVote);
 
 		// Refresh vote overlay every 5s (global EndVote wipes it for all clients)
 		if(m_DuelVoteLastSendTick >= 0 && (m_CurrentTick - m_DuelVoteLastSendTick) >= Server()->TickSpeed() * 5)
@@ -967,8 +1091,8 @@ void COneOnOneEvent::OnTick()
 
 		if(elapsed >= WarmupSec)
 		{
-			GameServer()->SendChatTarget(m_Player1ID, "[1on1] Preparation phase over - starting with current settings.");
-			GameServer()->SendChatTarget(m_Player2ID, "[1on1] Preparation phase over - starting with current settings.");
+			GameServer()->SendChatTarget(m_Player1ID, "[1on1] Preparation phase timed out - match aborted.");
+			GameServer()->SendChatTarget(m_Player2ID, "[1on1] Preparation phase timed out - match aborted.");
 
 			ClearDuelVoteUi();
 			extern CVoteManager g_VoteManager;
@@ -978,7 +1102,7 @@ void COneOnOneEvent::OnTick()
 				GameServer()->ClearVotes(cid);
 			}
 
-			StartMatchFromConfig();
+			AbortAndRefund(nullptr);
 		}
 	}
 }
@@ -1033,28 +1157,34 @@ void COneOnOneEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 			if(m_Config.m_EndlessHook)
 				pChr->SetEndlessHook(true);
 
-			// give enabled weapons and remove disabled ones
+			// apply exact weapon config (including zero-weapons loadouts)
+			bool AnyEnabled = false;
+			int FirstEnabled = -1;
 			for(int w = 0; w < 6; w++)
 			{
 				if(m_Config.m_aWeapons[w])
 				{
 					pChr->GiveWeapon(w);
+					if(FirstEnabled == -1)
+						FirstEnabled = w;
+					AnyEnabled = true;
 				}
 				else
 				{
-					pChr->SetWeaponGot(w, false);
-					if(pChr->GetActiveWeapon() == w)
-					{
-						for(int alt = 0; alt < 6; alt++)
-						{
-							if(m_Config.m_aWeapons[alt])
-							{
-								pChr->SetActiveWeapon(alt);
-								break;
-							}
-						}
-					}
+					pChr->GiveWeapon(w, true);
 				}
+			}
+
+			if(AnyEnabled)
+			{
+				if(!pChr->GetWeaponGot(pChr->GetActiveWeapon()) && FirstEnabled >= 0)
+					pChr->SetActiveWeapon(FirstEnabled);
+			}
+			else
+			{
+				// There is no true "weaponless" snap in vanilla protocol, but this keeps
+				// the character functionally unarmed and avoids stale held weapon carryover.
+				pChr->SetActiveWeapon(WEAPON_HAMMER);
 			}
 		}
 	}
@@ -1349,13 +1479,12 @@ void COneOnOneEvent::FinishEvent()
 		if(Discord.IsConfigured(p1on1Url))
 		{
 			char aMsg[512];
-			const char *pMap = Server()->GetMapName();
 			int winnerScore = (winnerCid == m_Player1ID) ? m_Score1.load() : m_Score2.load();
 			int loserScore = (winnerCid == m_Player1ID) ? m_Score2.load() : m_Score1.load();
 			int bp = m_Wager > 0 ? m_Wager : 0;
 			const char *pWinnerBracket = pWinnerName;
 			const char *pLoserName = (winnerCid == m_Player1ID) ? pName2 : pName1;
-			str_format(aMsg, sizeof(aMsg), "[**%s**]  %d : %d  [%s]  ->  BP: %d (**%s**)", pWinnerBracket, winnerScore, loserScore, pLoserName, bp, pMap ? pMap : "<invalid>");
+			str_format(aMsg, sizeof(aMsg), "[**%s**]  %d : %d  [%s]  ->  BP: %d", pWinnerBracket, winnerScore, loserScore, pLoserName, bp);
 			CDiscordWebhook::SSendOptions Opt;
 			Opt.m_pWebhookUrl = p1on1Url;
 			Discord.Send(aMsg, Opt);
@@ -1488,8 +1617,8 @@ bool COneOnOneEvent::Leave(int ClientId)
 
 		{
 			char aBuf[512];
-			str_format(aBuf, sizeof(aBuf), "[1on1] - %s ragequited the match vs %s! %s %d : %d - %s",
-				pLeaverName, pOpponentName, pOpponentName, opponentScore, leaverScore, s_RagequitPhrases[phraseIdx]);
+			str_format(aBuf, sizeof(aBuf), "[1on1] - %s ragequited the match vs %s! %s %d : %d",
+				pLeaverName, pOpponentName, pOpponentName, opponentScore, leaverScore);
 			GameServer()->SendChatTarget(-1, aBuf);
 		}
 
@@ -1674,6 +1803,10 @@ void COneOnOneEvent::AbortAndRefund(const char *pReason)
 		GameServer()->SendChatTarget(m_Player2ID, pReason);
 	}
 	RefundEscrow();
+
+	// clear any event-related broadcast text for both participants
+	GameServer()->SendBroadcast(" ", m_Player1ID, false);
+	GameServer()->SendBroadcast(" ", m_Player2ID, false);
 
 	auto pController = (CGameControllerDDRace *)GameServer()->m_pController;
 	if(m_Team >= 0)

@@ -13,18 +13,8 @@
 // chat filter component: loads a local word list and mutes players using banned words
 class CChatFilterComponent final : public CComponent
 {
-public:
-	static const char *GetNameStatic() { return "chatfilter"; }
+	DECLARE_COMPONENT(CChatFilterComponent, "chatfilter")
 
-public:
-	explicit CChatFilterComponent(class CGameContext *pGameServer);
-
-public: // CComponent
-	const char *GetName() const override { return GetNameStatic(); }
-	void OnConsoleInit() override;
-	void OnConsoleTerminate() override;
-
-public:
 	bool CheckAndMaybeMute(int ClientId, const char *pMessage);
 
 private:

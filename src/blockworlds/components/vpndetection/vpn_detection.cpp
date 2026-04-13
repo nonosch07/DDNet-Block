@@ -7,7 +7,9 @@
 #include "vpn_commands.h"
 
 #include <engine/server.h>
+#include <engine/server/server.h>
 #include <engine/shared/config.h>
+#include <engine/shared/console.h>
 #include <engine/shared/linereader.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
@@ -64,23 +66,20 @@ CVpnDetectionComponent::CVpnDetectionComponent(CGameContext *pGameServer) :
 	Log("VPN service registered: iphub | API: https://v2.api.iphub.info/ | API key: %s | Rate limit: %dms",
 		Config()->m_SvVpnIphubApiKey[0] ? "(set)" : "(not set)",
 		m_RateLimitIphub);
-}
 
-#define LIST_OF_ALL_COMMANDS(DEF) \
-	DEF("vpn_status", "?i[full_check]", CFGFLAG_SERVER, VpnCommands::ConVPNStatus, this, "Show VPN status of connected clients (full_check=1 to queue fresh checks)") \
-	DEF("vpn_service_default", "s[service_name]", CFGFLAG_SERVER, VpnCommands::ConVPNSetDefaultService, this, "Set the default VPN detection service") \
-	DEF("vpn_service_list", "", CFGFLAG_SERVER, VpnCommands::ConVPNServiceList, this, "List all registered VPN services") \
-	DEF("vpn_check", "s[id_or_ip] ?s[service_name]", CFGFLAG_SERVER, VpnCommands::ConVPNCheck, this, "Test VPN detection on a client ID or IP address (service optional, allows 'all')") \
-	DEF("vpn_check_force", "s[id_or_ip] ?s[service_name]", CFGFLAG_SERVER, VpnCommands::ConVPNCheckForce, this, "Force fresh VPN check, bypassing cache (service optional, allows 'all')") \
-	DEF("vpn_whitelist_add", "s[ip]", CFGFLAG_SERVER, VpnCommands::ConVPNWhitelistAdd, this, "Add an IP to the VPN detection whitelist") \
-	DEF("vpn_whitelist_remove", "s[ip]", CFGFLAG_SERVER, VpnCommands::ConVPNWhitelistRemove, this, "Remove an IP from the VPN detection whitelist") \
-	DEF("vpn_whitelist_list", "", CFGFLAG_SERVER, VpnCommands::ConVPNWhitelistList, this, "List all whitelisted IPs for VPN detection")
+	CONSOLE_COMMAND("vpn_status", "?i[full_check]", VpnCommands::ConVPNStatus, "Show VPN status of connected clients (full_check=1 to queue fresh checks)")
+	CONSOLE_COMMAND("vpn_service_default", "s[service_name]", VpnCommands::ConVPNSetDefaultService, "Set the default VPN detection service")
+	CONSOLE_COMMAND("vpn_service_list", "", VpnCommands::ConVPNServiceList, "List all registered VPN services")
+	CONSOLE_COMMAND("vpn_check", "s[id_or_ip] ?s[service_name]", VpnCommands::ConVPNCheck, "Test VPN detection on a client ID or IP address (service optional, allows 'all')")
+	CONSOLE_COMMAND("vpn_check_force", "s[id_or_ip] ?s[service_name]", VpnCommands::ConVPNCheckForce, "Force fresh VPN check, bypassing cache (service optional, allows 'all')")
+	CONSOLE_COMMAND("vpn_whitelist_add", "s[ip]", VpnCommands::ConVPNWhitelistAdd, "Add an IP to the VPN detection whitelist")
+	CONSOLE_COMMAND("vpn_whitelist_remove", "s[ip]", VpnCommands::ConVPNWhitelistRemove, "Remove an IP from the VPN detection whitelist")
+	CONSOLE_COMMAND("vpn_whitelist_list", "", VpnCommands::ConVPNWhitelistList, "List all whitelisted IPs for VPN detection")
+}
 
 void CVpnDetectionComponent::OnConsoleInit()
 {
-#define REGISTER_COMMAND(name, params, flags, callback, userdata, help) Console()->Register(name, params, flags, callback, userdata, help);
-	LIST_OF_ALL_COMMANDS(REGISTER_COMMAND)
-#undef REGISTER_COMMAND
+	CComponent::OnConsoleInit();
 
 	m_ConVarCallbacks.push_back(CONVAR_BOOL(m_Debug, false));
 	Console()->Register("vpn_debug", "?i[value]", CFGFLAG_SERVER, ConVarBoolCallback, m_ConVarCallbacks.back(),
@@ -226,9 +225,7 @@ void CVpnDetectionComponent::OnShutdown()
 
 void CVpnDetectionComponent::OnConsoleTerminate()
 {
-#define UNREGISTER_COMMAND(name, params, flags, callback, userdata, help) Console()->Deregister(name);
-	LIST_OF_ALL_COMMANDS(UNREGISTER_COMMAND)
-#undef UNREGISTER_COMMAND
+	CComponent::OnConsoleTerminate();
 
 	Console()->Deregister("vpn_debug");
 	Console()->Deregister("vpn_enable");
