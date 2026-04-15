@@ -104,6 +104,8 @@ void CTeamDeathmatchEvent::SaveAndPrepareParticipants()
 				pChar->SetSolo(false);
 			if(wasCollisionDisabled)
 				pChar->Core()->m_CollisionDisabled = false;
+			pChar->GetPlayer()->Pause(CPlayer::PAUSE_NONE, false);
+			pChar->SetDeepFrozen(false);
 		}
 	}
 }
