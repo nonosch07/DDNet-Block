@@ -383,6 +383,8 @@ bool CZCatchEvent::Join(int ClientId)
 			pChar->SetSolo(false);
 		if(wasCollision)
 			pChar->Core()->m_CollisionDisabled = false;
+		pChar->GetPlayer()->Pause(CPlayer::PAUSE_NONE, false);
+		pChar->SetDeepFrozen(false);
 
 		GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, m_DDRaceTeam);
 		pChar->ResetVelocity();
