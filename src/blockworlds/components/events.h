@@ -66,6 +66,11 @@ private:
 	std::map<std::string, SFactoryRec> m_EventsFactory; // key: internal event name
 
 	void OnEventStateChange(CEventComponent::EEventState OldState, CEventComponent::EEventState NewState);
+
+	template<typename TEvent>
+	void RegisterEvent(std::string_view Name, const EEventCategory Visibility) {
+		m_EventsFactory.emplace(Name, SFactoryRec{Visibility, [](CGameContext *pGS) { return std::make_shared<TEvent>(pGS); }});
+	}
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_H

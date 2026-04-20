@@ -6535,7 +6535,7 @@ bool CGameContext::HandleCosmeticsVote(const CNetMsg_Cl_CallVote *pMsg, int Clie
 void CGameContext::BW_OnTick()
 {
 	// Only run component-based events now
-	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
+	/*if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
 	{
 		auto subs = events->GetSubComponents();
 		for(auto &sub : subs)
@@ -6544,7 +6544,7 @@ void CGameContext::BW_OnTick()
 			if(pEv)
 				pEv->OnTick();
 		}
-	}
+	}*/
 
 	if(m_pClans)
 	{

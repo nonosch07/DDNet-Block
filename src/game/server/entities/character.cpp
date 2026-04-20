@@ -24,6 +24,7 @@
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
 #include <blockworlds/components/events/event.h>
+#include <blockworlds/components/events/bombtag.h>
 #include <blockworlds/cosmetics/cosmetics.h>
 #include <blockworlds/shop/storemanager.h>
 
@@ -599,7 +600,27 @@ void CCharacter::FireWeapon()
 			Temp -= pTarget->m_Core.m_Vel;
 			pTarget->TakeDamage((vec2(0.f, -1.0f) + Temp) * Strength, m_Pos, g_pData->m_Weapons.m_Hammer.m_pBase->m_Damage,
 				m_pPlayer->GetCid(), m_Core.m_ActiveWeapon);
-			pTarget->UnFreeze();
+
+			// TODO: check if we can remove that code in the DDNet codebase
+			bool IsInBombTagEvent = false;
+			if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
+			{
+				for(auto &sub : events->GetSubComponents())
+				{
+					// Try to cast directly to CBombTagEvent
+					if(auto pBombTagEvent = dynamic_cast<CBombTagEvent *>(sub.operator->()))
+					{
+						const auto &participants = pBombTagEvent->Participants();
+						if(std::find(participants.begin(), participants.end(), m_pPlayer->GetCid()) != participants.end())
+							IsInBombTagEvent = true;
+						
+						break;
+					}
+				}
+			}
+
+			if(!IsInBombTagEvent)
+				pTarget->UnFreeze();
 
 			if(m_FreezeHammer)
 				pTarget->Freeze();
