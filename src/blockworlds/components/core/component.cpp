@@ -48,6 +48,11 @@ void CComponent::OnConsoleInit()
 	}
 	Server()->SendChatCmdGroupEnd(-1);
 	Server()->SendRconCmdGroupEnd(-1);
+
+	for (auto ChainCmd : m_ChainCommands) {
+		Console()->Chain(ChainCmd.m_pName, ChainCmd.m_pfnCallback, ChainCmd.m_pUserData);
+		Log("Successfully chained '%s'", ChainCmd.m_pName);
+	}
 }
 
 void CComponent::OnConsoleTerminate()
@@ -59,5 +64,10 @@ void CComponent::OnConsoleTerminate()
 		if(Command->Flags() & CFGFLAG_CHAT)
 			Server()->SendChatCmdRem(Command, -1);
 		Console()->Deregister(Cmd.m_pName);
+	}
+
+	for (auto ChainCmd : m_ChainCommands) {
+		Console()->UnChain(ChainCmd.m_pName, ChainCmd.m_pfnCallback);
+		Log("Successfully unchained '%s'", ChainCmd.m_pName);
 	}
 }

@@ -1,5 +1,4 @@
 #include "vpn_detection.h"
-#include "convar_helpers.h"
 #include "services/getipintel_service.h"
 #include "services/iphub_service.h"
 #include "services/ipquery_service.h"
@@ -18,148 +17,141 @@
 
 bool CVpnDetectionComponent::IsDebug() const
 {
-	return m_Debug;
+	return Config()->m_SvVpnDebug;
 }
 
 CVpnDetectionComponent::CVpnDetectionComponent(CGameContext *pGameServer) :
 	CComponent(pGameServer),
-	m_GetipintelThreshold(99.00f),
-	m_Debug(false),
-	m_Enabled(false),
-	m_BanEnabled(false),
-	m_BanTimeMinutes(60),
-	m_RateLimitIpquery(100),
-	m_RateLimitGetipintel(4000),
-	m_RateLimitIphub(500),
-	m_DefaultService("")
+	m_BanTimeMinutes(60)
 {
-	m_aGetipintelContact[0] = '\0';
-	m_aBanTimeString[0] = '\0';
-	str_copy(m_aBanTimeString, "60", sizeof(m_aBanTimeString));
-
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		m_aClientInfo[i].m_ClientId = i;
 	}
 
 	auto pIPQuery = new CIPQueryService();
-	RegisterService("ipquery", pIPQuery, m_RateLimitIpquery);
-	SetDefaultService("ipquery");
+	RegisterService("ipquery", pIPQuery, Config()->m_SvVpnRateLimitIpquery);
 
-	Log("VPN service registered: ipquery | API: https://api.ipquery.io/ | Rate limit: %dms", m_RateLimitIpquery);
+	Log("VPN service registered: ipquery | API: https://api.ipquery.io/ | Rate limit: %dms", Config()->m_SvVpnRateLimitIpquery);
 
 	auto pGetIPIntel = new CGetIPIntelService();
 	pGetIPIntel->SetFlags("b");
 	pGetIPIntel->SetOutputFlags("b");
-	pGetIPIntel->SetContactEmail(m_aGetipintelContact);
-	pGetIPIntel->SetThreshold(m_GetipintelThreshold / 100.0f);
-	RegisterService("getipintel", pGetIPIntel, m_RateLimitGetipintel);
+	pGetIPIntel->SetContactEmail(Config()->m_SvVpnGetipintelContact);
+	pGetIPIntel->SetThreshold(Config()->m_SvVpnGetipintelThreshold / 100.0f);
+	RegisterService("getipintel", pGetIPIntel, Config()->m_SvVpnRateLimitGetipintel);
 
 	Log("VPN service registered: getipintel | API: https://getipintel.net/ | Contact: %s | Threshold: %.2f%% | Rate limit: %dms",
-		m_aGetipintelContact[0] ? m_aGetipintelContact : "(not set)",
-		m_GetipintelThreshold, m_RateLimitGetipintel);
+		Config()->m_SvVpnGetipintelContact[0] ? Config()->m_SvVpnGetipintelContact : "(not set)",
+		Config()->m_SvVpnGetipintelThreshold, Config()->m_SvVpnRateLimitGetipintel);
 
 	auto pIPHub = new CIPHubService();
 	pIPHub->SetApiKeyPtr(Config()->m_SvVpnIphubApiKey);
-	RegisterService("iphub", pIPHub, m_RateLimitIphub);
+	RegisterService("iphub", pIPHub, Config()->m_SvVpnRateLimitIphub);
 
 	Log("VPN service registered: iphub | API: https://v2.api.iphub.info/ | API key: %s | Rate limit: %dms",
 		Config()->m_SvVpnIphubApiKey[0] ? "(set)" : "(not set)",
-		m_RateLimitIphub);
+		Config()->m_SvVpnRateLimitIphub);
+
+	SetDefaultService(Config()->m_SvVpnServiceDefault);
 
 	CONSOLE_COMMAND("vpn_status", "?i[full_check]", VpnCommands::ConVPNStatus, "Show VPN status of connected clients (full_check=1 to queue fresh checks)")
-	CONSOLE_COMMAND("vpn_service_default", "s[service_name]", VpnCommands::ConVPNSetDefaultService, "Set the default VPN detection service")
 	CONSOLE_COMMAND("vpn_service_list", "", VpnCommands::ConVPNServiceList, "List all registered VPN services")
 	CONSOLE_COMMAND("vpn_check", "s[id_or_ip] ?s[service_name]", VpnCommands::ConVPNCheck, "Test VPN detection on a client ID or IP address (service optional, allows 'all')")
 	CONSOLE_COMMAND("vpn_check_force", "s[id_or_ip] ?s[service_name]", VpnCommands::ConVPNCheckForce, "Force fresh VPN check, bypassing cache (service optional, allows 'all')")
 	CONSOLE_COMMAND("vpn_whitelist_add", "s[ip]", VpnCommands::ConVPNWhitelistAdd, "Add an IP to the VPN detection whitelist")
 	CONSOLE_COMMAND("vpn_whitelist_remove", "s[ip]", VpnCommands::ConVPNWhitelistRemove, "Remove an IP from the VPN detection whitelist")
 	CONSOLE_COMMAND("vpn_whitelist_list", "", VpnCommands::ConVPNWhitelistList, "List all whitelisted IPs for VPN detection")
-}
 
-void CVpnDetectionComponent::OnConsoleInit()
-{
-	CComponent::OnConsoleInit();
+	CHAIN_COMMAND("sv_vpn_enabled", [](IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData) {
+		pfnCallback(pResult, pCallbackUserData);
+		auto *pSelf = (ThisComponent*)pUserData;
+		if (pResult->NumArguments() < 1)
+			return;
 
-	m_ConVarCallbacks.push_back(CONVAR_BOOL(m_Debug, false));
-	Console()->Register("vpn_debug", "?i[value]", CFGFLAG_SERVER, ConVarBoolCallback, m_ConVarCallbacks.back(),
-		"Enable verbose debug logging for VPN detection (default: 0)");
+		bool Enable = pResult->GetInteger(0);
+		if(Enable)
+		{
+			Log("VPN detection enabled");
+			pSelf->CheckAllClientsDefaultService();
+		}
+		else
+		{
+			Log("VPN detection disabled");
+		}
+	});
+	CHAIN_COMMAND("sv_vpn_ban_time", [](IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData) {
+		auto *pSelf = (ThisComponent*)pUserData;
+		if (pResult->NumArguments() < 1) {
+			Log("VPN ban time: %d minutes", pSelf->m_BanTimeMinutes);
+			return;
+		}
 
-	m_ConVarCallbacks.push_back(CONVAR_BOOL_ONCHANGE(m_Enabled, false,
-		[this](bool Enable) {
-			if(Enable)
-			{
-				Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", "VPN detection enabled");
-				CheckAllClientsDefaultService();
-			}
-			else
-			{
-				Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", "VPN detection disabled");
-			}
-		}));
-	Console()->Register("vpn_enable", "?i[value]", CFGFLAG_SERVER, ConVarBoolCallback, m_ConVarCallbacks.back(),
-		"Enable or disable VPN detection (default: 0)");
+		const char *pTimeStr = pResult->GetString(0);
 
-	m_ConVarCallbacks.push_back(CONVAR_BOOL(m_BanEnabled, false));
-	Console()->Register("vpn_ban_enable", "?i[value]", CFGFLAG_SERVER, ConVarBoolCallback, m_ConVarCallbacks.back(),
-		"Enable automatic banning of detected VPN users (default: 0)");
+		int Minutes = 0;
+		if(ParseTimeStringMinutes(pTimeStr, &Minutes))
+		{
+			if(Minutes < 1)
+				Minutes = 1;
+			pSelf->SetBanTimeMinutes(Minutes);
+			Log("VPN ban time set to %d minutes", Minutes);
+		}
+		else
+		{
+			Log("Invalid time format: '%s'. Examples: '60', '1h', '1d', '1d5h10m', '10 minutes'", pTimeStr);
+		}
+	});
+	CHAIN_COMMAND("sv_vpn_ratelimit_ipquery", [](IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData) {
+		pfnCallback(pResult, pCallbackUserData);
+		auto *pSelf = (ThisComponent*)pUserData;
+		if (pResult->NumArguments() < 1)
+			return;
 
-	m_ConVarCallbacks.push_back(CONVAR_STRING_ONCHANGE(m_aBanTimeString, "60",
-		[this](const char *pTimeStr) {
-			int Minutes = 0;
-			if(ParseTimeStringMinutes(pTimeStr, &Minutes))
-			{
-				if(Minutes < 1)
-					Minutes = 1;
-				SetBanTimeMinutes(Minutes);
-				char aBuf[128];
-				str_format(aBuf, sizeof(aBuf), "VPN ban time set to %d minutes", Minutes);
-				Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
-			}
-			else
-			{
-				char aBuf[256];
-				str_format(aBuf, sizeof(aBuf),
-					"Invalid time format: '%s'. Examples: '60', '1h', '1d', '1d5h10m', '10 minutes'",
-					pTimeStr);
-				Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", aBuf);
-			}
-		}));
-	Console()->Register("vpn_ban_time", "?r[value]", CFGFLAG_SERVER, ConVarStringCallback, m_ConVarCallbacks.back(),
-		"Ban duration for VPN users (supports: '60', '1h', '1d', '1d5h10m', etc. Plain numbers = minutes) (default: \"60\")");
+		int Value = pResult->GetInteger(0);
+		pSelf->SetServiceRateLimit("ipquery", Value);
+	});
+	CHAIN_COMMAND("sv_vpn_ratelimit_getipintel", [](IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData) {
+		pfnCallback(pResult, pCallbackUserData);
+		auto *pSelf = (ThisComponent*)pUserData;
+		if (pResult->NumArguments() < 1)
+			return;
 
-	m_ConVarCallbacks.push_back(CONVAR_INT_ONCHANGE(m_RateLimitIpquery, 100, 500, 10000,
-		[this](int Value) { SetServiceRateLimit("ipquery", Value); }));
-	Console()->Register("vpn_ratelimit_ipquery", "?i[value]", CFGFLAG_SERVER, ConVarIntCallback, m_ConVarCallbacks.back(),
-		"Rate limit in milliseconds for ipquery service API requests (default: 100, min: 500, max: 10000)");
+		int Value = pResult->GetInteger(0);
+		pSelf->SetServiceRateLimit("getipintel", Value);
+	});
+	CHAIN_COMMAND("sv_vpn_service_getipintel_contact", [](IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData) {
+		pfnCallback(pResult, pCallbackUserData);
+		auto *pSelf = (ThisComponent*)pUserData;
+		if (pResult->NumArguments() < 1)
+			return;
 
-	m_ConVarCallbacks.push_back(CONVAR_INT_ONCHANGE(m_RateLimitGetipintel, 4000, 500, 10000,
-		[this](int Value) { SetServiceRateLimit("getipintel", Value); }));
-	Console()->Register("vpn_ratelimit_getipintel", "?i[value]", CFGFLAG_SERVER, ConVarIntCallback, m_ConVarCallbacks.back(),
-		"Rate limit in milliseconds for getipintel service API requests (default: 4000, min: 500, max: 10000)");
+		const char *pEmail = pResult->GetString(0);
+		auto *pService = dynamic_cast<CGetIPIntelService *>(pSelf->GetService("getipintel"));
+		if(pService)
+			pService->SetContactEmail(pEmail);
+	});
+	CHAIN_COMMAND("sv_vpn_service_getipintel_threshold", [](IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData) {
+		pfnCallback(pResult, pCallbackUserData);
+		auto *pSelf = (ThisComponent*)pUserData;
+		if (pResult->NumArguments() < 1)
+			return;
 
-	m_ConVarCallbacks.push_back(CONVAR_STRING_ONCHANGE(m_aGetipintelContact, "",
-		[this](const char *pEmail) {
-			auto *pService = dynamic_cast<CGetIPIntelService *>(GetService("getipintel"));
-			if(pService)
-				pService->SetContactEmail(pEmail);
-		}));
-	Console()->Register("vpn_service_getipintel_contact", "?r[value]", CFGFLAG_SERVER, ConVarStringCallback, m_ConVarCallbacks.back(),
-		"Contact email for GetIPIntel API (required for service to work) (default: \"\")");
+		float Threshold = pResult->GetFloat(0);
+		auto *pService = dynamic_cast<CGetIPIntelService *>(pSelf->GetService("getipintel"));
+		if(pService)
+			pService->SetThreshold(Threshold / 100.0f);
+	});
+	CHAIN_COMMAND("sv_vpn_ratelimit_iphub", [](IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData) {
+		pfnCallback(pResult, pCallbackUserData);
+		auto *pSelf = (ThisComponent*)pUserData;
+		if (pResult->NumArguments() < 1)
+			return;
 
-	m_ConVarCallbacks.push_back(CONVAR_FLOAT_ONCHANGE(m_GetipintelThreshold, 99.00f, 0.0f, 100.0f,
-		[this](float Threshold) {
-			auto *pService = dynamic_cast<CGetIPIntelService *>(GetService("getipintel"));
-			if(pService)
-				pService->SetThreshold(Threshold / 100.0f);
-		}));
-	Console()->Register("vpn_service_getipintel_threshold", "?f[value]", CFGFLAG_SERVER, ConVarFloatCallback, m_ConVarCallbacks.back(),
-		"Probability threshold (0.00-100.00) for marking IP as bad (default: 99.00, min: 0.00, max: 100.00)");
-
-	m_ConVarCallbacks.push_back(CONVAR_INT_ONCHANGE(m_RateLimitIphub, 500, 100, 10000,
-		[this](int Value) { SetServiceRateLimit("iphub", Value); }));
-	Console()->Register("vpn_ratelimit_iphub", "?i[value]", CFGFLAG_SERVER, ConVarIntCallback, m_ConVarCallbacks.back(),
-		"Rate limit in milliseconds for iphub service API requests (default: 500, min: 100, max: 10000)");
+		int Value = pResult->GetInteger(0);
+		pSelf->SetServiceRateLimit("iphub", Value);
+	});
+	CHAIN_COMMAND("sv_vpn_service_default", VpnCommands::ConVPNSetDefaultService)
 
 	if(m_Cache.Load("data/vpn_cache.json"))
 	{
@@ -179,7 +171,7 @@ void CVpnDetectionComponent::OnTick()
 		std::lock_guard<std::mutex> Lock(m_MessageMutex);
 		for(const auto &Msg : m_PendingMessages)
 		{
-			Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "vpndetection", Msg.m_Message.c_str());
+			Log(Msg.m_Message.c_str());
 		}
 		m_PendingMessages.clear();
 	}
@@ -223,27 +215,6 @@ void CVpnDetectionComponent::OnShutdown()
 	}
 }
 
-void CVpnDetectionComponent::OnConsoleTerminate()
-{
-	CComponent::OnConsoleTerminate();
-
-	Console()->Deregister("vpn_debug");
-	Console()->Deregister("vpn_enable");
-	Console()->Deregister("vpn_ban_enable");
-	Console()->Deregister("vpn_ban_time");
-	Console()->Deregister("vpn_ratelimit_ipquery");
-	Console()->Deregister("vpn_ratelimit_getipintel");
-	Console()->Deregister("vpn_service_getipintel_contact");
-	Console()->Deregister("vpn_service_getipintel_threshold");
-	Console()->Deregister("vpn_ratelimit_iphub");
-
-	for(void *pCallback : m_ConVarCallbacks)
-		delete static_cast<char *>(pCallback);
-	m_ConVarCallbacks.clear();
-}
-
-#undef LIST_OF_ALL_COMMANDS
-
 void CVpnDetectionComponent::OnPlayerEnter(int ClientId)
 {
 	if(ClientId < 0 || ClientId >= MAX_CLIENTS)
@@ -286,7 +257,7 @@ void CVpnDetectionComponent::OnPlayerEnter(int ClientId)
 		return;
 	}
 
-	if(m_Enabled && !m_DefaultService.empty())
+	if(Config()->m_SvVpnEnabled && !m_DefaultService.empty())
 	{
 		CheckClientService(ClientId, m_DefaultService.c_str());
 	}
@@ -467,7 +438,7 @@ void CVpnDetectionComponent::SetDefaultService(const char *pServiceName)
 		m_DefaultService = pServiceName;
 		Log("Default service configured | Service: %s", pServiceName);
 
-		ShouldCheckAll = m_Enabled;
+		ShouldCheckAll = Config()->m_SvVpnEnabled;
 	}
 
 	if(ShouldCheckAll)
@@ -515,7 +486,7 @@ void CVpnDetectionComponent::ProcessResult(int ClientId, std::shared_ptr<IVpnSer
 			pResult->IsBadIP() ? "true" : "false", pResult->GetRiskScore(),
 			pResult->GetAsn()[0] ? " | ASN: " : "", pResult->GetAsn()[0] ? pResult->GetAsn() : "");
 
-		if(m_BanEnabled && pResult->IsBadIP())
+		if(Config()->m_SvVpnBanEnabled && pResult->IsBadIP())
 		{
 			NETADDR Addr;
 			Server()->GetClientAddr(ClientId, &Addr);
@@ -528,7 +499,7 @@ void CVpnDetectionComponent::ProcessResult(int ClientId, std::shared_ptr<IVpnSer
 			}
 			else
 			{
-				const char *pReason = "VPN/Proxy detected. Appeal at .gg/fYaBTzY";
+				const char *pReason = Config()->m_SvVpnBanReason;
 				BanClient(ClientId, pReason);
 			}
 		}

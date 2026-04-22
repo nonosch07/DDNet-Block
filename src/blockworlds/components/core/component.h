@@ -36,6 +36,11 @@ public: \
 		reinterpret_cast<void *>(this), \
 		Help});
 
+#define CHAIN_COMMAND(Name, Callback) \
+	m_ChainCommands.push_back({Name, \
+		Callback, \
+		reinterpret_cast<void *>(this)});
+
 class CComponent
 {
 	class CGameContext *m_pGameServer;
@@ -58,6 +63,14 @@ protected:
 		const char *m_pHelp;
 	};
 	std::vector<SCommand> m_ConsoleCommands;
+
+	struct SCommandChain
+	{
+		const char *m_pName;
+		IConsole::FChainCommandCallback m_pfnCallback;
+		void *m_pUserData;
+	};
+	std::vector<SCommandChain> m_ChainCommands;
 
 public:
 	explicit CComponent(class CGameContext *pGameServer);
