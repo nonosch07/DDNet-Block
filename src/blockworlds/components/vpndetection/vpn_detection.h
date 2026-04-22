@@ -10,6 +10,7 @@
 
 #include <blockworlds/components/core/component.h>
 #include <engine/console.h>
+#include <engine/shared/config.h>
 
 #include <memory>
 #include <mutex>
@@ -42,8 +43,6 @@ public:
 	DECLARE_COMPONENT(CVpnDetectionComponent, "vpndetection")
 	bool IsDebug() const override;
 
-	void OnConsoleInit() override;
-	void OnConsoleTerminate() override;
 	void OnShutdown() override;
 	void OnTick() override;
 	void OnPlayerEnter(int ClientId) override;
@@ -90,10 +89,10 @@ public:
 	 */
 	void ProcessResult(int ClientId, std::shared_ptr<IVpnServiceResult> pResult);
 
-	bool IsEnabled() const { return m_Enabled; }
-	void SetEnabled(bool Enabled) { m_Enabled = Enabled; }
-	bool IsBanEnabled() const { return m_BanEnabled; }
-	void SetBanEnabled(bool Enabled) { m_BanEnabled = Enabled; }
+	bool IsEnabled() const { return Config()->m_SvVpnEnabled; }
+	void SetEnabled(bool Enabled) { Config()->m_SvVpnEnabled = Enabled; }
+	bool IsBanEnabled() const { return Config()->m_SvVpnBanEnabled; }
+	void SetBanEnabled(bool Enabled) { Config()->m_SvVpnBanEnabled = Enabled; }
 	int GetBanTimeMinutes() const { return m_BanTimeMinutes; }
 	void SetBanTimeMinutes(int Minutes) { m_BanTimeMinutes = Minutes; }
 	void SetServiceRateLimit(const char *pServiceName, int RateLimitMs);
@@ -119,10 +118,6 @@ public:
 	void SaveWhitelist();
 	void LoadWhitelist();
 
-	char m_aGetipintelContact[128];
-	char m_aBanTimeString[VPN_BAN_TIME_STRING_MAX];
-	float m_GetipintelThreshold;
-
 private:
 	void LoadCachedResultsForClient(int ClientId);
 	void ProcessRequestQueues();
@@ -131,17 +126,10 @@ private:
 	void CleanupFinishedThreads();
 	void BanClient(int ClientId, const char *pReason);
 
-	bool m_Debug;
-	bool m_Enabled;
-	bool m_BanEnabled;
 	int m_BanTimeMinutes;
-	int m_RateLimitIpquery;
-	int m_RateLimitGetipintel;
-	int m_RateLimitIphub;
+
 	std::mutex m_Mutex;
 	std::string m_DefaultService;
-
-	std::vector<void *> m_ConVarCallbacks;
 
 	CVpnClientInfo m_aClientInfo[MAX_VPN_CLIENTS];
 	std::unordered_map<std::string, SVpnServiceQueue> m_ServiceQueues;

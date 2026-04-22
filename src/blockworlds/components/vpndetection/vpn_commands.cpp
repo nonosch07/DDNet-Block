@@ -60,7 +60,7 @@ void ConVPNEnable(IConsole::IResult *pResult, void *pUserData)
 	}
 }
 
-void ConVPNSetDefaultService(IConsole::IResult *pResult, void *pUserData)
+void ConVPNSetDefaultService(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData)
 {
 	CVpnDetectionComponent *pSelf = static_cast<CVpnDetectionComponent *>(pUserData);
 
@@ -82,6 +82,7 @@ void ConVPNSetDefaultService(IConsole::IResult *pResult, void *pUserData)
 
 	const char *pServiceName = pResult->GetString(0);
 	pSelf->SetDefaultService(pServiceName);
+	pfnCallback(pResult, pCallbackUserData);
 }
 
 void ConVPNStatus(IConsole::IResult *pResult, void *pUserData)

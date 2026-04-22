@@ -1070,6 +1070,42 @@ void CConsole::Chain(const char *pName, FChainCommandCallback pfnChainFunc, void
 	pCommand->m_pUserData = pChainInfo;
 }
 
+void CConsole::UnChain(const char *pName, FChainCommandCallback pfnChainFunc) {
+	CCommand *pCommand = FindCommand(pName, m_FlagMask);
+
+	if(!pCommand || pCommand->m_pfnCallback != Con_Chain)
+		return;
+
+	CChain *pPrev = nullptr;
+	CChain *pCurrent = (CChain *)pCommand->m_pUserData;
+
+	while(pCurrent)
+	{
+		if(pCurrent->m_pfnChainCallback == pfnChainFunc)
+		{
+			if(pPrev)
+			{
+				pPrev->m_pfnCallback = pCurrent->m_pfnCallback;
+				pPrev->m_pCallbackUserData = pCurrent->m_pCallbackUserData;
+			}
+			else
+			{
+				pCommand->m_pfnCallback = pCurrent->m_pfnCallback;
+				pCommand->m_pUserData = pCurrent->m_pCallbackUserData;
+			}
+
+			delete pCurrent;
+			return;
+		}
+
+		if(pCurrent->m_pfnCallback != Con_Chain)
+			break;
+
+		pPrev = pCurrent;
+		pCurrent = (CChain *)pCurrent->m_pCallbackUserData;
+	}
+}
+
 void CConsole::StoreCommands(bool Store)
 {
 	if(!Store)
