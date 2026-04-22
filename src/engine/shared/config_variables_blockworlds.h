@@ -155,6 +155,18 @@ MACRO_CONFIG_INT(SvZCatchGrenadeKillsToWin, sv_zcatch_grenade_kills_to_win, 50, 
 MACRO_CONFIG_INT(SvZCatchGrenadeWinnerExpMultiplier, sv_zcatch_grenade_winner_exp_multiplier, 200, 100, 10000, CFGFLAG_SERVER, "Exp multiplier for the zCatch Grenade winner (percent, e.g. 200 = 2x)")
 MACRO_CONFIG_INT(SvZCatchGrenadeWinnerExpDuration, sv_zcatch_grenade_winner_exp_duration, 5, 1, 60, CFGFLAG_SERVER, "Duration of the zCatch Grenade winner exp bonus (minutes)")
 
+// BombTag
+MACRO_CONFIG_INT(SvBombTagRegistrationTime, sv_bombtag_registration_time, 120, 0, 1000, CFGFLAG_SERVER, "Duration of BombTag registration phase (seconds)")
+MACRO_CONFIG_INT(SvBombTagMinimumCandidates, sv_bombtag_minimum_candidates, 6, 2, MAX_CLIENTS, CFGFLAG_SERVER, "Minimum candidates to start BombTag")
+MACRO_CONFIG_INT(SvBombTagBlockpointsReward, sv_bombtag_blockpoints_reward, 0, 0, 10000, CFGFLAG_SERVER, "Blockpoints reward for winning BombTag")
+MACRO_CONFIG_INT(SvBombTagPagesReward, sv_bombtag_pages_reward, 0, 0, 15, CFGFLAG_SERVER, "Pages reward for winning BombTag")
+MACRO_CONFIG_INT(SvBombTagInitialFreezeTime, sv_bombtag_initial_freeze_time, 3, 0, 30, CFGFLAG_SERVER, "Freeze duration when teleported to BombTag arena (seconds)")
+MACRO_CONFIG_INT(SvBombTagWinnerExpMultiplier, sv_bombtag_winner_exp_multiplier, 200, 100, 10000, CFGFLAG_SERVER, "Exp multiplier for the winner (percents)")
+MACRO_CONFIG_INT(SvBombTagWinnerExpDuration, sv_bombtag_winner_exp_duration, 5, 1, 60, CFGFLAG_SERVER, "Duration of the BomTag winner exp bonus (minutes)")
+MACRO_CONFIG_INT(SvBombTagBombDuration, sv_bombtag_bomb_duration, 15, 1, 60, CFGFLAG_SERVER, "Duration of the BomTag bomb until it explodes (seconds)")
+MACRO_CONFIG_INT(SvBombTagStunDuration, sv_bombtag_stun_duration, 1, 0, 10, CFGFLAG_SERVER, "Duration of the stun when a player gets hit with a hammer (seconds)")
+
+
 // 1on1 draw detection settings
 MACRO_CONFIG_INT(Sv1on1DrawFreezeGrace, sv_1on1_draw_freeze_grace, 3, 0, 120, CFGFLAG_SERVER, "1on1: Grace period after round start before counting simultaneous freeze (seconds)")
 MACRO_CONFIG_INT(Sv1on1DrawFreezeStalemate, sv_1on1_draw_freeze_stalemate, 5, 1, 300, CFGFLAG_SERVER, "1on1: Both players frozen this long (after grace) => draw (seconds)")
@@ -175,6 +187,7 @@ MACRO_CONFIG_STR(SvDiscordWebhookUrlLogs, sv_discord_webhook_url_bp_logs, 512, "
 MACRO_CONFIG_STR(SvDiscordWebhookUrlLmb, sv_discord_webhook_url_lmb, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for LMB events")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlTdm, sv_discord_webhook_url_tdm, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for TDM results (teams, scores, top players)")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlZCatch, sv_discord_webhook_url_zcatch, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for zCatch results (winner and top 3)")
+MACRO_CONFIG_STR(SvDiscordWebhookUrlBombTag, sv_discord_webhook_url_bombtag, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for BombTag results (winner)")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlChat, sv_discord_webhook_url_chat, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for chat relay")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlChatFilter, sv_discord_webhook_url_chatfilter, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for chat filter mutes")
 MACRO_CONFIG_STR(SvDiscordWebhookUrlAntibot, sv_discord_webhook_url_antibot, 512, "", CFGFLAG_SERVER | CFGFLAG_GAME, "Discord webhook URL for antibot logs")

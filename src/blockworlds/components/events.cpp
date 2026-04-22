@@ -16,6 +16,7 @@
 #include <blockworlds/components/events/tdm.h>
 #include <blockworlds/components/events/zcatch.h>
 #include <blockworlds/components/events/zcatch_grenade.h>
+#include <blockworlds/components/events/bombtag.h>
 #include <blockworlds/components/oneonone_manager.h>
 #include <blockworlds/votes/votemanager.h>
 
@@ -23,16 +24,17 @@ CEvents::CEvents(CGameContext *pGameServer) :
 	CComponent(pGameServer), m_pActiveEvent(nullptr), m_pEventToDelete(nullptr)
 {
 	// Public events
-	m_EventsFactory.emplace("lmb", SFactoryRec{EEventCategory::Public, [](class CGameContext *pGS) { return std::make_shared<CLastManBlockingEvent>(pGS); }});
-	m_EventsFactory.emplace("tdm", SFactoryRec{EEventCategory::Public, [](class CGameContext *pGS) { return std::make_shared<CTeamDeathmatchEvent>(pGS); }});
-	m_EventsFactory.emplace("zcatch", SFactoryRec{EEventCategory::Public, [](class CGameContext *pGS) { return std::make_shared<CZCatchEvent>(pGS); }});
-	m_EventsFactory.emplace("zcatch_grenade", SFactoryRec{EEventCategory::Public, [](class CGameContext *pGS) { return std::make_shared<CZCatchGrenadeEvent>(pGS); }});
-	m_EventsFactory.emplace("colorsoldiers", SFactoryRec{EEventCategory::Public, [](class CGameContext *pGS) { return std::make_shared<CColorSoldiersEvent>(pGS); }});
+	RegisterEvent<CLastManBlockingEvent>("lmb", EEventCategory::Public);
+	RegisterEvent<CTeamDeathmatchEvent>("tdm", EEventCategory::Public);
+	RegisterEvent<CZCatchEvent>("zcatch", EEventCategory::Public);
+	RegisterEvent<CZCatchGrenadeEvent>("zcatch_grenade", EEventCategory::Public);
+	RegisterEvent<CBombTagEvent>("bombtag", EEventCategory::Public);
+	RegisterEvent<CColorSoldiersEvent>("colorsoldiers", EEventCategory::Public);
 
 	// Private events
 	// Note: 1on1 is intentionally NOT registered here. 1on1 matches are managed by COneOnOneManager
-	m_EventsFactory.emplace("priv_tdm", SFactoryRec{EEventCategory::Private, [](class CGameContext *pGS) { return std::make_shared<CPrivateTdmEvent>(pGS); }});
-	m_EventsFactory.emplace("clanwar", SFactoryRec{EEventCategory::Private, [](class CGameContext *pGS) { return std::make_shared<CClanwarEvent>(pGS); }});
+	RegisterEvent<CPrivateTdmEvent>("priv_tdm", EEventCategory::Private);
+	RegisterEvent<CClanwarEvent>("clanwar", EEventCategory::Private);
 
 	CONSOLE_COMMAND("events_status", "", ConEventsStatus, "Status of current event")
 	CONSOLE_COMMAND("events_list", "", ConEventsList, "List all events (public and private)")
