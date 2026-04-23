@@ -165,7 +165,7 @@ MACRO_CONFIG_INT(SvBombTagInitialFreezeTime, sv_bombtag_initial_freeze_time, 3, 
 MACRO_CONFIG_INT(SvBombTagWinnerExpMultiplier, sv_bombtag_winner_exp_multiplier, 200, 100, 10000, CFGFLAG_SERVER, "Exp multiplier for the winner (percents)")
 MACRO_CONFIG_INT(SvBombTagWinnerExpDuration, sv_bombtag_winner_exp_duration, 5, 1, 60, CFGFLAG_SERVER, "Duration of the BomTag winner exp bonus (minutes)")
 MACRO_CONFIG_INT(SvBombTagBombDuration, sv_bombtag_bomb_duration, 15, 1, 60, CFGFLAG_SERVER, "Duration of the BomTag bomb until it explodes (seconds)")
-MACRO_CONFIG_INT(SvBombTagStunDuration, sv_bombtag_stun_duration, 1, 0, 10, CFGFLAG_SERVER, "Duration of the stun when a player gets hit with a hammer (seconds)")
+MACRO_CONFIG_FLT(SvBombTagStunDuration, sv_bombtag_stun_duration, 0.5f, 0.f, 10.f, CFGFLAG_SERVER, "Duration of the stun when a player gets hit with a hammer (seconds)")
 
 
 // 1on1 draw detection settings

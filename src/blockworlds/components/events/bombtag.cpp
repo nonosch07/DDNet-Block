@@ -359,6 +359,7 @@ void CBombTagEvent::OnCharacterTakeDamage(vec2 Force, vec2 Source, int Dmg, int 
 	if(From == m_Bomb)
 	{
 		SetBomb(ClientId);
+		pChar->FreezeForce(0.5f);
 	}
 	else
 	{

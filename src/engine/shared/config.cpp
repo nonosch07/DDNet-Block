@@ -119,7 +119,7 @@ void SFloatConfigVariable::CommandCallback(IConsole::IResult *pResult, void *pUs
 		if(pData->CheckReadOnly())
 			return;
 
-		int Value = pResult->GetFloat(0);
+		float Value = pResult->GetFloat(0);
 
 		// do clamping
 		if(pData->m_Min != pData->m_Max)
@@ -162,7 +162,7 @@ void SFloatConfigVariable::Serialize(char *pOut, size_t Size) const
 	Serialize(pOut, Size, *m_pVariable);
 }
 
-void SFloatConfigVariable::SetValue(int Value)
+void SFloatConfigVariable::SetValue(float Value)
 {
 	if(CheckReadOnly())
 		return;
@@ -383,7 +383,7 @@ void CConfigManager::Init()
 	{ \
 		const size_t HelpSize = (size_t)str_length(Desc) + 32; \
 		char *pHelp = static_cast<char *>(m_ConfigHeap.Allocate(HelpSize)); \
-		const bool Alpha = ((Flags)&CFGFLAG_COLALPHA) != 0; \
+		const bool Alpha = ((Flags) & CFGFLAG_COLALPHA) != 0; \
 		str_format(pHelp, HelpSize, "%s (default: $%0*X)", Desc, Alpha ? 8 : 6, color_cast<ColorRGBA>(ColorHSLA(Def, Alpha)).Pack(Alpha)); \
 		AddVariable(m_ConfigHeap.Allocate<SColorConfigVariable>(m_pConsole, #ScriptName, SConfigVariable::VAR_COLOR, Flags, pHelp, &g_Config.m_##Name, Def)); \
 	}
@@ -619,11 +619,13 @@ void CConfigManager::Con_ToggleStroke(IConsole::IResult *pResult, void *pUserDat
 			continue;
 		}
 
-		if (pVariable->m_Type == SConfigVariable::VAR_INT) {
+		if(pVariable->m_Type == SConfigVariable::VAR_INT)
+		{
 			SIntConfigVariable *pIntVariable = static_cast<SIntConfigVariable *>(pVariable);
 			pIntVariable->SetValue(pResult->GetInteger(0) == 0 ? pResult->GetInteger(3) : pResult->GetInteger(2));
 		}
-		else if (pVariable->m_Type == SConfigVariable::VAR_FLOAT) {
+		else if(pVariable->m_Type == SConfigVariable::VAR_FLOAT)
+		{
 			SFloatConfigVariable *pFloatVariable = static_cast<SFloatConfigVariable *>(pVariable);
 			pFloatVariable->SetValue(pResult->GetFloat(0) == 0 ? pResult->GetFloat(3) : pResult->GetFloat(2));
 		}
