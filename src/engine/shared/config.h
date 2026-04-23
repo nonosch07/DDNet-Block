@@ -141,10 +141,10 @@ struct SIntConfigVariable : public SConfigVariable
 struct SFloatConfigVariable : public SConfigVariable
 {
 	float *m_pVariable;
-	int m_Default;
-	int m_Min;
-	int m_Max;
-	int m_OldValue;
+	float m_Default;
+	float m_Min;
+	float m_Max;
+	float m_OldValue;
 
 	SFloatConfigVariable(IConsole *pConsole, const char *pScriptName, EVariableType Type, int Flags, const char *pHelp, float *pVariable, float Default, float Min, float Max) :
 		SConfigVariable(pConsole, pScriptName, Type, Flags, pHelp),
@@ -164,7 +164,7 @@ struct SFloatConfigVariable : public SConfigVariable
 	bool IsDefault() const override;
 	void Serialize(char *pOut, size_t Size, int Value) const;
 	void Serialize(char *pOut, size_t Size) const override;
-	void SetValue(int Value);
+	void SetValue(float Value);
 	void ResetToDefault() override;
 	void ResetToOld() override;
 };

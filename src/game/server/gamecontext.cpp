@@ -690,7 +690,7 @@ void CGameContext::CallVote(int ClientId, const char *pDesc, const char *pCmd, c
 			m_LastGlobalWeaponkitsVoteCall = Now;
 		}
 
-		if(pCmd && (str_find(pCmd, "events_start lmb") != nullptr || str_find(pCmd, "events_start tdm") != nullptr || str_find(pCmd, "events_start zcatch") != nullptr))
+		if(pCmd && (str_find(pCmd, "events_start lmb") != nullptr || str_find(pCmd, "events_start tdm") != nullptr || str_find(pCmd, "events_start zcatch") != nullptr || str_find(pCmd, "events_start bombtag") != nullptr))
 		{
 			int64_t Cooldown = (int64_t)Server()->TickSpeed() * g_Config.m_SvEventVoteCoolDown; // shared global cooldown for events (config is in seconds)
 			if(m_LastGlobalEventVoteCall && Now < m_LastGlobalEventVoteCall + Cooldown)

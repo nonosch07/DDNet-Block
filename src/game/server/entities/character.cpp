@@ -2568,6 +2568,17 @@ void CCharacter::FreezeForce(int Seconds)
 	GameServer()->m_pController->m_BlockTracker.OnPlayerFreeze(m_pPlayer->GetCid());
 }
 
+void CCharacter::FreezeForce(float Seconds)
+{
+	if(Seconds <= 0.f || m_Core.m_Super || m_Core.m_Invincible)
+		return;
+
+	m_Armor = 0;
+	m_FreezeTime = static_cast<int>(ceil(Seconds * static_cast<float>(Server()->TickSpeed())));
+	m_Core.m_FreezeStart = Server()->Tick();
+	GameServer()->m_pController->m_BlockTracker.OnPlayerFreeze(m_pPlayer->GetCid());
+}
+
 bool CCharacter::Freeze()
 {
 	return Freeze(g_Config.m_SvFreezeDelay);

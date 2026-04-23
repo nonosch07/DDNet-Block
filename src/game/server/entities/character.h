@@ -199,6 +199,7 @@ public:
 	void Pause(bool Pause);
 	bool Freeze(int Seconds);
 	void FreezeForce(int Seconds);
+	void FreezeForce(float Seconds);
 	bool Freeze();
 	bool UnFreeze();
 	void GiveAllWeapons();
