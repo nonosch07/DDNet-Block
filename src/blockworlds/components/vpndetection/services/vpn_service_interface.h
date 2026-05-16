@@ -3,10 +3,35 @@
 
 #include "../vpn_service_result.h"
 
+#include <cctype>
+#include <cstring>
 #include <memory>
 #include <string>
 
 class CVpnDetectionComponent;
+
+namespace VpnServiceConfig {
+inline std::string Trim(const char *pValue)
+{
+	if(!pValue)
+		return "";
+
+	const char *pStart = pValue;
+	while(*pStart && std::isspace((unsigned char)*pStart))
+		pStart++;
+
+	const char *pEnd = pStart + std::char_traits<char>::length(pStart);
+	while(pEnd > pStart && std::isspace((unsigned char)*(pEnd - 1)))
+		pEnd--;
+
+	return std::string(pStart, pEnd);
+}
+
+inline bool HasValue(const char *pValue)
+{
+	return !Trim(pValue).empty();
+}
+} // namespace VpnServiceConfig
 
 /**
  * Base interface for VPN detection service implementations
@@ -25,6 +50,7 @@ public:
 
 	virtual bool RequiresAuth() const { return false; }
 	virtual std::string GetAuthHeader() const { return ""; }
+	virtual bool IsConfigured() const { return true; }
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_VPN_SERVICE_INTERFACE_H

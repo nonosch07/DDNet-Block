@@ -2,6 +2,7 @@
 #include "json_helpers.h"
 
 #include <base/system.h>
+#include <engine/external/json-parser/json.h>
 
 CGetIPIntelService::CGetIPIntelService() :
 	m_ContactEmail(""),
@@ -12,7 +13,7 @@ CGetIPIntelService::CGetIPIntelService() :
 }
 
 CGetIPIntelService::CGetIPIntelService(const char *pContactEmail) :
-	m_ContactEmail(pContactEmail ? pContactEmail : ""),
+	m_ContactEmail(VpnServiceConfig::Trim(pContactEmail)),
 	m_Flags(""),
 	m_OutputFlags(""),
 	m_Threshold(0.95f)
@@ -21,17 +22,17 @@ CGetIPIntelService::CGetIPIntelService(const char *pContactEmail) :
 
 void CGetIPIntelService::SetContactEmail(const char *pEmail)
 {
-	m_ContactEmail = (pEmail && pEmail[0]) ? pEmail : "";
+	m_ContactEmail = VpnServiceConfig::Trim(pEmail);
 }
 
 void CGetIPIntelService::SetFlags(const char *pFlags)
 {
-	m_Flags = pFlags ? pFlags : "";
+	m_Flags = VpnServiceConfig::Trim(pFlags);
 }
 
 void CGetIPIntelService::SetOutputFlags(const char *pOFlags)
 {
-	m_OutputFlags = pOFlags ? pOFlags : "";
+	m_OutputFlags = VpnServiceConfig::Trim(pOFlags);
 }
 
 std::string CGetIPIntelService::GetEndpoint(const char *pIpAddress) const
@@ -66,7 +67,7 @@ std::shared_ptr<IVpnServiceResult> CGetIPIntelService::ParseResponse(
 	auto pResult = std::make_shared<CVpnServiceResult>();
 	pResult->m_ServiceName = GetServiceName();
 	pResult->m_IpAddress = pIpAddress;
-	pResult->m_Timestamp = time_get();
+	pResult->m_Timestamp = time_timestamp();
 	pResult->m_IsValid = false;
 
 	if(!pResponseBody || pResponseBody[0] == '\0')
@@ -104,19 +105,28 @@ std::shared_ptr<IVpnServiceResult> CGetIPIntelService::ParseResponse(
 
 	if(IsJson)
 	{
+		// Parse JSON once and reuse the root for all field lookups.
+		json_value *pRoot = json_parse(pResponseBody, str_length(pResponseBody));
+		if(!pRoot)
+		{
+			pResult->m_ErrorMessage = "Invalid JSON response";
+			pResult->m_ErrorCode = -998;
+			return pResult;
+		}
+
 		char aStatus[32];
-		if(JsonHelpers::ParseString(pResponseBody, "status", aStatus, sizeof(aStatus)))
+		if(JsonHelpers::ParseString(pRoot, "status", aStatus, sizeof(aStatus)))
 		{
 			if(str_comp(aStatus, "error") == 0)
 			{
 				char aMessage[512];
-				if(JsonHelpers::ParseString(pResponseBody, "message", aMessage, sizeof(aMessage)))
+				if(JsonHelpers::ParseString(pRoot, "message", aMessage, sizeof(aMessage)))
 					pResult->m_ErrorMessage = aMessage;
 				else
 					pResult->m_ErrorMessage = "Unknown API error";
 
 				char aResultStr[16];
-				if(JsonHelpers::ParseString(pResponseBody, "result", aResultStr, sizeof(aResultStr)))
+				if(JsonHelpers::ParseString(pRoot, "result", aResultStr, sizeof(aResultStr)))
 				{
 					int ErrorCode = str_toint(aResultStr);
 					pResult->m_ErrorCode = ErrorCode;
@@ -157,27 +167,31 @@ std::shared_ptr<IVpnServiceResult> CGetIPIntelService::ParseResponse(
 						break;
 					}
 				}
+				json_value_free(pRoot);
 				return pResult;
 			}
 		}
 
 		char aResultStr[32];
-		if(!JsonHelpers::ParseString(pResponseBody, "result", aResultStr, sizeof(aResultStr)))
+		if(!JsonHelpers::ParseString(pRoot, "result", aResultStr, sizeof(aResultStr)))
 		{
 			pResult->m_ErrorMessage = "Failed to parse 'result' field from JSON response";
 			pResult->m_ErrorCode = -998;
+			json_value_free(pRoot);
 			return pResult;
 		}
 
 		Probability = str_tofloat(aResultStr);
 
 		char aAsn[64];
-		if(JsonHelpers::ParseString(pResponseBody, "asn", aAsn, sizeof(aAsn)))
+		if(JsonHelpers::ParseString(pRoot, "asn", aAsn, sizeof(aAsn)))
 			pResult->m_Asn = aAsn;
 
 		char aCountry[64];
-		if(JsonHelpers::ParseString(pResponseBody, "country", aCountry, sizeof(aCountry)))
+		if(JsonHelpers::ParseString(pRoot, "country", aCountry, sizeof(aCountry)))
 			pResult->m_Isp = aCountry;
+
+		json_value_free(pRoot);
 	}
 	else
 	{

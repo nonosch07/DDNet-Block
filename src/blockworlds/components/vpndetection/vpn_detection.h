@@ -12,6 +12,7 @@
 #include <engine/console.h>
 #include <engine/shared/config.h>
 
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <set>
@@ -24,8 +25,6 @@ template<typename T>
 struct SConVarCallbackData;
 
 constexpr int VPN_BAN_TIME_STRING_MAX = 64;
-
-constexpr int MAX_VPN_CLIENTS = 64;
 
 /**
  * VPN Detection Component
@@ -96,8 +95,13 @@ public:
 	int GetBanTimeMinutes() const { return m_BanTimeMinutes; }
 	void SetBanTimeMinutes(int Minutes) { m_BanTimeMinutes = Minutes; }
 	void SetServiceRateLimit(const char *pServiceName, int RateLimitMs);
+	void SetServiceCooldownMs(const char *pServiceName, int CooldownMs);
 	const std::unordered_map<std::string, SVpnServiceQueue> &GetServiceQueues() const { return m_ServiceQueues; }
+	std::vector<std::string> GetActiveServiceNames() const;
+	bool IsServiceActive(const char *pServiceName) const;
 	void CheckAllClientsDefaultService();
+	void CheckAllClientsActiveServices();
+	bool CheckIpService(const char *pIpAddress, const char *pServiceName, bool ForceRefresh, bool PrintManualResult);
 	CVpnCache *GetCache() { return &m_Cache; }
 
 	/**
@@ -112,6 +116,7 @@ public:
 	void QueueResult(int ClientId, std::shared_ptr<IVpnServiceResult> pResult);
 
 	bool IsIpWhitelisted(const char *pIp) const;
+	bool IsLocalOrBogonIp(const char *pIp) const;
 	void WhitelistIpAdd(const char *pIp);
 	void WhitelistIpRemove(const char *pIp);
 	const std::set<std::string> &GetWhitelistedIps() const { return m_WhitelistedIps; }
@@ -120,18 +125,25 @@ public:
 
 private:
 	void LoadCachedResultsForClient(int ClientId);
+	bool HandleFreshCachedBadResult(int ClientId);
+	bool IsResultForCurrentClient(int ClientId, const IVpnServiceResult *pResult);
+	void PrintManualResult(std::shared_ptr<IVpnServiceResult> pResult, bool Cached);
 	void ProcessRequestQueues();
-	void EnqueueRequest(std::shared_ptr<IVpnServiceRequest> pRequest);
+	bool EnqueueRequest(std::shared_ptr<IVpnServiceRequest> pRequest);
+	int RemoveQueuedRequestsForClient(int ClientId);
 	void AsyncExecuteRequest(std::shared_ptr<IVpnServiceRequest> pRequest);
 	void CleanupFinishedThreads();
 	void BanClient(int ClientId, const char *pReason);
 
 	int m_BanTimeMinutes;
+	std::atomic<int> m_ActiveRequestThreads;
 
 	std::mutex m_Mutex;
 	std::string m_DefaultService;
 
-	CVpnClientInfo m_aClientInfo[MAX_VPN_CLIENTS];
+	// m_aClientInfo is indexed by client ID in the range [0, MAX_CLIENTS).
+	// A static_assert in the .cpp ensures MAX_CLIENTS fits within this array.
+	CVpnClientInfo m_aClientInfo[MAX_CLIENTS];
 	std::unordered_map<std::string, SVpnServiceQueue> m_ServiceQueues;
 	std::unordered_map<std::string, std::unique_ptr<IVpnService>> m_Services;
 	CVpnCache m_Cache;

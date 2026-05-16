@@ -244,16 +244,24 @@ MACRO_CONFIG_INT(SvDualSkinmaniSpeed, sv_dual_skinmani_speed, 5, 1, 50, CFGFLAG_
 
 // VPN detection
 MACRO_CONFIG_STR(SvVpnIphubApiKey, sv_vpn_iphub_api_key, 128, "", CFGFLAG_SERVER, "API key for IPHub.info VPN detetion service")
+MACRO_CONFIG_STR(SvVpnIplocateApiKey, sv_vpn_iplocate_api_key, 128, "", CFGFLAG_SERVER, "Optional API key for IPLocate.io VPN detection service (free key increases quota)")
+MACRO_CONFIG_STR(SvVpnProxycheckApiKey, sv_vpn_proxycheck_api_key, 128, "", CFGFLAG_SERVER, "Optional API key for proxycheck.io VPN detection service (free key increases quota)")
+MACRO_CONFIG_STR(SvVpnVpnapiApiKey, sv_vpn_vpnapi_api_key, 128, "", CFGFLAG_SERVER, "API key for VPNAPI.io VPN detection service")
 MACRO_CONFIG_INT(SvVpnDebug, sv_vpn_debug, 0, 0, 1, CFGFLAG_SERVER, "Enable verbose debug logging for VPN detection")
 MACRO_CONFIG_INT(SvVpnEnabled, sv_vpn_enabled, 0, 0, 1, CFGFLAG_SERVER, "Enable or disable VPN detection")
 MACRO_CONFIG_INT(SvVpnBanEnabled, sv_vpn_ban_enabled, 0, 0, 1, CFGFLAG_SERVER, "Enable automatic banning of detected VPN users")
 MACRO_CONFIG_STR(SvVpnBanReason, sv_vpn_ban_reason, 128, "VPN/Proxy detected. Appeal at .gg/fYaBTzY", CFGFLAG_SERVER, "Ban reason for VPN users")
 MACRO_CONFIG_STR(SvVpnBanTimeString, sv_vpn_ban_time, 64, "60", CFGFLAG_SERVER, "Ban duration for VPN users (supports: '60', '1h', '1d', '1d5h10m', etc. Plain numbers = minutes)")
-MACRO_CONFIG_INT(SvVpnRateLimitIpquery, sv_vpn_ratelimit_ipquery, 100, 500, 10000, CFGFLAG_SERVER, "Rate limit in milliseconds for ipquery service API requests")
-MACRO_CONFIG_INT(SvVpnRateLimitGetipintel, sv_vpn_ratelimit_getipintel, 4000, 500, 10000, CFGFLAG_SERVER, "Rate limit in milliseconds for getipintel service API requests")
+MACRO_CONFIG_INT(SvVpnCacheTtlDays, sv_vpn_cache_ttl_days, 30, 1, 3650, CFGFLAG_SERVER, "How many days VPN cache entries are trusted before rechecking")
+MACRO_CONFIG_STR(SvVpnServicesEnabled, sv_vpn_services_enabled, 256, "ipquery,iplocate,proxycheck", CFGFLAG_SERVER, "Comma/space separated VPN services used for automatic/all checks. Use 'all' for every configured service")
+MACRO_CONFIG_INT(SvVpnRateLimitIpquery, sv_vpn_ratelimit_ipquery, 100, 100, 10000, CFGFLAG_SERVER, "Rate limit in milliseconds for ipquery service API requests")
+MACRO_CONFIG_INT(SvVpnRateLimitGetipintel, sv_vpn_ratelimit_getipintel, 4000, 4000, 60000, CFGFLAG_SERVER, "Rate limit in milliseconds for getipintel service API requests")
 MACRO_CONFIG_STR(SvVpnGetipintelContact, sv_vpn_service_getipintel_contact, 128, "", CFGFLAG_SERVER, "Contact email for GetIPIntel API")
 MACRO_CONFIG_FLT(SvVpnGetipintelThreshold, sv_vpn_service_getipintel_threshold, 99.00f, 0.0f, 100.0f, CFGFLAG_SERVER, "Probability threshold (0.00-100.00) for marking IP as bad")
-MACRO_CONFIG_INT(SvVpnRateLimitIphub, sv_vpn_ratelimit_iphub, 500, 100, 10000, CFGFLAG_SERVER, "Rate limit in milliseconds for iphub service API requests")
+MACRO_CONFIG_INT(SvVpnRateLimitIphub, sv_vpn_ratelimit_iphub, 2000, 1000, 10000, CFGFLAG_SERVER, "Rate limit in milliseconds for iphub service API requests")
+MACRO_CONFIG_INT(SvVpnRateLimitIplocate, sv_vpn_ratelimit_iplocate, 2000, 1000, 10000, CFGFLAG_SERVER, "Rate limit in milliseconds for IPLocate.io service API requests")
+MACRO_CONFIG_INT(SvVpnRateLimitProxycheck, sv_vpn_ratelimit_proxycheck, 2000, 1000, 10000, CFGFLAG_SERVER, "Rate limit in milliseconds for proxycheck.io service API requests")
+MACRO_CONFIG_INT(SvVpnRateLimitVpnapi, sv_vpn_ratelimit_vpnapi, 2000, 1000, 10000, CFGFLAG_SERVER, "Rate limit in milliseconds for VPNAPI.io service API requests")
 MACRO_CONFIG_STR(SvVpnServiceDefault, sv_vpn_service_default, 64, "ipquery", CFGFLAG_SERVER, "Set the default VPN detection service")
 
 // Port-proxy

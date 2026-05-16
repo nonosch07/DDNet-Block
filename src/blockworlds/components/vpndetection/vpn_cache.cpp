@@ -6,6 +6,41 @@
 #include <fstream>
 #include <sstream>
 
+namespace {
+constexpr int64_t MIN_VALID_UNIX_TIMESTAMP = 1600000000; // Reject old time_get() tick values in legacy cache files.
+
+// Escapes a string for safe embedding inside a JSON double-quoted value.
+// Handles ", \, and control characters so a corrupt ISP/ASN name can never
+// produce malformed JSON that fails to reload on the next server start.
+std::string JsonEscapeString(const std::string &Str)
+{
+	std::string Result;
+	Result.reserve(Str.size());
+	for(unsigned char c : Str)
+	{
+		switch(c)
+		{
+		case '"': Result += "\\\""; break;
+		case '\\': Result += "\\\\"; break;
+		case '\n': Result += "\\n"; break;
+		case '\r': Result += "\\r"; break;
+		case '\t': Result += "\\t"; break;
+		default:
+			if(c < 0x20)
+			{
+				char aBuf[8];
+				str_format(aBuf, sizeof(aBuf), "\\u%04x", (unsigned int)c);
+				Result += aBuf;
+			}
+			else
+				Result += (char)c;
+			break;
+		}
+	}
+	return Result;
+}
+} // namespace
+
 std::string CVpnCache::MakeCacheKey(const char *pIpAddress, const char *pServiceName)
 {
 	std::string Key = pIpAddress;
@@ -27,6 +62,36 @@ void CVpnCache::Add(std::shared_ptr<IVpnServiceResult> pResult)
 	m_Cache[CacheKey] = pResult;
 }
 
+void CVpnCache::SetTtlDays(int Days)
+{
+	if(Days < 1)
+		Days = 1;
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+	m_TtlSeconds = (int64_t)Days * 24 * 60 * 60;
+	PruneExpiredLocked();
+}
+
+bool CVpnCache::IsTimestampFresh(int64_t Timestamp) const
+{
+	if(Timestamp < MIN_VALID_UNIX_TIMESTAMP)
+		return false;
+
+	const int64_t Now = time_timestamp();
+	if(Timestamp > Now + 24 * 60 * 60)
+		return false;
+
+	return Now - Timestamp <= m_TtlSeconds;
+}
+
+bool CVpnCache::IsExpired(std::shared_ptr<IVpnServiceResult> pResult) const
+{
+	if(!pResult || !pResult->IsValid())
+		return true;
+
+	std::lock_guard<std::mutex> Lock(m_Mutex);
+	return !IsTimestampFresh(pResult->GetTimestamp());
+}
+
 std::shared_ptr<IVpnServiceResult> CVpnCache::Get(const char *pIpAddress, const char *pServiceName)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
@@ -36,6 +101,11 @@ std::shared_ptr<IVpnServiceResult> CVpnCache::Get(const char *pIpAddress, const 
 
 	if(It != m_Cache.end())
 	{
+		if(!It->second || !It->second->IsValid() || !IsTimestampFresh(It->second->GetTimestamp()))
+		{
+			m_Cache.erase(It);
+			return nullptr;
+		}
 		return It->second;
 	}
 
@@ -51,8 +121,20 @@ void CVpnCache::GetAllForIP(const char *pIpAddress, std::vector<std::shared_ptr<
 	{
 		if(Entry.first.compare(0, IpPrefix.length(), IpPrefix) == 0)
 		{
-			Results.push_back(Entry.second);
+			if(Entry.second && Entry.second->IsValid() && IsTimestampFresh(Entry.second->GetTimestamp()))
+				Results.push_back(Entry.second);
 		}
+	}
+}
+
+void CVpnCache::PruneExpiredLocked()
+{
+	for(auto It = m_Cache.begin(); It != m_Cache.end();)
+	{
+		if(!It->second || !It->second->IsValid() || !IsTimestampFresh(It->second->GetTimestamp()))
+			It = m_Cache.erase(It);
+		else
+			++It;
 	}
 }
 
@@ -128,19 +210,21 @@ bool CVpnCache::Load(const char *pFilename)
 				pResult->m_IsValid = pFieldValue->u.boolean;
 		}
 
-		if(pResult->m_IsValid && !pResult->m_ServiceName.empty() && !pResult->m_IpAddress.empty())
+		if(pResult->m_IsValid && !pResult->m_ServiceName.empty() && !pResult->m_IpAddress.empty() && IsTimestampFresh(pResult->m_Timestamp))
 		{
 			m_Cache[pKey] = pResult;
 		}
 	}
 
 	json_value_free(pRoot);
+	PruneExpiredLocked();
 	return true;
 }
 
 bool CVpnCache::Save(const char *pFilename)
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
+	PruneExpiredLocked();
 
 	std::ofstream File(pFilename);
 	if(!File.is_open())
@@ -154,18 +238,20 @@ bool CVpnCache::Save(const char *pFilename)
 	for(const auto &Entry : m_Cache)
 	{
 		const auto &pResult = Entry.second;
-		if(!pResult || !pResult->IsValid())
+		if(!pResult || !pResult->IsValid() || !IsTimestampFresh(pResult->GetTimestamp()))
 			continue;
 
 		if(!First)
 			File << ",\n";
 		First = false;
 
+		// All string fields are JSON-escaped so an unusual ISP/ASN name (e.g.
+		// one containing a quote or backslash) can never corrupt the cache file.
 		File << "  \"" << Entry.first << "\": {\n";
-		File << "    \"service\": \"" << pResult->GetServiceName() << "\",\n";
-		File << "    \"ip\": \"" << pResult->GetIpAddress() << "\",\n";
-		File << "    \"asn\": \"" << pResult->GetAsn() << "\",\n";
-		File << "    \"isp\": \"" << pResult->GetIsp() << "\",\n";
+		File << "    \"service\": \"" << JsonEscapeString(pResult->GetServiceName()) << "\",\n";
+		File << "    \"ip\": \"" << JsonEscapeString(pResult->GetIpAddress()) << "\",\n";
+		File << "    \"asn\": \"" << JsonEscapeString(pResult->GetAsn()) << "\",\n";
+		File << "    \"isp\": \"" << JsonEscapeString(pResult->GetIsp()) << "\",\n";
 		File << "    \"is_bad\": " << (pResult->IsBadIP() ? "true" : "false") << ",\n";
 		File << "    \"risk_score\": " << pResult->GetRiskScore() << ",\n";
 		File << "    \"timestamp\": " << pResult->GetTimestamp() << ",\n";
