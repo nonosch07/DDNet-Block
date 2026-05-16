@@ -18,6 +18,11 @@ void CClientDetectComponent::ConStatusClient(IConsole::IResult *pResult, void *p
 	auto *pSelf = (CClientDetectComponent *)pUserData;
 	const char *pName = pResult->NumArguments() == 1 ? pResult->GetString(0) : "";
 
+	CServer *pServer = static_cast<CServer *>(pSelf->Server());
+
+	const int RequesterAuth = pResult->m_ClientId >= 0 && pResult->m_ClientId < MAX_CLIENTS ?
+		pServer->m_aClients[pResult->m_ClientId].m_Authed : AUTHED_ADMIN;
+
 	char aBuf[512];
 	char aAddrStr[NETADDR_MAXSTRSIZE];
 
@@ -30,7 +35,11 @@ void CClientDetectComponent::ConStatusClient(IConsole::IResult *pResult, void *p
 		if(!str_utf8_find_nocase(pClientName, pName))
 			continue;
 
-		pSelf->Server()->GetClientAddr(i, aAddrStr, sizeof(aAddrStr));
+		const bool HideAdminIp = RequesterAuth < AUTHED_ADMIN && pServer->m_aClients[i].m_Authed == AUTHED_ADMIN;
+		if(HideAdminIp)
+			str_copy(aAddrStr, "hidden", sizeof(aAddrStr));
+		else
+			pSelf->Server()->GetClientAddr(i, aAddrStr, sizeof(aAddrStr));
 
 		IServer::CClientInfo Info;
 		if(pSelf->Server()->GetClientInfo(i, &Info))
