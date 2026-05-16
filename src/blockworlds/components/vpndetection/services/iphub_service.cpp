@@ -2,6 +2,7 @@
 #include "json_helpers.h"
 
 #include <base/system.h>
+#include <engine/external/json-parser/json.h>
 
 CIPHubService::CIPHubService() :
 	m_pApiKey(nullptr)
@@ -11,8 +12,7 @@ CIPHubService::CIPHubService() :
 std::string CIPHubService::GetAuthHeader() const
 {
 	std::string Header = "X-Key: ";
-	if(m_pApiKey)
-		Header += m_pApiKey;
+	Header += VpnServiceConfig::Trim(m_pApiKey);
 	return Header;
 }
 
@@ -29,7 +29,7 @@ std::shared_ptr<IVpnServiceResult> CIPHubService::ParseResponse(
 	auto pResult = std::make_shared<CVpnServiceResult>();
 	pResult->m_ServiceName = GetServiceName();
 	pResult->m_IpAddress = pIpAddress;
-	pResult->m_Timestamp = time_get();
+	pResult->m_Timestamp = time_timestamp();
 	pResult->m_IsValid = false;
 
 	if(!pResponseBody || pResponseBody[0] == '\0')
@@ -69,27 +69,34 @@ std::shared_ptr<IVpnServiceResult> CIPHubService::ParseResponse(
 		return pResult;
 	}
 
-	// Check for error field in response
-	if(str_find(pResponseBody, "\"error\""))
+	// Parse JSON once and reuse the root for all field lookups.
+	json_value *pRoot = json_parse(pResponseBody, str_length(pResponseBody));
+	if(!pRoot)
 	{
-		char aErrorMsg[256];
-		if(JsonHelpers::ParseString(pResponseBody, "error", aErrorMsg, sizeof(aErrorMsg)))
-			pResult->m_ErrorMessage = aErrorMsg;
-		else
-			pResult->m_ErrorMessage = "API returned an error";
+		pResult->m_ErrorMessage = "Invalid JSON response";
+		pResult->m_ErrorCode = -998;
+		return pResult;
+	}
+
+	char aErrorMsg[256];
+	if(JsonHelpers::ParseString(pRoot, "error", aErrorMsg, sizeof(aErrorMsg)))
+	{
+		pResult->m_ErrorMessage = aErrorMsg;
 		pResult->m_ErrorCode = -1;
+		json_value_free(pRoot);
 		return pResult;
 	}
 
 	// Parse the "block" field - this is the key classification:
 	//   0 = residential/business (clean)
-	//   1 = non-residential/datacenter (suspicious)
-	//   2 = non-residential & known proxy/VPN/tor (bad)
+	//   1 = non-residential/hosting/proxy/bad IP
+	//   2 = suspicious lower-confidence result
 	int Block = -1;
-	if(!JsonHelpers::ParseInt(pResponseBody, "block", Block))
+	if(!JsonHelpers::ParseInt(pRoot, "block", Block))
 	{
 		pResult->m_ErrorMessage = "Failed to parse 'block' field from response";
 		pResult->m_ErrorCode = -998;
+		json_value_free(pRoot);
 		return pResult;
 	}
 
@@ -100,20 +107,20 @@ std::shared_ptr<IVpnServiceResult> CIPHubService::ParseResponse(
 
 	// IPHub returns "asn" as integer, so we try int first, then string
 	int AsnNum = 0;
-	if(JsonHelpers::ParseInt(pResponseBody, "asn", AsnNum))
+	if(JsonHelpers::ParseInt(pRoot, "asn", AsnNum))
 	{
 		str_format(aAsn, sizeof(aAsn), "AS%d", AsnNum);
 		pResult->m_Asn = aAsn;
 	}
-	else if(JsonHelpers::ParseString(pResponseBody, "asn", aAsn, sizeof(aAsn)))
+	else if(JsonHelpers::ParseString(pRoot, "asn", aAsn, sizeof(aAsn)))
 	{
 		pResult->m_Asn = aAsn;
 	}
 
-	if(JsonHelpers::ParseString(pResponseBody, "isp", aIsp, sizeof(aIsp)))
+	if(JsonHelpers::ParseString(pRoot, "isp", aIsp, sizeof(aIsp)))
 		pResult->m_Isp = aIsp;
 
-	if(JsonHelpers::ParseString(pResponseBody, "countryCode", aCountryCode, sizeof(aCountryCode)))
+	if(JsonHelpers::ParseString(pRoot, "countryCode", aCountryCode, sizeof(aCountryCode)))
 	{
 		// Append country code to ISP info if available
 		if(pResult->m_Isp.empty())
@@ -126,21 +133,21 @@ std::shared_ptr<IVpnServiceResult> CIPHubService::ParseResponse(
 		}
 	}
 
-	// block=2 is definitively bad (proxy/VPN/tor)
-	// block=1 is datacenter/non-residential - also flag as bad since
-	// legitimate players don't connect from datacenters
+	json_value_free(pRoot);
+
+	// IPHub recommends using block for the primary allow/deny decision.
 	pResult->m_IsBadIP = (Block >= 1);
 
 	// Map block value to a risk score:
 	//   0 -> 0   (clean residential)
-	//   1 -> 66  (datacenter, suspicious)
-	//   2 -> 100 (known VPN/proxy/tor)
+	//   1 -> 100 (hosting/proxy/bad IP)
+	//   2 -> 66  (suspicious lower-confidence result)
 	if(Block == 0)
 		pResult->m_RiskScore = 0;
 	else if(Block == 1)
-		pResult->m_RiskScore = 66;
-	else if(Block == 2)
 		pResult->m_RiskScore = 100;
+	else if(Block == 2)
+		pResult->m_RiskScore = 66;
 	else
 		pResult->m_RiskScore = 50; // unknown block value
 

@@ -48,7 +48,8 @@ struct CVpnServiceRequest : public IVpnServiceRequest
 	std::shared_ptr<IVpnServiceResult> Execute() override;
 
 private:
-	bool PerformHttpRequest(const char *pUrl, std::string &ResponseBody, int &ResponseCode);
+	bool PerformHttpRequest(const char *pUrl, std::string &ResponseBody, std::string &ResponseHeaders, int &ResponseCode);
+	int ParseRetryAfterMs(const std::string &ResponseHeaders, int ResponseCode) const;
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_VPN_SERVICE_REQUEST_H

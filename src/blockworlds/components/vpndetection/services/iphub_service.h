@@ -18,8 +18,8 @@
  *   "isp"         - ISP name
  *   "block"       - classification:
  *       0 = residential / business (clean)
- *       1 = non-residential / datacenter (suspicious)
- *       2 = non-residential & proxy/VPN/bad (bad)
+ *       1 = non-residential / hosting / proxy / bad IP
+ *       2 = suspicious lower-confidence result
  * same service we used in old source
  */
 class CIPHubService : public IVpnService
@@ -38,6 +38,7 @@ public:
 
 	bool RequiresAuth() const override { return true; }
 	std::string GetAuthHeader() const override;
+	bool IsConfigured() const override { return VpnServiceConfig::HasValue(m_pApiKey); }
 
 	void SetApiKeyPtr(const char *pKeyBuffer) { m_pApiKey = pKeyBuffer; }
 

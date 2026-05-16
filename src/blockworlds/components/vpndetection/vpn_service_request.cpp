@@ -5,6 +5,9 @@
 #include <base/system.h>
 #include <curl/curl.h>
 
+#include <algorithm>
+#include <cctype>
+
 CVpnServiceRequest::CVpnServiceRequest(
 	const char *pServiceName,
 	const char *pIpAddress,
@@ -27,9 +30,60 @@ static size_t WriteCallback(void *pContents, size_t Size, size_t NumMembers, voi
 	return TotalSize;
 }
 
-bool CVpnServiceRequest::PerformHttpRequest(const char *pUrl, std::string &ResponseBody, int &ResponseCode)
+static size_t HeaderCallback(char *pBuffer, size_t Size, size_t NumMembers, void *pUserData)
+{
+	std::string *pStr = (std::string *)pUserData;
+	size_t TotalSize = Size * NumMembers;
+	pStr->append(pBuffer, TotalSize);
+	return TotalSize;
+}
+
+static std::string ToLower(std::string Value)
+{
+	std::transform(Value.begin(), Value.end(), Value.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+	return Value;
+}
+
+static std::string Trim(std::string Value)
+{
+	while(!Value.empty() && (Value.back() == '\r' || Value.back() == '\n' || Value.back() == ' ' || Value.back() == '\t'))
+		Value.pop_back();
+	size_t Start = 0;
+	while(Start < Value.size() && (Value[Start] == ' ' || Value[Start] == '\t'))
+		Start++;
+	return Value.substr(Start);
+}
+
+static void RedactQueryValue(std::string &Url, const char *pKey)
+{
+	std::string Pattern = pKey;
+	Pattern += '=';
+
+	size_t Pos = 0;
+	while((Pos = Url.find(Pattern, Pos)) != std::string::npos)
+	{
+		const size_t ValueStart = Pos + Pattern.length();
+		size_t ValueEnd = Url.find_first_of("& \t\r\n", ValueStart);
+		if(ValueEnd == std::string::npos)
+			ValueEnd = Url.length();
+
+		Url.replace(ValueStart, ValueEnd - ValueStart, "<redacted>");
+		Pos = ValueStart + 10;
+	}
+}
+
+static std::string RedactSensitiveUrl(std::string Url)
+{
+	RedactQueryValue(Url, "key");
+	RedactQueryValue(Url, "apikey");
+
+	return Url;
+}
+
+bool CVpnServiceRequest::PerformHttpRequest(const char *pUrl, std::string &ResponseBody, std::string &ResponseHeaders, int &ResponseCode)
 {
 	ResponseBody.clear();
+	ResponseHeaders.clear();
 	ResponseCode = 0;
 
 	CURL *pCurl = curl_easy_init();
@@ -51,6 +105,8 @@ bool CVpnServiceRequest::PerformHttpRequest(const char *pUrl, std::string &Respo
 	curl_easy_setopt(pCurl, CURLOPT_SSL_VERIFYHOST, 2L);
 	curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, WriteCallback);
 	curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &ResponseBody);
+	curl_easy_setopt(pCurl, CURLOPT_HEADERFUNCTION, HeaderCallback);
+	curl_easy_setopt(pCurl, CURLOPT_HEADERDATA, &ResponseHeaders);
 
 	curl_slist *pHeaders = nullptr;
 	if(m_pService && m_pService->RequiresAuth())
@@ -63,8 +119,10 @@ bool CVpnServiceRequest::PerformHttpRequest(const char *pUrl, std::string &Respo
 		}
 	}
 
+	const std::string SafeUrl = RedactSensitiveUrl(pUrl ? pUrl : "");
+
 	if(m_pComponent)
-		m_pComponent->LogDebug("HTTP request initiated | URL: %s", pUrl);
+		m_pComponent->LogDebug("HTTP request initiated | URL: %s", SafeUrl.c_str());
 
 	CURLcode Res = curl_easy_perform(pCurl);
 
@@ -114,7 +172,7 @@ bool CVpnServiceRequest::PerformHttpRequest(const char *pUrl, std::string &Respo
 				break;
 			}
 			m_pComponent->Log("ERROR: HTTP request failed | URL: %s | Error: %s | cURL code: %d",
-				pUrl, pErrorType, Res);
+				SafeUrl.c_str(), pErrorType, Res);
 			m_pComponent->LogDebug("cURL error details: %s", curl_easy_strerror(Res));
 		}
 		return false;
@@ -125,13 +183,55 @@ bool CVpnServiceRequest::PerformHttpRequest(const char *pUrl, std::string &Respo
 		if(m_pComponent)
 		{
 			m_pComponent->LogDebug("Non-200 HTTP response | Code: %d | URL: %s | Body preview: %.200s",
-				ResponseCode, pUrl, ResponseBody.c_str());
+				ResponseCode, SafeUrl.c_str(), ResponseBody.c_str());
 		}
 	}
 
 	// Return true whenever curl succeeded - let ParseResponse handle
 	// non-200 codes (401, 403, 429, etc.) with service-specific messages
 	return true;
+}
+
+int CVpnServiceRequest::ParseRetryAfterMs(const std::string &ResponseHeaders, int ResponseCode) const
+{
+	if(ResponseCode != 429)
+		return 0;
+
+	int RetrySeconds = 0;
+	int64_t ResetTimestamp = 0;
+	size_t LineStart = 0;
+	while(LineStart < ResponseHeaders.size())
+	{
+		size_t LineEnd = ResponseHeaders.find('\n', LineStart);
+		if(LineEnd == std::string::npos)
+			LineEnd = ResponseHeaders.size();
+
+		std::string Line = ResponseHeaders.substr(LineStart, LineEnd - LineStart);
+		size_t Colon = Line.find(':');
+		if(Colon != std::string::npos)
+		{
+			std::string Name = ToLower(Trim(Line.substr(0, Colon)));
+			std::string Value = Trim(Line.substr(Colon + 1));
+			if(Name == "retry-after" || Name == "x-ttl")
+				RetrySeconds = std::max(RetrySeconds, str_toint(Value.c_str()));
+			else if(Name == "x-ratelimit-reset")
+				ResetTimestamp = std::max<int64_t>(ResetTimestamp, str_toint(Value.c_str()));
+		}
+
+		LineStart = LineEnd + 1;
+	}
+
+	if(ResetTimestamp > 0)
+	{
+		const int64_t Now = time_timestamp();
+		if(ResetTimestamp > Now)
+			RetrySeconds = std::max<int>(RetrySeconds, (int)(ResetTimestamp - Now));
+	}
+
+	if(RetrySeconds <= 0)
+		RetrySeconds = 60;
+
+	return RetrySeconds * 1000;
 }
 
 std::shared_ptr<IVpnServiceResult> CVpnServiceRequest::Execute()
@@ -147,19 +247,21 @@ std::shared_ptr<IVpnServiceResult> CVpnServiceRequest::Execute()
 		pResult->m_IsValid = false;
 		pResult->m_ErrorMessage = "Service instance not available";
 		pResult->m_ErrorCode = -997;
-		pResult->m_Timestamp = time_get();
+		pResult->m_Timestamp = time_timestamp();
 		return pResult;
 	}
 
-	std::string Endpoint = m_pService->GetEndpoint(m_IpAddress.c_str());
+	std::string Endpoint = Trim(m_pService->GetEndpoint(m_IpAddress.c_str()));
+	const std::string SafeEndpoint = RedactSensitiveUrl(Endpoint);
 
 	if(m_pComponent)
 		m_pComponent->LogDebug("API request executing | Service: %s | IP: %s | Endpoint: %s",
-			m_ServiceName.c_str(), m_IpAddress.c_str(), Endpoint.c_str());
+			m_ServiceName.c_str(), m_IpAddress.c_str(), SafeEndpoint.c_str());
 
 	std::string ResponseBody;
+	std::string ResponseHeaders;
 	int ResponseCode = 0;
-	bool Success = PerformHttpRequest(Endpoint.c_str(), ResponseBody, ResponseCode);
+	bool Success = PerformHttpRequest(Endpoint.c_str(), ResponseBody, ResponseHeaders, ResponseCode);
 
 	if(!Success)
 	{
@@ -169,13 +271,15 @@ std::shared_ptr<IVpnServiceResult> CVpnServiceRequest::Execute()
 		pResult->m_IsValid = false;
 		pResult->m_ErrorMessage = "HTTP request failed (connection error)";
 		pResult->m_ErrorCode = -996;
-		pResult->m_Timestamp = time_get();
+		pResult->m_Timestamp = time_timestamp();
 		return pResult;
 	}
 
 	// Let ParseResponse handle ALL HTTP response codes (including
 	// non-200) so services can provide specific error messages
 	auto pResult = m_pService->ParseResponse(m_IpAddress.c_str(), ResponseBody.c_str(), ResponseCode);
+	if(ResponseCode == 429 && m_pComponent)
+		m_pComponent->SetServiceCooldownMs(m_ServiceName.c_str(), ParseRetryAfterMs(ResponseHeaders, ResponseCode));
 
 	if(pResult && m_pComponent)
 	{

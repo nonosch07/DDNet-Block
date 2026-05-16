@@ -2098,8 +2098,29 @@ if(GTEST_FOUND OR DOWNLOAD_GTEST)
     timestamp.cpp
     unix.cpp
     uuid.cpp
+    vpn.cpp
   )
   set(TESTS_EXTRA
+    src/blockworlds/components/vpndetection/services/getipintel_service.cpp
+    src/blockworlds/components/vpndetection/services/getipintel_service.h
+    src/blockworlds/components/vpndetection/services/iphub_service.cpp
+    src/blockworlds/components/vpndetection/services/iphub_service.h
+    src/blockworlds/components/vpndetection/services/iplocate_service.cpp
+    src/blockworlds/components/vpndetection/services/iplocate_service.h
+    src/blockworlds/components/vpndetection/services/ipquery_service.cpp
+    src/blockworlds/components/vpndetection/services/ipquery_service.h
+    src/blockworlds/components/vpndetection/services/json_helpers.cpp
+    src/blockworlds/components/vpndetection/services/json_helpers.h
+    src/blockworlds/components/vpndetection/services/proxycheck_service.cpp
+    src/blockworlds/components/vpndetection/services/proxycheck_service.h
+    src/blockworlds/components/vpndetection/services/vpnapi_service.cpp
+    src/blockworlds/components/vpndetection/services/vpnapi_service.h
+    src/blockworlds/components/vpndetection/services/vpn_service_interface.h
+    src/blockworlds/components/vpndetection/vpn_cache.cpp
+    src/blockworlds/components/vpndetection/vpn_cache.h
+    src/blockworlds/components/vpndetection/vpn_service_queue.cpp
+    src/blockworlds/components/vpndetection/vpn_service_queue.h
+    src/blockworlds/components/vpndetection/vpn_service_result.h
     src/engine/client/blocklist_driver.cpp
     src/engine/client/blocklist_driver.h
     src/engine/client/serverbrowser.cpp

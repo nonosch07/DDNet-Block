@@ -21,13 +21,13 @@
  *   c - Include country code
  *   a - Include ASN
  * 
- * Error codes (negative values):
- *   -1: Invalid IP or no input
- *   -2: Invalid/missing contact email
- *   -3: Query limit exceeded
- *   -4: Permission denied/blacklisted
- *   -5: Internal server error
- *   -6: Service maintenance
+ * Error codes (negative values in the "result" field):
+ *   -1: Invalid IP address or no input provided
+ *   -2: Invalid IP address format
+ *   -3: Unroutable or private IP address
+ *   -4: Database temporarily unavailable (maintenance)
+ *   -5: Access denied: IP banned or query limit exceeded
+ *   -6: Invalid or missing contact email
  */
 class CGetIPIntelService : public IVpnService
 {
@@ -42,6 +42,7 @@ public:
 		const char *pResponseBody,
 		int ResponseCode) override;
 	bool RequiresAuth() const override { return false; }
+	bool IsConfigured() const override { return !m_ContactEmail.empty(); }
 
 	void SetContactEmail(const char *pEmail);
 	void SetFlags(const char *pFlags);
