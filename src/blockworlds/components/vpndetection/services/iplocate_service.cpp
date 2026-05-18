@@ -88,23 +88,19 @@ std::shared_ptr<IVpnServiceResult> CIPLocateService::ParseResponse(
 	bool IsTor = false;
 	bool IsHosting = false;
 	bool IsAnonymous = false;
-	bool IsAbuser = false;
 	JsonHelpers::ParseBool(pRoot, "privacy.is_vpn", IsVpn);
 	JsonHelpers::ParseBool(pRoot, "privacy.is_proxy", IsProxy);
 	JsonHelpers::ParseBool(pRoot, "privacy.is_tor", IsTor);
 	JsonHelpers::ParseBool(pRoot, "privacy.is_hosting", IsHosting);
 	JsonHelpers::ParseBool(pRoot, "privacy.is_anonymous", IsAnonymous);
-	JsonHelpers::ParseBool(pRoot, "privacy.is_abuser", IsAbuser);
 
 	json_value_free(pRoot);
 
-	pResult->m_IsBadIP = IsVpn || IsProxy || IsTor || IsHosting || IsAnonymous || IsAbuser;
+	pResult->m_IsBadIP = IsVpn || IsProxy || IsTor || IsHosting || IsAnonymous;
 	if(IsVpn || IsProxy || IsTor)
 		pResult->m_RiskScore = 100;
 	else if(IsHosting || IsAnonymous)
 		pResult->m_RiskScore = 66;
-	else if(IsAbuser)
-		pResult->m_RiskScore = 50;
 	else
 		pResult->m_RiskScore = 0;
 	pResult->m_IsValid = true;
