@@ -34,7 +34,7 @@ variables:
 
 .ddnet_build_base:
   stage: Build DDNet Server
-  image: registry.gitlab.com/blockworlds1/blockworlds/buildtools:latest
+  image: registry.gitlab.com/rei-tw/blockworlds/buildtools:latest
   cache:
     key: "cache-$CI_COMMIT_REF_SLUG-$BUILD_TYPE"
     paths:
