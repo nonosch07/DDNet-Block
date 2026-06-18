@@ -257,7 +257,7 @@ inline std::unique_ptr<CHttpRequest> HttpGetFile(const char *pUrl, IStorage *pSt
 {
 	std::unique_ptr<CHttpRequest> pResult = HttpGet(pUrl);
 	pResult->WriteToFile(pStorage, pOutputFile, StorageType);
-	pResult->Timeout(CTimeout{5000, 0, 500, 5});
+	pResult->Timeout(CTimeout{10000, 0, 10, 30});
 	return pResult;
 }
 
@@ -265,7 +265,7 @@ inline std::unique_ptr<CHttpRequest> HttpPost(const char *pUrl, const unsigned c
 {
 	auto pResult = std::make_unique<CHttpRequest>(pUrl);
 	pResult->Post(pData, DataLength);
-	pResult->Timeout(CTimeout{5000, 15000, 500, 5});
+	pResult->Timeout(CTimeout{5000, 10000, 0, 0});
 	return pResult;
 }
 
@@ -273,7 +273,7 @@ inline std::unique_ptr<CHttpRequest> HttpPostJson(const char *pUrl, const char *
 {
 	auto pResult = std::make_unique<CHttpRequest>(pUrl);
 	pResult->PostJson(pJson);
-	pResult->Timeout(CTimeout{5000, 15000, 500, 5});
+	pResult->Timeout(CTimeout{5000, 10000, 0, 0});
 	return pResult;
 }
 
@@ -281,7 +281,7 @@ inline std::unique_ptr<CHttpRequest> HttpPut(const char *pUrl, const unsigned ch
 {
 	auto pResult = std::make_unique<CHttpRequest>(pUrl);
 	pResult->Put(pData, DataLength);
-	pResult->Timeout(CTimeout{5000, 15000, 500, 5});
+	pResult->Timeout(CTimeout{5000, 15000, 0, 0});
 	return pResult;
 }
 
@@ -289,7 +289,7 @@ inline std::unique_ptr<CHttpRequest> HttpPutJson(const char *pUrl, const char *p
 {
 	auto pResult = std::make_unique<CHttpRequest>(pUrl);
 	pResult->PutJson(pJson);
-	pResult->Timeout(CTimeout{5000, 15000, 500, 5});
+	pResult->Timeout(CTimeout{5000, 15000, 0, 0});
 	return pResult;
 }
 
