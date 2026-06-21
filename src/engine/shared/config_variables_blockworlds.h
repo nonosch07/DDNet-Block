@@ -155,6 +155,7 @@ MACRO_CONFIG_INT(SvZCatchFreezeTimeout, sv_zcatch_freeze_timeout, 5, 3, 30, CFGF
 MACRO_CONFIG_INT(SvZCatchGrenadeKillsToWin, sv_zcatch_grenade_kills_to_win, 50, 1, 1000, CFGFLAG_SERVER, "Number of grenade kills needed to win zCatch Grenade")
 MACRO_CONFIG_INT(SvZCatchGrenadeWinnerExpMultiplier, sv_zcatch_grenade_winner_exp_multiplier, 200, 100, 10000, CFGFLAG_SERVER, "Exp multiplier for the zCatch Grenade winner (percent, e.g. 200 = 2x)")
 MACRO_CONFIG_INT(SvZCatchGrenadeWinnerExpDuration, sv_zcatch_grenade_winner_exp_duration, 5, 1, 60, CFGFLAG_SERVER, "Duration of the zCatch Grenade winner exp bonus (minutes)")
+MACRO_CONFIG_INT(SvZCatchGrenadeMaxAmmo, sv_zcatch_grenade_max_ammo, 5, -1, 10, CFGFLAG_SERVER, "Maximum ammo for the Grenade launcher. Avoid 0.")
 
 // BombTag
 MACRO_CONFIG_INT(SvBombTagRegistrationTime, sv_bombtag_registration_time, 120, 0, 1000, CFGFLAG_SERVER, "Duration of BombTag registration phase (seconds)")
