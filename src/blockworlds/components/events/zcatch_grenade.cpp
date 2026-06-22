@@ -670,7 +670,7 @@ void CZCatchGrenadeEvent::HandleCamping(int ClientId)
 	// Send warning to the player
 	if(m_CampTick[ClientId] <= Server()->Tick() + Server()->TickSpeed() * AnticamperTime / 2 && m_CampTick[ClientId] != -1 && !m_SentCampMsg[ClientId])
 	{
-		GameServer()->SendBroadcast(ClientId, "ANTICAMPER: Move or die");
+		pPlayer->SendBroadcast("ANTICAMPER: Move or die");
 		m_SentCampMsg[ClientId] = true;
 	}
 
@@ -678,7 +678,7 @@ void CZCatchGrenadeEvent::HandleCamping(int ClientId)
 	if((m_CampTick[ClientId] <= Server()->Tick()) && (m_CampTick[ClientId] > 0))
 	{
 		pChar->Freeze(Config()->m_SvZCatchGrenadeAnticamperFreezeTime);
-		GameServer()->SendBroadcast(ClientId, "You have been frozen due to camping");
+		pPlayer->SendBroadcast("You have been frozen due to camping");
 
 		m_CampTick[ClientId] = -1;
 		m_SentCampMsg[ClientId] = false;
