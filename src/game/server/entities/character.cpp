@@ -25,6 +25,7 @@
 #include <blockworlds/components/events.h>
 #include <blockworlds/components/events/event.h>
 #include <blockworlds/components/events/bombtag.h>
+#include <blockworlds/components/events/zcatch_grenade.h>
 #include <blockworlds/cosmetics/cosmetics.h>
 #include <blockworlds/shop/storemanager.h>
 
@@ -206,6 +207,8 @@ void CCharacter::SetWeapon(int W)
 
 	if(m_Core.m_ActiveWeapon < 0 || m_Core.m_ActiveWeapon >= NUM_WEAPONS)
 		m_Core.m_ActiveWeapon = 0;
+
+	m_Core.m_aWeapons[W].m_AmmoRegenStart = -1;
 }
 
 void CCharacter::SetJetpack(bool Active)
@@ -533,6 +536,7 @@ void CCharacter::FireWeapon()
 	if(!WillFire)
 		return;
 
+
 	if(m_FreezeTime)
 	{
 		// Timer stuff to avoid shrieking orchestra caused by unfreeze-plasma
@@ -546,7 +550,11 @@ void CCharacter::FireWeapon()
 
 	// check for ammo
 	if(!m_Core.m_aWeapons[m_Core.m_ActiveWeapon].m_Ammo)
+	{
+		// 125ms is a magical limit of how fast a human can click
+		m_ReloadTimer = 125 * Server()->TickSpeed() / 1000;
 		return;
+	}
 
 	vec2 ProjStartPos = m_Pos + Direction * GetProximityRadius() * 0.75f;
 
@@ -613,7 +621,7 @@ void CCharacter::FireWeapon()
 						const auto &participants = pBombTagEvent->Participants();
 						if(std::find(participants.begin(), participants.end(), m_pPlayer->GetCid()) != participants.end())
 							IsInBombTagEvent = true;
-						
+
 						break;
 					}
 				}
@@ -742,6 +750,9 @@ void CCharacter::FireWeapon()
 
 	m_AttackTick = Server()->Tick();
 
+	if(m_Core.m_aWeapons[m_Core.m_ActiveWeapon].m_Ammo > 0) // -1 == unlimited
+		m_Core.m_aWeapons[m_Core.m_ActiveWeapon].m_Ammo--;
+
 	if(!m_ReloadTimer)
 	{
 		float FireDelay;
@@ -768,6 +779,31 @@ void CCharacter::HandleWeapons()
 
 	// fire Weapon, if wanted
 	FireWeapon();
+
+	/* If unlimited ammo, do no handle regen */
+	if(m_Core.m_aWeapons[WEAPON_GRENADE].m_Ammo < 0)
+		return;
+
+	int AmmoRegenTime = 1000;
+
+	// If equipped and not active, regen ammo?
+	if(m_ReloadTimer <= 0)
+	{
+		if(m_Core.m_aWeapons[WEAPON_GRENADE].m_AmmoRegenStart < 0)
+			m_Core.m_aWeapons[WEAPON_GRENADE].m_AmmoRegenStart = Server()->Tick();
+
+		if((Server()->Tick() - m_Core.m_aWeapons[WEAPON_GRENADE].m_AmmoRegenStart) >= AmmoRegenTime * Server()->TickSpeed() / 1000)
+		{
+			// Add some ammo
+			int maxAmmo = g_Config.m_SvZCatchGrenadeMaxAmmo;
+			m_Core.m_aWeapons[WEAPON_GRENADE].m_Ammo = std::min(m_Core.m_aWeapons[WEAPON_GRENADE].m_Ammo + 1, maxAmmo);
+			m_Core.m_aWeapons[WEAPON_GRENADE].m_AmmoRegenStart = -1;
+		}
+	}
+	else
+	{
+		m_Core.m_aWeapons[WEAPON_GRENADE].m_AmmoRegenStart = -1;
+	}
 }
 
 void CCharacter::GiveNinja()
