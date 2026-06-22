@@ -706,5 +706,6 @@ void CZCatchGrenadeEvent::ArmWithGrenade(CCharacter *pChar)
 	pChar->GiveWeapon(WEAPON_HAMMER, true);
 	pChar->GiveWeapon(WEAPON_GUN, true);
 	pChar->GiveWeapon(WEAPON_GRENADE);
+	pChar->SetWeaponAmmo(WEAPON_GRENADE, Config()->m_SvZCatchGrenadeMaxAmmo);
 	pChar->SetActiveWeapon(WEAPON_GRENADE);
 }
