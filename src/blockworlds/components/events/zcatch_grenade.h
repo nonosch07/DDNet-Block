@@ -71,6 +71,11 @@ private:
 	// captives[catcher] = set of victims caught by this catcher
 	std::map<int, std::set<int>> m_Captives;
 
+	// Anticamper values
+	int m_CampTick[MAX_CLIENTS];
+	vec2 m_CampPos[MAX_CLIENTS];
+	bool m_SentCampMsg[MAX_CLIENTS];
+
 	// previous solo/collision state for participants
 	struct SSoloCollisionState
 	{
@@ -97,6 +102,9 @@ private:
 	bool IsParticipant(int ClientId) const;
 	bool IsCaught(int ClientId) const;
 	bool IsFighting(int ClientId) const;
+
+	// Anticamper, freezes a player whenever he stays around the same spot.
+	void HandleCamping(int ClientId);
 
 	// Release all captives of a catcher back into the arena.
 	void ReleaseCaptives(int CatcherId);
