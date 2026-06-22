@@ -609,6 +609,8 @@ void CZCatchGrenadeEvent::OnTick()
 							  "Currently caught: %d / %d\n",
 				leadScore, Config()->m_SvZCatchGrenadeKillsToWin,
 				caughtCount, (int)m_Participants.size() - 1);
+
+			HandleCamping(ClientId);
 		}
 
 		CEventComponent::OnTick(); // process deferred position/weapon restores
@@ -629,6 +631,60 @@ bool CZCatchGrenadeEvent::AllowZoomFor(int ClientId) const
 		return true;
 
 	return false;
+}
+
+void CZCatchGrenadeEvent::HandleCamping(int ClientId)
+{
+	CPlayer *pPlayer = GameServer()->GetPlayer(ClientId);
+	if(!pPlayer)
+		return;
+
+	CCharacter *pChar = pPlayer->GetCharacter();
+	if(!pChar)
+		return;
+
+
+	if(pPlayer->GetTeam() == TEAM_SPECTATORS || pChar->m_FreezeTime)
+	{
+		m_CampTick[ClientId] = -1;
+		m_SentCampMsg[ClientId] = false;
+		return;
+	}
+
+	int AnticamperTime = Config()->m_SvZCatchGrenadeAnticamperTime;
+	int AnticamperRange = Config()->m_SvZCatchGrenadeAnticamperRange;
+
+	if(m_CampTick[ClientId] == -1)
+	{
+		m_CampPos[ClientId] = pChar->GetPos();
+		m_CampTick[ClientId] = Server()->Tick() + Server()->TickSpeed() * AnticamperTime;
+	}
+
+	// Check if the player is moving
+	if((abs(m_CampPos[ClientId].x - pChar->GetPos().x) >= (float)AnticamperRange) ||
+		(abs(m_CampPos[ClientId].y - pChar->GetPos().y) >= (float)AnticamperRange))
+	{
+		m_CampTick[ClientId] = -1;
+	}
+
+	// Send warning to the player
+	if(m_CampTick[ClientId] <= Server()->Tick() + Server()->TickSpeed() * AnticamperTime / 2 && m_CampTick[ClientId] != -1 && !m_SentCampMsg[ClientId])
+	{
+		GameServer()->SendBroadcast(ClientId, "ANTICAMPER: Move or die");
+		m_SentCampMsg[ClientId] = true;
+	}
+
+	// Freeze him
+	if((m_CampTick[ClientId] <= Server()->Tick()) && (m_CampTick[ClientId] > 0))
+	{
+		pChar->Freeze(Config()->m_SvZCatchGrenadeAnticamperFreezeTime);
+		GameServer()->SendBroadcast(ClientId, "You have been frozen due to camping");
+
+		m_CampTick[ClientId] = -1;
+		m_SentCampMsg[ClientId] = false;
+		return;
+	}
+	return;
 }
 
 int CZCatchGrenadeEvent::GetMinCandidates() const
