@@ -703,6 +703,7 @@ void CZCatchEvent::OnCharacterSpawn(int ClientId, vec2 /*SpawnPos*/)
 		{
 			GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, m_DDRaceTeam);
 			GameServer()->Teleport(pChar, NextSpawnPos());
+			pChar->GetCore().Reset();
 		}
 	}
 }
