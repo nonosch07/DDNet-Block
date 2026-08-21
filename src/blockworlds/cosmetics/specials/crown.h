@@ -9,9 +9,9 @@ class CCrown : public CEntity
 {
 public:
 	CCrown(CGameWorld *pGameWorld, int Owner);
-	virtual void Reset() override;
-	virtual void Tick() override;
-	virtual void Snap(int SnappingClient) override;
+	void Reset() override;
+	void Tick() override;
+	void Snap(int SnappingClient) override;
 
 private:
 	int m_aIds[4];

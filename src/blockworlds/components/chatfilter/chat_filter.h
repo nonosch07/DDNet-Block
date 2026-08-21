@@ -28,7 +28,6 @@ private:
 	static void ConChatFilterReload(IConsole::IResult *pResult, void *pUserData);
 	static void ConChatFilterSave(IConsole::IResult *pResult, void *pUserData);
 
-private:
 	std::unordered_set<std::string> m_Words; // stored as-is, case-insensitive search is used at runtime
 	std::regex m_NWordRegex;
 	std::mutex m_Mutex;

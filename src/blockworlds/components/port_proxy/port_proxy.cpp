@@ -97,14 +97,14 @@ void CPortProxy::OnPlayerConnected(int ClientId)
 
 void CPortProxy::OnPlayerDropping(int ClientId)
 {
-	for(auto it = m_PortsTaken.begin(); it != m_PortsTaken.end();)
+	for(auto It = m_PortsTaken.begin(); It != m_PortsTaken.end();)
 	{
-		if(!it->m_Waiting && it->m_ClientId == ClientId)
+		if(!It->m_Waiting && It->m_ClientId == ClientId)
 		{
-			LogDebug("Dropping port %d of client %s", it->m_Port, it->m_pClientAddrStr);
-			it = m_PortsTaken.erase(it);
+			LogDebug("Dropping port %d of client %s", It->m_Port, It->m_pClientAddrStr);
+			It = m_PortsTaken.erase(It);
 		}
 		else
-			++it;
+			++It;
 	}
 }

@@ -40,7 +40,7 @@ public:
 	CTestInfo m_TestInfo;
 	std::unique_ptr<IStorage> m_pStorage;
 
-	CGameContext *GameServer() { return (CGameContext *)m_pGameServer; }
+	CGameContext *GameServer() const { return (CGameContext *)m_pGameServer; }
 
 	BwSnap()
 	{
@@ -100,7 +100,7 @@ public:
 	}
 
 	/// Puts a client ingame with a player, without going through the network.
-	CPlayer *AddPlayer(int ClientId, const char *pName, const char *pSkin = "default")
+	CPlayer *AddPlayer(int ClientId, const char *pName, const char *pSkin = "default") const
 	{
 		CServer::CClient &Client = m_pServer->m_aClients[ClientId];
 		Client.m_State = CServer::CClient::STATE_INGAME;
@@ -122,7 +122,7 @@ public:
 	}
 
 	/// Snaps `pPlayer` as `SnappingClient` sees it and returns the client info.
-	CNetObj_ClientInfo SnapClientInfoFor(CPlayer *pPlayer, int SnappingClient)
+	CNetObj_ClientInfo SnapClientInfoFor(CPlayer *pPlayer, int SnappingClient) const
 	{
 		m_pServer->m_SnapshotBuilder.Init();
 		pPlayer->Snap(SnappingClient);

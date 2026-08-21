@@ -100,12 +100,12 @@ CVpnDetectionComponent::CVpnDetectionComponent(CGameContext *pGameServer) :
 		m_aClientInfo[i].m_ClientId = i;
 	}
 
-	auto pIPQuery = new CIPQueryService();
+	auto *pIPQuery = new CIPQueryService();
 	RegisterService("ipquery", pIPQuery, Config()->m_SvVpnRateLimitIpquery);
 
 	Log("VPN service registered: ipquery | API: https://api.ipquery.io/ | Rate limit: %dms", Config()->m_SvVpnRateLimitIpquery);
 
-	auto pGetIPIntel = new CGetIPIntelService();
+	auto *pGetIPIntel = new CGetIPIntelService();
 	pGetIPIntel->SetFlags("b");
 	pGetIPIntel->SetOutputFlags("b");
 	pGetIPIntel->SetContactEmail(Config()->m_SvVpnGetipintelContact);
@@ -116,7 +116,7 @@ CVpnDetectionComponent::CVpnDetectionComponent(CGameContext *pGameServer) :
 		Config()->m_SvVpnGetipintelContact[0] ? Config()->m_SvVpnGetipintelContact : "(not set)",
 		g_BwConfig.m_SvVpnGetipintelThreshold, Config()->m_SvVpnRateLimitGetipintel);
 
-	auto pIPHub = new CIPHubService();
+	auto *pIPHub = new CIPHubService();
 	pIPHub->SetApiKeyPtr(Config()->m_SvVpnIphubApiKey);
 	RegisterService("iphub", pIPHub, Config()->m_SvVpnRateLimitIphub);
 
@@ -124,7 +124,7 @@ CVpnDetectionComponent::CVpnDetectionComponent(CGameContext *pGameServer) :
 		Config()->m_SvVpnIphubApiKey[0] ? "(set)" : "(not set)",
 		Config()->m_SvVpnRateLimitIphub);
 
-	auto pIPLocate = new CIPLocateService();
+	auto *pIPLocate = new CIPLocateService();
 	pIPLocate->SetApiKeyPtr(Config()->m_SvVpnIplocateApiKey);
 	RegisterService("iplocate", pIPLocate, Config()->m_SvVpnRateLimitIplocate);
 
@@ -132,7 +132,7 @@ CVpnDetectionComponent::CVpnDetectionComponent(CGameContext *pGameServer) :
 		Config()->m_SvVpnIplocateApiKey[0] ? "(set)" : "(not set)",
 		Config()->m_SvVpnRateLimitIplocate);
 
-	auto pProxyCheck = new CProxyCheckService();
+	auto *pProxyCheck = new CProxyCheckService();
 	pProxyCheck->SetApiKeyPtr(Config()->m_SvVpnProxycheckApiKey);
 	RegisterService("proxycheck", pProxyCheck, Config()->m_SvVpnRateLimitProxycheck);
 
@@ -140,7 +140,7 @@ CVpnDetectionComponent::CVpnDetectionComponent(CGameContext *pGameServer) :
 		Config()->m_SvVpnProxycheckApiKey[0] ? "(set)" : "(not set)",
 		Config()->m_SvVpnRateLimitProxycheck);
 
-	auto pVpnApi = new CVpnApiService();
+	auto *pVpnApi = new CVpnApiService();
 	pVpnApi->SetApiKeyPtr(Config()->m_SvVpnVpnapiApiKey);
 	RegisterService("vpnapi", pVpnApi, Config()->m_SvVpnRateLimitVpnapi);
 
@@ -645,13 +645,9 @@ bool CVpnDetectionComponent::IsServiceActive(const char *pServiceName) const
 		return false;
 
 	const auto SelectedServices = ParseServiceList(Config()->m_SvVpnServicesEnabled);
-	for(const auto &Item : SelectedServices)
-	{
-		if(IsAllServicesToken(Item) || str_comp(Item.c_str(), pServiceName) == 0)
-			return true;
-	}
-
-	return false;
+	return std::ranges::any_of(SelectedServices, [&](const auto &Item) {
+		return IsAllServicesToken(Item) || str_comp(Item.c_str(), pServiceName) == 0;
+	});
 }
 
 std::vector<std::string> CVpnDetectionComponent::GetActiveServiceNames() const
@@ -781,7 +777,7 @@ void CVpnDetectionComponent::ProcessResult(int ClientId, std::shared_ptr<IVpnSer
 		ReleaseJoinMessage(ClientId);
 }
 
-void CVpnDetectionComponent::PrintManualResult(std::shared_ptr<IVpnServiceResult> pResult, bool Cached)
+void CVpnDetectionComponent::PrintManualResult(const std::shared_ptr<IVpnServiceResult> &pResult, bool Cached)
 {
 	if(!pResult)
 		return;
@@ -847,7 +843,7 @@ void CVpnDetectionComponent::ProcessRequestQueues()
 	}
 }
 
-void CVpnDetectionComponent::AsyncExecuteRequest(std::shared_ptr<IVpnServiceRequest> pRequest)
+void CVpnDetectionComponent::AsyncExecuteRequest(const std::shared_ptr<IVpnServiceRequest> &pRequest)
 {
 	std::lock_guard<std::mutex> Lock(m_ThreadMutex);
 
@@ -883,7 +879,7 @@ void CVpnDetectionComponent::CleanupFinishedThreads()
 	m_RequestThreads.erase(
 		std::remove_if(m_RequestThreads.begin(), m_RequestThreads.end(),
 			[&FinishedIds](std::thread &t) {
-				if(FinishedIds.count(t.get_id()))
+				if(FinishedIds.contains(t.get_id()))
 				{
 					if(t.joinable())
 						t.join();
@@ -903,7 +899,7 @@ void CVpnDetectionComponent::QueueConsoleMessage(const char *pMessage)
 	m_PendingMessages.push_back(Msg);
 }
 
-void CVpnDetectionComponent::QueueResult(int ClientId, std::shared_ptr<IVpnServiceResult> pResult)
+void CVpnDetectionComponent::QueueResult(int ClientId, const std::shared_ptr<IVpnServiceResult> &pResult)
 {
 	if(!pResult)
 		return;
@@ -911,7 +907,7 @@ void CVpnDetectionComponent::QueueResult(int ClientId, std::shared_ptr<IVpnServi
 	m_PendingResults.push_back({ClientId, pResult});
 }
 
-bool CVpnDetectionComponent::EnqueueRequest(std::shared_ptr<IVpnServiceRequest> pRequest)
+bool CVpnDetectionComponent::EnqueueRequest(const std::shared_ptr<IVpnServiceRequest> &pRequest)
 {
 	if(!pRequest)
 		return false;
@@ -1115,6 +1111,9 @@ bool CVpnDetectionComponent::HandleFreshCachedBadResult(int ClientId)
 		return false;
 
 	CVpnClientInfo *pInfo = &m_aClientInfo[ClientId];
+	// not any_of: this logs and bans on the first bad result, so the work is the
+	// point rather than the predicate
+	// NOLINTNEXTLINE(readability-use-anyofallof)
 	for(const auto &pResult : pInfo->m_Results)
 	{
 		if(!pResult || !pResult->IsValid() || !pResult->IsBadIP())
@@ -1165,13 +1164,9 @@ bool CVpnDetectionComponent::WillHoldJoinMessage(int ClientId) const
 
 	// Every service that would be asked answered recently enough for the cache, so no
 	// request is sent and a clean client is announced without any delay
-	for(const auto &ServiceName : GetActiveServiceNames())
-	{
-		if(!pInfo->GetResultByService(ServiceName.c_str()))
-			return true;
-	}
-
-	return false;
+	return std::ranges::any_of(GetActiveServiceNames(), [&](const auto &ServiceName) {
+		return !pInfo->GetResultByService(ServiceName.c_str());
+	});
 }
 
 void CVpnDetectionComponent::HoldJoinMessage(int ClientId)

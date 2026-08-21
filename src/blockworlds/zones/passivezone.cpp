@@ -49,7 +49,7 @@ void CPassiveZone::Tick()
 
 		if(InZone && pChar->Core()->m_Passive)
 		{
-			const int myId = pChar->GetPlayer()->GetCid();
+			const int MyId = pChar->GetPlayer()->GetCid();
 			for(int h = 0; h < MAX_CLIENTS; ++h)
 			{
 				if(h == i)
@@ -57,7 +57,7 @@ void CPassiveZone::Tick()
 				CCharacter *pHooker = GameServer()->GetPlayerChar(h);
 				if(!pHooker)
 					continue;
-				if(pHooker->Core()->HookedPlayer() == myId)
+				if(pHooker->Core()->HookedPlayer() == MyId)
 				{
 					pHooker->ReleaseHook();
 				}
@@ -91,7 +91,6 @@ void CPassiveZone::Tick()
 void CPassiveZone::Snap(int ClientID)
 {
 	// nothing for now :)
-	return;
 }
 
 void CPassiveZone::OnCharacterDeath(CCharacter *pCharacter)
@@ -158,9 +157,9 @@ void CPassiveZone::HandleProtection(int ClientID, CPlayer *pPlayer, CCharacter *
 		// only give protection once per life, but only if passive is enabled before entering
 		static bool s_PassiveEnabledOnEntry[MAX_CLIENTS] = {false};
 		// Only allow enabling if the user has opted in via IsUsingPassiveProtection.
-		bool passiveAllowed = (pPlayer->Bw().IsLoggedIn() && pPlayer->Bw().GetPlayerPassive() > 0 && pPlayer->Bw().IsUsingPassiveProtection()) || (!pPlayer->Bw().IsLoggedIn() && pPlayer->Bw().m_LocalPassiveDuration > 0 && pPlayer->Bw().IsUsingPassiveProtection());
+		bool PassiveAllowed = (pPlayer->Bw().IsLoggedIn() && pPlayer->Bw().GetPlayerPassive() > 0 && pPlayer->Bw().IsUsingPassiveProtection()) || (!pPlayer->Bw().IsLoggedIn() && pPlayer->Bw().m_LocalPassiveDuration > 0 && pPlayer->Bw().IsUsingPassiveProtection());
 		if(WasInZone != InZone) // zone entry event
-			s_PassiveEnabledOnEntry[ClientID] = passiveAllowed;
+			s_PassiveEnabledOnEntry[ClientID] = PassiveAllowed;
 		if(!m_ProtectionUsed[ClientID] && s_PassiveEnabledOnEntry[ClientID])
 		{
 			m_ProtectionUsed[ClientID] = true;
@@ -183,8 +182,8 @@ void CPassiveZone::HandleProtection(int ClientID, CPlayer *pPlayer, CCharacter *
 	}
 	else
 	{
-		bool fullyUnfrozen = pChar->m_FreezeTime == 0 && !pChar->Core()->m_DeepFrozen && !pChar->Core()->m_LiveFrozen;
-		if(fullyUnfrozen && m_aProtectionTicks[ClientID] == 0)
+		bool FullyUnfrozen = pChar->m_FreezeTime == 0 && !pChar->Core()->m_DeepFrozen && !pChar->Core()->m_LiveFrozen;
+		if(FullyUnfrozen && m_aProtectionTicks[ClientID] == 0)
 		{
 			m_aProtectionTicks[ClientID] = 0;
 			pChar->Bw().Core().m_Passive = false;

@@ -33,7 +33,7 @@
 extern std::mutex g_ClansDataMutex;
 extern std::unordered_map<int, CClansData> g_ClanIdMap;
 
-inline bool CheckValidChars(const char *pStr)
+static inline bool CheckValidChars(const char *pStr)
 {
 	int Len = str_length(pStr);
 	for(int i = 0; i < Len; i++)
@@ -57,17 +57,26 @@ void CBlockworlds::ConRegister(IConsole::IResult *pResult, void *pUserData)
 		return;
 
 	if(pSelf->m_apPlayers[pResult->m_ClientId]->Bw().m_Account.m_Id)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't create an account while being logged in!");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't create an account while being logged in!");
+		return;
+	}
 
 	if(pSelf->Bw().isInEvent(pResult->m_ClientId))
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't register while participating in an event. Use /leave first.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't register while participating in an event. Use /leave first.");
+		return;
+	}
 	IZone *pSpawnZone = pSelf->Bw().ZoneManager()->GetZone(ZONE_SPAWN);
 	CPlayer *pReqPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 
 	if(g_Config.m_SvShopServer != 1)
 	{
 		if(pSpawnZone && pReqPlayer && pReqPlayer->GetCharacter() && !pSpawnZone->IsInZone(pReqPlayer->GetCharacter()->m_Pos))
-			return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can only login while in the spawn zone.");
+		{
+			pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can only login while in the spawn zone.");
+			return;
+		}
 	}
 
 	const char *pUsername = pResult->GetString(0);
@@ -77,32 +86,48 @@ void CBlockworlds::ConRegister(IConsole::IResult *pResult, void *pUserData)
 	int PasswordLength = str_length(pPassword);
 
 	if(NameLength <= 2)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Your name must be at least 3 characters long!");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Your name must be at least 3 characters long!");
+		return;
+	}
 
 	if(pReqPlayer)
 	{
 		const int RegisterCooldownSeconds = g_Config.m_SvRegisterCooldownPerIp > 0 ? g_Config.m_SvRegisterCooldownPerIp : 10;
-		int64_t now = pSelf->Server()->Tick();
-		if(pReqPlayer->Bw().m_LastRegisterTick != 0 && now - pReqPlayer->Bw().m_LastRegisterTick < RegisterCooldownSeconds * pSelf->Server()->TickSpeed())
+		int64_t Now = pSelf->Server()->Tick();
+		if(pReqPlayer->Bw().m_LastRegisterTick != 0 && Now - pReqPlayer->Bw().m_LastRegisterTick < RegisterCooldownSeconds * pSelf->Server()->TickSpeed())
 		{
-			int remaining = (int)((RegisterCooldownSeconds * pSelf->Server()->TickSpeed() - (now - pReqPlayer->Bw().m_LastRegisterTick)) / pSelf->Server()->TickSpeed());
+			int Remaining = (int)((RegisterCooldownSeconds * pSelf->Server()->TickSpeed() - (Now - pReqPlayer->Bw().m_LastRegisterTick)) / pSelf->Server()->TickSpeed());
 			char aBuf[160];
-			str_format(aBuf, sizeof(aBuf), "Please wait %d second%s before trying again.", remaining, remaining != 1 ? "s" : "");
-			return pSelf->Bw().SendChatTarget(pResult->m_ClientId, aBuf);
+			str_format(aBuf, sizeof(aBuf), "Please wait %d second%s before trying again.", Remaining, Remaining != 1 ? "s" : "");
+			pSelf->Bw().SendChatTarget(pResult->m_ClientId, aBuf);
+			return;
 		}
 	}
 
 	if(PasswordLength < 5)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Your password must be at least 5 characters long!");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Your password must be at least 5 characters long!");
+		return;
+	}
 
 	if(str_comp(pUsername, pPassword) == 0)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Password must be different from username!");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Password must be different from username!");
+		return;
+	}
 
 	if(NameLength * sizeof(char) >= 11)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account name too long!");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account name too long!");
+		return;
+	}
 
 	if(!CheckValidChars(pUsername) || !CheckValidChars(pPassword))
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Only the characters A-Z and 0-9 are allowed!");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Only the characters A-Z and 0-9 are allowed!");
+		return;
+	}
 
 	char aAddrStrCheck[NETADDR_MAXSTRSIZE];
 	BwClientAddr(pSelf->Server(), pResult->m_ClientId, aAddrStrCheck, sizeof(aAddrStrCheck));
@@ -113,14 +138,16 @@ void CBlockworlds::ConRegister(IConsole::IResult *pResult, void *pUserData)
 		{
 			char aBuf[192];
 			str_format(aBuf, sizeof(aBuf), "Too many recent attempts from your connection. Please wait %d second%s and try again.", RemainingBan, RemainingBan == 1 ? "" : "s");
-			return pSelf->Bw().SendChatTarget(pResult->m_ClientId, aBuf);
+			pSelf->Bw().SendChatTarget(pResult->m_ClientId, aBuf);
+			return;
 		}
 		if(!pSelf->Bw().Accounts()->RegisterIpAttempt(aAddrStrCheck))
 		{
 			pSelf->Bw().Accounts()->IsIpBanned(aAddrStrCheck, RemainingBan);
 			char aBuf[192];
 			str_format(aBuf, sizeof(aBuf), "You're trying a lot. Take a short break (%d second%s) and try again.", RemainingBan, RemainingBan == 1 ? "" : "s");
-			return pSelf->Bw().SendChatTarget(pResult->m_ClientId, aBuf);
+			pSelf->Bw().SendChatTarget(pResult->m_ClientId, aBuf);
+			return;
 		}
 	}
 
@@ -142,15 +169,24 @@ void CBlockworlds::ConLogin(IConsole::IResult *pResult, void *pUserData)
 		return;
 
 	if(pSelf->m_apPlayers[pResult->m_ClientId]->Bw().m_Account.m_Id > 0)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are already logged in!");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are already logged in!");
+		return;
+	}
 	if(pSelf->Bw().isInEvent(pResult->m_ClientId))
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You must finish the ongoing event (or use '/leave' to leave).");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You must finish the ongoing event (or use '/leave' to leave).");
+		return;
+	}
 	IZone *pSpawnZone = pSelf->Bw().ZoneManager()->GetZone(ZONE_SPAWN);
 	CPlayer *pReqPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 	if(g_Config.m_SvShopServer != 1)
 	{
 		if(pSpawnZone && pReqPlayer && pReqPlayer->GetCharacter() && !pSpawnZone->IsInZone(pReqPlayer->GetCharacter()->m_Pos))
-			return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can only login while in the spawn zone.");
+		{
+			pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can only login while in the spawn zone.");
+			return;
+		}
 	}
 
 	const char *pUsername = pResult->GetString(0);
@@ -172,26 +208,32 @@ void CBlockworlds::ConAccountLogout(IConsole::IResult *pResult, void *pUserData)
 		return;
 
 	if(!pSelf->m_apPlayers[pResult->m_ClientId]->Bw().m_Account.m_Id)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not logged in!");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not logged in!");
+		return;
+	}
 	if(pSelf->Bw().isInEvent(pResult->m_ClientId))
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't logout while participating in an event. Use /leave first.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't logout while participating in an event. Use /leave first.");
+		return;
+	}
 
 	// deregister from any events as candidate before logout
 	{
 		int Cid = pResult->m_ClientId;
 
-		if(auto events = g_ComponentRegistry.Get<CEvents>())
+		if(auto Events = g_ComponentRegistry.Get<CEvents>())
 		{
-			auto subs = events->GetSubComponents();
-			for(auto &sub : subs)
+			auto Subs = Events->GetSubComponents();
+			for(auto &Sub : Subs)
 			{
-				CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
+				CEventComponent *pEv = dynamic_cast<CEventComponent *>(Sub.operator->());
 				if(!pEv)
 					continue;
 
 				// if registered as candidate, deregister
-				const auto &cands = pEv->Candidates();
-				if(std::find(cands.begin(), cands.end(), Cid) != cands.end())
+				const auto &Cands = pEv->Candidates();
+				if(std::find(Cands.begin(), Cands.end(), Cid) != Cands.end())
 				{
 					pEv->DeRegister(Cid);
 					continue; // we've removed them from this event
@@ -202,12 +244,15 @@ void CBlockworlds::ConAccountLogout(IConsole::IResult *pResult, void *pUserData)
 	IZone *pSpawnZone = pSelf->Bw().ZoneManager()->GetZone(ZONE_SPAWN);
 	CPlayer *pReqPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 	if(pSpawnZone && pReqPlayer && pReqPlayer->GetCharacter() && !pSpawnZone->IsInZone(pReqPlayer->GetCharacter()->m_Pos))
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can only logout while in the spawn zone.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can only logout while in the spawn zone.");
+		return;
+	}
 
 	// cancel any pending requests involving this client before logout (so others aren't left with stale offers)
-	if(auto requests = g_ComponentRegistry.Get<CRequests>())
+	if(auto Requests = g_ComponentRegistry.Get<CRequests>())
 	{
-		requests->CancelRequestsInvolving(pResult->m_ClientId, std::nullopt, "player logged out");
+		Requests->CancelRequestsInvolving(pResult->m_ClientId, std::nullopt, "player logged out");
 	}
 	pPlayer->Bw().OnPlayerLogout();
 	pSelf->Bw().SendChatTarget(pResult->m_ClientId, "you have been logged out!");
@@ -226,7 +271,10 @@ void CBlockworlds::ConDisplayBlockpoints(IConsole::IResult *pResult, void *pUser
 		return;
 
 	if(!pSelf->m_apPlayers[pResult->m_ClientId]->Bw().m_Account.m_Id)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not logged in!");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not logged in!");
+		return;
+	}
 
 	char aBuf[128];
 	str_format(aBuf, sizeof(aBuf), "You currently have %d blockpoint%s!",
@@ -240,64 +288,101 @@ void CBlockworlds::ConGiveBlockpointsRequest(IConsole::IResult *pResult, void *p
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
 	if(!g_Config.m_SvAccountsystem)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+		return;
+	}
 	if(!CheckClientId(pResult->m_ClientId))
 		return;
 	CPlayer *pFrom = pSelf->m_apPlayers[pResult->m_ClientId];
 	if(!pFrom || !pFrom->Bw().IsLoggedIn())
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not logged in.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not logged in.");
+		return;
+	}
 	if(pResult->NumArguments() < 2)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Usage: /give_bp <playerName> <amount>");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Usage: /give_bp <playerName> <amount>");
+		return;
+	}
 	const char *pTargetName = pResult->GetString(0);
 	int Amount = pResult->GetInteger(1);
 	if(Amount < g_Config.m_SvBpTransferAmountMin)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Amount below minimum transfer threshold.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Amount below minimum transfer threshold.");
+		return;
+	}
 	if(Amount > g_Config.m_SvBpTransferAmountCap)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Amount exceeds max cap.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Amount exceeds max cap.");
+		return;
+	}
 	if(Amount < 1)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Amount too small.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Amount too small.");
+		return;
+	}
 	CPlayer *pTo = pSelf->Bw().GetPlayerByName(pTargetName);
 	if(!pTo || !pTo->Bw().IsLoggedIn())
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Target player not found or not logged in.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Target player not found or not logged in.");
+		return;
+	}
 	if(pTo->GetCid() == pFrom->GetCid())
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You cannot transfer blockpoints to yourself.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You cannot transfer blockpoints to yourself.");
+		return;
+	}
 	if(pFrom->Bw().GetPlayerBlockpoints() < Amount)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You don't have enough blockpoints.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You don't have enough blockpoints.");
+		return;
+	}
 	// disallow if either player is currently in an event
 	if(pSelf->Bw().isInEvent(pFrom->GetCid()) || pSelf->Bw().isInEvent(pTo->GetCid()))
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Blockpoint transfers are not allowed while either player is in an event.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Blockpoint transfers are not allowed while either player is in an event.");
+		return;
+	}
 	int Cooldown = g_Config.m_SvBpTransferCooldown;
 	if(Cooldown > 0 && pFrom->Bw().m_LastBpTransferOfferTick != 0 && pSelf->Server()->Tick() - pFrom->Bw().m_LastBpTransferOfferTick < Cooldown * pSelf->Server()->TickSpeed())
 	{
 		int Rem = (int)((Cooldown * pSelf->Server()->TickSpeed() - (pSelf->Server()->Tick() - pFrom->Bw().m_LastBpTransferOfferTick)) / pSelf->Server()->TickSpeed());
 		char aBuf[128];
 		str_format(aBuf, sizeof(aBuf), "Please wait %d second%s before sending another transfer.", Rem, Rem != 1 ? "s" : "");
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, aBuf);
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, aBuf);
+		return;
 	}
 	// outstanding per sender check
-	if(auto requestsTmp = g_ComponentRegistry.Get<CRequests>())
+	if(auto RequestsTmp = g_ComponentRegistry.Get<CRequests>())
 	{
-		int outstanding = 0;
-		auto list = requestsTmp->GetRequestsFor(pFrom->GetCid(), CRequests::SRequest::EType::BlockpointTransfer);
-		for(int id : list)
+		int Outstanding = 0;
+		auto List = RequestsTmp->GetRequestsFor(pFrom->GetCid(), CRequests::SRequest::EType::BlockpointTransfer);
+		for(int Id : List)
 		{
-			CRequests::SRequest info;
-			if(requestsTmp->GetRequestInfo(id, info) && info.m_From == pFrom->GetCid())
-				outstanding++;
+			CRequests::SRequest Info;
+			if(RequestsTmp->GetRequestInfo(Id, Info) && Info.m_From == pFrom->GetCid())
+				Outstanding++;
 		}
-		if(outstanding >= g_Config.m_SvBpTransferMaxOutstandingPerSender)
-			return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You have too many pending transfers. Wait for them to resolve.");
+		if(Outstanding >= g_Config.m_SvBpTransferMaxOutstandingPerSender)
+		{
+			pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You have too many pending transfers. Wait for them to resolve.");
+			return;
+		}
 	}
-	auto requests = g_ComponentRegistry.Get<CRequests>();
-	if(!requests)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Request subsystem is not available.");
-	int expiry = g_Config.m_SvBpTransferExpiry;
-	int id = requests->CreateBlockpointTransfer(pFrom->GetCid(), pTo->GetCid(), Amount, expiry);
-	if(id == -1)
+	auto Requests = g_ComponentRegistry.Get<CRequests>();
+	if(!Requests)
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Request subsystem is not available.");
+		return;
+	}
+	int Expiry = g_Config.m_SvBpTransferExpiry;
+	int Id = Requests->CreateBlockpointTransfer(pFrom->GetCid(), pTo->GetCid(), Amount, Expiry);
+	if(Id == -1)
 		return; // error already messaged
 	pFrom->Bw().m_LastBpTransferOfferTick = pSelf->Server()->Tick();
 	char aBuf[256];
-	str_format(aBuf, sizeof(aBuf), "Transfer offer (%ds) sent to %s for %d blockpoints.", expiry, pSelf->Server()->ClientName(pTo->GetCid()), Amount);
+	str_format(aBuf, sizeof(aBuf), "Transfer offer (%ds) sent to %s for %d blockpoints.", Expiry, pSelf->Server()->ClientName(pTo->GetCid()), Amount);
 	pSelf->Bw().SendChatTarget(pFrom->GetCid(), aBuf);
 }
 
@@ -306,43 +391,62 @@ void CBlockworlds::ConAcceptBlockpointsRequest(IConsole::IResult *pResult, void 
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
 	if(!g_Config.m_SvAccountsystem)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+		return;
+	}
 	if(!CheckClientId(pResult->m_ClientId))
 		return;
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 	if(!pPlayer || !pPlayer->Bw().IsLoggedIn())
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not logged in.");
-	auto requests = g_ComponentRegistry.Get<CRequests>();
-	if(!requests)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Request subsystem is not available.");
-	auto matchIds = requests->GetRequestIdsTo(pResult->m_ClientId, CRequests::SRequest::EType::BlockpointTransfer);
-	int chosen = -1;
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not logged in.");
+		return;
+	}
+	auto Requests = g_ComponentRegistry.Get<CRequests>();
+	if(!Requests)
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Request subsystem is not available.");
+		return;
+	}
+	auto MatchIds = Requests->GetRequestIdsTo(pResult->m_ClientId, CRequests::SRequest::EType::BlockpointTransfer);
+	int Chosen = -1;
 	if(pResult->NumArguments() > 0)
 	{
 		const char *pFromName = pResult->GetString(0);
 		CPlayer *pFrom = pSelf->Bw().GetPlayerByName(pFromName);
 		if(!pFrom)
-			return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Player not found");
-		auto specific = requests->GetRequestIdsFromTo(pFrom->GetCid(), pResult->m_ClientId, CRequests::SRequest::EType::BlockpointTransfer);
-		for(int id : specific)
 		{
-			CRequests::SRequest info;
-			if(requests->GetRequestInfo(id, info) && info.m_ExpireTick > pSelf->Server()->Tick())
-				chosen = std::max(chosen, id);
+			pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Player not found");
+			return;
+		}
+		auto Specific = Requests->GetRequestIdsFromTo(pFrom->GetCid(), pResult->m_ClientId, CRequests::SRequest::EType::BlockpointTransfer);
+		for(int Id : Specific)
+		{
+			CRequests::SRequest Info;
+			if(Requests->GetRequestInfo(Id, Info) && Info.m_ExpireTick > pSelf->Server()->Tick())
+				Chosen = std::max(Chosen, Id);
 		}
 	}
-	else if(matchIds.size() == 1)
+	else if(MatchIds.size() == 1)
 	{
-		chosen = matchIds[0];
+		Chosen = MatchIds[0];
 	}
 	else
 	{
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, matchIds.empty() ? "No blockpoint transfer to accept." : "Multiple transfers pending. Use /accept_bp <playerName>.");
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, MatchIds.empty() ? "No blockpoint transfer to accept." : "Multiple transfers pending. Use /accept_bp <playerName>.");
+		return;
 	}
-	if(chosen == -1)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "No valid (non-expired) transfer found.");
-	if(!requests->AcceptRequest(chosen))
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Failed to accept the transfer (it may have expired).");
+	if(Chosen == -1)
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "No valid (non-expired) transfer found.");
+		return;
+	}
+	if(!Requests->AcceptRequest(Chosen))
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Failed to accept the transfer (it may have expired).");
+		return;
+	}
 }
 
 // /decline_bp [playerName]
@@ -350,43 +454,62 @@ void CBlockworlds::ConDeclineBlockpointsRequest(IConsole::IResult *pResult, void
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
 	if(!g_Config.m_SvAccountsystem)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+		return;
+	}
 	if(!CheckClientId(pResult->m_ClientId))
 		return;
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 	if(!pPlayer || !pPlayer->Bw().IsLoggedIn())
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not logged in.");
-	auto requests = g_ComponentRegistry.Get<CRequests>();
-	if(!requests)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Request subsystem is not available.");
-	auto matchIds = requests->GetRequestIdsTo(pResult->m_ClientId, CRequests::SRequest::EType::BlockpointTransfer);
-	int chosen = -1;
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not logged in.");
+		return;
+	}
+	auto Requests = g_ComponentRegistry.Get<CRequests>();
+	if(!Requests)
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Request subsystem is not available.");
+		return;
+	}
+	auto MatchIds = Requests->GetRequestIdsTo(pResult->m_ClientId, CRequests::SRequest::EType::BlockpointTransfer);
+	int Chosen = -1;
 	if(pResult->NumArguments() > 0)
 	{
 		const char *pFromName = pResult->GetString(0);
 		CPlayer *pFrom = pSelf->Bw().GetPlayerByName(pFromName);
 		if(!pFrom)
-			return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Player not found");
-		auto specific = requests->GetRequestIdsFromTo(pFrom->GetCid(), pResult->m_ClientId, CRequests::SRequest::EType::BlockpointTransfer);
-		for(int id : specific)
 		{
-			CRequests::SRequest info;
-			if(requests->GetRequestInfo(id, info) && info.m_ExpireTick > pSelf->Server()->Tick())
-				chosen = std::max(chosen, id);
+			pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Player not found");
+			return;
+		}
+		auto Specific = Requests->GetRequestIdsFromTo(pFrom->GetCid(), pResult->m_ClientId, CRequests::SRequest::EType::BlockpointTransfer);
+		for(int Id : Specific)
+		{
+			CRequests::SRequest Info;
+			if(Requests->GetRequestInfo(Id, Info) && Info.m_ExpireTick > pSelf->Server()->Tick())
+				Chosen = std::max(Chosen, Id);
 		}
 	}
-	else if(matchIds.size() == 1)
+	else if(MatchIds.size() == 1)
 	{
-		chosen = matchIds[0];
+		Chosen = MatchIds[0];
 	}
 	else
 	{
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, matchIds.empty() ? "No blockpoint transfer to decline." : "Multiple transfers pending. Use /decline_bp <playerName>.");
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, MatchIds.empty() ? "No blockpoint transfer to decline." : "Multiple transfers pending. Use /decline_bp <playerName>.");
+		return;
 	}
-	if(chosen == -1)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "No valid (non-expired) transfer found.");
-	if(!requests->DeclineRequest(chosen))
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Failed to decline the transfer (it may have expired).");
+	if(Chosen == -1)
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "No valid (non-expired) transfer found.");
+		return;
+	}
+	if(!Requests->DeclineRequest(Chosen))
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Failed to decline the transfer (it may have expired).");
+		return;
+	}
 }
 
 void CBlockworlds::ConChangePassword(IConsole::IResult *pResult, void *pUserData)
@@ -402,7 +525,10 @@ void CBlockworlds::ConChangePassword(IConsole::IResult *pResult, void *pUserData
 		return;
 
 	if(!pSelf->m_apPlayers[pResult->m_ClientId]->Bw().m_Account.m_Id)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not logged in!");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not logged in!");
+		return;
+	}
 
 	const char *pOldPassword = pResult->GetString(0);
 	const char *pNewPassword = pResult->GetString(1);
@@ -411,16 +537,28 @@ void CBlockworlds::ConChangePassword(IConsole::IResult *pResult, void *pUserData
 	int NewLength = str_length(pNewPassword);
 
 	if(OldLength < 5)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Old password incorrect (must be at least 5 chars long).");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Old password incorrect (must be at least 5 chars long).");
+		return;
+	}
 
 	if(NewLength < 5)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Your password must be at least 5 characters long!");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Your password must be at least 5 characters long!");
+		return;
+	}
 
 	if(str_comp(pOldPassword, pNewPassword) == 0)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Password must be different from each other!");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Password must be different from each other!");
+		return;
+	}
 
 	if(!CheckValidChars(pOldPassword) || !CheckValidChars(pNewPassword))
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Only the characters A-Z and 0-9 are allowed!");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Only the characters A-Z and 0-9 are allowed!");
+		return;
+	}
 
 	pSelf->Bw().Accounts()->ChangePassword(pResult->m_ClientId, pSelf->m_apPlayers[pResult->m_ClientId]->Bw().m_Account.m_aName, pOldPassword, pNewPassword);
 }
@@ -580,9 +718,9 @@ void CBlockworlds::ConStatusAccounts(IConsole::IResult *pResult, void *pUserData
 		const char *pClanName = " ";
 		if(pSelf->Bw().Clans())
 		{
-			CClansData tmp;
-			if(pSelf->Bw().Clans()->GetClanSnapshotById(pPlayer->Bw().m_Account.m_ClanId, tmp))
-				pClanName = tmp.m_ClanName;
+			CClansData Tmp;
+			if(pSelf->Bw().Clans()->GetClanSnapshotById(pPlayer->Bw().m_Account.m_ClanId, Tmp))
+				pClanName = Tmp.m_ClanName;
 		}
 		str_format(aBuf, sizeof(aBuf), "cid=%d, accid=%d, acc_name='%s', ig_name='%s', vip=%d, clan='%s', clanid=%d, auth=%d, playtime=%02d:%02d, ranking=%d, kills=%d, deaths=%d",
 			i,
@@ -626,10 +764,13 @@ void CBlockworlds::ConIpBans(IConsole::IResult *pResult, void *pUserData)
 		return;
 	// pPlayer not used here; avoid unused variable warning
 	if(!pPlayer || !pPlayer->Bw().IsLoggedIn())
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Permission denied");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Permission denied");
+		return;
+	}
 
-	auto bans = pSelf->Bw().Accounts()->ListIpBans();
-	if(bans.empty())
+	auto Bans = pSelf->Bw().Accounts()->ListIpBans();
+	if(Bans.empty())
 	{
 		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "No active IP bans.");
 		return;
@@ -637,7 +778,7 @@ void CBlockworlds::ConIpBans(IConsole::IResult *pResult, void *pUserData)
 
 	pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Active IP bans:");
 	char aBuf[256];
-	for(const auto &b : bans)
+	for(const auto &b : Bans)
 	{
 		str_format(aBuf, sizeof(aBuf), "%s: %d second%s remaining", b.first.c_str(), b.second, b.second != 1 ? "s" : "");
 		pSelf->Bw().SendChatTarget(pResult->m_ClientId, aBuf);
@@ -652,7 +793,10 @@ void CBlockworlds::ConIpBanClear(IConsole::IResult *pResult, void *pUserData)
 		return;
 	// pPlayer not used here; avoid unused variable warning
 	if(!pPlayer || !pPlayer->Bw().IsLoggedIn())
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Permission denied");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Permission denied");
+		return;
+	}
 
 	const char *pIp = pResult->GetString(0);
 	pSelf->Bw().Accounts()->ClearIpBan(pIp);
@@ -668,23 +812,35 @@ void CBlockworlds::ConListOutstandingInvites(IConsole::IResult *pResult, void *p
 		return;
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 	if(!pPlayer || !pPlayer->Bw().IsLoggedIn())
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Permission denied");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Permission denied");
+		return;
+	}
 
 	int Target = pResult->GetInteger(0);
 	if(!CheckClientId(Target))
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Invalid client id");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Invalid client id");
+		return;
+	}
 
 	if(!pSelf->m_apPlayers[Target])
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Target player not online");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Target player not online");
+		return;
+	}
 
-	auto requests = g_ComponentRegistry.Get<CRequests>();
-	if(!requests)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Request component not available");
+	auto Requests = g_ComponentRegistry.Get<CRequests>();
+	if(!Requests)
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Request component not available");
+		return;
+	}
 
-	auto idsFrom = requests->GetRequestIdsFromTo(Target, Target, std::nullopt); // get both to and from via helper below
+	auto IdsFrom = Requests->GetRequestIdsFromTo(Target, Target, std::nullopt); // get both to and from via helper below
 
-	auto all = requests->GetRequestsFor(Target, std::nullopt);
-	if(all.empty())
+	auto All = Requests->GetRequestsFor(Target, std::nullopt);
+	if(All.empty())
 	{
 		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "No outstanding requests for player");
 		return;
@@ -692,9 +848,9 @@ void CBlockworlds::ConListOutstandingInvites(IConsole::IResult *pResult, void *p
 
 	char aBuf[256];
 	pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Outstanding requests (id, type, from -> to):");
-	for(int id : all)
+	for(int Id : All)
 	{
-		str_format(aBuf, sizeof(aBuf), "id=%d", id);
+		str_format(aBuf, sizeof(aBuf), "id=%d", Id);
 		pSelf->Bw().SendChatTarget(pResult->m_ClientId, aBuf);
 	}
 }
@@ -1170,12 +1326,12 @@ void CBlockworlds::ConSetVip(IConsole::IResult *pResult, void *pUserData)
 		return;
 	}
 
-	int newVip = Vip ? 1 : 0;
-	pTarget->Bw().SetPlayerVip(newVip);
+	int NewVip = Vip ? 1 : 0;
+	pTarget->Bw().SetPlayerVip(NewVip);
 	pSelf->Bw().Accounts()->Save(Target, &pTarget->Bw().m_Account);
 
 	char aBuf[128];
-	if(newVip)
+	if(NewVip)
 		str_format(aBuf, sizeof(aBuf), "Set VIP for %s (now vip=%d)", pTarget->Bw().GetPlayerName(), pTarget->Bw().GetPlayerVip());
 	else
 		str_format(aBuf, sizeof(aBuf), "Removed VIP from %s", pTarget->Bw().GetPlayerName());
@@ -1254,23 +1410,23 @@ void CBlockworlds::ConAdminSetPassword(IConsole::IResult *pResult, void *pUserDa
 
 	char aEscapedName[128];
 	{
-		int di = 0;
-		for(int si = 0; pAccountName[si] && di < (int)sizeof(aEscapedName) - 2; ++si)
+		int Di = 0;
+		for(int Si = 0; pAccountName[Si] && Di < (int)sizeof(aEscapedName) - 2; ++Si)
 		{
-			if(pAccountName[si] == '\'')
+			if(pAccountName[Si] == '\'')
 			{
-				if(di < (int)sizeof(aEscapedName) - 3)
+				if(Di < (int)sizeof(aEscapedName) - 3)
 				{
-					aEscapedName[di++] = '\'';
-					aEscapedName[di++] = '\'';
+					aEscapedName[Di++] = '\'';
+					aEscapedName[Di++] = '\'';
 				}
 			}
 			else
 			{
-				aEscapedName[di++] = pAccountName[si];
+				aEscapedName[Di++] = pAccountName[Si];
 			}
 		}
-		aEscapedName[di] = '\0';
+		aEscapedName[Di] = '\0';
 	}
 
 	pSelf->Bw().Accounts()->ChangePasswordAdmin(pResult->m_ClientId, pAccountName, pNewPassword);
@@ -1334,7 +1490,10 @@ void CBlockworlds::ConWeaponKit(IConsole::IResult *pResult, void *pUserData)
 		return;
 	CCharacter *pChr = pPlayer->GetCharacter();
 	if(!pChr)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You must be alive to use a weapon kit.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You must be alive to use a weapon kit.");
+		return;
+	}
 
 	if(!pSelf->Bw().m_WeaponkitsAllowed)
 	{
@@ -1343,13 +1502,22 @@ void CBlockworlds::ConWeaponKit(IConsole::IResult *pResult, void *pUserData)
 	}
 
 	if(!g_Config.m_SvAccountsystem)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+		return;
+	}
 
 	if(!pPlayer->Bw().IsLoggedIn())
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not logged in.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not logged in.");
+		return;
+	}
 
 	if(pPlayer->Bw().GetPlayerWeaponkits() < 1 && !pPlayer->Bw().GetPlayerVip())
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You don't have any weapon kits, make a trip to the store and purchase some!");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You don't have any weapon kits, make a trip to the store and purchase some!");
+		return;
+	}
 
 	// check if the player has all weapons
 	bool HasAllWeapons = true;
@@ -1363,14 +1531,20 @@ void CBlockworlds::ConWeaponKit(IConsole::IResult *pResult, void *pUserData)
 	}
 
 	if(HasAllWeapons)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You already have all weapons.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You already have all weapons.");
+		return;
+	}
 
 	// restrict usage to spawn zone if spawn zone exists
 	IZone *pSpawnZone = pSelf->Bw().ZoneManager()->GetZone(ZONE_SPAWN);
 	if(pSpawnZone)
 	{
 		if(!pSpawnZone->IsInZone(pChr->m_Pos))
-			return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can only use weapon kits while in the spawn zone.");
+		{
+			pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can only use weapon kits while in the spawn zone.");
+			return;
+		}
 	}
 
 	pSelf->ModifyWeapons(pResult, pSelf, -1, false);
@@ -1384,7 +1558,7 @@ void CBlockworlds::ConWeaponKit(IConsole::IResult *pResult, void *pUserData)
 		str_format(aBuf, sizeof(aBuf), "You have successfully used a weaponkit! %d kits left.", pPlayer->Bw().GetPlayerWeaponkits());
 		pPlayer->Bw().SetPlayerWeaponkits(pPlayer->Bw().GetPlayerWeaponkits() - 1);
 	}
-	return pSelf->Bw().SendChatTarget(pResult->m_ClientId, aBuf);
+	pSelf->Bw().SendChatTarget(pResult->m_ClientId, aBuf);
 }
 
 void CBlockworlds::ConDeathnote(IConsole::IResult *pResult, void *pUserData)
@@ -1392,7 +1566,10 @@ void CBlockworlds::ConDeathnote(IConsole::IResult *pResult, void *pUserData)
 	CGameContext *pSelf = (CGameContext *)pUserData;
 
 	if(!g_Config.m_SvAccountsystem)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+		return;
+	}
 
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 	if(!pPlayer)
@@ -1400,18 +1577,30 @@ void CBlockworlds::ConDeathnote(IConsole::IResult *pResult, void *pUserData)
 	IServer *pServer = pSelf->Server();
 
 	if(!pPlayer->Bw().IsLoggedIn())
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not logged in.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not logged in.");
+		return;
+	}
 
 	if(!pResult->NumArguments())
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Invalid arguments... Usage: deathnote [player]");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Invalid arguments... Usage: deathnote [player]");
+		return;
+	}
 
 	CPlayer *pTarget = pSelf->Bw().GetPlayerByName(pResult->GetString(0));
 
 	if(!pTarget)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "This player doesn't exist.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "This player doesn't exist.");
+		return;
+	}
 
 	if(pPlayer->Bw().GetPlayerPages() < 1)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You don't have any deathnotes, make a trip to the store and purchase some!");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You don't have any deathnotes, make a trip to the store and purchase some!");
+		return;
+	}
 
 	// prevent using deathnote if the target is inside passive or no-collision zones
 	IZone *pPassiveZone = pSelf->Bw().ZoneManager()->GetZone(ZONE_PASSIVE);
@@ -1419,7 +1608,10 @@ void CBlockworlds::ConDeathnote(IConsole::IResult *pResult, void *pUserData)
 
 	// prevent using deathnote if target is participating in an event
 	if(pTarget && pSelf->Bw().isInEvent(pTarget->GetCid()))
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a player participating in an event.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a player participating in an event.");
+		return;
+	}
 
 	int CurrentTick = pServer->Tick();
 	int CooldownTick = pPlayer->Bw().m_LastDeathnote + (pServer->TickSpeed() * g_Config.m_SvDeathNoteCoolDown);
@@ -1449,7 +1641,8 @@ void CBlockworlds::ConDeathnote(IConsole::IResult *pResult, void *pUserData)
 		}
 
 		str_append(aBuf, "until you can write down a player in your deathnote.", sizeof(aBuf));
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, aBuf);
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, aBuf);
+		return;
 	}
 
 	// block if the target is currently inside a passive or no-collision zone
@@ -1457,22 +1650,31 @@ void CBlockworlds::ConDeathnote(IConsole::IResult *pResult, void *pUserData)
 	if(pTChar)
 	{
 		if(pPassiveZone && pPassiveZone->IsInZone(pTChar->m_Pos) && pTChar->Core()->m_Passive)
-			return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a player inside a passive zone.");
+		{
+			pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a player inside a passive zone.");
+			return;
+		}
 		if(pNoCollZone && pNoCollZone->IsInZone(pTChar->m_Pos))
-			return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a player inside a no-collision zone.");
+		{
+			pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a player inside a no-collision zone.");
+			return;
+		}
 		if(pTChar->Core()->m_Solo)
-			return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a solo player."); // bad mapper
+		{
+			pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't use a deathnote on a solo player.");
+			return; // bad mapper
+		}
 	}
 
 	// consume a page and apply kill
 	pPlayer->Bw().SetPlayerPages(pPlayer->Bw().GetPlayerPages() - 1);
 	pTarget->KillCharacter();
 
-	char aBuff_From[128], aBuff_To[128];
-	str_format(aBuff_From, sizeof(aBuff_From), "Successfully killed %s. %d pages remaining.", pSelf->Server()->ClientName(pTarget->GetCid()), pPlayer->Bw().GetPlayerPages());
-	str_format(aBuff_To, sizeof(aBuff_To), "'%s' used a deathnote to kill you!", pSelf->Server()->ClientName(pResult->m_ClientId));
-	pSelf->Bw().SendChatTarget(pResult->m_ClientId, aBuff_From);
-	pSelf->Bw().SendChatTarget(pTarget->GetCid(), aBuff_To);
+	char ABuffFrom[128], ABuffTo[128];
+	str_format(ABuffFrom, sizeof(ABuffFrom), "Successfully killed %s. %d pages remaining.", pSelf->Server()->ClientName(pTarget->GetCid()), pPlayer->Bw().GetPlayerPages());
+	str_format(ABuffTo, sizeof(ABuffTo), "'%s' used a deathnote to kill you!", pSelf->Server()->ClientName(pResult->m_ClientId));
+	pSelf->Bw().SendChatTarget(pResult->m_ClientId, ABuffFrom);
+	pSelf->Bw().SendChatTarget(pTarget->GetCid(), ABuffTo);
 	pPlayer->Bw().m_LastDeathnote = pServer->Tick();
 }
 
@@ -1481,44 +1683,69 @@ void CBlockworlds::ConPassiveRemover(IConsole::IResult *pResult, void *pUserData
 	CGameContext *pSelf = (CGameContext *)pUserData;
 
 	if(!g_Config.m_SvAccountsystem)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+		return;
+	}
 	if(!g_Config.m_SvPassiveRemoverEnabled)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Passive Remover feature is currently disabled.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Passive Remover feature is currently disabled.");
+		return;
+	}
 
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 	if(!pPlayer)
 		return;
 
 	if(!pPlayer->Bw().IsLoggedIn())
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not logged in.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not logged in.");
+		return;
+	}
 
 	if(!pResult->NumArguments())
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Usage: /passiveremover [player]");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Usage: /passiveremover [player]");
+		return;
+	}
 
 	if(pPlayer->Bw().GetPlayerPassiveRemovers() < 1)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You don't have any passive removers! Purchase one from the shop.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You don't have any passive removers! Purchase one from the shop.");
+		return;
+	}
 
 	if(pPlayer->Bw().m_PassiveRemoverUseCooldown > 0)
 	{
-		int mins = pPlayer->Bw().m_PassiveRemoverUseCooldown / 60;
-		int secs = pPlayer->Bw().m_PassiveRemoverUseCooldown % 60;
+		int Mins = pPlayer->Bw().m_PassiveRemoverUseCooldown / 60;
+		int Secs = pPlayer->Bw().m_PassiveRemoverUseCooldown % 60;
 		char aCooldownBuf[128];
-		if(mins > 0)
-			str_format(aCooldownBuf, sizeof(aCooldownBuf), "You can use a Passive Remover again in %d min.", mins);
+		if(Mins > 0)
+			str_format(aCooldownBuf, sizeof(aCooldownBuf), "You can use a Passive Remover again in %d min.", Mins);
 		else
-			str_format(aCooldownBuf, sizeof(aCooldownBuf), "You can use a Passive Remover again in %d sec.", secs);
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, aCooldownBuf);
+			str_format(aCooldownBuf, sizeof(aCooldownBuf), "You can use a Passive Remover again in %d sec.", Secs);
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, aCooldownBuf);
+		return;
 	}
 
 	CPlayer *pTarget = pSelf->Bw().GetPlayerByName(pResult->GetString(0));
 	if(!pTarget)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Player not found.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Player not found.");
+		return;
+	}
 
 	if(pTarget->GetCid() == pResult->m_ClientId)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't use a passive remover on yourself.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't use a passive remover on yourself.");
+		return;
+	}
 
 	if(pSelf->Bw().isInEvent(pTarget->GetCid()))
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't use a passive remover on a player in an event.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't use a passive remover on a player in an event.");
+		return;
+	}
 
 	// Check the target actually has passive
 	bool HasPassive = false;
@@ -1528,7 +1755,10 @@ void CBlockworlds::ConPassiveRemover(IConsole::IResult *pResult, void *pUserData
 		HasPassive = true;
 
 	if(!HasPassive)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "That player doesn't have passive protection.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "That player doesn't have passive protection.");
+		return;
+	}
 
 	// Consume one passive remover
 	pPlayer->Bw().SetPlayerPassiveRemovers(pPlayer->Bw().GetPlayerPassiveRemovers() - 1);
@@ -1551,11 +1781,11 @@ void CBlockworlds::ConPassiveRemover(IConsole::IResult *pResult, void *pUserData
 	char aBufFrom[128], aBufTo[256];
 	str_format(aBufFrom, sizeof(aBufFrom), "You stripped %s's passive protection! %d removers remaining.",
 		pSelf->Server()->ClientName(pTarget->GetCid()), pPlayer->Bw().GetPlayerPassiveRemovers());
-	int cooldownMins = g_Config.m_SvPassiveRemoverCooldown / 60;
-	int cooldownSecs = g_Config.m_SvPassiveRemoverCooldown % 60;
+	int CooldownMins = g_Config.m_SvPassiveRemoverCooldown / 60;
+	int CooldownSecs = g_Config.m_SvPassiveRemoverCooldown % 60;
 	if(g_Config.m_SvPassiveRemoverCooldown > 0)
 		str_format(aBufTo, sizeof(aBufTo), "'%s' used a Passive Remover on you! Your passive has been removed. You cannot redo the passive race for %d:%02d minutes.",
-			pSelf->Server()->ClientName(pResult->m_ClientId), cooldownMins, cooldownSecs);
+			pSelf->Server()->ClientName(pResult->m_ClientId), CooldownMins, CooldownSecs);
 	else
 		str_format(aBufTo, sizeof(aBufTo), "'%s' used a Passive Remover on you! Your passive has been removed.",
 			pSelf->Server()->ClientName(pResult->m_ClientId));
@@ -1572,12 +1802,18 @@ void CBlockworlds::ConExp(IConsole::IResult *pResult, void *pUserData)
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 
 	if(!g_Config.m_SvAccountsystem)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+		return;
+	}
 
 	char aBuf[256];
 
 	if(!pPlayer->Bw().IsLoggedIn())
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not logged in.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not logged in.");
+		return;
+	}
 
 	static const int s_MaxNum = 17;
 	float a = (float)pPlayer->Bw().GetPlayerExperience() / NeededAccountExp(pPlayer->Bw().GetPlayerLevel());
@@ -1625,25 +1861,34 @@ void CBlockworlds::ConClanExp(IConsole::IResult *pResult, void *pUserData)
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 
 	if(!g_Config.m_SvAccountsystem)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+		return;
+	}
 
 	char aBuf[256];
 
 	if(!pPlayer->Bw().IsLoggedIn())
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not logged in.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not logged in.");
+		return;
+	}
 	if(!pPlayer->Bw().GetClanId())
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not in a clan");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not in a clan");
+		return;
+	}
 
 	// obtain a snapshot copy of the clan data (thread-safe)
-	CClansData clanTmp;
-	if(!pSelf->Bw().Clans()->GetClanSnapshotById(pPlayer->Bw().GetClanId(), clanTmp))
+	CClansData ClanTmp;
+	if(!pSelf->Bw().Clans()->GetClanSnapshotById(pPlayer->Bw().GetClanId(), ClanTmp))
 	{
 		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Error: Something weird happened, try to login again.");
 		return;
 	}
 
 	static const int s_MaxNum = 17;
-	float Ratio = (float)clanTmp.m_Experience / NeededClanExp(clanTmp.m_Level);
+	float Ratio = (float)ClanTmp.m_Experience / NeededClanExp(ClanTmp.m_Level);
 	int Num = round_to_int(Ratio * s_MaxNum);
 
 	static char s_ExpTopLeft[] = {-30, -107, -108, 0};
@@ -1675,11 +1920,11 @@ void CBlockworlds::ConClanExp(IConsole::IResult *pResult, void *pUserData)
 	pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Clan Experience Bar:");
 	pSelf->Bw().SendChatTarget(pResult->m_ClientId, aBarTop);
 	pSelf->Bw().SendChatTarget(pResult->m_ClientId, aBarBot);
-	str_format(aBuf, sizeof(aBuf), "Clan level: %i", clanTmp.m_Level);
+	str_format(aBuf, sizeof(aBuf), "Clan level: %i", ClanTmp.m_Level);
 	pSelf->Bw().SendChatTarget(pResult->m_ClientId, aBuf);
-	str_format(aBuf, sizeof(aBuf), "Clan Exp: %i", clanTmp.m_Experience);
+	str_format(aBuf, sizeof(aBuf), "Clan Exp: %i", ClanTmp.m_Experience);
 	pSelf->Bw().SendChatTarget(pResult->m_ClientId, aBuf);
-	str_format(aBuf, sizeof(aBuf), "Needed Exp: %i", NeededClanExp(clanTmp.m_Level));
+	str_format(aBuf, sizeof(aBuf), "Needed Exp: %i", NeededClanExp(ClanTmp.m_Level));
 	pSelf->Bw().SendChatTarget(pResult->m_ClientId, aBuf);
 }
 
@@ -1690,9 +1935,15 @@ void CBlockworlds::ConClanList(IConsole::IResult *pResult, void *pUserData)
 		return;
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 	if(!pPlayer || !pPlayer->Bw().IsLoggedIn())
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You must be logged in.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You must be logged in.");
+		return;
+	}
 	if(pPlayer->Bw().GetClanId() <= 0)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not in a clan.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not in a clan.");
+		return;
+	}
 
 	pSelf->Bw().Clans()->ShowClanMembers(pResult->m_ClientId, pPlayer->Bw().GetClanId());
 }
@@ -1929,17 +2180,17 @@ void CBlockworlds::ConClanInvite(IConsole::IResult *pResult, void *pUserData)
 		return;
 	}
 
-	if(auto requests = g_ComponentRegistry.Get<CRequests>())
+	if(auto Requests = g_ComponentRegistry.Get<CRequests>())
 	{
-		auto incoming = requests->GetRequestIdsTo(Target, CRequests::SRequest::EType::Clan);
-		if(!incoming.empty())
+		auto Incoming = Requests->GetRequestIdsTo(Target, CRequests::SRequest::EType::Clan);
+		if(!Incoming.empty())
 		{
 			pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Player already has a pending clan invitation.");
 			return;
 		}
 
-		int id = requests->CreateClanInvite(pPlayer->GetCid(), Target, pPlayer->Bw().GetClanId(), g_Config.m_SvClanInviteExpiry);
-		if(id < 0)
+		int Id = Requests->CreateClanInvite(pPlayer->GetCid(), Target, pPlayer->Bw().GetClanId(), g_Config.m_SvClanInviteExpiry);
+		if(Id < 0)
 		{
 			pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Failed to send clan invitation.");
 			return;
@@ -1975,18 +2226,18 @@ void CBlockworlds::ConClanAccept(IConsole::IResult *pResult, void *pUserData)
 		return;
 	}
 
-	if(auto requests = g_ComponentRegistry.Get<CRequests>())
+	if(auto Requests = g_ComponentRegistry.Get<CRequests>())
 	{
-		auto ids = requests->GetRequestIdsTo(pResult->m_ClientId, CRequests::SRequest::EType::Clan);
-		if(ids.empty())
+		auto Ids = Requests->GetRequestIdsTo(pResult->m_ClientId, CRequests::SRequest::EType::Clan);
+		if(Ids.empty())
 		{
 			pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Nobody invited you!");
 		}
 		else
 		{
 			// accept the most recent invite (last id)
-			int id = ids.back();
-			if(!requests->AcceptRequest(id))
+			int Id = Ids.back();
+			if(!Requests->AcceptRequest(Id))
 				pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Failed to accept invite.");
 			else
 				pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Clan invite accepted.");
@@ -2011,17 +2262,17 @@ void CBlockworlds::ConClanDecline(IConsole::IResult *pResult, void *pUserData)
 		return;
 	}
 
-	if(auto requests = g_ComponentRegistry.Get<CRequests>())
+	if(auto Requests = g_ComponentRegistry.Get<CRequests>())
 	{
-		auto ids = requests->GetRequestIdsTo(pResult->m_ClientId, CRequests::SRequest::EType::Clan);
-		if(ids.empty())
+		auto Ids = Requests->GetRequestIdsTo(pResult->m_ClientId, CRequests::SRequest::EType::Clan);
+		if(Ids.empty())
 		{
 			pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Nobody invited you!");
 		}
 		else
 		{
-			int id = ids.back();
-			if(!requests->DeclineRequest(id))
+			int Id = Ids.back();
+			if(!Requests->DeclineRequest(Id))
 				pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Failed to decline invite.");
 			else
 				pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Clan invite declined.");
@@ -2046,24 +2297,32 @@ void CBlockworlds::ConClanCreate(IConsole::IResult *pResult, void *pUserData)
 		return;
 
 	if(!pPlayer->Bw().m_Account.m_Id)
-		return pSelf->Bw().SendChatTarget(ClientId, "You must be logged in to create a clan!");
+	{
+		pSelf->Bw().SendChatTarget(ClientId, "You must be logged in to create a clan!");
+		return;
+	}
 	if(pPlayer->Bw().m_Account.m_Level < g_Config.m_SvClanMinLevel)
 	{
 		char aBuf[128];
 		str_format(aBuf, sizeof(aBuf), "You must be at least level %d to create a clan!", g_Config.m_SvClanMinLevel);
-		return pSelf->Bw().SendChatTarget(ClientId, aBuf);
+		pSelf->Bw().SendChatTarget(ClientId, aBuf);
+		return;
 	}
 	if(pPlayer->Bw().m_Account.m_ClanId > 0)
-		return pSelf->Bw().SendChatTarget(ClientId, "You are already in a clan!");
+	{
+		pSelf->Bw().SendChatTarget(ClientId, "You are already in a clan!");
+		return;
+	}
 
 	if(g_Config.m_SvClanCreatePrice > 0)
 	{
-		int cost = g_Config.m_SvClanCreatePrice;
-		if(pPlayer->Bw().GetPlayerBlockpoints() < cost)
+		int Cost = g_Config.m_SvClanCreatePrice;
+		if(pPlayer->Bw().GetPlayerBlockpoints() < Cost)
 		{
 			char aBuf[128];
-			str_format(aBuf, sizeof(aBuf), "You need %d blockpoints to create a clan.", cost);
-			return pSelf->Bw().SendChatTarget(ClientId, aBuf);
+			str_format(aBuf, sizeof(aBuf), "You need %d blockpoints to create a clan.", Cost);
+			pSelf->Bw().SendChatTarget(ClientId, aBuf);
+			return;
 		}
 	}
 
@@ -2071,20 +2330,29 @@ void CBlockworlds::ConClanCreate(IConsole::IResult *pResult, void *pUserData)
 	int ClanNameLength = str_length(pClanName);
 
 	if(ClanNameLength < 3)
-		return pSelf->Bw().SendChatTarget(ClientId, "Clan name must be at least 3 characters long!");
+	{
+		pSelf->Bw().SendChatTarget(ClientId, "Clan name must be at least 3 characters long!");
+		return;
+	}
 	if(ClanNameLength > BW_CLAN_NAME_MAX_LENGTH)
-		return pSelf->Bw().SendChatTarget(ClientId, "Clan name is too long (max 11 characters)!");
+	{
+		pSelf->Bw().SendChatTarget(ClientId, "Clan name is too long (max 11 characters)!");
+		return;
+	}
 
 	if(pSelf->Bw().Clans()->GetClanIdByName(pClanName) != -1)
-		return pSelf->Bw().SendChatTarget(ClientId, "This clan name is already taken!");
-
-	if(auto requests = g_ComponentRegistry.Get<CRequests>())
 	{
-		requests->CreateClanCreateConfirm(ClientId, pClanName, g_Config.m_SvClanConfirmExpiry);
+		pSelf->Bw().SendChatTarget(ClientId, "This clan name is already taken!");
+		return;
+	}
+
+	if(auto Requests = g_ComponentRegistry.Get<CRequests>())
+	{
+		Requests->CreateClanCreateConfirm(ClientId, pClanName, g_Config.m_SvClanConfirmExpiry);
 		return; // request system will notify
 	}
 
-	return pSelf->Bw().SendChatTarget(ClientId, "Clan creation failed: request system unavailable.");
+	pSelf->Bw().SendChatTarget(ClientId, "Clan creation failed: request system unavailable.");
 }
 
 void CBlockworlds::ConClanDelete(IConsole::IResult *pResult, void *pUserData)
@@ -2100,16 +2368,22 @@ void CBlockworlds::ConClanDelete(IConsole::IResult *pResult, void *pUserData)
 		return;
 
 	if(!pPlayer->Bw().m_Account.m_Id)
-		return pSelf->Bw().SendChatTarget(ClientId, "You must be logged in to delete a clan.");
+	{
+		pSelf->Bw().SendChatTarget(ClientId, "You must be logged in to delete a clan.");
+		return;
+	}
 
 	dbg_msg("clan", "clan_delete: clanid=%d auth=%d", pPlayer->Bw().m_Account.m_ClanId, (int)pPlayer->Bw().m_Account.m_AuthLevel);
 
 	if(pPlayer->Bw().m_Account.m_ClanId < 1 || pPlayer->Bw().m_Account.m_AuthLevel != ClanAuthLevel::LEADER)
-		return pSelf->Bw().SendChatTarget(ClientId, "You are either not in a clan or not its leader.");
-
-	if(auto requests = g_ComponentRegistry.Get<CRequests>())
 	{
-		requests->CreateClanDeleteConfirm(ClientId, pPlayer->Bw().GetClanId(), g_Config.m_SvClanConfirmExpiry);
+		pSelf->Bw().SendChatTarget(ClientId, "You are either not in a clan or not its leader.");
+		return;
+	}
+
+	if(auto Requests = g_ComponentRegistry.Get<CRequests>())
+	{
+		Requests->CreateClanDeleteConfirm(ClientId, pPlayer->Bw().GetClanId(), g_Config.m_SvClanConfirmExpiry);
 		return; // message sent by requests
 	}
 }
@@ -2127,14 +2401,23 @@ void CBlockworlds::ConClanRemove(IConsole::IResult *pResult, void *pUserData)
 		return;
 
 	if(!pPlayer->Bw().m_Account.m_Id)
-		return pSelf->Bw().SendChatTarget(ClientId, "You must be logged in to remove a player from the clan.");
+	{
+		pSelf->Bw().SendChatTarget(ClientId, "You must be logged in to remove a player from the clan.");
+		return;
+	}
 
 	if(pPlayer->Bw().m_Account.m_ClanId < 1 || pPlayer->Bw().m_Account.m_AuthLevel < ClanAuthLevel::COLEADER)
-		return pSelf->Bw().SendChatTarget(ClientId, "You are not authorized to remove members from this clan.");
+	{
+		pSelf->Bw().SendChatTarget(ClientId, "You are not authorized to remove members from this clan.");
+		return;
+	}
 
 	const char *pTargetName = pResult->GetString(0);
 	if(!pTargetName || pTargetName[0] == '\0')
-		return pSelf->Bw().SendChatTarget(ClientId, "Usage: /clan_kick <player>");
+	{
+		pSelf->Bw().SendChatTarget(ClientId, "Usage: /clan_kick <player>");
+		return;
+	}
 
 	bool FoundOnline = false;
 	int TargetClientId = -1;
@@ -2152,16 +2435,28 @@ void CBlockworlds::ConClanRemove(IConsole::IResult *pResult, void *pUserData)
 	{
 		CPlayer *pTargetPlayer = pSelf->m_apPlayers[TargetClientId];
 		if(!pTargetPlayer || !pTargetPlayer->Bw().m_Account.m_Id)
-			return pSelf->Bw().SendChatTarget(ClientId, "The target player is not logged in.");
-		if(pPlayer->Bw().m_Account.m_ClanId != pTargetPlayer->Bw().m_Account.m_ClanId)
-			return pSelf->Bw().SendChatTarget(ClientId, "The target player is not in your clan.");
-		if(ClientId == TargetClientId)
-			return pSelf->Bw().SendChatTarget(ClientId, "You cannot remove yourself from the clan.");
-		if(pTargetPlayer->Bw().m_Account.m_AuthLevel >= ClanAuthLevel::COLEADER)
-			return pSelf->Bw().SendChatTarget(ClientId, "You cannot remove a leader or co-leader from the clan.");
-		if(auto requests = g_ComponentRegistry.Get<CRequests>())
 		{
-			requests->CreateClanKickConfirm(ClientId, pPlayer->Bw().m_Account.m_ClanId, pTargetPlayer->Bw().m_Account.m_aName, g_Config.m_SvClanConfirmExpiry);
+			pSelf->Bw().SendChatTarget(ClientId, "The target player is not logged in.");
+			return;
+		}
+		if(pPlayer->Bw().m_Account.m_ClanId != pTargetPlayer->Bw().m_Account.m_ClanId)
+		{
+			pSelf->Bw().SendChatTarget(ClientId, "The target player is not in your clan.");
+			return;
+		}
+		if(ClientId == TargetClientId)
+		{
+			pSelf->Bw().SendChatTarget(ClientId, "You cannot remove yourself from the clan.");
+			return;
+		}
+		if(pTargetPlayer->Bw().m_Account.m_AuthLevel >= ClanAuthLevel::COLEADER)
+		{
+			pSelf->Bw().SendChatTarget(ClientId, "You cannot remove a leader or co-leader from the clan.");
+			return;
+		}
+		if(auto Requests = g_ComponentRegistry.Get<CRequests>())
+		{
+			Requests->CreateClanKickConfirm(ClientId, pPlayer->Bw().m_Account.m_ClanId, pTargetPlayer->Bw().m_Account.m_aName, g_Config.m_SvClanConfirmExpiry);
 			return; // message sent by requests
 		}
 		return; // fallback (no requests component)
@@ -2171,17 +2466,20 @@ void CBlockworlds::ConClanRemove(IConsole::IResult *pResult, void *pUserData)
 	// We cannot fully verify membership/auth synchronously here; RemoveFromClanThread will do validation.
 	// Basic self-check to avoid kicking self by own account name.
 	if(!str_comp(pTargetName, pPlayer->Bw().m_Account.m_aName))
-		return pSelf->Bw().SendChatTarget(ClientId, "You cannot remove yourself from the clan.");
-
-	if(auto requests = g_ComponentRegistry.Get<CRequests>())
 	{
-		requests->CreateClanKickConfirm(ClientId, pPlayer->Bw().m_Account.m_ClanId, pTargetName, g_Config.m_SvClanConfirmExpiry);
+		pSelf->Bw().SendChatTarget(ClientId, "You cannot remove yourself from the clan.");
+		return;
+	}
+
+	if(auto Requests = g_ComponentRegistry.Get<CRequests>())
+	{
+		Requests->CreateClanKickConfirm(ClientId, pPlayer->Bw().m_Account.m_ClanId, pTargetName, g_Config.m_SvClanConfirmExpiry);
 		char aBuf[160];
 		str_format(aBuf, sizeof(aBuf), "Kick confirmation for offline member '%s' created. Type /clan_yes to confirm.", pTargetName);
 		pSelf->Bw().SendChatTarget(ClientId, aBuf);
 		return;
 	}
-	return pSelf->Bw().SendChatTarget(ClientId, "Kick failed: request system unavailable.");
+	pSelf->Bw().SendChatTarget(ClientId, "Kick failed: request system unavailable.");
 }
 
 void CBlockworlds::ConClanTransfer(IConsole::IResult *pResult, void *pUserData)
@@ -2196,10 +2494,16 @@ void CBlockworlds::ConClanTransfer(IConsole::IResult *pResult, void *pUserData)
 		return;
 
 	if(!pPlayer->Bw().m_Account.m_Id)
-		return pSelf->Bw().SendChatTarget(ClientId, "You must be logged in to transfer clan leadership.");
+	{
+		pSelf->Bw().SendChatTarget(ClientId, "You must be logged in to transfer clan leadership.");
+		return;
+	}
 
 	if(pPlayer->Bw().m_Account.m_ClanId < 1 || pPlayer->Bw().m_Account.m_AuthLevel != ClanAuthLevel::LEADER)
-		return pSelf->Bw().SendChatTarget(ClientId, "You are either not in a clan or not its leader.");
+	{
+		pSelf->Bw().SendChatTarget(ClientId, "You are either not in a clan or not its leader.");
+		return;
+	}
 
 	const char *pTargetName = pResult->GetString(0);
 	if(!pTargetName || pTargetName[0] == '\0')
@@ -2249,14 +2553,14 @@ void CBlockworlds::ConClanTransfer(IConsole::IResult *pResult, void *pUserData)
 		return;
 	}
 
-	auto requests = g_ComponentRegistry.Get<CRequests>();
-	if(!requests)
+	auto Requests = g_ComponentRegistry.Get<CRequests>();
+	if(!Requests)
 	{
 		pSelf->Bw().SendChatTarget(ClientId, "Requests subsystem unavailable.");
 		return;
 	}
-	int id = requests->CreateClanTransferConfirm(ClientId, pPlayer->Bw().GetClanId(), pTargetPlayer->Bw().m_Account.m_aName, g_Config.m_SvClanConfirmExpiry);
-	if(id < 0)
+	int Id = Requests->CreateClanTransferConfirm(ClientId, pPlayer->Bw().GetClanId(), pTargetPlayer->Bw().m_Account.m_aName, g_Config.m_SvClanConfirmExpiry);
+	if(Id < 0)
 	{
 		pSelf->Bw().SendChatTarget(ClientId, "Failed to initiate clan transfer confirmation.");
 		return;
@@ -2270,34 +2574,34 @@ void CBlockworlds::ConClanYes(IConsole::IResult *pResult, void *pUserData)
 	CGameContext *pSelf = (CGameContext *)pUserData;
 	if(!CheckClientId(pResult->m_ClientId))
 		return;
-	auto requests = g_ComponentRegistry.Get<CRequests>();
-	if(!requests)
+	auto Requests = g_ComponentRegistry.Get<CRequests>();
+	if(!Requests)
 	{
 		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Requests subsystem unavailable.");
 		return;
 	}
-	auto ids = requests->GetRequestIdsTo(pResult->m_ClientId, std::nullopt);
+	auto Ids = Requests->GetRequestIdsTo(pResult->m_ClientId, std::nullopt);
 	// find the most recent applicable clan confirm addressed to self
-	int chosen = -1;
-	for(int id : ids)
+	int Chosen = -1;
+	for(int Id : Ids)
 	{
-		CRequests::SRequest info;
-		if(!requests->GetRequestInfo(id, info))
+		CRequests::SRequest Info;
+		if(!Requests->GetRequestInfo(Id, Info))
 			continue;
-		if(info.m_To != pResult->m_ClientId || info.m_From != pResult->m_ClientId)
+		if(Info.m_To != pResult->m_ClientId || Info.m_From != pResult->m_ClientId)
 			continue;
-		if(info.m_Type == CRequests::SRequest::EType::ClanDeleteConfirm || info.m_Type == CRequests::SRequest::EType::ClanKickConfirm || info.m_Type == CRequests::SRequest::EType::ClanRenameConfirm || info.m_Type == CRequests::SRequest::EType::ClanCreateConfirm || info.m_Type == CRequests::SRequest::EType::ClanTransferConfirm)
+		if(Info.m_Type == CRequests::SRequest::EType::ClanDeleteConfirm || Info.m_Type == CRequests::SRequest::EType::ClanKickConfirm || Info.m_Type == CRequests::SRequest::EType::ClanRenameConfirm || Info.m_Type == CRequests::SRequest::EType::ClanCreateConfirm || Info.m_Type == CRequests::SRequest::EType::ClanTransferConfirm)
 		{
-			if(info.m_ExpireTick > pSelf->Server()->Tick())
-				chosen = std::max(chosen, id);
+			if(Info.m_ExpireTick > pSelf->Server()->Tick())
+				Chosen = std::max(Chosen, Id);
 		}
 	}
-	if(chosen == -1)
+	if(Chosen == -1)
 	{
 		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "No pending clan confirmation to accept.");
 		return;
 	}
-	if(!requests->AcceptRequest(chosen))
+	if(!Requests->AcceptRequest(Chosen))
 		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Failed to accept confirmation.");
 }
 
@@ -2307,33 +2611,33 @@ void CBlockworlds::ConClanNo(IConsole::IResult *pResult, void *pUserData)
 	CGameContext *pSelf = (CGameContext *)pUserData;
 	if(!CheckClientId(pResult->m_ClientId))
 		return;
-	auto requests = g_ComponentRegistry.Get<CRequests>();
-	if(!requests)
+	auto Requests = g_ComponentRegistry.Get<CRequests>();
+	if(!Requests)
 	{
 		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Requests subsystem unavailable.");
 		return;
 	}
-	auto ids = requests->GetRequestIdsTo(pResult->m_ClientId, std::nullopt);
-	int chosen = -1;
-	for(int id : ids)
+	auto Ids = Requests->GetRequestIdsTo(pResult->m_ClientId, std::nullopt);
+	int Chosen = -1;
+	for(int Id : Ids)
 	{
-		CRequests::SRequest info;
-		if(!requests->GetRequestInfo(id, info))
+		CRequests::SRequest Info;
+		if(!Requests->GetRequestInfo(Id, Info))
 			continue;
-		if(info.m_To != pResult->m_ClientId || info.m_From != pResult->m_ClientId)
+		if(Info.m_To != pResult->m_ClientId || Info.m_From != pResult->m_ClientId)
 			continue;
-		if(info.m_Type == CRequests::SRequest::EType::ClanDeleteConfirm || info.m_Type == CRequests::SRequest::EType::ClanKickConfirm || info.m_Type == CRequests::SRequest::EType::ClanRenameConfirm || info.m_Type == CRequests::SRequest::EType::ClanCreateConfirm || info.m_Type == CRequests::SRequest::EType::ClanTransferConfirm)
+		if(Info.m_Type == CRequests::SRequest::EType::ClanDeleteConfirm || Info.m_Type == CRequests::SRequest::EType::ClanKickConfirm || Info.m_Type == CRequests::SRequest::EType::ClanRenameConfirm || Info.m_Type == CRequests::SRequest::EType::ClanCreateConfirm || Info.m_Type == CRequests::SRequest::EType::ClanTransferConfirm)
 		{
-			if(info.m_ExpireTick > pSelf->Server()->Tick())
-				chosen = std::max(chosen, id);
+			if(Info.m_ExpireTick > pSelf->Server()->Tick())
+				Chosen = std::max(Chosen, Id);
 		}
 	}
-	if(chosen == -1)
+	if(Chosen == -1)
 	{
 		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "No pending clan confirmation to decline.");
 		return;
 	}
-	if(!requests->DeclineRequest(chosen))
+	if(!Requests->DeclineRequest(Chosen))
 		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Failed to decline confirmation.");
 }
 
@@ -2350,13 +2654,22 @@ void CBlockworlds::ConClanLeave(IConsole::IResult *pResult, void *pUserData)
 		return;
 
 	if(!pPlayer->Bw().m_Account.m_Id)
-		return pSelf->Bw().SendChatTarget(ClientId, "You must be logged in to leave a clan.");
+	{
+		pSelf->Bw().SendChatTarget(ClientId, "You must be logged in to leave a clan.");
+		return;
+	}
 
 	if(pPlayer->Bw().m_Account.m_ClanId < 1)
-		return pSelf->Bw().SendChatTarget(ClientId, "You are not in a clan.");
+	{
+		pSelf->Bw().SendChatTarget(ClientId, "You are not in a clan.");
+		return;
+	}
 
 	if(pPlayer->Bw().m_Account.m_AuthLevel == ClanAuthLevel::LEADER)
-		return pSelf->Bw().SendChatTarget(ClientId, "The clan leader cannot leave. You must delete the clan or transfer leadership.");
+	{
+		pSelf->Bw().SendChatTarget(ClientId, "The clan leader cannot leave. You must delete the clan or transfer leadership.");
+		return;
+	}
 
 	pSelf->Bw().Clans()->ClanLeave(ClientId);
 }
@@ -2374,10 +2687,16 @@ void CBlockworlds::ConClanRole(IConsole::IResult *pResult, void *pUserData)
 		return;
 
 	if(!pIssuer->Bw().m_Account.m_Id)
-		return pSelf->Bw().SendChatTarget(IssuerId, "You must be logged in to change a player's clan role.");
+	{
+		pSelf->Bw().SendChatTarget(IssuerId, "You must be logged in to change a player's clan role.");
+		return;
+	}
 
 	if(pIssuer->Bw().m_Account.m_ClanId < 1 || pIssuer->Bw().m_Account.m_AuthLevel < ClanAuthLevel::LEADER)
-		return pSelf->Bw().SendChatTarget(IssuerId, "Only the clan leader can set roles.");
+	{
+		pSelf->Bw().SendChatTarget(IssuerId, "Only the clan leader can set roles.");
+		return;
+	}
 
 	const char *pTargetName = pResult->GetString(0);
 	const char *pRole = pResult->GetString(1);
@@ -2398,9 +2717,15 @@ void CBlockworlds::ConClanRole(IConsole::IResult *pResult, void *pUserData)
 		else if(!str_comp(aRole, "coleader") || !str_comp(aRole, "co-leader") || !str_comp(aRole, "co_leader"))
 			NewAuthLevel = 2;
 		else if(!str_comp(aRole, "leader"))
-			return pSelf->Bw().SendChatTarget(IssuerId, "Use /clan_transfer to transfer leadership.");
+		{
+			pSelf->Bw().SendChatTarget(IssuerId, "Use /clan_transfer to transfer leadership.");
+			return;
+		}
 		else
-			return pSelf->Bw().SendChatTarget(IssuerId, "Invalid role. Allowed values: member | coleader");
+		{
+			pSelf->Bw().SendChatTarget(IssuerId, "Invalid role. Allowed values: member | coleader");
+			return;
+		}
 	}
 
 	bool FoundTarget = false;
@@ -2420,32 +2745,56 @@ void CBlockworlds::ConClanRole(IConsole::IResult *pResult, void *pUserData)
 		CPlayer *pTargetPlayer = pSelf->m_apPlayers[TargetClientId];
 
 		if(!pTargetPlayer->Bw().m_Account.m_Id)
-			return pSelf->Bw().SendChatTarget(IssuerId, "The target player is not logged in.");
+		{
+			pSelf->Bw().SendChatTarget(IssuerId, "The target player is not logged in.");
+			return;
+		}
 
 		if(pIssuer->Bw().m_Account.m_ClanId != pTargetPlayer->Bw().m_Account.m_ClanId)
-			return pSelf->Bw().SendChatTarget(IssuerId, "The target player is not in your clan.");
+		{
+			pSelf->Bw().SendChatTarget(IssuerId, "The target player is not in your clan.");
+			return;
+		}
 
 		if(IssuerId == TargetClientId)
-			return pSelf->Bw().SendChatTarget(IssuerId, "You cannot change your own role.");
+		{
+			pSelf->Bw().SendChatTarget(IssuerId, "You cannot change your own role.");
+			return;
+		}
 
 		if(NewAuthLevel < 1 || NewAuthLevel > 2)
-			return pSelf->Bw().SendChatTarget(IssuerId, "Invalid role. Allowed values: member | coleader");
+		{
+			pSelf->Bw().SendChatTarget(IssuerId, "Invalid role. Allowed values: member | coleader");
+			return;
+		}
 
 		if(pTargetPlayer->Bw().m_Account.m_AuthLevel == ClanAuthLevel::LEADER)
-			return pSelf->Bw().SendChatTarget(IssuerId, "You cannot change the role of the clan leader.");
+		{
+			pSelf->Bw().SendChatTarget(IssuerId, "You cannot change the role of the clan leader.");
+			return;
+		}
 
 		if(pTargetPlayer->Bw().m_Account.m_AuthLevel == static_cast<ClanAuthLevel>(NewAuthLevel))
-			return pSelf->Bw().SendChatTarget(IssuerId, "The player already has that role.");
+		{
+			pSelf->Bw().SendChatTarget(IssuerId, "The player already has that role.");
+			return;
+		}
 
 		pSelf->Bw().Clans()->SetAuthLevel(IssuerId, pTargetPlayer->Bw().m_Account.m_aName, NewAuthLevel, pIssuer->Bw().m_Account.m_ClanId);
 		return;
 	}
 
 	if(!str_comp(pTargetName, pIssuer->Bw().m_Account.m_aName))
-		return pSelf->Bw().SendChatTarget(IssuerId, "You cannot change your own role.");
+	{
+		pSelf->Bw().SendChatTarget(IssuerId, "You cannot change your own role.");
+		return;
+	}
 
 	if(NewAuthLevel < 1 || NewAuthLevel > 2)
-		return pSelf->Bw().SendChatTarget(IssuerId, "Invalid role. Allowed values: member | coleader");
+	{
+		pSelf->Bw().SendChatTarget(IssuerId, "Invalid role. Allowed values: member | coleader");
+		return;
+	}
 
 	pSelf->Bw().Clans()->SetAuthLevel(IssuerId, pTargetName, NewAuthLevel, pIssuer->Bw().m_Account.m_ClanId);
 }
@@ -2463,41 +2812,57 @@ void CBlockworlds::ConClanRename(IConsole::IResult *pResult, void *pUserData)
 		return;
 
 	if(!pPlayer->Bw().m_Account.m_Id)
-		return pSelf->Bw().SendChatTarget(ClientId, "You must be logged in to rename a clan.");
+	{
+		pSelf->Bw().SendChatTarget(ClientId, "You must be logged in to rename a clan.");
+		return;
+	}
 
 	if(pPlayer->Bw().m_Account.m_ClanId < 1 || pPlayer->Bw().m_Account.m_AuthLevel != ClanAuthLevel::LEADER)
-		return pSelf->Bw().SendChatTarget(ClientId, "Only the clan leader can rename the clan.");
+	{
+		pSelf->Bw().SendChatTarget(ClientId, "Only the clan leader can rename the clan.");
+		return;
+	}
 
 	const char *pNewClanName = pResult->GetString(0);
 	int ClanNameLength = str_length(pNewClanName);
 
 	if(ClanNameLength < 3)
-		return pSelf->Bw().SendChatTarget(ClientId, "Clan name must be at least 3 characters long!");
+	{
+		pSelf->Bw().SendChatTarget(ClientId, "Clan name must be at least 3 characters long!");
+		return;
+	}
 	if(ClanNameLength > BW_CLAN_NAME_MAX_LENGTH)
-		return pSelf->Bw().SendChatTarget(ClientId, "Clan name is too long (max 11 characters)!");
+	{
+		pSelf->Bw().SendChatTarget(ClientId, "Clan name is too long (max 11 characters)!");
+		return;
+	}
 
 	if(pSelf->Bw().Clans()->GetClanIdByName(pNewClanName) != -1)
-		return pSelf->Bw().SendChatTarget(ClientId, "This clan name is already taken!");
+	{
+		pSelf->Bw().SendChatTarget(ClientId, "This clan name is already taken!");
+		return;
+	}
 
 	if(g_Config.m_SvClanRenamePrice > 0)
 	{
-		int cost = g_Config.m_SvClanRenamePrice;
-		if(pPlayer->Bw().GetPlayerBlockpoints() < cost)
+		int Cost = g_Config.m_SvClanRenamePrice;
+		if(pPlayer->Bw().GetPlayerBlockpoints() < Cost)
 		{
 			char aBuf[128];
-			str_format(aBuf, sizeof(aBuf), "You need %d blockpoints to rename your clan.", cost);
-			return pSelf->Bw().SendChatTarget(ClientId, aBuf);
+			str_format(aBuf, sizeof(aBuf), "You need %d blockpoints to rename your clan.", Cost);
+			pSelf->Bw().SendChatTarget(ClientId, aBuf);
+			return;
 		}
 	}
 
-	if(auto requests = g_ComponentRegistry.Get<CRequests>())
+	if(auto Requests = g_ComponentRegistry.Get<CRequests>())
 	{
-		std::string oldName = pSelf->Bw().Clans()->GetClanNameCopy(pPlayer->Bw().m_Account.m_ClanId);
-		requests->CreateClanRenameConfirm(ClientId, pPlayer->Bw().m_Account.m_ClanId, oldName.c_str(), pNewClanName, g_Config.m_SvClanConfirmExpiry);
+		std::string OldName = pSelf->Bw().Clans()->GetClanNameCopy(pPlayer->Bw().m_Account.m_ClanId);
+		Requests->CreateClanRenameConfirm(ClientId, pPlayer->Bw().m_Account.m_ClanId, OldName.c_str(), pNewClanName, g_Config.m_SvClanConfirmExpiry);
 		return; // request system will notify hopefully ;(
 	}
 
-	return pSelf->Bw().SendChatTarget(ClientId, "Clan rename failed: request system unavailable.");
+	pSelf->Bw().SendChatTarget(ClientId, "Clan rename failed: request system unavailable.");
 }
 
 void CBlockworlds::ConDisplayTopClans(IConsole::IResult *pResult, void *pUserData)
@@ -2537,15 +2902,22 @@ void CBlockworlds::Con1on1(IConsole::IResult *pResult, void *pUserData)
 	CGameContext *pSelf = (CGameContext *)pUserData;
 
 	if(!g_Config.m_SvAccountsystem)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+		return;
+	}
 
 	if(!g_Config.m_Sv1on1system)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "1on1 matches are currently disabled.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "1on1 matches are currently disabled.");
+		return;
+	}
 
 	if(!pResult->NumArguments())
 	{
 		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Challenge another player by writing '/1on1 name (blockpoints)'");
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "An example would be \"/1on1 nameless tee\" or \"/1on1 marcella 30\"");
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "An example would be \"/1on1 nameless tee\" or \"/1on1 marcella 30\"");
+		return;
 	}
 
 	const char *pEnemyName = pResult->GetString(0);
@@ -2554,45 +2926,75 @@ void CBlockworlds::Con1on1(IConsole::IResult *pResult, void *pUserData)
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 	CPlayer *pTarget = pSelf->Bw().GetPlayerByName(pEnemyName);
 
-	bool hasArenas = !pSelf->Bw().ZoneManager()->GetNamedQuadCenters("1on1_spawn").empty() ||
+	bool HasArenas = !pSelf->Bw().ZoneManager()->GetNamedQuadCenters("1on1_spawn").empty() ||
 			 pSelf->Bw().ZoneManager()->Get1on1ArenaCount() > 0;
 
 	// some errors handling
 	if(!pTarget)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Player not found");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Player not found");
+		return;
+	}
 	if(pTarget->GetCid() == pResult->m_ClientId)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't start a 1vs1 against yourself.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't start a 1vs1 against yourself.");
+		return;
+	}
 	if(Wager < 0)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "The amount set for the Wager must be more than 0 or none");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "The amount set for the Wager must be more than 0 or none");
+		return;
+	}
 
 	if(!pPlayer->Bw().IsLoggedIn() && Wager > 0)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You have to be logged in to place a wager in the pot.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You have to be logged in to place a wager in the pot.");
+		return;
+	}
 	if(Wager > 0 && (!pTarget->Bw().IsLoggedIn()))
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Target player must be logged in to play with a wager.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Target player must be logged in to play with a wager.");
+		return;
+	}
 	if(Wager > pPlayer->Bw().GetPlayerBlockpoints())
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't afford to wager that much!");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't afford to wager that much!");
+		return;
+	}
 
 	if(Wager > pTarget->Bw().GetPlayerBlockpoints())
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Player doesn't have enough blockpoints.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Player doesn't have enough blockpoints.");
+		return;
+	}
 
 	if(pSelf->Bw().isInEvent(pResult->m_ClientId))
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You must finish the ongoing 1on1 match.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You must finish the ongoing 1on1 match.");
+		return;
+	}
 
 	if(pSelf->Bw().isInEvent(pTarget->GetCid()))
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "This player is already in a 1on1 match.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "This player is already in a 1on1 match.");
+		return;
+	}
 
 	char aBuf[256];
-	if(!hasArenas)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Error: This map does not have any 1on1 spawn positions defined.");
+	if(!HasArenas)
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Error: This map does not have any 1on1 spawn positions defined.");
+		return;
+	}
 
 	// create invite via requests component
-	if(auto requests = g_ComponentRegistry.Get<CRequests>())
+	if(auto Requests = g_ComponentRegistry.Get<CRequests>())
 	{
 		{
-			int id = requests->Create1on1Invite(pPlayer->GetCid(), pTarget->GetCid(), Wager, g_Config.m_Sv1on1InviteExpiry);
-			if(id == -1)
+			int Id = Requests->Create1on1Invite(pPlayer->GetCid(), pTarget->GetCid(), Wager, g_Config.m_Sv1on1InviteExpiry);
+			if(Id == -1)
 				return; // Create1on1Invite already informed the sender about the duplicate
-			pPlayer->Bw().sent1on1InviteTo = pTarget->GetCid();
+			pPlayer->Bw().m_Sent1on1InviteTo = pTarget->GetCid();
 			str_format(aBuf, sizeof(aBuf), "Match request has been sent to '%s' (%d BP).", pSelf->Server()->ClientName(pTarget->GetCid()), Wager);
 			pSelf->Bw().SendChatTarget(pPlayer->GetCid(), aBuf);
 		}
@@ -2606,63 +3008,69 @@ void CBlockworlds::Con1on1Accept(IConsole::IResult *pResult, void *pUserData)
 	CGameContext *pSelf = (CGameContext *)pUserData;
 
 	if(!g_Config.m_SvAccountsystem)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+		return;
+	}
 
 	if(!g_Config.m_Sv1on1system)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "1on1 matches are currently disabled.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "1on1 matches are currently disabled.");
+		return;
+	}
 
-	if(auto requests = g_ComponentRegistry.Get<CRequests>())
+	if(auto Requests = g_ComponentRegistry.Get<CRequests>())
 	{
 		if(pResult->NumArguments() > 0 && pResult->GetString(0)[0])
 		{
-			const char *arg = pResult->GetString(0);
-			CPlayer *pFrom = pSelf->Bw().GetPlayerByName(arg);
+			const char *Arg = pResult->GetString(0);
+			CPlayer *pFrom = pSelf->Bw().GetPlayerByName(Arg);
 			if(!pFrom)
 			{
 				pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Player not found");
 				return;
 			}
 
-			auto ids = requests->GetRequestIdsFromTo(pFrom->GetCid(), pResult->m_ClientId, CRequests::SRequest::EType::OneOnOne);
-			if(ids.empty())
+			auto Ids = Requests->GetRequestIdsFromTo(pFrom->GetCid(), pResult->m_ClientId, CRequests::SRequest::EType::OneOnOne);
+			if(Ids.empty())
 			{
 				pSelf->Bw().SendChatTarget(pResult->m_ClientId, "No invitation from that player was found.");
 				return;
 			}
 
 			// choose the most recent valid one (highest id -> newest)
-			int chosen = -1;
-			for(int id : ids)
+			int Chosen = -1;
+			for(int Id : Ids)
 			{
-				CRequests::SRequest info;
-				if(requests->GetRequestInfo(id, info))
+				CRequests::SRequest Info;
+				if(Requests->GetRequestInfo(Id, Info))
 				{
-					if(info.m_ExpireTick > pSelf->Server()->Tick())
-						chosen = std::max(chosen, id);
+					if(Info.m_ExpireTick > pSelf->Server()->Tick())
+						Chosen = std::max(Chosen, Id);
 				}
 			}
-			if(chosen == -1)
+			if(Chosen == -1)
 			{
 				pSelf->Bw().SendChatTarget(pResult->m_ClientId, "No active (non-expired) invitation from that player was found.");
 				return;
 			}
 
-			if(!requests->AcceptRequest(chosen))
+			if(!Requests->AcceptRequest(Chosen))
 				pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Failed to accept the invitation (it may have expired).");
 			return;
 		}
 
-		auto pending = requests->GetRequestIdsTo(pResult->m_ClientId, CRequests::SRequest::EType::OneOnOne);
-		if(pending.size() == 1)
+		auto Pending = Requests->GetRequestIdsTo(pResult->m_ClientId, CRequests::SRequest::EType::OneOnOne);
+		if(Pending.size() == 1)
 		{
-			int id = pending[0];
-			CRequests::SRequest info;
-			if(!requests->GetRequestInfo(id, info) || info.m_ExpireTick <= pSelf->Server()->Tick())
+			int Id = Pending[0];
+			CRequests::SRequest Info;
+			if(!Requests->GetRequestInfo(Id, Info) || Info.m_ExpireTick <= pSelf->Server()->Tick())
 			{
 				pSelf->Bw().SendChatTarget(pResult->m_ClientId, "No active invitation to accept was found (it may have expired).");
 				return;
 			}
-			if(!requests->AcceptRequest(id))
+			if(!Requests->AcceptRequest(Id))
 				pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Failed to accept the invitation (it may have expired).");
 			return;
 		}
@@ -2678,62 +3086,68 @@ void CBlockworlds::Con1on1Decline(IConsole::IResult *pResult, void *pUserData)
 	CGameContext *pSelf = (CGameContext *)pUserData;
 
 	if(!g_Config.m_SvAccountsystem)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+		return;
+	}
 
 	if(!g_Config.m_Sv1on1system)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "1on1 matches are currently disabled.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "1on1 matches are currently disabled.");
+		return;
+	}
 
-	if(auto requests = g_ComponentRegistry.Get<CRequests>())
+	if(auto Requests = g_ComponentRegistry.Get<CRequests>())
 	{
 		if(pResult->NumArguments() > 0 && pResult->GetString(0)[0])
 		{
-			const char *arg = pResult->GetString(0);
-			CPlayer *pFrom = pSelf->Bw().GetPlayerByName(arg);
+			const char *Arg = pResult->GetString(0);
+			CPlayer *pFrom = pSelf->Bw().GetPlayerByName(Arg);
 			if(!pFrom)
 			{
 				pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Player not found");
 				return;
 			}
 
-			auto ids = requests->GetRequestIdsFromTo(pFrom->GetCid(), pResult->m_ClientId, CRequests::SRequest::EType::OneOnOne);
-			if(ids.empty())
+			auto Ids = Requests->GetRequestIdsFromTo(pFrom->GetCid(), pResult->m_ClientId, CRequests::SRequest::EType::OneOnOne);
+			if(Ids.empty())
 			{
 				pSelf->Bw().SendChatTarget(pResult->m_ClientId, "No invitation from that player was found.");
 				return;
 			}
 
-			int chosen = -1;
-			for(int id : ids)
+			int Chosen = -1;
+			for(int Id : Ids)
 			{
-				CRequests::SRequest info;
-				if(requests->GetRequestInfo(id, info))
+				CRequests::SRequest Info;
+				if(Requests->GetRequestInfo(Id, Info))
 				{
-					if(info.m_ExpireTick > pSelf->Server()->Tick())
-						chosen = std::max(chosen, id);
+					if(Info.m_ExpireTick > pSelf->Server()->Tick())
+						Chosen = std::max(Chosen, Id);
 				}
 			}
-			if(chosen == -1)
+			if(Chosen == -1)
 			{
 				pSelf->Bw().SendChatTarget(pResult->m_ClientId, "No active (non-expired) invitation from that player was found.");
 				return;
 			}
 
-			if(!requests->DeclineRequest(chosen))
+			if(!Requests->DeclineRequest(Chosen))
 				pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Failed to decline the invitation (it may have expired).");
 			return;
 		}
 
-		auto pending = requests->GetRequestIdsTo(pResult->m_ClientId, CRequests::SRequest::EType::OneOnOne);
-		if(pending.size() == 1)
+		auto Pending = Requests->GetRequestIdsTo(pResult->m_ClientId, CRequests::SRequest::EType::OneOnOne);
+		if(Pending.size() == 1)
 		{
-			int id = pending[0];
-			CRequests::SRequest info;
-			if(!requests->GetRequestInfo(id, info) || info.m_ExpireTick <= pSelf->Server()->Tick())
+			int Id = Pending[0];
+			CRequests::SRequest Info;
+			if(!Requests->GetRequestInfo(Id, Info) || Info.m_ExpireTick <= pSelf->Server()->Tick())
 			{
 				pSelf->Bw().SendChatTarget(pResult->m_ClientId, "No active invitation to decline was found (it may have expired).");
 				return;
 			}
-			if(!requests->DeclineRequest(id))
+			if(!Requests->DeclineRequest(Id))
 				pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Failed to decline the invitation (it may have expired).");
 			return;
 		}
@@ -2749,33 +3163,39 @@ void CBlockworlds::Con1on1Ready(IConsole::IResult *pResult, void *pUserData)
 	CGameContext *pSelf = (CGameContext *)pUserData;
 
 	if(!g_Config.m_SvAccountsystem)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+		return;
+	}
 
 	if(!g_Config.m_Sv1on1system)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "1on1 matches are currently disabled.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "1on1 matches are currently disabled.");
+		return;
+	}
 
-	auto mgr = g_ComponentRegistry.Get<COneOnOneManager>();
-	if(!mgr)
+	auto Mgr = g_ComponentRegistry.Get<COneOnOneManager>();
+	if(!Mgr)
 	{
 		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "1on1 system is not available.");
 		return;
 	}
 
-	auto match = mgr->GetMatchForPlayer(pResult->m_ClientId);
-	if(!match || !match->IsInConfigPhase())
+	auto Match = Mgr->GetMatchForPlayer(pResult->m_ClientId);
+	if(!Match || !Match->IsInConfigPhase())
 	{
 		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You are not in a 1on1 warmup phase.");
 		return;
 	}
 
 	// /ready now casts a "Start" vote (same as pressing F3 in the vote overlay)
-	match->OnDuelVote(pResult->m_ClientId, 1);
+	Match->OnDuelVote(pResult->m_ClientId, 1);
 }
 
 void CBlockworlds::ConJoinEvent(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
-	return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "use /join instead.");
+	pSelf->Bw().SendChatTarget(pResult->m_ClientId, "use /join instead.");
 }
 
 void CBlockworlds::ConCreateTDM(IConsole::IResult *pResult, void *pUserData)
@@ -2783,18 +3203,24 @@ void CBlockworlds::ConCreateTDM(IConsole::IResult *pResult, void *pUserData)
 	CGameContext *pSelf = (CGameContext *)pUserData;
 
 	if(!g_Config.m_SvAccountsystem)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+		return;
+	}
 
 	if(pSelf->Bw().isInEvent(pResult->m_ClientId))
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You must finish the ongoing event (or use '/leave' to leave).");
-
-	if(auto events = g_ComponentRegistry.Get<CEvents>())
 	{
-		auto ev = events->CreateEventByName("tdm");
-		if(ev)
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You must finish the ongoing event (or use '/leave' to leave).");
+		return;
+	}
+
+	if(auto Events = g_ComponentRegistry.Get<CEvents>())
+	{
+		auto Ev = Events->CreateEventByName("tdm");
+		if(Ev)
 		{
-			ev->SetStateChangeCallback([](auto, auto) {});
-			events->SetActiveEvent(ev);
+			Ev->SetStateChangeCallback([](auto, auto) {});
+			Events->SetActiveEvent(Ev);
 			return;
 		}
 	}
@@ -2806,7 +3232,10 @@ void CBlockworlds::ConLeaveEvent(IConsole::IResult *pResult, void *pUserData)
 	CGameContext *pSelf = (CGameContext *)pUserData;
 
 	if(!g_Config.m_SvAccountsystem)
-		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+	{
+		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
+		return;
+	}
 
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 
@@ -2814,46 +3243,46 @@ void CBlockworlds::ConLeaveEvent(IConsole::IResult *pResult, void *pUserData)
 		return;
 
 	// check if player is in a 1on1 match (any phase)
-	if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>(); mgr)
+	if(auto Mgr = g_ComponentRegistry.Get<COneOnOneManager>(); Mgr)
 	{
-		auto match = mgr->GetMatchForPlayer(pResult->m_ClientId);
-		if(match)
+		auto Match = Mgr->GetMatchForPlayer(pResult->m_ClientId);
+		if(Match)
 		{
-			auto state = match->GetState();
-			if(state == COneOnOneEvent::EEventState::Preparation)
+			auto State = Match->GetState();
+			if(State == COneOnOneEvent::EEventState::Preparation)
 			{
 				// during warmup/config phase - cancel without penalty, no escrow was collected
-				int otherCid = (pResult->m_ClientId == match->m_Player1ID) ? match->m_Player2ID : match->m_Player1ID;
+				int OtherCid = (pResult->m_ClientId == Match->m_Player1ID) ? Match->m_Player2ID : Match->m_Player1ID;
 				pSelf->Bw().SendChatTarget(pResult->m_ClientId, "[1on1] You left the warmup. Match cancelled.");
-				pSelf->Bw().SendChatTarget(otherCid, "[1on1] Your opponent left during warmup. Match cancelled.");
+				pSelf->Bw().SendChatTarget(OtherCid, "[1on1] Your opponent left during warmup. Match cancelled.");
 
 				// clear duel config vote pages for both
-				extern CVoteManager g_VoteManager;
-				for(int cid : {match->m_Player1ID, match->m_Player2ID})
+
+				for(int Cid : {Match->m_Player1ID, Match->m_Player2ID})
 				{
-					g_VoteManager.NavigateToRoot(cid);
-					pSelf->Bw().ClearVotes(cid);
+					g_VoteManager.NavigateToRoot(Cid);
+					pSelf->Bw().ClearVotes(Cid);
 				}
 
-				match->AbortAndRefund(nullptr);
+				Match->AbortAndRefund(nullptr);
 				return;
 			}
-			else if(state == COneOnOneEvent::EEventState::Active)
+			else if(State == COneOnOneEvent::EEventState::Active)
 			{
 				// during active match - leave counts as ragequit (opponent wins)
-				match->Leave(pResult->m_ClientId);
+				Match->Leave(pResult->m_ClientId);
 				return;
 			}
 		}
 	}
 
-	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
+	if(auto Events = g_ComponentRegistry.Get<CEvents>(); Events)
 	{
-		auto subs = events->GetSubComponents();
+		auto Subs = Events->GetSubComponents();
 		bool Found = false;
-		for(auto &sub : subs)
+		for(auto &Sub : Subs)
 		{
-			CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
+			CEventComponent *pEv = dynamic_cast<CEventComponent *>(Sub.operator->());
 			if(!pEv)
 				continue;
 			// try to leave active participation first
@@ -2901,7 +3330,7 @@ void CBlockworlds::ConComponentList(IConsole::IResult *pResult, void *pUserData)
 	dbg_msg("Components", "Active Sub-Components");
 	for(const auto &pActiveComp : ActiveComponents)
 	{
-		if(MainComponentPtrs.count(&*pActiveComp) == 0)
+		if(!MainComponentPtrs.contains(&*pActiveComp))
 			dbg_msg("Components", "[+] %s", pActiveComp->GetName());
 	}
 }
@@ -2967,24 +3396,24 @@ void CBlockworlds::ConPassive(IConsole::IResult *pResult, void *pUserData)
 	CPlayer *pPlayer = pSelf->m_apPlayers[ClientId];
 	if(!pPlayer)
 		return;
-	int secondsLeft = 0;
+	int SecondsLeft = 0;
 	if(!pPlayer->Bw().IsLoggedIn())
-		secondsLeft = pPlayer->Bw().m_LocalPassiveDuration;
+		SecondsLeft = pPlayer->Bw().m_LocalPassiveDuration;
 	else
-		secondsLeft = pPlayer->Bw().GetPlayerPassive();
+		SecondsLeft = pPlayer->Bw().GetPlayerPassive();
 
 	char aBuf[128];
-	if(secondsLeft > 0)
+	if(SecondsLeft > 0)
 	{
-		int hours = secondsLeft / 3600;
-		int minutes = (secondsLeft % 3600) / 60;
-		int seconds = secondsLeft % 60;
-		if(hours > 0)
-			str_format(aBuf, sizeof(aBuf), "You have %dh %dm %ds of passive protection left.", hours, minutes, seconds);
-		else if(minutes > 0)
-			str_format(aBuf, sizeof(aBuf), "You have %dm %ds of passive protection left.", minutes, seconds);
+		int Hours = SecondsLeft / 3600;
+		int Minutes = (SecondsLeft % 3600) / 60;
+		int Seconds = SecondsLeft % 60;
+		if(Hours > 0)
+			str_format(aBuf, sizeof(aBuf), "You have %dh %dm %ds of passive protection left.", Hours, Minutes, Seconds);
+		else if(Minutes > 0)
+			str_format(aBuf, sizeof(aBuf), "You have %dm %ds of passive protection left.", Minutes, Seconds);
 		else
-			str_format(aBuf, sizeof(aBuf), "You have %d seconds of passive protection left.", seconds);
+			str_format(aBuf, sizeof(aBuf), "You have %d seconds of passive protection left.", Seconds);
 	}
 	else
 		str_copy(aBuf, "You have no passive protection left.", sizeof(aBuf));

@@ -235,7 +235,7 @@ void CBwCharacter::OnHookAttach(int HookedPlayer)
 		pHookedChar->Bw().StartHookRainbow(Server()->TickSpeed() * 5, 0.5f, ClientId);
 }
 
-void CBwCharacter::OnTick()
+void CBwCharacter::OnTick() const
 {
 	if(m_PendingPurchase)
 		m_PendingPurchase->OnTick();
@@ -308,7 +308,7 @@ void CBwCharacter::OnReleaseHook()
 	}
 }
 
-void CBwCharacter::OnDestroy()
+void CBwCharacter::OnDestroy() const
 {
 	if(m_PendingPurchase)
 		m_PendingPurchase->Destroy(false);

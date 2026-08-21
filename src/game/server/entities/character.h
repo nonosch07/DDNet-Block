@@ -46,7 +46,6 @@ public:
 	const CBwCharacter &Bw() const { return m_Bw; }
 	// --- BW END ---
 
-public:
 	CCharacter(CGameWorld *pWorld, CNetObj_PlayerInput LastInput);
 	~CCharacter() override;
 

@@ -14,16 +14,16 @@ CHalo::CHalo(CGameWorld *pGameWorld, int Owner) :
 	CEntity(pGameWorld, CGameWorld::ENTTYPE_LASER, true)
 {
 	m_Owner = Owner;
-	for(int i = 0; i < 6; ++i)
-		m_aIds[i] = Server()->SnapNewId().value_or(-1);
+	for(int &Id : m_aIds)
+		Id = Server()->SnapNewId().value_or(-1);
 	GameWorld()->InsertEntity(this);
 }
 
 void CHalo::Reset()
 {
 	m_MarkedForDestroy = true;
-	for(int i = 0; i < 6; ++i)
-		Server()->SnapFreeId(m_aIds[i]);
+	for(int Id : m_aIds)
+		Server()->SnapFreeId(Id);
 }
 
 void CHalo::Tick()
@@ -68,8 +68,8 @@ void CHalo::Snap(int SnappingClient)
 
 	for(int i = 0; i < 6; ++i)
 	{
-		float ang = i * (2 * pi / 6.0f) + Server()->Tick() / 100.0f;
-		int dx = (int)(40 * cosf(ang));
+		float Ang = i * (2 * pi / 6.0f) + Server()->Tick() / 100.0f;
+		int dx = (int)(40 * cosf(Ang));
 		int dy = -60 + (int)(8 * sinf(Server()->Tick() / 10.0f + i));
 
 		vec2 Pos = m_Pos + vec2(dx, dy);

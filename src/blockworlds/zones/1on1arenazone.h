@@ -14,7 +14,7 @@ class C1on1ArenaZone final : public IZone
 	int m_ArenaIndex;
 
 public:
-	C1on1ArenaZone(CGameContext *pGameServer, const char *pLayerName, int arenaIndex);
+	C1on1ArenaZone(CGameContext *pGameServer, const char *pLayerName, int ArenaIndex);
 
 	void Tick() override {}
 	void Snap(int ClientID) override {}

@@ -116,7 +116,7 @@ public:
 	 * Queues a result for thread-safe processing on the main thread tick.
 	 * Must be used instead of ProcessResult when calling from background threads.
 	 */
-	void QueueResult(int ClientId, std::shared_ptr<IVpnServiceResult> pResult);
+	void QueueResult(int ClientId, const std::shared_ptr<IVpnServiceResult> &pResult);
 
 	bool IsIpWhitelisted(const char *pIp) const;
 	bool IsLocalOrBogonIp(const char *pIp) const;
@@ -130,11 +130,11 @@ private:
 	void LoadCachedResultsForClient(int ClientId);
 	bool HandleFreshCachedBadResult(int ClientId);
 	bool IsResultForCurrentClient(int ClientId, const IVpnServiceResult *pResult);
-	void PrintManualResult(std::shared_ptr<IVpnServiceResult> pResult, bool Cached);
+	void PrintManualResult(const std::shared_ptr<IVpnServiceResult> &pResult, bool Cached);
 	void ProcessRequestQueues();
-	bool EnqueueRequest(std::shared_ptr<IVpnServiceRequest> pRequest);
+	bool EnqueueRequest(const std::shared_ptr<IVpnServiceRequest> &pRequest);
 	int RemoveQueuedRequestsForClient(int ClientId);
-	void AsyncExecuteRequest(std::shared_ptr<IVpnServiceRequest> pRequest);
+	void AsyncExecuteRequest(const std::shared_ptr<IVpnServiceRequest> &pRequest);
 	void CleanupFinishedThreads();
 	void BanClient(int ClientId, const char *pReason);
 

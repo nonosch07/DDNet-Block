@@ -32,7 +32,7 @@ struct CClansData
 struct CClanListResult : ISqlResult
 {
 	std::vector<CClansData> m_vClans;
-	CClanListResult() {}
+	CClanListResult() = default;
 };
 
 struct CSqlClanListRequest : ISqlData

@@ -75,8 +75,8 @@ private:
 	// participant state
 	struct SoloCollisionState
 	{
-		bool solo = false;
-		bool collision = false;
+		bool m_Solo = false;
+		bool m_Collision = false;
 	};
 	std::map<int, SoloCollisionState> m_PrevSoloState;
 	std::unordered_map<int, int> m_FrozenSince; // ClientId -> tick when got frozen (0 = not frozen)
@@ -84,8 +84,8 @@ private:
 	// temporary, per-event player stats
 	struct SPlayerStats
 	{
-		int Kills = 0;
-		int Deaths = 0;
+		int m_Kills = 0;
+		int m_Deaths = 0;
 	};
 	std::map<int, SPlayerStats> m_PlayerStats; // ClientId -> stats for this TDM event
 

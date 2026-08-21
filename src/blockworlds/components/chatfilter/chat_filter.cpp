@@ -36,7 +36,7 @@ CChatFilterComponent::CChatFilterComponent(CGameContext *pGameServer) :
 
 bool CChatFilterComponent::Load()
 {
-	std::lock_guard<std::mutex> lock(m_Mutex);
+	std::lock_guard<std::mutex> Lock(m_Mutex);
 	m_Words.clear();
 	CLineReader LineReader;
 	char aPath[IO_MAX_PATH_LENGTH] = {0};
@@ -54,7 +54,7 @@ bool CChatFilterComponent::Load()
 		if(!pLine[0])
 			continue;
 		std::string s = pLine;
-		str_clean_whitespaces(&s[0]);
+		str_clean_whitespaces(s.data());
 		if(!s.empty())
 			m_Words.insert(s);
 	}
@@ -63,7 +63,7 @@ bool CChatFilterComponent::Load()
 
 bool CChatFilterComponent::Save()
 {
-	std::lock_guard<std::mutex> lock(m_Mutex);
+	std::lock_guard<std::mutex> Lock(m_Mutex);
 	char aPath[IO_MAX_PATH_LENGTH] = {0};
 	const char *pConfigured = g_Config.m_SvChatfilterWordsFile[0] ? g_Config.m_SvChatfilterWordsFile : DEFAULT_CHATFILTER_FILENAME;
 	GameServer()->Storage()->GetBinaryPath(pConfigured, aPath, sizeof(aPath));
@@ -100,7 +100,7 @@ bool CChatFilterComponent::CheckAndMaybeMute(int ClientId, const char *pMessage)
 	else
 	{
 		// quick check: case-insensitive substring find for each word
-		std::lock_guard<std::mutex> lock(m_Mutex);
+		std::lock_guard<std::mutex> Lock(m_Mutex);
 		for(const auto &w : m_Words)
 		{
 			if(!w.empty() && str_utf8_find_nocase(pMessage, w.c_str()))
@@ -170,7 +170,7 @@ void CChatFilterComponent::ConChatFilterAdd(IConsole::IResult *pResult, void *pU
 	if(Word.empty())
 		return;
 	{
-		std::lock_guard<std::mutex> lock(pSelf->m_Mutex);
+		std::lock_guard<std::mutex> Lock(pSelf->m_Mutex);
 		pSelf->m_Words.insert(Word);
 	}
 	pSelf->Save();
@@ -190,7 +190,7 @@ void CChatFilterComponent::ConChatFilterRemove(IConsole::IResult *pResult, void 
 	if(Word.empty())
 		return;
 	{
-		std::lock_guard<std::mutex> lock(pSelf->m_Mutex);
+		std::lock_guard<std::mutex> Lock(pSelf->m_Mutex);
 		pSelf->m_Words.erase(Word);
 	}
 	pSelf->Save();
@@ -202,7 +202,7 @@ void CChatFilterComponent::ConChatFilterList(IConsole::IResult *pResult, void *p
 	auto *pSelf = (CChatFilterComponent *)pUserData;
 	std::vector<std::string> v;
 	{
-		std::lock_guard<std::mutex> lock(pSelf->m_Mutex);
+		std::lock_guard<std::mutex> Lock(pSelf->m_Mutex);
 		v.reserve(pSelf->m_Words.size());
 		for(const auto &w : pSelf->m_Words)
 			v.push_back(w);

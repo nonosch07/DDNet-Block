@@ -12,9 +12,9 @@ class CEpicCircle : public CEntity
 public:
 	CEpicCircle(CGameWorld *pGameWorld, vec2 Pos, int Owner);
 
-	virtual void Reset() override;
-	virtual void Tick() override;
-	virtual void Snap(int SnappingClient) override;
+	void Reset() override;
+	void Tick() override;
+	void Snap(int SnappingClient) override;
 
 private:
 	int m_Owner;

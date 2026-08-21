@@ -25,23 +25,23 @@ class CAiBotComponent : public CComponent
 private:
 	struct SFeatureKey
 	{
-		uint64_t k{};
+		uint64_t m_K{};
 	};
 	struct SActionStats
 	{
-		uint32_t moveLeft{};
-		uint32_t moveRight{};
-		uint32_t moveIdle{};
-		uint32_t jump{};
-		uint32_t noJump{};
-		uint32_t fire{};
-		uint32_t noFire{};
-		uint32_t hook{};
-		uint32_t noHook{};
-		uint32_t aimSector[8]{};
-		uint32_t weaponUsed[8]{};
-		uint32_t switchedWeapon{};
-		uint32_t blockReward{};
+		uint32_t m_MoveLeft{};
+		uint32_t m_MoveRight{};
+		uint32_t m_MoveIdle{};
+		uint32_t m_Jump{};
+		uint32_t m_NoJump{};
+		uint32_t m_Fire{};
+		uint32_t m_NoFire{};
+		uint32_t m_Hook{};
+		uint32_t m_NoHook{};
+		uint32_t m_AimSector[8]{};
+		uint32_t m_WeaponUsed[8]{};
+		uint32_t m_SwitchedWeapon{};
+		uint32_t m_BlockReward{};
 		void Decay(float f);
 	};
 	std::unordered_map<uint64_t, SActionStats> m_Table;
@@ -76,7 +76,7 @@ private:
 	bool m_MapAnalyzed = false;
 	struct SChokepoint
 	{
-		vec2 Pos;
+		vec2 m_Pos;
 	};
 	std::vector<SChokepoint> m_Chokepoints;
 	void AnalyzeMap();
@@ -94,7 +94,7 @@ private:
 	bool IsBotActive() const;
 	CPlayer *BestPlayer();
 	uint64_t BuildFeatureKey(const CCharacter *pChr, const CCharacter *pEnemy) const;
-	void UpdateStats(uint64_t key, const CCharacter *pChr);
+	void UpdateStats(uint64_t Key, const CCharacter *pChr);
 	void InferAndApplyInput();
 	void EvaluateBlockingReward();
 	void ApplyInput(CPlayer *pBot, const struct CNetObj_PlayerInput &Input);

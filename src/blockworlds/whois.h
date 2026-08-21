@@ -80,7 +80,7 @@ public:
 	void SnapshotTick(); // periodically snapshot all connected players
 
 	// commands
-	void CmdWhoisStr(int RequesterId, int Mode, int Cutoff, const char *pSearch, std::shared_ptr<CWhoIsResult> pRes = nullptr);
+	void CmdWhoisStr(int RequesterId, int Mode, int Cutoff, const char *pSearch, const std::shared_ptr<CWhoIsResult> &pExisting = nullptr);
 	// query all distinct names ever seen on an account
 	void CmdWhoisAccount(int RequesterId, const char *pAccName);
 
@@ -97,7 +97,6 @@ private:
 	bool GetClientIdentity(int ClientId, char *pOutIp, int OutIpSize, char *pOutName, int OutNameSize, int &OutAccId, char *pOutAccName, int OutAccNameSize);
 	static void NormalizeIpNoPort(char *pIp);
 
-private:
 	CGameContext *m_pGameServer{};
 	CDbConnectionPool *m_pPool{}; // unused for whois, kept for ctor compatibility
 	std::unique_ptr<CWhoisWorker> m_pWorker; // dedicated SQLite worker

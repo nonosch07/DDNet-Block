@@ -51,7 +51,7 @@ std::string CVpnCache::MakeCacheKey(const char *pIpAddress, const char *pService
 	return Key;
 }
 
-void CVpnCache::Add(std::shared_ptr<IVpnServiceResult> pResult)
+void CVpnCache::Add(const std::shared_ptr<IVpnServiceResult> &pResult)
 {
 	if(!pResult || !pResult->IsValid())
 		return;
@@ -85,7 +85,7 @@ bool CVpnCache::IsTimestampFresh(int64_t Timestamp) const
 	return Now - Timestamp <= m_TtlSeconds;
 }
 
-bool CVpnCache::IsExpired(std::shared_ptr<IVpnServiceResult> pResult) const
+bool CVpnCache::IsExpired(const std::shared_ptr<IVpnServiceResult> &pResult) const
 {
 	if(!pResult || !pResult->IsValid())
 		return true;

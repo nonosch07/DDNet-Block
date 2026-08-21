@@ -7,10 +7,10 @@ class CBall : public CEntity
 public:
 	CBall(CGameWorld *pGameWorld, vec2 Pos, int Owner);
 
-	virtual void Reset() override;
-	virtual void Tick() override;
-	virtual void Snap(int SnappingClient) override;
-	inline vec2 GetPos() const { return m_Pos; }
+	void Reset() override;
+	void Tick() override;
+	void Snap(int SnappingClient) override;
+	vec2 GetPos() const { return m_Pos; }
 
 private:
 	int m_Owner;

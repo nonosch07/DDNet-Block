@@ -76,7 +76,7 @@ public:
 	void Stop()
 	{
 		{
-			std::lock_guard<std::mutex> lg(m_Mtx);
+			std::lock_guard<std::mutex> Lg(m_Mtx);
 			m_Shutdown = true;
 		}
 		m_Cv.notify_one();
@@ -87,7 +87,7 @@ public:
 	void Enqueue(std::function<void(IDbConnection *)> Fn)
 	{
 		{
-			std::lock_guard<std::mutex> lg(m_Mtx);
+			std::lock_guard<std::mutex> Lg(m_Mtx);
 			m_Q.push(std::move(Fn));
 		}
 		m_Cv.notify_one();
@@ -111,25 +111,25 @@ private:
 
 		while(true)
 		{
-			std::function<void(IDbConnection *)> task;
+			std::function<void(IDbConnection *)> Task;
 			{
-				std::unique_lock<std::mutex> lk(m_Mtx);
-				m_Cv.wait(lk, [&] { return m_Shutdown || !m_Q.empty(); });
+				std::unique_lock<std::mutex> Lk(m_Mtx);
+				m_Cv.wait(Lk, [&] { return m_Shutdown || !m_Q.empty(); });
 				if(m_Shutdown && m_Q.empty())
 					break;
-				task = std::move(m_Q.front());
+				Task = std::move(m_Q.front());
 				m_Q.pop();
 			}
 			IDbConnection *p = EnsureConn();
 			if(p)
 			{
-				task(p);
+				Task(p);
 				p->Disconnect();
 			}
 			else
 			{
 				dbg_msg("sql", "whois worker: failed to open sqlite: %s", aErr[0] ? aErr : "unknown error");
-				task(nullptr);
+				Task(nullptr);
 			}
 		}
 	}
@@ -290,19 +290,19 @@ static void NormalizeIpNoPortHelper(char *pIp)
 		{
 			char *pEnd = const_cast<char *>(pEndC);
 			*pEnd = '\0';
-			size_t len = str_length(pIp + 1);
-			mem_move(pIp, pIp + 1, len + 1); // includes the NUL
+			size_t Len = str_length(pIp + 1);
+			mem_move(pIp, pIp + 1, Len + 1); // includes the NUL
 			return;
 		}
 	}
 	const char *pColonConst = str_rchr(pIp, ':');
 	if(pColonConst)
 	{
-		int numColons = 0;
+		int NumColons = 0;
 		for(const char *p = pIp; *p; ++p)
 			if(*p == ':')
-				numColons++;
-		if(numColons == 1)
+				NumColons++;
+		if(NumColons == 1)
 		{
 			char *pColon = const_cast<char *>(pColonConst);
 			*pColon = '\0';
@@ -322,19 +322,19 @@ void CWhoIs::NormalizeIpNoPort(char *pIp)
 		{
 			char *pEnd = const_cast<char *>(pEndC);
 			*pEnd = '\0';
-			size_t len = str_length(pIp + 1);
-			mem_move(pIp, pIp + 1, len + 1); // includes the NUL
+			size_t Len = str_length(pIp + 1);
+			mem_move(pIp, pIp + 1, Len + 1); // includes the NUL
 			return;
 		}
 	}
 	const char *pColonConst = str_rchr(pIp, ':');
 	if(pColonConst)
 	{
-		int numColons = 0;
+		int NumColons = 0;
 		for(const char *p = pIp; *p; ++p)
 			if(*p == ':')
-				numColons++;
-		if(numColons == 1)
+				NumColons++;
+		if(NumColons == 1)
 		{
 			char *pColon = const_cast<char *>(pColonConst);
 			*pColon = '\0';
@@ -443,16 +443,16 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 			const char *pSlash = str_find(aIp, "/");
 			if(pSlash)
 			{
-				int bits = str_toint(pSlash + 1);
-				if(bits == 24)
+				int Bits = str_toint(pSlash + 1);
+				if(Bits == 24)
 					Cut = 1;
-				else if(bits == 16)
+				else if(Bits == 16)
 					Cut = 2;
-				else if(bits == 8)
+				else if(Bits == 8)
 					Cut = 3;
 				// terminate IP before slash or optional preceding space
-				size_t cutPos = (pSlash > aIp && pSlash[-1] == ' ') ? (size_t)(pSlash - aIp - 1) : (size_t)(pSlash - aIp);
-				aIp[cutPos] = '\0';
+				size_t CutPos = (pSlash > aIp && pSlash[-1] == ' ') ? (size_t)(pSlash - aIp - 1) : (size_t)(pSlash - aIp);
+				aIp[CutPos] = '\0';
 			}
 		}
 		NormalizeIpNoPortHelper(aIp);
@@ -472,38 +472,38 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 			bool End = false;
 			int Total = 0;
 			int Distinct = 0;
-			struct Entry
+			struct SEntry
 			{
-				char Name[32];
-				int Cnt;
-				char First[20];
-				char Last[20];
-				int HasLogins;
-				char AccName[32];
+				char m_Name[32];
+				int m_Cnt;
+				char m_First[20];
+				char m_Last[20];
+				int m_HasLogins;
+				char m_AccName[32];
 			};
-			std::vector<Entry> vEntries;
+			std::vector<SEntry> vEntries;
 			char aGlobalFirst[20] = {0};
 			char aGlobalLast[20] = {0};
 			while(pSql->Step(&End, pError, ErrorSize) && !End)
 			{
-				Entry e{};
-				pSql->GetString(1, e.Name, sizeof(e.Name));
-				e.Cnt = pSql->GetInt(2);
-				mem_zero(e.First, sizeof(e.First));
+				SEntry e{};
+				pSql->GetString(1, e.m_Name, sizeof(e.m_Name));
+				e.m_Cnt = pSql->GetInt(2);
+				mem_zero(e.m_First, sizeof(e.m_First));
 				if(!pSql->IsNull(3))
-					pSql->GetString(3, e.First, sizeof(e.First));
-				mem_zero(e.Last, sizeof(e.Last));
+					pSql->GetString(3, e.m_First, sizeof(e.m_First));
+				mem_zero(e.m_Last, sizeof(e.m_Last));
 				if(!pSql->IsNull(4))
-					pSql->GetString(4, e.Last, sizeof(e.Last));
-				e.HasLogins = pSql->GetInt(5);
-				e.AccName[0] = '\0'; // no account name in raw table
+					pSql->GetString(4, e.m_Last, sizeof(e.m_Last));
+				e.m_HasLogins = pSql->GetInt(5);
+				e.m_AccName[0] = '\0'; // no account name in raw table
 				vEntries.push_back(e);
-				Total += e.Cnt;
+				Total += e.m_Cnt;
 				// track global first/last
-				if(e.First[0] && (!aGlobalFirst[0] || str_comp(e.First, aGlobalFirst) < 0))
-					str_copy(aGlobalFirst, e.First, sizeof(aGlobalFirst));
-				if(e.Last[0] && (!aGlobalLast[0] || str_comp(e.Last, aGlobalLast) > 0))
-					str_copy(aGlobalLast, e.Last, sizeof(aGlobalLast));
+				if(e.m_First[0] && (!aGlobalFirst[0] || str_comp(e.m_First, aGlobalFirst) < 0))
+					str_copy(aGlobalFirst, e.m_First, sizeof(aGlobalFirst));
+				if(e.m_Last[0] && (!aGlobalLast[0] || str_comp(e.m_Last, aGlobalLast) > 0))
+					str_copy(aGlobalLast, e.m_Last, sizeof(aGlobalLast));
 			}
 			Distinct = (int)vEntries.size();
 			char aHead[256];
@@ -516,17 +516,17 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 			{
 				char aTmp[256];
 				char aDetails[160] = {0};
-				if(e.First[0] && e.Last[0])
-					str_format(aDetails, sizeof(aDetails), "first: %s, last: %s", e.First, e.Last);
-				else if(e.Last[0])
-					str_format(aDetails, sizeof(aDetails), "last: %s", e.Last);
+				if(e.m_First[0] && e.m_Last[0])
+					str_format(aDetails, sizeof(aDetails), "first: %s, last: %s", e.m_First, e.m_Last);
+				else if(e.m_Last[0])
+					str_format(aDetails, sizeof(aDetails), "last: %s", e.m_Last);
 				char aAccPart[80] = {0};
-				if(e.HasLogins > 0)
+				if(e.m_HasLogins > 0)
 					str_copy(aAccPart, ", logins: yes", sizeof(aAccPart));
 				if(aDetails[0])
-					str_format(aTmp, sizeof(aTmp), " - %s (%d), %s%s", e.Name, e.Cnt, aDetails, aAccPart);
+					str_format(aTmp, sizeof(aTmp), " - %s (%d), %s%s", e.m_Name, e.m_Cnt, aDetails, aAccPart);
 				else
-					str_format(aTmp, sizeof(aTmp), " - %s (%d)%s", e.Name, e.Cnt, aAccPart);
+					str_format(aTmp, sizeof(aTmp), " - %s (%d)%s", e.m_Name, e.m_Cnt, aAccPart);
 				pRes->m_vLines.emplace_back(aTmp);
 			}
 			// footer if we likely hit the cap
@@ -540,23 +540,23 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 		else
 		{
 			// /8, /24 or /16: cut trailing octets and do prefix match. Fallback to exact match
-			int dots = 0;
-			int lastDotPos[4] = {-1, -1, -1, -1};
+			int Dots = 0;
+			int LastDotPos[4] = {-1, -1, -1, -1};
 			for(int i = 0; aIp[i]; ++i)
 				if(aIp[i] == '.')
 				{
-					if(dots < 4)
-						lastDotPos[dots] = i;
-					dots++;
+					if(Dots < 4)
+						LastDotPos[Dots] = i;
+					Dots++;
 				}
 
-			bool CanCut = (Cut == 1 && dots >= 3) || (Cut == 2 && dots >= 2) || (Cut == 3 && dots >= 1);
+			bool CanCut = (Cut == 1 && Dots >= 3) || (Cut == 2 && Dots >= 2) || (Cut == 3 && Dots >= 1);
 			if(CanCut)
 			{
-				int cutPos = (Cut == 1) ? lastDotPos[2] : (Cut == 2 ? lastDotPos[1] : lastDotPos[0]);
-				if(cutPos > 0)
+				int CutPos = (Cut == 1) ? LastDotPos[2] : (Cut == 2 ? LastDotPos[1] : LastDotPos[0]);
+				if(CutPos > 0)
 				{
-					aIp[cutPos] = '\0';
+					aIp[CutPos] = '\0';
 				}
 				str_format(aLike, sizeof(aLike), "%s.%%", aIp);
 				str_format(aStmt, sizeof(aStmt),
@@ -583,70 +583,70 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 			}
 
 			bool End = false;
-			std::string curIp;
-			int curTotal = 0;
-			struct NameInfo
+			std::string CurIp;
+			int CurTotal = 0;
+			struct SNameInfo
 			{
-				std::string Name;
-				int Cnt;
-				char First[20];
-				char Last[20];
-				int HasLogins;
-				char AccName[32];
+				std::string m_Name;
+				int m_Cnt;
+				char m_First[20];
+				char m_Last[20];
+				int m_HasLogins;
+				char m_AccName[32];
 			};
-			std::vector<NameInfo> curNames;
+			std::vector<SNameInfo> CurNames;
 			const int MaxIps = std::clamp(g_Config.m_SvWhoisPrefixMaxIps, 1, 100000);
 			const int MaxNamesPerIp = std::clamp(g_Config.m_SvWhoisPrefixNamesPerIp, 1, 100000);
 			bool TruncatedIps = false;
 			bool TruncatedNames = false;
 			auto FlushCur = [&]() {
-				if(curIp.empty())
+				if(CurIp.empty())
 					return;
 				char aHead[256];
 				// derive group first/last
 				char aFirst[20] = {0};
 				char aLast[20] = {0};
-				for(const auto &nn : curNames)
+				for(const auto &Nn : CurNames)
 				{
-					if(nn.First[0] && (!aFirst[0] || str_comp(nn.First, aFirst) < 0))
-						str_copy(aFirst, nn.First, sizeof(aFirst));
-					if(nn.Last[0] && (!aLast[0] || str_comp(nn.Last, aLast) > 0))
-						str_copy(aLast, nn.Last, sizeof(aLast));
+					if(Nn.m_First[0] && (!aFirst[0] || str_comp(Nn.m_First, aFirst) < 0))
+						str_copy(aFirst, Nn.m_First, sizeof(aFirst));
+					if(Nn.m_Last[0] && (!aLast[0] || str_comp(Nn.m_Last, aLast) > 0))
+						str_copy(aLast, Nn.m_Last, sizeof(aLast));
 				}
 				if(aFirst[0] || aLast[0])
-					str_format(aHead, sizeof(aHead), "%s connected %d times with %d names (first: %s, last: %s):", curIp.c_str(), curTotal, (int)curNames.size(), aFirst[0] ? aFirst : "-", aLast[0] ? aLast : "-");
+					str_format(aHead, sizeof(aHead), "%s connected %d times with %d names (first: %s, last: %s):", CurIp.c_str(), CurTotal, (int)CurNames.size(), aFirst[0] ? aFirst : "-", aLast[0] ? aLast : "-");
 				else
-					str_format(aHead, sizeof(aHead), "%s connected %d times with %d names:", curIp.c_str(), curTotal, (int)curNames.size());
+					str_format(aHead, sizeof(aHead), "%s connected %d times with %d names:", CurIp.c_str(), CurTotal, (int)CurNames.size());
 				pRes->m_vLines.emplace_back(aHead);
-				int shown = 0;
-				for(const auto &nn : curNames)
+				int Shown = 0;
+				for(const auto &Nn : CurNames)
 				{
 					char aTmp[256];
 					char aDetails[160] = {0};
-					if(nn.First[0] && nn.Last[0])
-						str_format(aDetails, sizeof(aDetails), "first: %s, last: %s", nn.First, nn.Last);
-					else if(nn.Last[0])
-						str_format(aDetails, sizeof(aDetails), "last: %s", nn.Last);
+					if(Nn.m_First[0] && Nn.m_Last[0])
+						str_format(aDetails, sizeof(aDetails), "first: %s, last: %s", Nn.m_First, Nn.m_Last);
+					else if(Nn.m_Last[0])
+						str_format(aDetails, sizeof(aDetails), "last: %s", Nn.m_Last);
 					char aAccPart[64] = {0};
-					if(nn.AccName[0])
-						str_format(aAccPart, sizeof(aAccPart), ", account: %s", nn.AccName);
-					else if(nn.HasLogins > 0)
+					if(Nn.m_AccName[0])
+						str_format(aAccPart, sizeof(aAccPart), ", account: %s", Nn.m_AccName);
+					else if(Nn.m_HasLogins > 0)
 						str_copy(aAccPart, ", logins: yes", sizeof(aAccPart));
 
 					if(aDetails[0])
-						str_format(aTmp, sizeof(aTmp), " - %s (%d), %s%s", nn.Name.c_str(), nn.Cnt, aDetails, aAccPart);
+						str_format(aTmp, sizeof(aTmp), " - %s (%d), %s%s", Nn.m_Name.c_str(), Nn.m_Cnt, aDetails, aAccPart);
 					else
-						str_format(aTmp, sizeof(aTmp), " - %s (%d)%s", nn.Name.c_str(), nn.Cnt, aAccPart);
+						str_format(aTmp, sizeof(aTmp), " - %s (%d)%s", Nn.m_Name.c_str(), Nn.m_Cnt, aAccPart);
 					pRes->m_vLines.emplace_back(aTmp);
-					if(++shown >= MaxNamesPerIp)
+					if(++Shown >= MaxNamesPerIp)
 					{
 						TruncatedNames = true;
 						break;
 					}
 				}
-				curIp.clear();
-				curTotal = 0;
-				curNames.clear();
+				CurIp.clear();
+				CurTotal = 0;
+				CurNames.clear();
 			};
 
 			int IpGroups = 0;
@@ -664,32 +664,32 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 				if(!pSql->IsNull(5))
 					pSql->GetString(5, aLastShort, sizeof(aLastShort));
 				int HasLogins = pSql->GetInt(6);
-				if(curIp.empty())
-					curIp = aResIp;
-				if(curIp != aResIp)
+				if(CurIp.empty())
+					CurIp = aResIp;
+				if(CurIp != aResIp)
 				{
 					FlushCur();
-					curIp = aResIp;
+					CurIp = aResIp;
 					if(++IpGroups >= MaxIps)
 					{
 						TruncatedIps = true;
 						break;
 					}
 				}
-				curTotal += Cnt;
-				NameInfo ni{};
-				ni.Name = aName;
-				ni.Cnt = Cnt;
-				ni.HasLogins = HasLogins;
-				ni.First[0] = '\0';
-				ni.Last[0] = '\0';
-				ni.AccName[0] = '\0';
+				CurTotal += Cnt;
+				SNameInfo Ni{};
+				Ni.m_Name = aName;
+				Ni.m_Cnt = Cnt;
+				Ni.m_HasLogins = HasLogins;
+				Ni.m_First[0] = '\0';
+				Ni.m_Last[0] = '\0';
+				Ni.m_AccName[0] = '\0';
 				if(aFirstShort[0])
-					str_copy(ni.First, aFirstShort, sizeof(ni.First));
+					str_copy(Ni.m_First, aFirstShort, sizeof(Ni.m_First));
 				if(aLastShort[0])
-					str_copy(ni.Last, aLastShort, sizeof(ni.Last));
+					str_copy(Ni.m_Last, aLastShort, sizeof(Ni.m_Last));
 				// leave AccName empty when using raw table
-				curNames.emplace_back(std::move(ni));
+				CurNames.emplace_back(std::move(Ni));
 			}
 			FlushCur();
 			if(TruncatedIps || TruncatedNames)
@@ -704,7 +704,7 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 				pRes->m_vLines.emplace_back(aFoot);
 			}
 
-			if(curIp.empty() && pRes->m_vLines.empty())
+			if(CurIp.empty() && pRes->m_vLines.empty())
 			{
 				char aMsg[128];
 				str_format(aMsg, sizeof(aMsg), "No entries found for IP '%s'", pReq->m_aSearch);
@@ -752,10 +752,10 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 		int Total = 0;
 		struct IPCnt
 		{
-			char Ip[64];
-			int Cnt;
-			char First[20];
-			char Last[20];
+			char m_Ip[64];
+			int m_Cnt;
+			char m_First[20];
+			char m_Last[20];
 		};
 		std::vector<IPCnt> vEntries;
 		char aGlobalFirst[20] = {0};
@@ -763,20 +763,20 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 		while(pSql->Step(&End, pError, ErrorSize) && !End)
 		{
 			IPCnt e{};
-			pSql->GetString(1, e.Ip, sizeof(e.Ip));
-			e.Cnt = pSql->GetInt(2);
-			mem_zero(e.First, sizeof(e.First));
+			pSql->GetString(1, e.m_Ip, sizeof(e.m_Ip));
+			e.m_Cnt = pSql->GetInt(2);
+			mem_zero(e.m_First, sizeof(e.m_First));
 			if(!pSql->IsNull(3))
-				pSql->GetString(3, e.First, sizeof(e.First));
-			mem_zero(e.Last, sizeof(e.Last));
+				pSql->GetString(3, e.m_First, sizeof(e.m_First));
+			mem_zero(e.m_Last, sizeof(e.m_Last));
 			if(!pSql->IsNull(4))
-				pSql->GetString(4, e.Last, sizeof(e.Last));
+				pSql->GetString(4, e.m_Last, sizeof(e.m_Last));
 			vEntries.push_back(e);
-			Total += e.Cnt;
-			if(e.First[0] && (!aGlobalFirst[0] || str_comp(e.First, aGlobalFirst) < 0))
-				str_copy(aGlobalFirst, e.First, sizeof(aGlobalFirst));
-			if(e.Last[0] && (!aGlobalLast[0] || str_comp(e.Last, aGlobalLast) > 0))
-				str_copy(aGlobalLast, e.Last, sizeof(aGlobalLast));
+			Total += e.m_Cnt;
+			if(e.m_First[0] && (!aGlobalFirst[0] || str_comp(e.m_First, aGlobalFirst) < 0))
+				str_copy(aGlobalFirst, e.m_First, sizeof(aGlobalFirst));
+			if(e.m_Last[0] && (!aGlobalLast[0] || str_comp(e.m_Last, aGlobalLast) > 0))
+				str_copy(aGlobalLast, e.m_Last, sizeof(aGlobalLast));
 		}
 		int Distinct = (int)vEntries.size();
 		char aHead[256];
@@ -788,12 +788,12 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 		for(const auto &e : vEntries)
 		{
 			char aTmp[160];
-			if(e.First[0] && e.Last[0])
-				str_format(aTmp, sizeof(aTmp), " - %s (%d), first: %s, last: %s", e.Ip, e.Cnt, e.First, e.Last);
-			else if(e.Last[0])
-				str_format(aTmp, sizeof(aTmp), " - %s (%d), last: %s", e.Ip, e.Cnt, e.Last);
+			if(e.m_First[0] && e.m_Last[0])
+				str_format(aTmp, sizeof(aTmp), " - %s (%d), first: %s, last: %s", e.m_Ip, e.m_Cnt, e.m_First, e.m_Last);
+			else if(e.m_Last[0])
+				str_format(aTmp, sizeof(aTmp), " - %s (%d), last: %s", e.m_Ip, e.m_Cnt, e.m_Last);
 			else
-				str_format(aTmp, sizeof(aTmp), " - %s (%d)", e.Ip, e.Cnt);
+				str_format(aTmp, sizeof(aTmp), " - %s (%d)", e.m_Ip, e.m_Cnt);
 			pRes->m_vLines.emplace_back(aTmp);
 		}
 		// footer if we likely hit the cap
@@ -826,10 +826,10 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 		bool End2 = false;
 		struct SNameEntry
 		{
-			char Name[32];
-			int Cnt;
-			char First[20];
-			char Last[20];
+			char m_Name[32];
+			int m_Cnt;
+			char m_First[20];
+			char m_Last[20];
 		};
 		std::vector<SNameEntry> vAccEntries;
 		int AccTotal = 0;
@@ -838,20 +838,20 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 		while(pSql->Step(&End2, pError, ErrorSize) && !End2)
 		{
 			SNameEntry e{};
-			pSql->GetString(1, e.Name, sizeof(e.Name));
-			e.Cnt = pSql->GetInt(2);
-			mem_zero(e.First, sizeof(e.First));
+			pSql->GetString(1, e.m_Name, sizeof(e.m_Name));
+			e.m_Cnt = pSql->GetInt(2);
+			mem_zero(e.m_First, sizeof(e.m_First));
 			if(!pSql->IsNull(3))
-				pSql->GetString(3, e.First, sizeof(e.First));
-			mem_zero(e.Last, sizeof(e.Last));
+				pSql->GetString(3, e.m_First, sizeof(e.m_First));
+			mem_zero(e.m_Last, sizeof(e.m_Last));
 			if(!pSql->IsNull(4))
-				pSql->GetString(4, e.Last, sizeof(e.Last));
+				pSql->GetString(4, e.m_Last, sizeof(e.m_Last));
 			vAccEntries.push_back(e);
-			AccTotal += e.Cnt;
-			if(e.First[0] && (!aAccFirst[0] || str_comp(e.First, aAccFirst) < 0))
-				str_copy(aAccFirst, e.First, sizeof(aAccFirst));
-			if(e.Last[0] && (!aAccLast[0] || str_comp(e.Last, aAccLast) > 0))
-				str_copy(aAccLast, e.Last, sizeof(aAccLast));
+			AccTotal += e.m_Cnt;
+			if(e.m_First[0] && (!aAccFirst[0] || str_comp(e.m_First, aAccFirst) < 0))
+				str_copy(aAccFirst, e.m_First, sizeof(aAccFirst));
+			if(e.m_Last[0] && (!aAccLast[0] || str_comp(e.m_Last, aAccLast) > 0))
+				str_copy(aAccLast, e.m_Last, sizeof(aAccLast));
 		}
 		int AccDistinct = (int)vAccEntries.size();
 		char aHead2[256];
@@ -870,10 +870,10 @@ static bool RunQuery(IDbConnection *pSql, const CSqlWhoIsQuery *pReq, std::share
 			for(const auto &e : vAccEntries)
 			{
 				char aTmp2[256];
-				if(e.First[0] && e.Last[0])
-					str_format(aTmp2, sizeof(aTmp2), " - %s (%d connections, first: %s, last: %s)", e.Name, e.Cnt, e.First, e.Last);
+				if(e.m_First[0] && e.m_Last[0])
+					str_format(aTmp2, sizeof(aTmp2), " - %s (%d connections, first: %s, last: %s)", e.m_Name, e.m_Cnt, e.m_First, e.m_Last);
 				else
-					str_format(aTmp2, sizeof(aTmp2), " - %s (%d connections)", e.Name, e.Cnt);
+					str_format(aTmp2, sizeof(aTmp2), " - %s (%d connections)", e.m_Name, e.m_Cnt);
 				pRes->m_vLines.emplace_back(aTmp2);
 			}
 			if((int)vAccEntries.size() >= MaxRows4)
@@ -1062,7 +1062,7 @@ void CWhoIs::SnapshotTick()
 	}
 }
 
-void CWhoIs::CmdWhoisStr(int RequesterId, int Mode, int Cutoff, const char *pSearch, std::shared_ptr<CWhoIsResult> pExisting)
+void CWhoIs::CmdWhoisStr(int RequesterId, int Mode, int Cutoff, const char *pSearch, const std::shared_ptr<CWhoIsResult> &pExisting)
 {
 	std::shared_ptr<CWhoIsResult> pRes = pExisting ? pExisting : std::make_shared<CWhoIsResult>();
 	pRes->m_TargetClientId = RequesterId; // retained for potential future use
@@ -1132,16 +1132,16 @@ void CWhoIs::CmdWhoisStr(int RequesterId, int Mode, int Cutoff, const char *pSea
 
 void CWhoIs::DrainAndPrintResults()
 {
-	for(auto it = m_vInternalResults.begin(); it != m_vInternalResults.end();)
+	for(auto It = m_vInternalResults.begin(); It != m_vInternalResults.end();)
 	{
-		if((*it)->m_Completed.load(std::memory_order_acquire))
+		if((*It)->m_Completed.load(std::memory_order_acquire))
 		{
-			PrintLines(GameServer(), (*it)->m_TargetClientId, (*it)->m_vLines, (*it)->m_aTag, (*it)->m_SendToChat);
-			it = m_vInternalResults.erase(it);
+			PrintLines(GameServer(), (*It)->m_TargetClientId, (*It)->m_vLines, (*It)->m_aTag, (*It)->m_SendToChat);
+			It = m_vInternalResults.erase(It);
 		}
 		else
 		{
-			++it;
+			++It;
 		}
 	}
 }

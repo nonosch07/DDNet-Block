@@ -16,9 +16,7 @@ CNpcManager::CNpcManager()
 	m_pGameServer = nullptr;
 }
 
-CNpcManager::~CNpcManager()
-{
-}
+CNpcManager::~CNpcManager() = default;
 
 void CNpcManager::Init(CGameContext *pGameServer)
 {
@@ -52,7 +50,7 @@ int CNpcManager::EnsureNpcAndApplySkinmani(int Index, const vec2 &PreviewPos, co
 		N.m_ClientID = DummyID;
 
 		// OnClientConnected create the CPlayer and sets it in m_apPlayers
-		m_pGameServer->OnClientConnected(DummyID, 0);
+		m_pGameServer->OnClientConnected(DummyID, nullptr);
 		m_pGameServer->Bw().BotJoin(DummyID, "");
 
 		CPlayer *pFakePlayer = m_pGameServer->m_apPlayers[DummyID];
@@ -126,13 +124,13 @@ void CNpcManager::Tick()
 		}
 
 		// smootlhy interpolate toward target angle
-		float diff = N.m_AimTarget - N.m_AimAngle;
+		float Diff = N.m_AimTarget - N.m_AimAngle;
 
-		while(diff > 3.14159f)
-			diff -= 6.28318f;
-		while(diff < -3.14159f)
-			diff += 6.28318f;
-		N.m_AimAngle += diff * 0.03f;
+		while(Diff > 3.14159f)
+			Diff -= 6.28318f;
+		while(Diff < -3.14159f)
+			Diff += 6.28318f;
+		N.m_AimAngle += Diff * 0.03f;
 
 		// set aim via input injection so CCharacterCore::Tick() computes the correct angle
 		int tx = (int)(cosf(N.m_AimAngle) * 200.0f);

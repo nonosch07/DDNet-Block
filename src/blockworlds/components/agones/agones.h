@@ -39,7 +39,7 @@ private:
 		PUT
 	};
 
-	void SendHttp(std::string_view Path, std::string Data = "{}", EHttpType Type = EHttpType::POST);
+	void SendHttp(std::string_view Path, const std::string &Data = "{}", EHttpType Type = EHttpType::POST);
 
 	void SendReady();
 	void SendHealth();

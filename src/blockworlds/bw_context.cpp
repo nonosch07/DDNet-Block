@@ -60,7 +60,7 @@ IEngine *CBlockworlds::Engine() const { return m_pGameServer->Engine(); }
 void CBlockworlds::Teleport(CCharacter *pChr, vec2 Pos) { m_pGameServer->Teleport(pChr, Pos); }
 
 // Free helper the vote-menu code shares (was a file-static in gamecontext.cpp).
-void SetVoteDescriptionAtIndex(int *pIndex, const char *pStr, CNetMsg_Sv_VoteOptionListAdd *pOptionMsg)
+static void SetVoteDescriptionAtIndex(int *pIndex, const char *pStr, CNetMsg_Sv_VoteOptionListAdd *pOptionMsg)
 {
 	switch(*pIndex)
 	{
@@ -82,8 +82,6 @@ void SetVoteDescriptionAtIndex(int *pIndex, const char *pStr, CNetMsg_Sv_VoteOpt
 	}
 	(*pIndex)++;
 }
-
-extern CVoteManager g_VoteManager;
 
 void CBlockworlds::BW_OnTick()
 {
@@ -192,7 +190,7 @@ void CBlockworlds::BW_OnTick()
 	}
 }
 
-void CBlockworlds::ClearVotes(int ClientID)
+void CBlockworlds::ClearVotes(int ClientID) const
 {
 	CPlayer *pPlayer = GameServer()->m_apPlayers[ClientID];
 	if(!pPlayer)
@@ -462,7 +460,7 @@ void CBlockworlds::ConWhoisPurge(IConsole::IResult *pResult, void *pUserData)
 	pSelf->Bw().m_pWhoIs->PurgeNow(Months);
 }
 
-void CBlockworlds::CreateExplosionVisual(vec2 Pos, CClientMask Mask)
+void CBlockworlds::CreateExplosionVisual(vec2 Pos, CClientMask Mask) const
 {
 	// purely visual: grenade-explosion particle + sound, no force/damage applied
 	CNetEvent_Explosion *pEvent = GameServer()->m_Events.Create<CNetEvent_Explosion>(Mask);
@@ -492,16 +490,16 @@ void CBlockworlds::CreateStripline(char *pDst, int DstSize, const char *pTitle)
 		str_append(pDst, "#", DstSize);
 }
 
-CPlayer *CBlockworlds::GetPlayer(int ClientID)
+CPlayer *CBlockworlds::GetPlayer(int ClientID) const
 {
 	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
 		return nullptr;
 	return GameServer()->m_apPlayers[ClientID];
 }
 
-CPlayer *CBlockworlds::GetPlayerByName(const char *pName)
+CPlayer *CBlockworlds::GetPlayerByName(const char *pName) const
 {
-	CPlayer *pPlayer = 0;
+	CPlayer *pPlayer = nullptr;
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		if(GameServer()->m_apPlayers[i] && !str_comp(pName, Server()->ClientName(i)))
@@ -513,7 +511,7 @@ CPlayer *CBlockworlds::GetPlayerByName(const char *pName)
 	return pPlayer;
 }
 
-bool CBlockworlds::HandleCosmeticsVote(const CNetMsg_Cl_CallVote *pMsg, int ClientId)
+bool CBlockworlds::HandleCosmeticsVote(const CNetMsg_Cl_CallVote *pMsg, int ClientId) const
 {
 	CPlayer *pPlayer = GetPlayer(ClientId);
 	if(!pPlayer)
@@ -524,18 +522,18 @@ bool CBlockworlds::HandleCosmeticsVote(const CNetMsg_Cl_CallVote *pMsg, int Clie
 
 	// block vote menu interactions for 1on1 players and active event participants
 	// during prep, allow through so the duel config menu still works
-	if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>())
+	if(auto Mgr = g_ComponentRegistry.Get<COneOnOneManager>())
 	{
-		if(auto match = mgr->GetMatchForPlayer(ClientId))
-			if(match->GetState() != COneOnOneEvent::EEventState::Preparation)
+		if(auto Match = Mgr->GetMatchForPlayer(ClientId))
+			if(Match->GetState() != COneOnOneEvent::EEventState::Preparation)
 				return true; // consume silently
 	}
-	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
+	if(auto Events = g_ComponentRegistry.Get<CEvents>(); Events)
 	{
-		if(auto active = events->GetActiveEvent(); active)
+		if(auto Active = Events->GetActiveEvent(); Active)
 		{
-			const auto &parts = active->Participants();
-			if(std::find(parts.begin(), parts.end(), ClientId) != parts.end())
+			const auto &Parts = Active->Participants();
+			if(std::find(Parts.begin(), Parts.end(), ClientId) != Parts.end())
 				return true;
 		}
 	}
@@ -551,7 +549,7 @@ SHA256_DIGEST CBlockworlds::HashPassword(const char *pPassword)
 	return sha256_finish(&Sha256Ctx);
 }
 
-void CBlockworlds::HoldJoinMessage(int ClientId)
+void CBlockworlds::HoldJoinMessage(int ClientId) const
 {
 	if(ClientId < 0 || ClientId >= MAX_CLIENTS || !GameServer()->m_apPlayers[ClientId])
 		return;
@@ -653,7 +651,7 @@ void CBlockworlds::PreShutdownFlush()
 			dbg_msg("shutdown", "flush progress: %d%% (%d/%d done)", Pct, Done, Total);
 			LastPct = Pct;
 		}
-		for(int spin = 0; spin < 2000; ++spin)
+		for(int Spin = 0; Spin < 2000; ++Spin)
 		{
 #if defined(CONF_FAMILY_WINDOWS)
 			_ReadWriteBarrier();
@@ -674,8 +672,8 @@ void CBlockworlds::PreShutdownFlush()
 			CAccountData &Acc = pPl->Bw().m_Account;
 			if(!Acc.m_DirtyCore && !Acc.m_DirtyProgress && !Acc.m_DirtyInventory && !Acc.m_DirtyRanked)
 				continue;
-			bool ok = m_pAccounts->SyncSaveBlocking(i, Acc, 500);
-			if(ok)
+			bool Ok = m_pAccounts->SyncSaveBlocking(i, Acc, 500);
+			if(Ok)
 			{
 				Acc.m_DirtyCore = Acc.m_DirtyProgress = Acc.m_DirtyInventory = Acc.m_DirtyRanked = false;
 				dbg_msg("shutdown", "final sync save ok for account %d", Acc.m_Id);
@@ -713,7 +711,7 @@ void CBlockworlds::ProcessComponentsQueue()
 	}
 }
 
-void CBlockworlds::RegisterBlockworldsChatCommands()
+void CBlockworlds::RegisterBlockworldsChatCommands() const
 {
 	Console()->Register("register", "s[username] s[password]", CFGFLAG_CHAT, ConRegister, GameServer(), "Create a new account.");
 	Console()->Register("login", "s[username] s[password]", CFGFLAG_CHAT, ConLogin, GameServer(), "Log in to your account.");
@@ -782,7 +780,7 @@ void CBlockworlds::RegisterBlockworldsChatCommands()
 	Console()->Register("passive", "", CFGFLAG_CHAT, ConPassive, GameServer(), "Shows how many seconds of passive protection you have left");
 }
 
-void CBlockworlds::ReleaseJoinMessage(int ClientId)
+void CBlockworlds::ReleaseJoinMessage(int ClientId) const
 {
 	if(ClientId < 0 || ClientId >= MAX_CLIENTS || !GameServer()->m_apPlayers[ClientId])
 		return;
@@ -791,7 +789,7 @@ void CBlockworlds::ReleaseJoinMessage(int ClientId)
 	SendPendingJoinMessage(ClientId);
 }
 
-void CBlockworlds::RemoveVoteByDescription(const char *pDescription)
+void CBlockworlds::RemoveVoteByDescription(const char *pDescription) const
 {
 	CVoteOptionServer *pOption = GameServer()->m_pVoteOptionFirst;
 	while(pOption)
@@ -801,8 +799,8 @@ void CBlockworlds::RemoveVoteByDescription(const char *pDescription)
 			--GameServer()->m_NumVoteOptions;
 
 			CHeap *pVoteOptionHeap = new CHeap();
-			CVoteOptionServer *pVoteOptionFirst = 0;
-			CVoteOptionServer *pVoteOptionLast = 0;
+			CVoteOptionServer *pVoteOptionFirst = nullptr;
+			CVoteOptionServer *pVoteOptionLast = nullptr;
 			int NumVoteOptions = GameServer()->m_NumVoteOptions;
 			for(CVoteOptionServer *pSrc = GameServer()->m_pVoteOptionFirst; pSrc; pSrc = pSrc->m_pNext)
 			{
@@ -811,7 +809,7 @@ void CBlockworlds::RemoveVoteByDescription(const char *pDescription)
 
 				int Len = str_length(pSrc->m_aCommand);
 				CVoteOptionServer *pDst = (CVoteOptionServer *)pVoteOptionHeap->Allocate(sizeof(CVoteOptionServer) + Len, alignof(CVoteOptionServer));
-				pDst->m_pNext = 0;
+				pDst->m_pNext = nullptr;
 				pDst->m_pPrev = pVoteOptionLast;
 				if(pDst->m_pPrev)
 					pDst->m_pPrev->m_pNext = pDst;
@@ -877,24 +875,24 @@ void CBlockworlds::SendChatClan(int ClanId, const char *pText, int VersionFlags,
 	}
 }
 
-void CBlockworlds::SendCosmeticsVoteOptions(int ClientID)
+void CBlockworlds::SendCosmeticsVoteOptions(int ClientID) const
 {
 	if(!g_Config.m_SvVotemenuEnabled)
 		return;
 
 	// don't send the menu to active event participants or 1on1 players (but allow during prep for duel config)
-	if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>())
+	if(auto Mgr = g_ComponentRegistry.Get<COneOnOneManager>())
 	{
-		if(auto match = mgr->GetMatchForPlayer(ClientID))
-			if(match->GetState() != COneOnOneEvent::EEventState::Preparation)
+		if(auto Match = Mgr->GetMatchForPlayer(ClientID))
+			if(Match->GetState() != COneOnOneEvent::EEventState::Preparation)
 				return;
 	}
-	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
+	if(auto Events = g_ComponentRegistry.Get<CEvents>(); Events)
 	{
-		if(auto active = events->GetActiveEvent(); active)
+		if(auto Active = Events->GetActiveEvent(); Active)
 		{
-			const auto &parts = active->Participants();
-			if(std::find(parts.begin(), parts.end(), ClientID) != parts.end())
+			const auto &Parts = Active->Participants();
+			if(std::find(Parts.begin(), Parts.end(), ClientID) != Parts.end())
 				return;
 		}
 	}
@@ -904,7 +902,7 @@ void CBlockworlds::SendCosmeticsVoteOptions(int ClientID)
 	g_VoteManager.SendOptions(pPlayer, ClientID, Server(), GameServer());
 }
 
-void CBlockworlds::SendPendingJoinMessage(int ClientId)
+void CBlockworlds::SendPendingJoinMessage(int ClientId) const
 {
 	if(ClientId < 0 || ClientId >= MAX_CLIENTS || !GameServer()->m_apPlayers[ClientId])
 		return;
@@ -928,7 +926,7 @@ void CBlockworlds::SetVoteDescriptionAtIndex(int *pIndex, const char *pStr, CNet
 	::SetVoteDescriptionAtIndex(pIndex, pStr, pOptionMsg);
 }
 
-void CBlockworlds::UpdateLMBVoteOption()
+void CBlockworlds::UpdateLMBVoteOption() const
 {
 	RemoveVoteByDescription("Start LMB event");
 
@@ -945,7 +943,7 @@ void CBlockworlds::UpdateLMBVoteOption()
 	// GameServer()->AddVote("Start LMB event", "events_start lmb");
 }
 
-void CBlockworlds::UpdateWeaponkitsVoteOption()
+void CBlockworlds::UpdateWeaponkitsVoteOption() const
 {
 	RemoveVoteByDescription("Allow weaponkits");
 	RemoveVoteByDescription("Disable weaponkits");
@@ -959,35 +957,35 @@ void CBlockworlds::UpdateWeaponkitsVoteOption()
 bool CBlockworlds::isInEvent(int pPlayerID)
 {
 	// 1on1 manager is checked first (supports multiple concurrent 1on1s)
-	if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>(); mgr)
+	if(auto Mgr = g_ComponentRegistry.Get<COneOnOneManager>(); Mgr)
 	{
-		if(mgr->GetMatchForPlayer(pPlayerID))
+		if(Mgr->GetMatchForPlayer(pPlayerID))
 			return true;
 	}
 
-	if(auto events = g_ComponentRegistry.Get<CEvents>(); events)
+	if(auto Events = g_ComponentRegistry.Get<CEvents>(); Events)
 	{
-		for(auto &sub : events->GetSubComponents())
+		for(auto &Sub : Events->GetSubComponents())
 		{
-			CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
+			CEventComponent *pEv = dynamic_cast<CEventComponent *>(Sub.operator->());
 			if(!pEv)
 				continue;
-			const auto &parts = pEv->Participants();
-			if(std::find(parts.begin(), parts.end(), pPlayerID) != parts.end())
+			const auto &Parts = pEv->Participants();
+			if(std::find(Parts.begin(), Parts.end(), pPlayerID) != Parts.end())
 				return true;
 		}
 	}
 	return false;
 }
 
-int CBlockworlds::GetTilePositions(int TileID, CGameContext *pSelf, std::vector<vec2> &result)
+int CBlockworlds::GetTilePositions(int TileID, CGameContext *pSelf, std::vector<vec2> &Result)
 { // use a vector reference as a parameter
 	// std::vector<vec2> result; // no need to declare a local vector
 	if(TileID < 0 || TileID > 255)
 		return 0;
 
 	int Length = pSelf->Collision()->GetWidth() * pSelf->Collision()->GetHeight(); // get the length of the pointer array
-	int foundIndex = 0;
+	int FoundIndex = 0;
 	for(int i = 0; i < Length; i++)
 	{ // loop through all indices
 		if(pSelf->Collision()->GetTileIndex(i) == TileID)
@@ -995,25 +993,25 @@ int CBlockworlds::GetTilePositions(int TileID, CGameContext *pSelf, std::vector<
 
 			int X = pSelf->Collision()->GetPos(i).x; // get the x coordinate from the index
 			int Y = pSelf->Collision()->GetPos(i).y; // get the y coordinate from the index
-			result.push_back(vec2(X, Y)); // use push_back to add elements to the vector
-			foundIndex++;
+			Result.emplace_back(X, Y); // use push_back to add elements to the vector
+			FoundIndex++;
 		}
 	}
 	// *_result = result; // no need to assign the vector to another pointer
-	return foundIndex;
+	return FoundIndex;
 	// return 0;
 }
 
-int CBlockworlds::getSwitchTilePositions(int Type, int Delay, int Number, CGameContext *pSelf, std::vector<vec2> &result)
+int CBlockworlds::GetSwitchTilePositions(int Type, int Delay, int Number, CGameContext *pSelf, std::vector<vec2> &Result)
 { // use a vector reference as a parameter
 	// std::vector<vec2> result; // no need to declare a local vector
 	if(Type < 0 || Type > 255)
 	{
 		return 0;
 	}
-	CMapItemLayerTilemap *switchLayer = pSelf->Collision()->Layers()->SwitchLayer();
-	int Length = switchLayer->m_Width * switchLayer->m_Height; // get the length of the pointer array
-	int foundIndex = 0;
+	CMapItemLayerTilemap *SwitchLayer = pSelf->Collision()->Layers()->SwitchLayer();
+	int Length = SwitchLayer->m_Width * SwitchLayer->m_Height; // get the length of the pointer array
+	int FoundIndex = 0;
 	for(int i = 0; i < Length; i++)
 	{ // loop through all indices
 		if(Type != -1)
@@ -1028,18 +1026,18 @@ int CBlockworlds::getSwitchTilePositions(int Type, int Delay, int Number, CGameC
 
 		int X = pSelf->Collision()->GetPos(i).x; // get the x coordinate from the index
 		int Y = pSelf->Collision()->GetPos(i).y; // get the y coordinate from the index
-		result.push_back(vec2(X, Y)); // use push_back to add elements to the vector
-		foundIndex++;
+		Result.emplace_back(X, Y); // use push_back to add elements to the vector
+		FoundIndex++;
 		// dbg_msg("Dummy-Shop", "switch found (ID: %d | Delay/Type: %d)", pSelf->Collision()->GetSwitchNumber(i), pSelf->Collision()->GetSwitchDelay(i));
 		// }
 	}
 
 	// *_result = result; // no need to assign the vector to another pointer
-	return foundIndex;
+	return FoundIndex;
 	// return 0;
 }
 
-int CBlockworlds::GetNextClientID()
+int CBlockworlds::GetNextClientID() const
 {
 	int ClientID = -1;
 	for(int i = 0; i < g_Config.m_SvMaxClients; i++)
@@ -1086,17 +1084,17 @@ void CBlockworlds::OnPostTick()
 	{
 		m_pWhoIs->SnapshotTick();
 		m_pWhoIs->DrainAndPrintResults(); // print maintenance (purge) outputs
-		for(auto it = m_vWhoisResults.begin(); it != m_vWhoisResults.end();)
+		for(auto It = m_vWhoisResults.begin(); It != m_vWhoisResults.end();)
 		{
-			auto &pRes = *it;
+			auto &pRes = *It;
 			if(pRes && pRes->m_Completed)
 			{
 				for(const auto &Line : pRes->m_vLines)
 					Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, pRes->m_aTag, Line.c_str());
-				it = m_vWhoisResults.erase(it);
+				It = m_vWhoisResults.erase(It);
 			}
 			else
-				++it;
+				++It;
 		}
 	}
 }
@@ -1112,7 +1110,7 @@ bool CBlockworlds::SkipVoteParticipant(int ClientId) const
 	return false;
 }
 
-void CBlockworlds::OnPlayerTick(int ClientId)
+void CBlockworlds::OnPlayerTick(int ClientId) const
 {
 	// runs once per second, from inside CGameContext::OnTick's player loop
 	if(Server()->Tick() % Server()->TickSpeed() != 0)
@@ -1190,7 +1188,7 @@ static bool IsInRunningEvent(int ClientId, const char **ppEventName = nullptr)
 	return true;
 }
 
-bool CBlockworlds::OnTeamChat(int ClientId, const char *pMessage)
+bool CBlockworlds::OnTeamChat(int ClientId, const char *pMessage) const
 {
 	CPlayer *pPlayer = GetPlayer(ClientId);
 	if(!pPlayer)
@@ -1214,7 +1212,7 @@ bool CBlockworlds::OnTeamChat(int ClientId, const char *pMessage)
 	return true;
 }
 
-bool CBlockworlds::OnPublicChat(int ClientId, const char *pMessage)
+bool CBlockworlds::OnPublicChat(int ClientId, const char *pMessage) const
 {
 	// LMB and TDM are silent for the players in them, so nobody can coordinate
 	// or stall; admins keep their voice
@@ -1312,7 +1310,7 @@ bool CBlockworlds::IsChatBlocked(int ClientId) const
 	       (str_comp(pEventName, "LMB") == 0 || str_comp(pEventName, "tdm") == 0);
 }
 
-bool CBlockworlds::OnJoinSpectators(int ClientId)
+bool CBlockworlds::OnJoinSpectators(int ClientId) const
 {
 	if(auto pEvents = g_ComponentRegistry.Get<CEvents>())
 	{
@@ -1370,7 +1368,7 @@ bool CBlockworlds::BlocksSelfKill(int ClientId)
 	return true;
 }
 
-bool CBlockworlds::OnWhisper(int ClientId, int VictimId, const char *pMessage)
+bool CBlockworlds::OnWhisper(int ClientId, int VictimId, const char *pMessage) const
 {
 	// silence during LMB and TDM covers whispers in both directions, or a
 	// participant could simply whisper their way around it
@@ -1400,7 +1398,7 @@ bool CBlockworlds::OnWhisper(int ClientId, int VictimId, const char *pMessage)
 	return false;
 }
 
-void CBlockworlds::OnPublicChatSent(int ClientId, const char *pCensoredMessage, const char *pMessage)
+void CBlockworlds::OnPublicChatSent(int ClientId, const char *pCensoredMessage, const char *pMessage) const
 {
 	// a censored message is not what the player typed, so it is not relayed
 	if(str_comp_num(pCensoredMessage, pMessage, str_length(pCensoredMessage)) != 0)
@@ -1428,7 +1426,7 @@ bool CBlockworlds::OverrideSpawnPos(int ClientId, vec2 *pSpawnPos)
 		if(auto pMatch = pManager->GetMatchForPlayer(ClientId))
 		{
 			const auto &Reservation = pMatch->GetSpawnReservation();
-			const int Idx = (ClientId == pMatch->m_Player1ID) ? Reservation.pos1Idx : Reservation.pos2Idx;
+			const int Idx = (ClientId == pMatch->m_Player1ID) ? Reservation.m_Pos1Idx : Reservation.m_Pos2Idx;
 			std::vector<vec2> Positions;
 			if(pMatch->GetState() == COneOnOneEvent::EEventState::Preparation)
 				Positions = ZoneManager()->Get1on1PrepPositions();
@@ -1476,7 +1474,7 @@ bool CBlockworlds::OverrideSpawnPos(int ClientId, vec2 *pSpawnPos)
 	return true;
 }
 
-void CBlockworlds::OnPlayerEnterMenu(int ClientId)
+void CBlockworlds::OnPlayerEnterMenu(int ClientId) const
 {
 	if(auto pEvents = g_ComponentRegistry.Get<CEvents>())
 	{
@@ -1545,13 +1543,13 @@ const char *CBlockworlds::ServerInfoClan(int ClientId)
 	return s_aClanName;
 }
 
-int CBlockworlds::ServerInfoScore(int ClientId)
+int CBlockworlds::ServerInfoScore(int ClientId) const
 {
 	CPlayer *pPlayer = GetPlayer(ClientId);
 	return (pPlayer && pPlayer->Bw().IsLoggedIn()) ? pPlayer->Bw().GetPlayerLevel() : 0;
 }
 
-void CBlockworlds::LogModeration(int ExecutorId, const char *pFmt, ...)
+void CBlockworlds::LogModeration(int ExecutorId, const char *pFmt, ...) const
 {
 	// econ and the console have no client id and nothing to attribute
 	if(ExecutorId < 0)
@@ -1565,7 +1563,7 @@ void CBlockworlds::LogModeration(int ExecutorId, const char *pFmt, ...)
 	CDiscordWebhook::SendRconLog(GameServer()->Engine(), Http(), "%s", aMsg);
 }
 
-void CBlockworlds::OnRaceFinish(CPlayer *pPlayer)
+void CBlockworlds::OnRaceFinish(CPlayer *pPlayer) const
 {
 	CBwPlayer &Bw = pPlayer->Bw();
 	if(!Bw.IsLoggedIn() || g_Config.m_SvRaceFinishExp <= 0)
@@ -1741,7 +1739,7 @@ void CBlockworlds::SnapLaserObject(const CSnapContext &Context, int SnapId, cons
 	}
 }
 
-void CBlockworlds::OnCharacterSpawn(CCharacter *pChr)
+void CBlockworlds::OnCharacterSpawn(CCharacter *pChr) const
 {
 	CPlayer *pPlayer = pChr->GetPlayer();
 	if(!pPlayer)
@@ -1771,7 +1769,7 @@ void CBlockworlds::OnCharacterSpawn(CCharacter *pChr)
 		Component->OnCharacterSpawn(pPlayer->GetCid(), pChr->m_Pos);
 }
 
-int CBlockworlds::SnapPlayerScore(int SnappingClient, CPlayer *pPlayer)
+int CBlockworlds::SnapPlayerScore(int SnappingClient, CPlayer *pPlayer) const
 {
 	CBwPlayer &Bw = pPlayer->Bw();
 	const int ClientId = pPlayer->GetCid();
@@ -1870,7 +1868,8 @@ int CBlockworlds::SnapPlayerScore(int SnappingClient, CPlayer *pPlayer)
 			// The value written into the snap packet uses the VIEWER's preference,
 			// so each client sees the metric they chose in the vote menu.
 			int ViewerMode = Bw.m_ScoreDisplayMode; // fallback for self-snap / demo
-			if(SnappingClient != SERVER_DEMO_CLIENT && SnappingClient >= 0 && SnappingClient < MAX_CLIENTS && SnappingClient != ClientId)
+			// SERVER_DEMO_CLIENT is -1, so the >= 0 test already covers it
+			if(SnappingClient >= 0 && SnappingClient < MAX_CLIENTS && SnappingClient != ClientId)
 			{
 				if(CPlayer *pSnapper = GameServer()->m_apPlayers[SnappingClient])
 					ViewerMode = pSnapper->Bw().m_ScoreDisplayMode;
@@ -1932,7 +1931,7 @@ void CBlockworlds::OnSnapGameInfoEx(int SnappingClient, CNetObj_GameInfoEx *pGam
 		pGameInfoEx->m_Flags &= ~GAMEINFOFLAG_ALLOW_ZOOM;
 }
 
-void CBlockworlds::AddIpMuteSilent(const NETADDR *pAddr, int Secs, const char *pReason)
+void CBlockworlds::AddIpMuteSilent(const NETADDR *pAddr, int Secs, const char *pReason) const
 {
 	if(Secs <= 0)
 		return;
@@ -2017,7 +2016,7 @@ bool CBlockworlds::AllowServerVoteStreaming(int ClientId) const
 
 void CBlockworlds::SendVoteListHeader(int ClientId)
 {
-	static const char *pHeader = "\xE2\x95\xAD\xE2\x94\x80 \xEA\x9C\xB1\xE1\xB4\x87\xCA\x80\xCA\x8B\xE1\xB4\x87\xCA\x80 \xE1\xB4\xA0\xE1\xB4\x8F\xE1\xB4\x9B\xE1\xB4\x87\xEA\x9C\xB1 \xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80";
+	static const char *s_pHeader = "\xE2\x95\xAD\xE2\x94\x80 \xEA\x9C\xB1\xE1\xB4\x87\xCA\x80\xCA\x8B\xE1\xB4\x87\xCA\x80 \xE1\xB4\xA0\xE1\xB4\x8F\xE1\xB4\x9B\xE1\xB4\x87\xEA\x9C\xB1 \xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80";
 	int Index = 0;
 	CNetMsg_Sv_VoteOptionListAdd HeaderMsg;
 	HeaderMsg.m_pDescription0 = "";
@@ -2035,12 +2034,12 @@ void CBlockworlds::SendVoteListHeader(int ClientId)
 	HeaderMsg.m_pDescription12 = "";
 	HeaderMsg.m_pDescription13 = "";
 	HeaderMsg.m_pDescription14 = "";
-	SetVoteDescriptionAtIndex(&Index, pHeader, &HeaderMsg);
+	SetVoteDescriptionAtIndex(&Index, s_pHeader, &HeaderMsg);
 	HeaderMsg.m_NumOptions = Index;
 	Server()->SendPackMsg(&HeaderMsg, MSGFLAG_VITAL, ClientId);
 }
 
-void CBlockworlds::BotJoin(int BotId, const char *pName)
+void CBlockworlds::BotJoin(int BotId, const char *pName) const
 {
 	CServer *pServer = static_cast<CServer *>(Server());
 	if(BotId < 0 || BotId >= Server()->MaxClients())
@@ -2081,7 +2080,7 @@ void CBlockworlds::BotJoin(int BotId, const char *pName)
 	GameServer()->OnClientEnter(BotId);
 }
 
-void CBlockworlds::BotLeave(int BotId, bool Silent)
+void CBlockworlds::BotLeave(int BotId, bool Silent) const
 {
 	CServer *pServer = static_cast<CServer *>(Server());
 	if(BotId < 0 || BotId >= Server()->MaxClients())
@@ -2091,7 +2090,7 @@ void CBlockworlds::BotLeave(int BotId, bool Silent)
 	CServer::DelClientCallback(BotId, Silent ? "" : "Bot left", pServer);
 }
 
-void CBlockworlds::RedirectClient(int ClientId, int Port, bool Force)
+void CBlockworlds::RedirectClient(int ClientId, int Port, bool Force) const
 {
 	if(ClientId < 0 || ClientId >= MAX_CLIENTS)
 		return;
@@ -2303,7 +2302,7 @@ void CBlockworlds::OnClientConnected(int ClientId)
 		Component->OnPlayerConnected(ClientId);
 }
 
-void CBlockworlds::OnSetAuthed(int ClientId, int Level)
+void CBlockworlds::OnSetAuthed(int ClientId, int Level) const
 {
 	for(const auto &Component : g_ComponentRegistry.Active())
 	{
@@ -2430,7 +2429,7 @@ void CBlockworlds::ConChangeName(IConsole::IResult *pResult, void *pUserData)
 	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "change_name", aBuf);
 }
 
-bool CBlockworlds::OnCallVote(const CNetMsg_Cl_CallVote *pMsg, int ClientId)
+bool CBlockworlds::OnCallVote(const CNetMsg_Cl_CallVote *pMsg, int ClientId) const
 {
 	// A vote-menu entry navigates a page; it is not a server vote and must not
 	// be rate limited or looked up in the server vote list.
@@ -2511,8 +2510,8 @@ void CBlockworlds::OnSnapClientInfo(int ClientId, int SnappingClient, CNetObj_Cl
 
 		const float h = (std::sin(TickDef / Freq) + 1.0f) / 2.0f;
 		const float s = 0.5f;
-		const float l = 0.5f;
-		const int Color = ((int)(h * 255) << 16) + ((int)(s * 255) << 8) + (int)((l - 0.5f) * 255 * 2);
+		const float L = 0.5f;
+		const int Color = ((int)(h * 255) << 16) + ((int)(s * 255) << 8) + (int)((L - 0.5f) * 255 * 2);
 
 		pClientInfo->m_ColorBody = Color;
 		pClientInfo->m_ColorFeet = Color;
@@ -2561,7 +2560,7 @@ void CBlockworlds::OnSnapPlayerInfo(int ClientId, int SnappingClient, CNetObj_Pl
 		pPlayerInfo->m_Team = TEAM_SPECTATORS;
 }
 
-void CBlockworlds::OnSnapDDNetPlayer(int ClientId, CNetObj_DDNetPlayer *pDDNetPlayer)
+void CBlockworlds::OnSnapDDNetPlayer(int ClientId, CNetObj_DDNetPlayer *pDDNetPlayer) const
 {
 	// only reveal the auth level when the server opted in, otherwise clients
 	// highlight the names of moderators who want to stay unnoticed

@@ -25,31 +25,17 @@ jobs:
     - name: Prepare Linux
       run: |
         sudo apt-get update -y
+        # --- BW BEGIN: server-only ---
         sudo apt-get install \
           cmake \
-          libavcodec-dev \
-          libavformat-dev \
-          libavutil-dev \
-          libfreetype6-dev \
-          libglew-dev \
           libmariadb-dev \
           libminiupnpc-dev \
-          libnotify-dev \
-          libsdl2-dev \
           libsqlite3-dev \
-          libswresample-dev \
-          libswscale-dev \
           libwebsockets-dev \
-          libx264-dev \
           ninja-build \
           pkg-config \
           -y
-
-    - name: Install Vulkan SDK
-      uses: humbletim/install-vulkan-sdk@v1.2
-      with:
-        version: 1.3.296.0
-        cache: true
+        # --- BW END ---
 
     - name: Cache Rust dependencies
       uses: Swatinem/rust-cache@v2
@@ -78,15 +64,11 @@ jobs:
           -DCMAKE_CXX_CLANG_TIDY="clang-tidy-20;-warnings-as-errors=*" \
           -DCMAKE_C_CLANG_TIDY="clang-tidy-20;-warnings-as-errors=*" \
           -DCMAKE_BUILD_TYPE=Debug \
+          -DCLIENT=OFF \
           -DANTIBOT=ON \
-          -DAUTOUPDATE=ON \
-          -DDISCORD=ON \
           -DDOWNLOAD_GTEST=ON \
           -DMYSQL=ON \
-          -DSTEAM=ON \
           -DUPNP=ON \
-          -DVIDEORECORDER=ON \
-          -DVULKAN=ON \
           -DWEBSOCKETS=ON \
           -Werror=dev ..
         cmake --build . --config Debug --target everything testrunner -- -k 0

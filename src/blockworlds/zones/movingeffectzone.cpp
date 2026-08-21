@@ -17,16 +17,16 @@
 
 // reuse point_in_polygon from zone.cpp
 template<typename T>
-static constexpr inline bool point_in_polygon_local(const vector2_base<T> *points, int num_points, vector2_base<T> target)
+static constexpr bool point_in_polygon_local(const vector2_base<T> *Points, int NumPoints, vector2_base<T> Target)
 {
-	bool inside = false;
-	for(int i = 0, j = num_points - 1; i < num_points; j = i++)
+	bool Inside = false;
+	for(int i = 0, j = NumPoints - 1; i < NumPoints; j = i++)
 	{
-		if((points[i].y > target.y) != (points[j].y > target.y))
-			if(target.x < (points[j].x - points[i].x) * (target.y - points[i].y) / (points[j].y - points[i].y) + points[i].x)
-				inside = !inside;
+		if((Points[i].y > Target.y) != (Points[j].y > Target.y))
+			if(Target.x < (Points[j].x - Points[i].x) * (Target.y - Points[i].y) / (Points[j].y - Points[i].y) + Points[i].x)
+				Inside = !Inside;
 	}
-	return inside;
+	return Inside;
 }
 
 CMovingEffectZone::CMovingEffectZone(CGameContext *pGameServer, int Effect) :
@@ -69,28 +69,28 @@ void CMovingEffectZone::InitMoving(CMapItemLayerQuads *pQuadsLayer)
 	for(int q = 0; q < pQuadsLayer->m_NumQuads; q++)
 	{
 		CQuad &Q = pQuads[q];
-		CMovingQuad mq;
+		CMovingQuad Mq;
 
 		for(int i = 0; i < 4; i++)
-			mq.m_aBasePoints[i] = vec2(fx2f(Q.m_aPoints[i].x), fx2f(Q.m_aPoints[i].y));
+			Mq.m_aBasePoints[i] = vec2(fx2f(Q.m_aPoints[i].x), fx2f(Q.m_aPoints[i].y));
 
 		// Z-shaped vertices to match polygon winding
-		std::swap(mq.m_aBasePoints[2], mq.m_aBasePoints[3]);
+		std::swap(Mq.m_aBasePoints[2], Mq.m_aBasePoints[3]);
 
-		mq.m_Pivot = vec2(fx2f(Q.m_aPoints[4].x), fx2f(Q.m_aPoints[4].y));
-		mq.m_PosEnv = Q.m_PosEnv;
-		mq.m_PosEnvOffset = Q.m_PosEnvOffset;
+		Mq.m_Pivot = vec2(fx2f(Q.m_aPoints[4].x), fx2f(Q.m_aPoints[4].y));
+		Mq.m_PosEnv = Q.m_PosEnv;
+		Mq.m_PosEnvOffset = Q.m_PosEnvOffset;
 
-		m_vQuads.push_back(mq);
+		m_vQuads.push_back(Mq);
 	}
 
 	// initialize prev offsets for platform delta computation
 	for(auto &q : m_vQuads)
 	{
-		float ox = 0.0f, oy = 0.0f;
+		float Ox = 0.0f, Oy = 0.0f;
 		if(q.m_PosEnv >= 0)
-			EvalPositionEnvelope(q.m_PosEnv, q.m_PosEnvOffset, ox, oy);
-		q.m_PrevOffset = vec2(ox, oy);
+			EvalPositionEnvelope(q.m_PosEnv, q.m_PosEnvOffset, Ox, Oy);
+		q.m_PrevOffset = vec2(Ox, Oy);
 	}
 
 	Enable();
@@ -223,30 +223,30 @@ static vec2 PushOutConvex(vec2 Point, const vec2 *pVertices, int NumVertices)
 
 bool CMovingEffectZone::IsPointInMovingQuad(vec2 Point, int QuadIndex) const
 {
-	const CMovingQuad &mq = m_vQuads[QuadIndex];
+	const CMovingQuad &Mq = m_vQuads[QuadIndex];
 	float OffX = 0.0f, OffY = 0.0f;
-	if(mq.m_PosEnv >= 0)
-		EvalPositionEnvelope(mq.m_PosEnv, mq.m_PosEnvOffset, OffX, OffY);
+	if(Mq.m_PosEnv >= 0)
+		EvalPositionEnvelope(Mq.m_PosEnv, Mq.m_PosEnvOffset, OffX, OffY);
 
 	std::array<vec2, 4> Translated;
 	for(int i = 0; i < 4; i++)
-		Translated[i] = mq.m_aBasePoints[i] + vec2(OffX, OffY);
+		Translated[i] = Mq.m_aBasePoints[i] + vec2(OffX, OffY);
 
 	return point_in_polygon_local(Translated.data(), 4, Point);
 }
 
 bool CMovingEffectZone::IsPlayerInMovingZone(vec2 PlayerPos) const
 {
-	for(const auto &mq : m_vQuads)
+	for(const auto &Mq : m_vQuads)
 	{
 		float OffX = 0.0f, OffY = 0.0f;
-		if(mq.m_PosEnv >= 0)
-			EvalPositionEnvelope(mq.m_PosEnv, mq.m_PosEnvOffset, OffX, OffY);
+		if(Mq.m_PosEnv >= 0)
+			EvalPositionEnvelope(Mq.m_PosEnv, Mq.m_PosEnvOffset, OffX, OffY);
 
 		// translate quad corners by envelope offset (relative to pivot)
 		std::array<vec2, 4> Translated;
 		for(int i = 0; i < 4; i++)
-			Translated[i] = mq.m_aBasePoints[i] + vec2(OffX, OffY);
+			Translated[i] = Mq.m_aBasePoints[i] + vec2(OffX, OffY);
 
 		if(point_in_polygon_local(Translated.data(), 4, PlayerPos))
 			return true;
@@ -289,13 +289,13 @@ void CMovingEffectZone::Tick()
 				// pull player toward the nearest quad center
 				vec2 Target = vec2(0, 0);
 				float BestDist = -1.0f;
-				for(const auto &mq : m_vQuads)
+				for(const auto &Mq : m_vQuads)
 				{
 					float OffX = 0.0f, OffY = 0.0f;
-					if(mq.m_PosEnv >= 0)
-						EvalPositionEnvelope(mq.m_PosEnv, mq.m_PosEnvOffset, OffX, OffY);
+					if(Mq.m_PosEnv >= 0)
+						EvalPositionEnvelope(Mq.m_PosEnv, Mq.m_PosEnvOffset, OffX, OffY);
 
-					vec2 Center = mq.m_Pivot + vec2(OffX, OffY);
+					vec2 Center = Mq.m_Pivot + vec2(OffX, OffY);
 					float Dist = distance(pChar->m_Pos, Center);
 					if(BestDist < 0.0f || Dist < BestDist)
 					{
@@ -321,17 +321,16 @@ void CMovingEffectZone::Tick()
 			CCharacterCore *pCore = &pChar->Bw().Core();
 
 			// --- Solid collision & platform logic ---
-			for(int qi = 0; qi < (int)m_vQuads.size(); qi++)
+			for(auto &Quad : m_vQuads)
 			{
-				CMovingQuad &mq = m_vQuads[qi];
 				float OffX = 0.0f, OffY = 0.0f;
-				if(mq.m_PosEnv >= 0)
-					EvalPositionEnvelope(mq.m_PosEnv, mq.m_PosEnvOffset, OffX, OffY);
+				if(Quad.m_PosEnv >= 0)
+					EvalPositionEnvelope(Quad.m_PosEnv, Quad.m_PosEnvOffset, OffX, OffY);
 				vec2 CurOffset(OffX, OffY);
 
 				std::array<vec2, 4> Trans;
 				for(int c = 0; c < 4; c++)
-					Trans[c] = mq.m_aBasePoints[c] + CurOffset;
+					Trans[c] = Quad.m_aBasePoints[c] + CurOffset;
 
 				bool CenterInside = point_in_polygon_local(Trans.data(), 4, pChar->m_Pos);
 
@@ -368,7 +367,7 @@ void CMovingEffectZone::Tick()
 								pCore->m_JumpedTotal = 0;
 
 								// ride with moving platform
-								vec2 Delta = CurOffset - mq.m_PrevOffset;
+								vec2 Delta = CurOffset - Quad.m_PrevOffset;
 								pCore->m_Pos += Delta;
 								pChar->m_Pos = pCore->m_Pos;
 							}
@@ -391,7 +390,7 @@ void CMovingEffectZone::Tick()
 						pCore->m_JumpedTotal = 0;
 
 						// ride with moving platform
-						vec2 Delta = CurOffset - mq.m_PrevOffset;
+						vec2 Delta = CurOffset - Quad.m_PrevOffset;
 						pCore->m_Pos += Delta;
 						pChar->m_Pos = pCore->m_Pos;
 					}
@@ -407,13 +406,13 @@ void CMovingEffectZone::Tick()
 				}
 				else
 				{
-					int qi = m_aHookableTrack[i].m_QuadIndex;
-					if(qi >= 0 && qi < (int)m_vQuads.size())
+					int Qi = m_aHookableTrack[i].m_QuadIndex;
+					if(Qi >= 0 && Qi < (int)m_vQuads.size())
 					{
-						const CMovingQuad &mq = m_vQuads[qi];
+						const CMovingQuad &Mq = m_vQuads[Qi];
 						float OffX = 0.0f, OffY = 0.0f;
-						if(mq.m_PosEnv >= 0)
-							EvalPositionEnvelope(mq.m_PosEnv, mq.m_PosEnvOffset, OffX, OffY);
+						if(Mq.m_PosEnv >= 0)
+							EvalPositionEnvelope(Mq.m_PosEnv, Mq.m_PosEnvOffset, OffX, OffY);
 
 						pCore->m_HookPos = m_aHookableTrack[i].m_HookBasePos + vec2(OffX, OffY);
 					}
@@ -422,21 +421,21 @@ void CMovingEffectZone::Tick()
 
 			if(!m_aHookableTrack[i].m_Active && pCore->m_HookState == HOOK_FLYING)
 			{
-				for(int qi = 0; qi < (int)m_vQuads.size(); qi++)
+				for(int Qi = 0; Qi < (int)m_vQuads.size(); Qi++)
 				{
-					if(IsPointInMovingQuad(pCore->m_HookPos, qi))
+					if(IsPointInMovingQuad(pCore->m_HookPos, Qi))
 					{
-						const CMovingQuad &mq = m_vQuads[qi];
+						const CMovingQuad &Mq = m_vQuads[Qi];
 						float OffX = 0.0f, OffY = 0.0f;
-						if(mq.m_PosEnv >= 0)
-							EvalPositionEnvelope(mq.m_PosEnv, mq.m_PosEnvOffset, OffX, OffY);
+						if(Mq.m_PosEnv >= 0)
+							EvalPositionEnvelope(Mq.m_PosEnv, Mq.m_PosEnvOffset, OffX, OffY);
 
 						pCore->m_HookState = HOOK_GRABBED;
 						pCore->m_TriggeredEvents |= COREEVENT_HOOK_ATTACH_GROUND;
 						pCore->SetHookedPlayer(-1);
 
 						m_aHookableTrack[i].m_Active = true;
-						m_aHookableTrack[i].m_QuadIndex = qi;
+						m_aHookableTrack[i].m_QuadIndex = Qi;
 						m_aHookableTrack[i].m_HookBasePos = pCore->m_HookPos - vec2(OffX, OffY);
 						break;
 					}
@@ -459,9 +458,9 @@ void CMovingEffectZone::Tick()
 			float Ct = (GameServer()->Server()->Tick() - pProj->StartTick()) / (float)GameServer()->Server()->TickSpeed();
 			vec2 ProjPos = pProj->GetPos(Ct);
 
-			for(int qi = 0; qi < (int)m_vQuads.size(); qi++)
+			for(int Qi = 0; Qi < (int)m_vQuads.size(); Qi++)
 			{
-				if(IsPointInMovingQuad(ProjPos, qi))
+				if(IsPointInMovingQuad(ProjPos, Qi))
 				{
 					GameServer()->Bw().CreateExplosionVisual(ProjPos);
 					pProj->Reset();
@@ -471,12 +470,12 @@ void CMovingEffectZone::Tick()
 		}
 
 		// update prev offsets for next tick's delta computation
-		for(auto &mq : m_vQuads)
+		for(auto &Mq : m_vQuads)
 		{
 			float OffX = 0.0f, OffY = 0.0f;
-			if(mq.m_PosEnv >= 0)
-				EvalPositionEnvelope(mq.m_PosEnv, mq.m_PosEnvOffset, OffX, OffY);
-			mq.m_PrevOffset = vec2(OffX, OffY);
+			if(Mq.m_PosEnv >= 0)
+				EvalPositionEnvelope(Mq.m_PosEnv, Mq.m_PosEnvOffset, OffX, OffY);
+			Mq.m_PrevOffset = vec2(OffX, OffY);
 		}
 	}
 }

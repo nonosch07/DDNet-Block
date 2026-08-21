@@ -48,7 +48,7 @@ struct CVpnServiceRequest : public IVpnServiceRequest
 	std::shared_ptr<IVpnServiceResult> Execute() override;
 
 private:
-	bool PerformHttpRequest(const char *pUrl, std::string &ResponseBody, std::string &ResponseHeaders, int &ResponseCode);
+	bool PerformHttpRequest(const char *pUrl, std::string &ResponseBody, std::string &ResponseHeaders, int &ResponseCode) const;
 	int ParseRetryAfterMs(const std::string &ResponseHeaders, int ResponseCode) const;
 };
 

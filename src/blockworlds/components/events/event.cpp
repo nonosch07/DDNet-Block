@@ -31,7 +31,7 @@ CEventComponent::~CEventComponent()
 void CEventComponent::SetState(CEventComponent::EEventState NewState)
 {
 	EEventState OldState;
-	std::function<void(EEventState, EEventState)> cb;
+	std::function<void(EEventState, EEventState)> Cb;
 	{
 		// protect state change and copy callback while holding lock on derived classes if they expose mutex
 		// CEventComponent doesn't have its own mutex; derived classes may override behavior. We simply update state and call callback.
@@ -39,11 +39,11 @@ void CEventComponent::SetState(CEventComponent::EEventState NewState)
 		if(OldState == NewState)
 			return;
 		m_State = NewState;
-		cb = m_pfnOnStateChange;
+		Cb = m_pfnOnStateChange;
 	}
 
-	if(cb)
-		cb(OldState, NewState);
+	if(Cb)
+		Cb(OldState, NewState);
 
 	if(NewState == EEventState::Active)
 	{
@@ -60,7 +60,7 @@ void CEventComponent::SetState(CEventComponent::EEventState NewState)
 
 void CEventComponent::SaveAndClearCosmetics(int ClientId)
 {
-	if(m_SavedCosmetics.count(ClientId) > 0)
+	if(m_SavedCosmetics.contains(ClientId))
 		return;
 
 	CPlayer *pPlayer = GameServer()->Bw().GetPlayer(ClientId);
@@ -139,7 +139,6 @@ void CEventComponent::OnTick()
 #ifdef CONF_DEBUG
 	if(g_Config.m_SvEventsTestMode && m_State == EEventState::Registration)
 	{
-#ifdef CONF_DEBUG
 		const int NeedDummies = GetMinCandidates();
 
 		if(g_Config.m_DbgDummies < NeedDummies)
@@ -152,7 +151,6 @@ void CEventComponent::OnTick()
 			if(GameServer()->Bw().GetPlayer(i) && std::find(m_Candidates.begin(), m_Candidates.end(), i) == m_Candidates.end())
 				Register(i);
 		}
-#endif
 	}
 #endif
 	// process both queues independently and requeue items that could not be completed yet

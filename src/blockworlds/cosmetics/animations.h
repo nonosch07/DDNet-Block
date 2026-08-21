@@ -21,7 +21,7 @@ private:
 public:
 	CMapAnimation(vec2 Pos, int64_t Tick, CGameWorld *pGameWorld) :
 		m_Pos(Pos), m_Tick(Tick), m_pGameWorld(pGameWorld) {}
-	virtual ~CMapAnimation() {}
+	virtual ~CMapAnimation() = default;
 
 	virtual void Tick() = 0;
 	virtual void Snap(int SnappingClient) = 0;
@@ -36,11 +36,12 @@ public:
 class CAnimationHandler
 {
 private:
-	std::vector<CMapAnimation *> m_lpAnimations;
+	std::vector<CMapAnimation *> m_LpAnimations;
 	CGameContext *m_pGameServer;
 	IServer *m_pServer;
 
 public:
+	virtual ~CAnimationHandler() = default;
 	CAnimationHandler();
 
 	void Laserwrite(const char *pText, vec2 StartPos, float Size, int Ticks, bool Shotgun = false);

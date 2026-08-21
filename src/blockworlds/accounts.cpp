@@ -102,13 +102,13 @@ bool CAccounts::SyncSaveBlocking(int ClientId, const CAccountData &Acc, int Time
 	Tmp->m_Critical = true;
 	Tmp->m_pFunc = SaveThread;
 	m_pPool->ExecuteWrite([](IDbConnection *pSql, const ISqlData *pData, Write, char *pErr, int ErrSz) -> bool {
-		auto *pReq = dynamic_cast<const CSqlAccountRequest *>(pData);
+		const auto *pReq = dynamic_cast<const CSqlAccountRequest *>(pData);
 		return pReq && pReq->m_pFunc ? pReq->m_pFunc(pSql, pData, pErr, ErrSz) : true;
 	},
 		std::move(Tmp), "sync account save");
-	int64_t start = time_get();
-	int64_t deadline = start + (int64_t)TimeoutMs * time_freq() / 1000;
-	while(!pResult->m_Completed.load(std::memory_order_relaxed) && time_get() < deadline)
+	int64_t Start = time_get();
+	int64_t Deadline = Start + (int64_t)TimeoutMs * time_freq() / 1000;
+	while(!pResult->m_Completed.load(std::memory_order_relaxed) && time_get() < Deadline)
 	{
 		for(int s = 0; s < 2000; ++s)
 		{
@@ -123,15 +123,15 @@ bool CAccounts::SyncSaveBlocking(int ClientId, const CAccountData &Acc, int Time
 	return pResult->m_Completed.load() && pResult->m_Success;
 }
 
-struct IpTrackerEntry
+struct SIpTrackerEntry
 {
-	int Attempts = 0;
-	int64_t FirstAttemptTick = 0;
-	int64_t BannedUntilTick = 0;
-	int64_t LastSeenTick = 0;
+	int m_Attempts = 0;
+	int64_t m_FirstAttemptTick = 0;
+	int64_t m_BannedUntilTick = 0;
+	int64_t m_LastSeenTick = 0;
 };
 
-static std::unordered_map<std::string, IpTrackerEntry> s_IpTracker;
+static std::unordered_map<std::string, SIpTrackerEntry> s_IpTracker;
 static std::mutex s_IpTrackerMutex;
 
 static std::unordered_map<int, int64_t> s_LastPlayerActionTick;
@@ -160,29 +160,29 @@ static inline int cfg_ip_ban_seconds()
 }
 static inline int cfg_ip_expiry_seconds()
 {
-	long long win = cfg_ip_window_seconds();
-	long long exp = win * 15LL;
-	if(exp < win)
-		exp = win; // overflow/guard
-	if(exp > 24LL * 60 * 60)
-		exp = 24LL * 60 * 60; // cap to 24h
-	return (int)exp;
+	long long Win = cfg_ip_window_seconds();
+	long long Exp = Win * 15LL;
+	if(Exp < Win)
+		Exp = Win; // overflow/guard
+	if(Exp > 24LL * 60 * 60)
+		Exp = 24LL * 60 * 60; // cap to 24h
+	return (int)Exp;
 }
 
 bool CAccounts::IsIpBanned(const char *pIp, int &RemainingSeconds) const
 {
-	std::lock_guard<std::mutex> lock(s_IpTrackerMutex);
-	auto it = s_IpTracker.find(pIp);
+	std::lock_guard<std::mutex> Lock(s_IpTrackerMutex);
+	auto It = s_IpTracker.find(pIp);
 	int64_t Now = time_get();
-	if(it == s_IpTracker.end())
+	if(It == s_IpTracker.end())
 	{
 		RemainingSeconds = 0;
 		return false;
 	}
-	const IpTrackerEntry &E = it->second;
-	if(E.BannedUntilTick > Now)
+	const SIpTrackerEntry &E = It->second;
+	if(E.m_BannedUntilTick > Now)
 	{
-		RemainingSeconds = (int)((E.BannedUntilTick - Now) / time_freq());
+		RemainingSeconds = (int)((E.m_BannedUntilTick - Now) / time_freq());
 		return true;
 	}
 	RemainingSeconds = 0;
@@ -198,12 +198,12 @@ bool CAccounts::RateLimitPlayer(int ClientId)
 	{
 		return false;
 	}
-	auto it = s_LastPlayerActionTick.find(ClientId);
-	if(it != s_LastPlayerActionTick.end())
+	auto It = s_LastPlayerActionTick.find(ClientId);
+	if(It != s_LastPlayerActionTick.end())
 	{
-		int64_t Delta = Now - it->second;
+		int64_t Delta = Now - It->second;
 		if(Delta < 0)
-			s_LastPlayerActionTick.erase(it);
+			s_LastPlayerActionTick.erase(It);
 		else if(Delta < PLAYER_ACTION_COOLDOWN_TICKS)
 		{
 			if(GameServer()->m_apPlayers[ClientId])
@@ -217,29 +217,29 @@ bool CAccounts::RateLimitPlayer(int ClientId)
 
 bool CAccounts::RegisterIpAttempt(const char *pIp)
 {
-	std::lock_guard<std::mutex> lock(s_IpTrackerMutex);
+	std::lock_guard<std::mutex> Lock(s_IpTrackerMutex);
 	int64_t Now = time_get();
 	int64_t Freq = time_freq();
 	auto &E = s_IpTracker[pIp];
 
-	if(E.LastSeenTick && Now - E.LastSeenTick > (int64_t)cfg_ip_expiry_seconds() * Freq)
+	if(E.m_LastSeenTick && Now - E.m_LastSeenTick > (int64_t)cfg_ip_expiry_seconds() * Freq)
 	{
-		E = IpTrackerEntry();
+		E = SIpTrackerEntry();
 	}
-	E.LastSeenTick = Now;
-	if(E.BannedUntilTick > Now)
+	E.m_LastSeenTick = Now;
+	if(E.m_BannedUntilTick > Now)
 	{
 		return false; // still banned
 	}
-	if(E.FirstAttemptTick == 0 || Now - E.FirstAttemptTick > (int64_t)cfg_ip_window_seconds() * Freq)
+	if(E.m_FirstAttemptTick == 0 || Now - E.m_FirstAttemptTick > (int64_t)cfg_ip_window_seconds() * Freq)
 	{
-		E.FirstAttemptTick = Now;
-		E.Attempts = 0;
+		E.m_FirstAttemptTick = Now;
+		E.m_Attempts = 0;
 	}
-	E.Attempts++;
-	if(E.Attempts > cfg_ip_max_attempts())
+	E.m_Attempts++;
+	if(E.m_Attempts > cfg_ip_max_attempts())
 	{
-		E.BannedUntilTick = Now + (int64_t)cfg_ip_ban_seconds() * Freq;
+		E.m_BannedUntilTick = Now + (int64_t)cfg_ip_ban_seconds() * Freq;
 		return false; // now banned
 	}
 	return true; // allowed
@@ -247,27 +247,27 @@ bool CAccounts::RegisterIpAttempt(const char *pIp)
 
 void CAccounts::ClearIpBan(const char *pIp)
 {
-	std::lock_guard<std::mutex> lock(s_IpTrackerMutex);
-	auto it = s_IpTracker.find(pIp);
-	if(it != s_IpTracker.end())
+	std::lock_guard<std::mutex> Lock(s_IpTrackerMutex);
+	auto It = s_IpTracker.find(pIp);
+	if(It != s_IpTracker.end())
 	{
-		it->second.BannedUntilTick = 0;
-		it->second.Attempts = 0;
-		it->second.FirstAttemptTick = 0;
+		It->second.m_BannedUntilTick = 0;
+		It->second.m_Attempts = 0;
+		It->second.m_FirstAttemptTick = 0;
 	}
 }
 
 std::vector<std::pair<std::string, int>> CAccounts::ListIpBans() const
 {
-	std::lock_guard<std::mutex> lock(s_IpTrackerMutex);
+	std::lock_guard<std::mutex> Lock(s_IpTrackerMutex);
 	std::vector<std::pair<std::string, int>> v;
 	int64_t Now = time_get();
-	for(const auto &kv : s_IpTracker)
+	for(const auto &Kv : s_IpTracker)
 	{
-		if(kv.second.BannedUntilTick > Now)
+		if(Kv.second.m_BannedUntilTick > Now)
 		{
-			int Remaining = (int)((kv.second.BannedUntilTick - Now) / time_freq());
-			v.emplace_back(kv.first, Remaining);
+			int Remaining = (int)((Kv.second.m_BannedUntilTick - Now) / time_freq());
+			v.emplace_back(Kv.first, Remaining);
 		}
 	}
 	return v;
@@ -303,7 +303,7 @@ void CAccounts::Login(int ClientId, const char *pUsername, const char *pPassword
 {
 	if(RateLimitPlayer(ClientId))
 		return;
-	ExecUserThread(LoginThread, "login user", ClientId, pUsername, pPassword, "", 0, NULL);
+	ExecUserThread(LoginThread, "login user", ClientId, pUsername, pPassword, "", 0, nullptr);
 }
 
 std::shared_ptr<CAccountResult> CAccounts::NewSqlAccountResult(int ClientId)
@@ -366,7 +366,7 @@ static bool SqlWritePerRequestAdapter(IDbConnection *pSqlServer, const ISqlData 
 		return true; // treat backup phases as success (no-op)
 	if(w == Write::NORMAL_FAILED)
 		return false; // don't mask a primary failure
-	auto *pReq = dynamic_cast<const CSqlAccountRequest *>(pGameData);
+	const auto *pReq = dynamic_cast<const CSqlAccountRequest *>(pGameData);
 	if(!pReq || !pReq->m_pFunc)
 		return false; // fail
 	return pReq->m_pFunc(pSqlServer, pGameData, pError, ErrorSize);
@@ -491,9 +491,9 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 	SQL_GET_INT(Index++, pResult->m_Account.m_Ranking);
 	SQL_GET_INT(Index++, pResult->m_Account.m_ClanId);
 	{
-		int rawAuthLevel = 0;
-		SQL_GET_INT(Index++, rawAuthLevel);
-		pResult->m_Account.m_AuthLevel = static_cast<ClanAuthLevel>(rawAuthLevel);
+		int RawAuthLevel = 0;
+		SQL_GET_INT(Index++, RawAuthLevel);
+		pResult->m_Account.m_AuthLevel = static_cast<ClanAuthLevel>(RawAuthLevel);
 	}
 	SQL_GET_INT(Index++, pResult->m_Account.m_Blockpoints);
 	SQL_GET_STRING(Index++, pResult->m_Account.m_aKnockouts);
@@ -703,7 +703,7 @@ void CAccounts::Register(int ClientId, const char *pUsername, const char *pPassw
 {
 	if(RateLimitPlayer(ClientId))
 		return;
-	ExecUserThread(RegisterThread, "register user", ClientId, pUsername, pPassword, "", 0, NULL);
+	ExecUserThread(RegisterThread, "register user", ClientId, pUsername, pPassword, "", 0, nullptr);
 }
 
 bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
@@ -743,8 +743,8 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 	// dbg_msg("register", "Generated hash length=%d sample='%.32s...'", (int)str_length(aHashedPassword), aHashedPassword);
 
 	// dbg_msg("register", "BEGIN transaction");
-	int txAffected = 0;
-	if(!pSqlServer->PrepareStatement("BEGIN;", pError, ErrorSize) || !pSqlServer->ExecuteUpdate(&txAffected, pError, ErrorSize))
+	int TxAffected = 0;
+	if(!pSqlServer->PrepareStatement("BEGIN;", pError, ErrorSize) || !pSqlServer->ExecuteUpdate(&TxAffected, pError, ErrorSize))
 	{
 		//	dbg_msg("register", "BEGIN failed: %s", pError);
 		return false;
@@ -759,7 +759,7 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 	pSqlServer->BindString(2, aHashedPassword);
 
 	// dbg_msg("register", "Executing core insert for '%s'", pData->m_aUsername);
-	if(!Failed && !pSqlServer->ExecuteUpdate(&txAffected, pError, ErrorSize))
+	if(!Failed && !pSqlServer->ExecuteUpdate(&TxAffected, pError, ErrorSize))
 	{
 		if(pError && str_find_nocase(pError, "duplicate"))
 		{
@@ -767,7 +767,7 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 			pResult->m_Account.m_ClientId = pData->m_ClientId;
 			str_copy(pResult->m_Account.m_aName, pData->m_aUsername, sizeof(pResult->m_Account.m_aName));
 			pSqlServer->PrepareStatement("ROLLBACK;", nullptr, 0);
-			pSqlServer->ExecuteUpdate(&txAffected, nullptr, 0);
+			pSqlServer->ExecuteUpdate(&TxAffected, nullptr, 0);
 			return true;
 		}
 		Failed = true;
@@ -794,7 +794,7 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 			if(!Failed)
 			{
 				pSqlServer->BindInt(1, NewId);
-				if(!pSqlServer->ExecuteUpdate(&txAffected, pError, ErrorSize))
+				if(!pSqlServer->ExecuteUpdate(&TxAffected, pError, ErrorSize))
 					Failed = true;
 			}
 			str_format(aBuf, sizeof(aBuf), "INSERT INTO %s (account_id) VALUES (?);", TBL_ACCOUNTS_INVENTORY);
@@ -803,7 +803,7 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 			if(!Failed)
 			{
 				pSqlServer->BindInt(1, NewId);
-				if(!pSqlServer->ExecuteUpdate(&txAffected, pError, ErrorSize))
+				if(!pSqlServer->ExecuteUpdate(&TxAffected, pError, ErrorSize))
 					Failed = true;
 			}
 			str_format(aBuf, sizeof(aBuf), "INSERT INTO %s (account_id) VALUES (?);", TBL_ACCOUNTS_RANKED);
@@ -812,11 +812,11 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 			if(!Failed)
 			{
 				pSqlServer->BindInt(1, NewId);
-				if(!pSqlServer->ExecuteUpdate(&txAffected, pError, ErrorSize))
+				if(!pSqlServer->ExecuteUpdate(&TxAffected, pError, ErrorSize))
 					Failed = true;
 			}
 		}
-		if(!Failed && (!pSqlServer->PrepareStatement("COMMIT;", pError, ErrorSize) || !pSqlServer->ExecuteUpdate(&txAffected, pError, ErrorSize)))
+		if(!Failed && (!pSqlServer->PrepareStatement("COMMIT;", pError, ErrorSize) || !pSqlServer->ExecuteUpdate(&TxAffected, pError, ErrorSize)))
 		{
 			//	dbg_msg("register", "COMMIT failed: %s", pError);
 			Failed = true;
@@ -825,7 +825,7 @@ bool CAccounts::RegisterThread(IDbConnection *pSqlServer, const ISqlData *pGameD
 	if(Failed)
 	{
 		pSqlServer->PrepareStatement("ROLLBACK;", nullptr, 0);
-		pSqlServer->ExecuteUpdate(&txAffected, nullptr, 0);
+		pSqlServer->ExecuteUpdate(&TxAffected, nullptr, 0);
 		mem_zero(aHashedPassword, sizeof(aHashedPassword));
 		str_copy(pResult->m_aaMessages[0], "Registration failed (transaction).", sizeof(pResult->m_aaMessages[0]));
 		return false;
@@ -880,85 +880,93 @@ bool CAccounts::SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData,
 	if(!pSqlServer->PrepareStatement("BEGIN;", pError, ErrorSize) || !pSqlServer->ExecuteUpdate(&TransactionAffected, pError, ErrorSize))
 		return false;
 
-	char aBuf[1024];
-	int Affected = 0;
+	// The statements run inside a lambda so a failure can bail out with a plain
+	// return; this used to be `goto fail` into a rollback label.
+	const auto RunStatements = [&]() -> bool {
+		char aBuf[1024];
+		int Affected = 0;
 
-	if(DoCore)
+		if(DoCore)
+		{
+			str_format(aBuf, sizeof(aBuf), "UPDATE %s SET address = ?, last_name = ?, last_skin = ?, last_body_color = ?, last_feet_color = ? WHERE id = ?;", TBL_ACCOUNTS_CORE);
+			if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+				return false;
+			pSqlServer->BindString(1, Acc.m_aAddress);
+			pSqlServer->BindString(2, Acc.m_aLastName);
+			pSqlServer->BindString(3, Acc.m_aLastSkin);
+			pSqlServer->BindInt(4, Acc.m_LastBodyColor);
+			pSqlServer->BindInt(5, Acc.m_LastFeetColor);
+			pSqlServer->BindInt(6, Acc.m_Id);
+			if(!pSqlServer->ExecuteUpdate(&Affected, pError, ErrorSize))
+				return false;
+		}
+		if(DoProg)
+		{
+			str_format(aBuf, sizeof(aBuf), "UPDATE %s SET level=?, experience=?, ranking=?, clanID=?, auth_level=?, blockpoints=?, passive=?, kills=?, deaths=?, tourney_win=?, playtime=?, killstreak=?, weekly_day=?, weekly_last_claim=?, weekly_exp_boost_until=? WHERE account_id=?;", TBL_ACCOUNTS_PROGRESS);
+			if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+				return false;
+			pSqlServer->BindInt(1, Acc.m_Level);
+			pSqlServer->BindInt(2, Acc.m_Experience);
+			pSqlServer->BindInt(3, Acc.m_Ranking);
+			pSqlServer->BindInt(4, Acc.m_ClanId);
+			pSqlServer->BindInt(5, (int)Acc.m_AuthLevel);
+			pSqlServer->BindInt(6, Acc.m_Blockpoints);
+			pSqlServer->BindInt(7, Acc.m_Passive);
+			pSqlServer->BindInt(8, Acc.m_Kills);
+			pSqlServer->BindInt(9, Acc.m_Deaths);
+			pSqlServer->BindInt(10, Acc.m_TourneyWin);
+			pSqlServer->BindInt64(11, Acc.m_Playtime);
+			pSqlServer->BindInt(12, Acc.m_Killstreak);
+			pSqlServer->BindInt(13, Acc.m_WeeklyDay);
+			pSqlServer->BindInt(14, Acc.m_WeeklyLastClaim);
+			pSqlServer->BindInt64(15, Acc.m_WeeklyExpBoostUntil);
+			pSqlServer->BindInt(16, Acc.m_Id);
+			if(!pSqlServer->ExecuteUpdate(&Affected, pError, ErrorSize))
+				return false;
+		}
+		if(DoInv)
+		{
+			str_format(aBuf, sizeof(aBuf), "UPDATE %s SET vip=?, pages=?, weaponkits=?, passive_removers=?, knockouts=?, gundesign=?, skinmani=? WHERE account_id=?;", TBL_ACCOUNTS_INVENTORY);
+			if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+				return false;
+			pSqlServer->BindInt(1, Acc.m_Vip);
+			pSqlServer->BindInt(2, Acc.m_Pages);
+			pSqlServer->BindInt(3, Acc.m_Weaponkits);
+			pSqlServer->BindInt(4, Acc.m_PassiveRemovers);
+			pSqlServer->BindString(5, Acc.m_aKnockouts);
+			pSqlServer->BindString(6, Acc.m_aGundesign);
+			pSqlServer->BindString(7, Acc.m_aSkinmani);
+			pSqlServer->BindInt(8, Acc.m_Id);
+			if(!pSqlServer->ExecuteUpdate(&Affected, pError, ErrorSize))
+				return false;
+		}
+		if(DoRank)
+		{
+			str_format(aBuf, sizeof(aBuf), "UPDATE %s SET ranked_games=?, ranked_kills=?, ranked_deaths=?, ranked_wins=? WHERE account_id=?;", TBL_ACCOUNTS_RANKED);
+			if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+				return false;
+			pSqlServer->BindInt(1, Acc.m_RankedGames);
+			pSqlServer->BindInt(2, Acc.m_RankedKills);
+			pSqlServer->BindInt(3, Acc.m_RankedDeaths);
+			pSqlServer->BindInt(4, Acc.m_RankedWins);
+			pSqlServer->BindInt(5, Acc.m_Id);
+			if(!pSqlServer->ExecuteUpdate(&Affected, pError, ErrorSize))
+				return false;
+		}
+
+		return true;
+	};
+
+	if(!RunStatements())
 	{
-		str_format(aBuf, sizeof(aBuf), "UPDATE %s SET address = ?, last_name = ?, last_skin = ?, last_body_color = ?, last_feet_color = ? WHERE id = ?;", TBL_ACCOUNTS_CORE);
-		if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
-			goto fail;
-		pSqlServer->BindString(1, Acc.m_aAddress);
-		pSqlServer->BindString(2, Acc.m_aLastName);
-		pSqlServer->BindString(3, Acc.m_aLastSkin);
-		pSqlServer->BindInt(4, Acc.m_LastBodyColor);
-		pSqlServer->BindInt(5, Acc.m_LastFeetColor);
-		pSqlServer->BindInt(6, Acc.m_Id);
-		if(!pSqlServer->ExecuteUpdate(&Affected, pError, ErrorSize))
-			goto fail;
-	}
-	if(DoProg)
-	{
-		str_format(aBuf, sizeof(aBuf), "UPDATE %s SET level=?, experience=?, ranking=?, clanID=?, auth_level=?, blockpoints=?, passive=?, kills=?, deaths=?, tourney_win=?, playtime=?, killstreak=?, weekly_day=?, weekly_last_claim=?, weekly_exp_boost_until=? WHERE account_id=?;", TBL_ACCOUNTS_PROGRESS);
-		if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
-			goto fail;
-		pSqlServer->BindInt(1, Acc.m_Level);
-		pSqlServer->BindInt(2, Acc.m_Experience);
-		pSqlServer->BindInt(3, Acc.m_Ranking);
-		pSqlServer->BindInt(4, Acc.m_ClanId);
-		pSqlServer->BindInt(5, (int)Acc.m_AuthLevel);
-		pSqlServer->BindInt(6, Acc.m_Blockpoints);
-		pSqlServer->BindInt(7, Acc.m_Passive);
-		pSqlServer->BindInt(8, Acc.m_Kills);
-		pSqlServer->BindInt(9, Acc.m_Deaths);
-		pSqlServer->BindInt(10, Acc.m_TourneyWin);
-		pSqlServer->BindInt64(11, Acc.m_Playtime);
-		pSqlServer->BindInt(12, Acc.m_Killstreak);
-		pSqlServer->BindInt(13, Acc.m_WeeklyDay);
-		pSqlServer->BindInt(14, Acc.m_WeeklyLastClaim);
-		pSqlServer->BindInt64(15, Acc.m_WeeklyExpBoostUntil);
-		pSqlServer->BindInt(16, Acc.m_Id);
-		if(!pSqlServer->ExecuteUpdate(&Affected, pError, ErrorSize))
-			goto fail;
-	}
-	if(DoInv)
-	{
-		str_format(aBuf, sizeof(aBuf), "UPDATE %s SET vip=?, pages=?, weaponkits=?, passive_removers=?, knockouts=?, gundesign=?, skinmani=? WHERE account_id=?;", TBL_ACCOUNTS_INVENTORY);
-		if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
-			goto fail;
-		pSqlServer->BindInt(1, Acc.m_Vip);
-		pSqlServer->BindInt(2, Acc.m_Pages);
-		pSqlServer->BindInt(3, Acc.m_Weaponkits);
-		pSqlServer->BindInt(4, Acc.m_PassiveRemovers);
-		pSqlServer->BindString(5, Acc.m_aKnockouts);
-		pSqlServer->BindString(6, Acc.m_aGundesign);
-		pSqlServer->BindString(7, Acc.m_aSkinmani);
-		pSqlServer->BindInt(8, Acc.m_Id);
-		if(!pSqlServer->ExecuteUpdate(&Affected, pError, ErrorSize))
-			goto fail;
-	}
-	if(DoRank)
-	{
-		str_format(aBuf, sizeof(aBuf), "UPDATE %s SET ranked_games=?, ranked_kills=?, ranked_deaths=?, ranked_wins=? WHERE account_id=?;", TBL_ACCOUNTS_RANKED);
-		if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
-			goto fail;
-		pSqlServer->BindInt(1, Acc.m_RankedGames);
-		pSqlServer->BindInt(2, Acc.m_RankedKills);
-		pSqlServer->BindInt(3, Acc.m_RankedDeaths);
-		pSqlServer->BindInt(4, Acc.m_RankedWins);
-		pSqlServer->BindInt(5, Acc.m_Id);
-		if(!pSqlServer->ExecuteUpdate(&Affected, pError, ErrorSize))
-			goto fail;
+		pSqlServer->PrepareStatement("ROLLBACK;", nullptr, 0);
+		pSqlServer->ExecuteUpdate(&TransactionAffected, nullptr, 0);
+		return false;
 	}
 
 	if(!pSqlServer->PrepareStatement("COMMIT;", pError, ErrorSize) || !pSqlServer->ExecuteUpdate(&TransactionAffected, pError, ErrorSize))
 		return false; // commit failed, we're doomed
 	return true;
-
-fail:
-	pSqlServer->PrepareStatement("ROLLBACK;", nullptr, 0);
-	pSqlServer->ExecuteUpdate(&TransactionAffected, nullptr, 0);
-	return false;
 }
 
 void CAccounts::Logout(int ClientId, int AccountId)
@@ -1029,7 +1037,7 @@ void CAccounts::ChangePassword(int ClientId, const char *pUsername, const char *
 {
 	if(RateLimitPlayer(ClientId))
 		return;
-	ExecUserThread(ChangePasswordThread, "change password", ClientId, pUsername, pOldPassword, pNewPassword, 0, NULL);
+	ExecUserThread(ChangePasswordThread, "change password", ClientId, pUsername, pOldPassword, pNewPassword, 0, nullptr);
 }
 
 bool CAccounts::ChangePasswordThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
@@ -1107,7 +1115,7 @@ void CAccounts::ShowTopLevel(int ClientId)
 {
 	if(RateLimitPlayer(ClientId))
 		return;
-	ExecUserThread(ShowTopLevelThread, "show top level thread", ClientId, "", "", "", 0, NULL);
+	ExecUserThread(ShowTopLevelThread, "show top level thread", ClientId, "", "", "", 0, nullptr);
 }
 
 bool CAccounts::ShowTopLevelThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
@@ -1184,7 +1192,7 @@ void CAccounts::ShowTopBlockpoints(int ClientId)
 {
 	if(RateLimitPlayer(ClientId))
 		return;
-	ExecUserThread(ShowTopBlockpointsThread, "show top blockpoints thread", ClientId, "", "", "", 0, NULL);
+	ExecUserThread(ShowTopBlockpointsThread, "show top blockpoints thread", ClientId, "", "", "", 0, nullptr);
 }
 
 bool CAccounts::ShowTopBlockpointsThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
@@ -1261,7 +1269,7 @@ void CAccounts::ShowTopKillStreak(int ClientId)
 {
 	if(RateLimitPlayer(ClientId))
 		return;
-	ExecUserThread(ShowTopKillStreaksThread, "show top killstreak thread", ClientId, "", "", "", 0, NULL);
+	ExecUserThread(ShowTopKillStreaksThread, "show top killstreak thread", ClientId, "", "", "", 0, nullptr);
 }
 
 bool CAccounts::ShowTopKillStreaksThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)

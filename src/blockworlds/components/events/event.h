@@ -17,7 +17,7 @@ class CEventComponent : public CComponent
 {
 public:
 	explicit CEventComponent(CGameContext *pGameServer);
-	virtual ~CEventComponent();
+	~CEventComponent() override;
 
 	enum class EEventState
 	{
@@ -98,11 +98,11 @@ public:
 	void SetStateChangeCallback(FnOnStateChange pfnCallback) { m_pfnOnStateChange = std::move(pfnCallback); }
 
 	// Process deferred operations (default implementation processes deferred loads).
-	virtual void OnTick() override;
+	void OnTick() override;
 
 	// Final override for OnPlayerDropping: restores cosmetics first, then calls OnEventPlayerDropping.
 	// Derived classes MUST override OnEventPlayerDropping instead of OnPlayerDropping.
-	void OnPlayerDropping(int ClientId) final override;
+	void OnPlayerDropping(int ClientId) final;
 
 	[[nodiscard]] virtual std::optional<int> GetScoreOf(int /*ClientId*/) const { return std::nullopt; }
 

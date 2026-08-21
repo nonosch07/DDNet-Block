@@ -8,12 +8,12 @@ namespace
 {
 	struct STimeUnitPattern
 	{
-		const char *pPattern;
-		ETimeUnit Unit;
-		int MinLength;
+		const char *m_PPattern;
+		ETimeUnit m_Unit;
+		int m_MinLength;
 	};
 
-	static const STimeUnitPattern s_aTimeUnits[] = {
+	const STimeUnitPattern s_aTimeUnits[] = {
 		{"day", TIME_UNIT_DAY, 3},
 		{"hour", TIME_UNIT_HOUR, 4},
 		{"hr", TIME_UNIT_HOUR, 2},
@@ -86,13 +86,13 @@ namespace
 
 		for(const auto &Pattern : s_aTimeUnits)
 		{
-			if(MatchPrefixIgnoreCase(p, Pattern.pPattern, Pattern.MinLength))
+			if(MatchPrefixIgnoreCase(p, Pattern.m_PPattern, Pattern.m_MinLength))
 			{
-				p += Pattern.MinLength;
+				p += Pattern.m_MinLength;
 				if(*p == 's')
 					p++;
 				*ppStr = p;
-				return Pattern.Unit;
+				return Pattern.m_Unit;
 			}
 		}
 

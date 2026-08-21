@@ -25,7 +25,7 @@ struct SVpnServiceQueue
 	bool CanProcessRequest() const;
 	void SetBackoffMs(int BackoffMs);
 	bool HasPendingRequest(const char *pIpAddress, int ClientId) const;
-	bool EnqueueRequest(std::shared_ptr<IVpnServiceRequest> pRequest, int MaxQueueSize);
+	bool EnqueueRequest(const std::shared_ptr<IVpnServiceRequest> &pRequest, int MaxQueueSize);
 	std::shared_ptr<IVpnServiceRequest> DequeueRequest();
 	int RemoveRequestsForClient(int ClientId);
 	bool IsEmpty() const { return m_RequestQueue.empty(); }

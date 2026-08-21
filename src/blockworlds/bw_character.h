@@ -67,7 +67,7 @@ public:
 	// caught. Called when the hook attaches to a player.
 	void OnHookAttach(int HookedPlayer);
 	// Per-tick upkeep: a pending shop purchase.
-	void OnTick();
+	void OnTick() const;
 	// Regenerates grenade ammo up to sv_zcatch_grenade_max_ammo, the way the
 	// zCatch-grenade event needs.
 	void HandleGrenadeAmmoRegen();
@@ -78,7 +78,7 @@ public:
 	// Clears the hook rainbow on both ends when the hook lets go.
 	void OnReleaseHook();
 	// A pending shop purchase does not survive the character.
-	void OnDestroy();
+	void OnDestroy() const;
 	// Extra snap flags: passive tees look solo, protected ones look untouchable.
 	void OnSnapDDNetCharacter(CNetObj_DDNetCharacter *pDDNetCharacter) const;
 

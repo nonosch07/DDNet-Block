@@ -11,7 +11,6 @@ class CLastManBlockingEvent final : public CEventComponent, public std::enable_s
 public:
 	explicit CLastManBlockingEvent(CGameContext *pGameContext);
 
-public:
 	[[nodiscard]] const char *GetName() const override { return "LMB"; }
 	[[nodiscard]] const char *GetEventName() const override { return "LMB"; }
 	[[nodiscard]] int GetMinCandidates() const override;
@@ -65,8 +64,8 @@ private:
 	// store previous solo and collision state for each participant
 	struct SoloCollisionState
 	{
-		bool solo;
-		bool collision;
+		bool m_Solo;
+		bool m_Collision;
 	};
 	std::map<int, SoloCollisionState> m_PrevSoloState;
 

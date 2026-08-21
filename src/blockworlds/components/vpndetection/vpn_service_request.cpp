@@ -69,7 +69,7 @@ static std::string RedactSensitiveUrl(std::string Url)
 	return Url;
 }
 
-bool CVpnServiceRequest::PerformHttpRequest(const char *pUrl, std::string &ResponseBody, std::string &ResponseHeaders, int &ResponseCode)
+bool CVpnServiceRequest::PerformHttpRequest(const char *pUrl, std::string &ResponseBody, std::string &ResponseHeaders, int &ResponseCode) const
 {
 	ResponseBody.clear();
 	ResponseHeaders.clear();
@@ -85,7 +85,7 @@ bool CVpnServiceRequest::PerformHttpRequest(const char *pUrl, std::string &Respo
 	IHttp *pHttp = m_pComponent->GameServer()->Bw().Http();
 	if(!pHttp)
 	{
-		m_pComponent->Log("ERROR: HTTP subsystem unavailable");
+		CVpnDetectionComponent::Log("ERROR: HTTP subsystem unavailable");
 		return false;
 	}
 
@@ -129,7 +129,7 @@ bool CVpnServiceRequest::PerformHttpRequest(const char *pUrl, std::string &Respo
 
 	if(Failed)
 	{
-		m_pComponent->Log("ERROR: HTTP request failed | URL: %s | HTTP code: %d", SafeUrl.c_str(), ResponseCode);
+		CVpnDetectionComponent::Log("ERROR: HTTP request failed | URL: %s | HTTP code: %d", SafeUrl.c_str(), ResponseCode);
 		return false;
 	}
 
@@ -191,7 +191,7 @@ std::shared_ptr<IVpnServiceResult> CVpnServiceRequest::Execute()
 	if(!m_pService)
 	{
 		if(m_pComponent)
-			m_pComponent->Log("ERROR: Service instance is null | Service: %s", m_ServiceName.c_str());
+			CVpnDetectionComponent::Log("ERROR: Service instance is null | Service: %s", m_ServiceName.c_str());
 
 		auto pResult = std::make_shared<CVpnServiceResult>();
 		pResult->m_ServiceName = m_ServiceName;

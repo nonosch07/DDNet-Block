@@ -9,18 +9,18 @@
 
 // can be moved to base/vmath.h
 template<typename T>
-constexpr inline bool point_in_polygon(const vector2_base<T> *points, int num_points, vector2_base<T> target)
+static constexpr bool point_in_polygon(const vector2_base<T> *Points, int NumPoints, vector2_base<T> Target)
 {
 	// https://wfranklin.org/Research/Short_Notes/pnpoly.html
 
-	bool inside = false;
-	for(int i = 0, j = num_points - 1; i < num_points; j = i++)
+	bool Inside = false;
+	for(int i = 0, j = NumPoints - 1; i < NumPoints; j = i++)
 	{
-		if((points[i].y > target.y) != (points[j].y > target.y))
-			if(target.x < (points[j].x - points[i].x) * (target.y - points[i].y) / (points[j].y - points[i].y) + points[i].x)
-				inside = !inside;
+		if((Points[i].y > Target.y) != (Points[j].y > Target.y))
+			if(Target.x < (Points[j].x - Points[i].x) * (Target.y - Points[i].y) / (Points[j].y - Points[i].y) + Points[i].x)
+				Inside = !Inside;
 	}
-	return inside;
+	return Inside;
 }
 
 IZone::IZone(CGameContext *pGameServer, int Type)
@@ -64,15 +64,15 @@ bool IZone::IsInZone(vec2 Target) const
 
 std::vector<vec2> IZone::GetCenters() const
 {
-	std::vector<vec2> result;
-	result.reserve(m_apQuads.size());
+	std::vector<vec2> Result;
+	Result.reserve(m_apQuads.size());
 	for(const auto &q : m_apQuads)
 	{
 		vec2 c{0.0f, 0.0f};
 		for(int i = 0; i < 4; i++)
 			c += q[i];
 		c /= 4.0f;
-		result.push_back(c);
+		Result.push_back(c);
 	}
-	return result;
+	return Result;
 }

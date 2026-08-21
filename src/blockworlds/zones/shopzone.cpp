@@ -10,8 +10,8 @@ CShopZone::CShopZone(CGameContext *pGameServer, int Category, int Item) :
 	IZone(pGameServer, -1), m_Category(Category), m_Item(Item)
 {
 	mem_zero(m_aWasInZone, sizeof(m_aWasInZone));
-	for(int i = 0; i < MAX_CLIENTS; ++i)
-		m_aLastShopTick[i] = 0;
+	for(int &i : m_aLastShopTick)
+		i = 0;
 }
 
 void CShopZone::Tick()

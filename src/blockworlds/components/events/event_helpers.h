@@ -17,7 +17,7 @@
 #include <set>
 #include <vector>
 
-inline void SavePositionHelper(CGameContext *pGameServer, std::map<int, std::unique_ptr<class CSaveTee>> &m_pSavedPlayers, int ClientId)
+inline void SavePositionHelper(CGameContext *pGameServer, std::map<int, std::unique_ptr<class CSaveTee>> &MPSavedPlayers, int ClientId)
 {
 	auto *pChar = pGameServer->GetPlayerChar(ClientId);
 	if(!pChar)
@@ -31,19 +31,19 @@ inline void SavePositionHelper(CGameContext *pGameServer, std::map<int, std::uni
 
 	auto pSavedTee = std::make_unique<CSaveTee>();
 	pSavedTee->Save(pChar, false);
-	m_pSavedPlayers.insert_or_assign(ClientId, std::move(pSavedTee));
+	MPSavedPlayers.insert_or_assign(ClientId, std::move(pSavedTee));
 }
 
-inline void LoadPositionHelper(CGameContext *pGameServer, std::map<int, std::unique_ptr<class CSaveTee>> &m_pSavedPlayers, int ClientId)
+inline void LoadPositionHelper(CGameContext *pGameServer, std::map<int, std::unique_ptr<class CSaveTee>> &MPSavedPlayers, int ClientId)
 {
-	auto it = m_pSavedPlayers.find(ClientId);
+	auto It = MPSavedPlayers.find(ClientId);
 	CPlayer *pPlayer = pGameServer->Bw().GetPlayer(ClientId);
 
-	if(it != m_pSavedPlayers.end())
+	if(It != MPSavedPlayers.end())
 	{
 		if(!pPlayer)
 		{
-			m_pSavedPlayers.erase(it);
+			MPSavedPlayers.erase(It);
 			return;
 		}
 
@@ -58,12 +58,12 @@ inline void LoadPositionHelper(CGameContext *pGameServer, std::map<int, std::uni
 
 		if(pChar)
 		{
-			it->second->Load(pChar, TEAM_FLOCK);
+			It->second->Load(pChar, TEAM_FLOCK);
 			pChar->ResetVelocity();
 		}
 
 		// erase entry (unique_ptr will free)
-		m_pSavedPlayers.erase(it);
+		MPSavedPlayers.erase(It);
 		return;
 	}
 
@@ -77,45 +77,45 @@ inline void LoadPositionHelper(CGameContext *pGameServer, std::map<int, std::uni
 	}
 }
 
-inline void SaveWeaponsHelper(CGameContext *pGameServer, std::map<int, std::array<CCharacterCore::CWeaponStat, NUM_WEAPONS>> &m_SavedWeapons, int ClientId)
+inline void SaveWeaponsHelper(CGameContext *pGameServer, std::map<int, std::array<CCharacterCore::CWeaponStat, NUM_WEAPONS>> &MSavedWeapons, int ClientId)
 {
-	if(const auto it = m_SavedWeapons.find(ClientId); it != m_SavedWeapons.end())
+	if(const auto It = MSavedWeapons.find(ClientId); It != MSavedWeapons.end())
 	{
-		m_SavedWeapons.erase(it);
+		MSavedWeapons.erase(It);
 	}
 
-	const auto Character = pGameServer->GetPlayerChar(ClientId);
+	auto *const Character = pGameServer->GetPlayerChar(ClientId);
 	if(!Character)
 		return;
 
-	std::array<CCharacterCore::CWeaponStat, NUM_WEAPONS> savedWeapons;
-	mem_copy(savedWeapons.data(), Character->Core()->m_aWeapons, sizeof(CCharacterCore::CWeaponStat) * NUM_WEAPONS);
-	m_SavedWeapons.emplace(ClientId, savedWeapons);
+	std::array<CCharacterCore::CWeaponStat, NUM_WEAPONS> SavedWeapons;
+	mem_copy(SavedWeapons.data(), Character->Core()->m_aWeapons, sizeof(CCharacterCore::CWeaponStat) * NUM_WEAPONS);
+	MSavedWeapons.emplace(ClientId, SavedWeapons);
 
 	mem_zero(&Character->Bw().Core().m_aWeapons, sizeof(CCharacterCore::CWeaponStat) * NUM_WEAPONS);
 	Character->GiveWeapon(WEAPON_HAMMER);
 	Character->GiveWeapon(WEAPON_GUN);
 }
 
-inline void LoadWeaponsHelper(CGameContext *pGameServer, std::map<int, std::array<CCharacterCore::CWeaponStat, NUM_WEAPONS>> &m_SavedWeapons, int ClientId)
+inline void LoadWeaponsHelper(CGameContext *pGameServer, std::map<int, std::array<CCharacterCore::CWeaponStat, NUM_WEAPONS>> &MSavedWeapons, int ClientId)
 {
-	const auto it = m_SavedWeapons.find(ClientId);
-	if(it == m_SavedWeapons.end())
+	const auto It = MSavedWeapons.find(ClientId);
+	if(It == MSavedWeapons.end())
 	{
 		return;
 	}
 
-	auto Character = pGameServer->GetPlayerChar(ClientId);
+	auto *Character = pGameServer->GetPlayerChar(ClientId);
 	if(!Character)
 		return;
 
-	mem_copy(&Character->Bw().Core().m_aWeapons, &it->second, sizeof(CCharacterCore::CWeaponStat) * NUM_WEAPONS);
-	m_SavedWeapons.erase(it);
+	mem_copy(&Character->Bw().Core().m_aWeapons, &It->second, sizeof(CCharacterCore::CWeaponStat) * NUM_WEAPONS);
+	MSavedWeapons.erase(It);
 }
 
 inline int PlayerHookedGroundForHelper(CGameContext *pGameServer, int ClientId)
 {
-	auto pChar = pGameServer->GetPlayerChar(ClientId);
+	auto *pChar = pGameServer->GetPlayerChar(ClientId);
 	if(!pChar)
 		return 0;
 
@@ -133,40 +133,40 @@ inline void FormatTimeLeft(char *pBuf, int BufSize, int Secs)
 		str_copy(pBuf, "0 secs", BufSize);
 		return;
 	}
-	const int mins = Secs / 60;
-	const int secs = Secs % 60;
-	if(mins > 0 && secs > 0)
+	const int Mins = Secs / 60;
+	const int RemSecs = Secs % 60;
+	if(Mins > 0 && RemSecs > 0)
 		str_format(pBuf, BufSize, "%d %s %d %s",
-			mins, mins == 1 ? "min" : "mins",
-			secs, secs == 1 ? "sec" : "secs");
-	else if(mins > 0)
-		str_format(pBuf, BufSize, "%d %s", mins, mins == 1 ? "min" : "mins");
+			Mins, Mins == 1 ? "min" : "mins",
+			RemSecs, RemSecs == 1 ? "sec" : "secs");
+	else if(Mins > 0)
+		str_format(pBuf, BufSize, "%d %s", Mins, Mins == 1 ? "min" : "mins");
 	else
-		str_format(pBuf, BufSize, "%d %s", secs, secs == 1 ? "sec" : "secs");
+		str_format(pBuf, BufSize, "%d %s", RemSecs, RemSecs == 1 ? "sec" : "secs");
 }
 
-inline vec2 RandomSpawnPos(const std::vector<vec2> &positions, std::set<int> &usedIndices)
+inline vec2 RandomSpawnPos(const std::vector<vec2> &Positions, std::set<int> &UsedIndices)
 {
-	if(positions.empty())
+	if(Positions.empty())
 		return {0, 0};
 
 	// build the list of positions not yet used this cycle
-	std::vector<int> available;
-	for(int i = 0; i < (int)positions.size(); ++i)
-		if(!usedIndices.count(i))
-			available.push_back(i);
+	std::vector<int> Available;
+	for(int i = 0; i < (int)Positions.size(); ++i)
+		if(!UsedIndices.contains(i))
+			Available.push_back(i);
 
 	// full cycle exhausted -> start a fresh cycle
-	if(available.empty())
+	if(Available.empty())
 	{
-		usedIndices.clear();
-		for(int i = 0; i < (int)positions.size(); ++i)
-			available.push_back(i);
+		UsedIndices.clear();
+		for(int i = 0; i < (int)Positions.size(); ++i)
+			Available.push_back(i);
 	}
 
-	int idx = available[secure_rand_below((int)available.size())];
-	usedIndices.insert(idx);
-	return positions[idx];
+	int Idx = Available[secure_rand_below((int)Available.size())];
+	UsedIndices.insert(Idx);
+	return Positions[Idx];
 }
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_EVENT_HELPERS_H

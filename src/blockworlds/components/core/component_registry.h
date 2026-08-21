@@ -49,6 +49,7 @@ public:
 	std::vector<CComponentAccessor<CComponent>> CreateRequired(class CGameContext *pGameServer)
 	{
 		std::vector<CComponentAccessor<CComponent>> vCreated;
+		vCreated.reserve(m_RequiredComponents.size());
 		for(auto TComponent : m_RequiredComponents)
 			vCreated.emplace_back(Create(TComponent, pGameServer, false));
 		return vCreated;
@@ -83,13 +84,13 @@ public:
 	}
 	std::string Name(std::type_index Type)
 	{
-		auto it = m_TypeToName.find(Type);
-		return it != m_TypeToName.end() ? it->second : "";
+		auto It = m_TypeToName.find(Type);
+		return It != m_TypeToName.end() ? It->second : "";
 	}
 	std::type_index Type(const std::string &Name)
 	{
-		auto it = m_NameToType.find(Name);
-		return it != m_NameToType.end() ? it->second : typeid(nullptr);
+		auto It = m_NameToType.find(Name);
+		return It != m_NameToType.end() ? It->second : typeid(nullptr);
 	}
 };
 

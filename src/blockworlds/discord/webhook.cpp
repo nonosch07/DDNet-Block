@@ -23,7 +23,7 @@ namespace
 {
 	constexpr int DISCORD_MAX_CONTENT = 2000;
 
-	[[maybe_unused]] static std::vector<std::string> ChunkMessage(const char *pMsg)
+	[[maybe_unused]] std::vector<std::string> ChunkMessage(const char *pMsg)
 	{
 		std::vector<std::string> v;
 		if(!pMsg || !pMsg[0])
@@ -32,34 +32,34 @@ namespace
 			return v;
 		}
 		const int Len = str_length(pMsg);
-		for(int pos = 0; pos < Len;)
+		for(int Pos = 0; Pos < Len;)
 		{
-			int take = std::min(DISCORD_MAX_CONTENT, Len - pos);
-			v.emplace_back(std::string(pMsg + pos, pMsg + pos + take));
-			pos += take;
+			int Take = std::min(DISCORD_MAX_CONTENT, Len - Pos);
+			v.emplace_back(pMsg + Pos, pMsg + Pos + Take);
+			Pos += Take;
 		}
 		return v;
 	}
 
-	static std::string SanitizeMentions(const char *pMsg)
+	std::string SanitizeMentions(const char *pMsg)
 	{
 		if(!pMsg)
 			return std::string();
 		std::string s(pMsg);
 		const std::string ZWSP = "\xE2\x80\x8B"; // zero width space
-		auto replace_all = [](std::string &str, const char *needle, const std::string &replacement) {
-			if(!needle || !needle[0])
+		auto ReplaceAll = [](std::string &Str, const char *Needle, const std::string &Replacement) {
+			if(!Needle || !Needle[0])
 				return;
-			size_t pos = 0;
-			size_t nlen = strlen(needle);
-			while((pos = str.find(needle, pos)) != std::string::npos)
+			size_t Pos = 0;
+			size_t Nlen = strlen(Needle);
+			while((Pos = Str.find(Needle, Pos)) != std::string::npos)
 			{
-				str.replace(pos, nlen, replacement);
-				pos += replacement.size();
+				Str.replace(Pos, Nlen, Replacement);
+				Pos += Replacement.size();
 			}
 		};
-		replace_all(s, "@everyone", std::string("@") + ZWSP + "everyone");
-		replace_all(s, "@here", std::string("@") + ZWSP + "here");
+		ReplaceAll(s, "@everyone", std::string("@") + ZWSP + "everyone");
+		ReplaceAll(s, "@here", std::string("@") + ZWSP + "here");
 		for(size_t i = 0; i < s.size(); ++i)
 		{
 			if(s[i] == '<' && i + 2 < s.size() && s[i + 1] == '@')
@@ -148,11 +148,11 @@ public:
 			else
 				str_copy(aUrl, m_aUrl);
 
-			auto upReq = HttpPostJson(aUrl, Payload.c_str());
-			upReq->HeaderString("Content-Type", "application/json");
-			upReq->Timeout(CTimeout{5000, 15000, 500, 5});
-			upReq->FailOnErrorStatus(false);
-			std::shared_ptr<IHttpRequest> pReq(std::move(upReq));
+			auto UpReq = HttpPostJson(aUrl, Payload.c_str());
+			UpReq->HeaderString("Content-Type", "application/json");
+			UpReq->Timeout(CTimeout{5000, 15000, 500, 5});
+			UpReq->FailOnErrorStatus(false);
+			std::shared_ptr<IHttpRequest> pReq(std::move(UpReq));
 			m_pHttp->Run(pReq);
 			pReq->Wait();
 
@@ -197,10 +197,10 @@ void CDiscordWebhook::Send(const char *pContent, const SSendOptions *pOpt)
 		log_debug("discord", "webhook not configured (sv_discord_enabled=1 and per-feature webhook url required)");
 		return;
 	}
-	std::string sanitized = SanitizeMentions(pContent);
+	std::string Sanitized = SanitizeMentions(pContent);
 
 	CDiscordWebhookQueueManager::Instance().Init(m_pEngine);
-	CDiscordWebhookQueueManager::Instance().Enqueue(pUrl, sanitized.c_str());
+	CDiscordWebhookQueueManager::Instance().Enqueue(pUrl, Sanitized.c_str());
 }
 
 void CDiscordWebhook::BroadcastCmd(const char *pCmd, const char *pExecutor, const char *pArgs)

@@ -11,9 +11,9 @@ class CFlag : public CEntity
 public:
 	CFlag(CGameWorld *pGameWorld, int Owner, int Team);
 
-	virtual void Reset() override;
-	virtual void Snap(int SnappingClient) override;
-	virtual void Tick() override;
+	void Reset() override;
+	void Snap(int SnappingClient) override;
+	void Tick() override;
 };
 
 #endif

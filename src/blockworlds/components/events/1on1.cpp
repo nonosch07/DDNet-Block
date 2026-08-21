@@ -67,15 +67,15 @@ void COneOnOneEvent::PickSpawnReservation(int PositionCount)
 	if(PositionCount <= 0)
 	{
 		// leaving stale indices here would point into a differently sized list
-		m_SpawnReservation.pos1Idx = -1;
-		m_SpawnReservation.pos2Idx = -1;
+		m_SpawnReservation.m_Pos1Idx = -1;
+		m_SpawnReservation.m_Pos2Idx = -1;
 		return;
 	}
 
 	if(PositionCount == 1)
 	{
-		m_SpawnReservation.pos1Idx = 0;
-		m_SpawnReservation.pos2Idx = 0;
+		m_SpawnReservation.m_Pos1Idx = 0;
+		m_SpawnReservation.m_Pos2Idx = 0;
 		return;
 	}
 
@@ -84,8 +84,8 @@ void COneOnOneEvent::PickSpawnReservation(int PositionCount)
 	if(Idx2 >= Idx1)
 		Idx2++;
 
-	m_SpawnReservation.pos1Idx = Idx1;
-	m_SpawnReservation.pos2Idx = Idx2;
+	m_SpawnReservation.m_Pos1Idx = Idx1;
+	m_SpawnReservation.m_Pos2Idx = Idx2;
 }
 
 void COneOnOneEvent::SpawnAtReservedSlot(CPlayer *pPlayer, const std::vector<vec2> &Positions, int Idx)
@@ -131,19 +131,19 @@ bool COneOnOneEvent::InitializeConfigPhase(int Player1ID, int Player2ID, int Wag
 
 	// ── Arena setup (same as StartEvent but enters Preparation, no escrow) ──
 
-	auto pController = (CGameControllerDDNet *)GameServer()->m_pController;
+	auto *pController = (CGameControllerDDNet *)GameServer()->m_pController;
 
 	// choose an empty team
-	int chosenTeam = -1;
+	int ChosenTeam = -1;
 	for(int t = 1; t < NUM_DDRACE_TEAMS; ++t)
 	{
 		if(pController->Teams().GetTeamState(t) == ETeamState::EMPTY && !pController->Teams().IsTeamEvent(t))
 		{
-			chosenTeam = t;
+			ChosenTeam = t;
 			break;
 		}
 	}
-	m_Team = chosenTeam;
+	m_Team = ChosenTeam;
 	if(m_Team == -1)
 	{
 		dbg_msg("1on1", "InitializeConfigPhase failed: no free team available");
@@ -155,25 +155,25 @@ bool COneOnOneEvent::InitializeConfigPhase(int Player1ID, int Player2ID, int Wag
 	pController->Teams().SetTeamLock(m_Team, true);
 
 	// save and disable solo & collision state
-	auto &core = pController->Teams().m_Core;
-	for(int cid : {m_Player1ID, m_Player2ID})
+	auto &Core = pController->Teams().m_Core;
+	for(int Cid : {m_Player1ID, m_Player2ID})
 	{
-		CCharacter *pChr = GameServer()->GetPlayerChar(cid);
+		CCharacter *pChr = GameServer()->GetPlayerChar(Cid);
 		if(pChr)
 		{
-			bool wasSolo = pChr->Core()->m_Solo;
-			bool wasCollisionDisabled = pChr->Core()->m_CollisionDisabled;
-			m_PrevSoloState[cid] = {wasSolo, wasCollisionDisabled};
-			if(wasSolo)
+			bool WasSolo = pChr->Core()->m_Solo;
+			bool WasCollisionDisabled = pChr->Core()->m_CollisionDisabled;
+			m_PrevSoloState[Cid] = {WasSolo, WasCollisionDisabled};
+			if(WasSolo)
 				pChr->SetSolo(false);
-			if(wasCollisionDisabled)
+			if(WasCollisionDisabled)
 				pChr->Bw().Core().m_CollisionDisabled = false;
 		}
 		else
 		{
-			bool wasSolo = core.GetSolo(cid);
-			m_PrevSoloState[cid] = {wasSolo, false};
-			core.SetSolo(cid, false);
+			bool WasSolo = Core.GetSolo(Cid);
+			m_PrevSoloState[Cid] = {WasSolo, false};
+			Core.SetSolo(Cid, false);
 		}
 	}
 
@@ -223,8 +223,8 @@ bool COneOnOneEvent::InitializeConfigPhase(int Player1ID, int Player2ID, int Wag
 	ForcePlayerIntoEvent(p1);
 	ForcePlayerIntoEvent(p2);
 
-	std::vector<vec2> spawnPosition = GameServer()->Bw().ZoneManager()->Get1on1PrepPositions();
-	PickSpawnReservation((int)spawnPosition.size());
+	std::vector<vec2> SpawnPosition = GameServer()->Bw().ZoneManager()->Get1on1PrepPositions();
+	PickSpawnReservation((int)SpawnPosition.size());
 
 	// kill & respawn at prep arena positions (no freeze during warmup)
 	SaveAndClearCosmetics(m_Player1ID);
@@ -235,8 +235,8 @@ bool COneOnOneEvent::InitializeConfigPhase(int Player1ID, int Player2ID, int Wag
 	if(p2 && p2->GetCharacter())
 		p2->KillCharacter(WEAPON_WORLD, false);
 
-	SpawnAtReservedSlot(p1, spawnPosition, m_SpawnReservation.pos1Idx);
-	SpawnAtReservedSlot(p2, spawnPosition, m_SpawnReservation.pos2Idx);
+	SpawnAtReservedSlot(p1, SpawnPosition, m_SpawnReservation.m_Pos1Idx);
+	SpawnAtReservedSlot(p2, SpawnPosition, m_SpawnReservation.m_Pos2Idx);
 
 	m_StartTimer = 0;
 
@@ -250,7 +250,7 @@ bool COneOnOneEvent::InitializeConfigPhase(int Player1ID, int Player2ID, int Wag
 	SetState(EEventState::Preparation);
 
 	// push both players onto the DUEL_CONFIG vote page
-	extern CVoteManager g_VoteManager;
+
 	if(p1)
 		g_VoteManager.ForceDuelConfigPage(m_Player1ID, p1, Server(), GameServer());
 	if(p2)
@@ -274,13 +274,13 @@ void COneOnOneEvent::SendDuelVoteUi()
 	if(GetState() != EEventState::Preparation || m_ConfigStartTick < 0)
 		return;
 	int WarmupSec = g_Config.m_Sv1on1WarmupSeconds;
-	int elapsed = (int)((Server()->Tick() - m_ConfigStartTick) / Server()->TickSpeed());
-	int remaining = WarmupSec - elapsed;
-	if(remaining < 1)
-		remaining = 1;
+	int Elapsed = ((Server()->Tick() - m_ConfigStartTick) / Server()->TickSpeed());
+	int Remaining = WarmupSec - Elapsed;
+	if(Remaining < 1)
+		Remaining = 1;
 
 	::CNetMsg_Sv_VoteSet Msg;
-	Msg.m_Timeout = remaining;
+	Msg.m_Timeout = Remaining;
 	Msg.m_pDescription = "1on1: F3 = Start  |  F4 = Cancel";
 	Msg.m_pReason = "";
 	if(m_Player1ID >= 0 && Server()->ClientIngame(m_Player1ID))
@@ -288,13 +288,13 @@ void COneOnOneEvent::SendDuelVoteUi()
 	if(m_Player2ID >= 0 && Server()->ClientIngame(m_Player2ID))
 		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, m_Player2ID);
 
-	int yes = (m_aDuelVote[0] == 1 ? 1 : 0) + (m_aDuelVote[1] == 1 ? 1 : 0);
-	int no = (m_aDuelVote[0] == -1 ? 1 : 0) + (m_aDuelVote[1] == -1 ? 1 : 0);
+	int Yes = (m_aDuelVote[0] == 1 ? 1 : 0) + (m_aDuelVote[1] == 1 ? 1 : 0);
+	int No = (m_aDuelVote[0] == -1 ? 1 : 0) + (m_aDuelVote[1] == -1 ? 1 : 0);
 	CNetMsg_Sv_VoteStatus Status;
 	Status.m_Total = 2;
-	Status.m_Yes = yes;
-	Status.m_No = no;
-	Status.m_Pass = 2 - yes - no;
+	Status.m_Yes = Yes;
+	Status.m_No = No;
+	Status.m_Pass = 2 - Yes - No;
 	if(m_Player1ID >= 0 && Server()->ClientIngame(m_Player1ID))
 		Server()->SendPackMsg(&Status, MSGFLAG_VITAL, m_Player1ID);
 	if(m_Player2ID >= 0 && Server()->ClientIngame(m_Player2ID))
@@ -323,41 +323,40 @@ bool COneOnOneEvent::OnDuelVote(int ClientId, int Vote)
 	if(ClientId != m_Player1ID && ClientId != m_Player2ID)
 		return false;
 
-	int idx = (ClientId == m_Player1ID) ? 0 : 1;
-	m_aDuelVote[idx] = (Vote >= 1) ? 1 : -1;
+	int Idx = (ClientId == m_Player1ID) ? 0 : 1;
+	m_aDuelVote[Idx] = (Vote >= 1) ? 1 : -1;
 
-	CNetMsg_Sv_YourVote Confirm = {m_aDuelVote[idx]};
+	CNetMsg_Sv_YourVote Confirm = {m_aDuelVote[Idx]};
 	Server()->SendPackMsg(&Confirm, MSGFLAG_VITAL, ClientId);
 
 	char aBuf[128];
 	const char *pName = Server()->ClientName(ClientId);
-	if(m_aDuelVote[idx] == 1)
+	if(m_aDuelVote[Idx] == 1)
 		str_format(aBuf, sizeof(aBuf), "[1on1] %s voted to START.", pName);
 	else
 		str_format(aBuf, sizeof(aBuf), "[1on1] %s voted to CANCEL.", pName);
 	GameServer()->Bw().SendChatTarget(m_Player1ID, aBuf);
 	GameServer()->Bw().SendChatTarget(m_Player2ID, aBuf);
 
-	int yes = (m_aDuelVote[0] == 1 ? 1 : 0) + (m_aDuelVote[1] == 1 ? 1 : 0);
-	int no = (m_aDuelVote[0] == -1 ? 1 : 0) + (m_aDuelVote[1] == -1 ? 1 : 0);
+	int Yes = (m_aDuelVote[0] == 1 ? 1 : 0) + (m_aDuelVote[1] == 1 ? 1 : 0);
+	int No = (m_aDuelVote[0] == -1 ? 1 : 0) + (m_aDuelVote[1] == -1 ? 1 : 0);
 	CNetMsg_Sv_VoteStatus Status;
 	Status.m_Total = 2;
-	Status.m_Yes = yes;
-	Status.m_No = no;
-	Status.m_Pass = 2 - yes - no;
+	Status.m_Yes = Yes;
+	Status.m_No = No;
+	Status.m_Pass = 2 - Yes - No;
 	if(m_Player1ID >= 0 && Server()->ClientIngame(m_Player1ID))
 		Server()->SendPackMsg(&Status, MSGFLAG_VITAL, m_Player1ID);
 	if(m_Player2ID >= 0 && Server()->ClientIngame(m_Player2ID))
 		Server()->SendPackMsg(&Status, MSGFLAG_VITAL, m_Player2ID);
 
-	extern CVoteManager g_VoteManager;
-	for(int cid : {m_Player1ID, m_Player2ID})
+	for(int Cid : {m_Player1ID, m_Player2ID})
 	{
-		CPlayer *pP = GameServer()->Bw().GetPlayer(cid);
+		CPlayer *pP = GameServer()->Bw().GetPlayer(Cid);
 		if(pP)
 		{
-			GameServer()->Bw().ClearVotes(cid);
-			g_VoteManager.RenderCurrentPage(pP, cid, Server(), GameServer());
+			GameServer()->Bw().ClearVotes(Cid);
+			g_VoteManager.RenderCurrentPage(pP, Cid, Server(), GameServer());
 		}
 	}
 
@@ -367,10 +366,10 @@ bool COneOnOneEvent::OnDuelVote(int ClientId, int Vote)
 		GameServer()->Bw().SendChatTarget(m_Player1ID, "[1on1] Both players ready - starting match!");
 		GameServer()->Bw().SendChatTarget(m_Player2ID, "[1on1] Both players ready - starting match!");
 		ClearDuelVoteUi();
-		for(int cid : {m_Player1ID, m_Player2ID})
+		for(int Cid : {m_Player1ID, m_Player2ID})
 		{
-			g_VoteManager.NavigateToRoot(cid);
-			GameServer()->Bw().ClearVotes(cid);
+			g_VoteManager.NavigateToRoot(Cid);
+			GameServer()->Bw().ClearVotes(Cid);
 		}
 		StartMatchFromConfig();
 		return true;
@@ -382,10 +381,10 @@ bool COneOnOneEvent::OnDuelVote(int ClientId, int Vote)
 		GameServer()->Bw().SendChatTarget(m_Player1ID, "[1on1] Both players cancelled - match aborted.");
 		GameServer()->Bw().SendChatTarget(m_Player2ID, "[1on1] Both players cancelled - match aborted.");
 		ClearDuelVoteUi();
-		for(int cid : {m_Player1ID, m_Player2ID})
+		for(int Cid : {m_Player1ID, m_Player2ID})
 		{
-			g_VoteManager.NavigateToRoot(cid);
-			GameServer()->Bw().ClearVotes(cid);
+			g_VoteManager.NavigateToRoot(Cid);
+			GameServer()->Bw().ClearVotes(Cid);
 		}
 		AbortAndRefund(nullptr);
 		return true;
@@ -469,10 +468,10 @@ void COneOnOneEvent::StartMatchFromConfig()
 		pStart2->Bw().m_Score = 0;
 
 	// re-pick spawn positions and respawn both players frozen
-	std::vector<vec2> spawnPosition = GetArenaSpawnPositions();
-	PickSpawnReservation((int)spawnPosition.size());
+	std::vector<vec2> SpawnPosition = GetArenaSpawnPositions();
+	PickSpawnReservation((int)SpawnPosition.size());
 
-	auto pController = (CGameControllerDDNet *)GameServer()->m_pController;
+	auto *pController = (CGameControllerDDNet *)GameServer()->m_pController;
 	CPlayer *p1 = GameServer()->Bw().GetPlayer(m_Player1ID);
 	CPlayer *p2 = GameServer()->Bw().GetPlayer(m_Player2ID);
 
@@ -481,7 +480,7 @@ void COneOnOneEvent::StartMatchFromConfig()
 		pController->Teams().SetForceCharacterTeam(m_Player1ID, m_Team);
 		if(p1->GetCharacter())
 			p1->KillCharacter(WEAPON_WORLD, false);
-		SpawnAtReservedSlot(p1, spawnPosition, m_SpawnReservation.pos1Idx);
+		SpawnAtReservedSlot(p1, SpawnPosition, m_SpawnReservation.m_Pos1Idx);
 		if(p1->GetCharacter())
 			p1->GetCharacter()->Bw().FreezeForce(3);
 	}
@@ -490,7 +489,7 @@ void COneOnOneEvent::StartMatchFromConfig()
 		pController->Teams().SetForceCharacterTeam(m_Player2ID, m_Team);
 		if(p2->GetCharacter())
 			p2->KillCharacter(WEAPON_WORLD, false);
-		SpawnAtReservedSlot(p2, spawnPosition, m_SpawnReservation.pos2Idx);
+		SpawnAtReservedSlot(p2, SpawnPosition, m_SpawnReservation.m_Pos2Idx);
 		if(p2->GetCharacter())
 			p2->GetCharacter()->Bw().FreezeForce(3);
 	}
@@ -499,9 +498,9 @@ void COneOnOneEvent::StartMatchFromConfig()
 	m_MatchStartTick = Server()->Tick();
 
 	// apply config settings: endless hook, weapon restrictions and grants
-	for(int cid : {m_Player1ID, m_Player2ID})
+	for(int Cid : {m_Player1ID, m_Player2ID})
 	{
-		CCharacter *pChr = GameServer()->GetPlayerChar(cid);
+		CCharacter *pChr = GameServer()->GetPlayerChar(Cid);
 		if(!pChr)
 			continue;
 
@@ -519,11 +518,11 @@ void COneOnOneEvent::StartMatchFromConfig()
 				pChr->SetWeaponGot(w, false);
 				if(pChr->GetActiveWeapon() == w)
 				{
-					for(int alt = 0; alt < 6; alt++)
+					for(int Alt = 0; Alt < 6; Alt++)
 					{
-						if(m_Config.m_aWeapons[alt])
+						if(m_Config.m_aWeapons[Alt])
 						{
-							pChr->SetActiveWeapon(alt);
+							pChr->SetActiveWeapon(Alt);
 							break;
 						}
 					}
@@ -542,18 +541,18 @@ void COneOnOneEvent::StartMatchFromConfig()
 
 bool COneOnOneEvent::StartEvent()
 {
-	auto pController = (CGameControllerDDNet *)GameServer()->m_pController;
+	auto *pController = (CGameControllerDDNet *)GameServer()->m_pController;
 	// choose an empty team that is not currently used by another event
-	int chosenTeam = -1;
+	int ChosenTeam = -1;
 	for(int t = 1; t < NUM_DDRACE_TEAMS; ++t)
 	{
 		if(pController->Teams().GetTeamState(t) == ETeamState::EMPTY && !pController->Teams().IsTeamEvent(t))
 		{
-			chosenTeam = t;
+			ChosenTeam = t;
 			break;
 		}
 	}
-	m_Team = chosenTeam;
+	m_Team = ChosenTeam;
 	if(m_Team == -1)
 	{
 		// no free team - fail gracefully so caller can notify players
@@ -567,26 +566,26 @@ bool COneOnOneEvent::StartEvent()
 	pController->Teams().SetTeamLock(m_Team, true);
 
 	// save and disable solo & collision state for both participants
-	auto &core = ((CGameControllerDDNet *)GameServer()->m_pController)->Teams().m_Core;
-	for(int cid : {m_Player1ID, m_Player2ID})
+	auto &Core = ((CGameControllerDDNet *)GameServer()->m_pController)->Teams().m_Core;
+	for(int Cid : {m_Player1ID, m_Player2ID})
 	{
-		CCharacter *pChr = GameServer()->GetPlayerChar(cid);
+		CCharacter *pChr = GameServer()->GetPlayerChar(Cid);
 		if(pChr)
 		{
-			bool wasSolo = pChr->Core()->m_Solo;
-			bool wasCollisionDisabled = pChr->Core()->m_CollisionDisabled;
-			m_PrevSoloState[cid] = {wasSolo, wasCollisionDisabled};
-			if(wasSolo)
+			bool WasSolo = pChr->Core()->m_Solo;
+			bool WasCollisionDisabled = pChr->Core()->m_CollisionDisabled;
+			m_PrevSoloState[Cid] = {WasSolo, WasCollisionDisabled};
+			if(WasSolo)
 				pChr->SetSolo(false);
-			if(wasCollisionDisabled)
+			if(WasCollisionDisabled)
 				pChr->Bw().Core().m_CollisionDisabled = false;
 		}
 		else
 		{
 			// fallback to teams core if no character is present
-			bool wasSolo = core.GetSolo(cid);
-			m_PrevSoloState[cid] = {wasSolo, false};
-			core.SetSolo(cid, false);
+			bool WasSolo = Core.GetSolo(Cid);
+			m_PrevSoloState[Cid] = {WasSolo, false};
+			Core.SetSolo(Cid, false);
 		}
 	}
 
@@ -671,8 +670,8 @@ bool COneOnOneEvent::StartEvent()
 	ForcePlayerIntoEvent(p1);
 	ForcePlayerIntoEvent(p2);
 
-	std::vector<vec2> spawnPosition = GetArenaSpawnPositions();
-	PickSpawnReservation((int)spawnPosition.size());
+	std::vector<vec2> SpawnPosition = GetArenaSpawnPositions();
+	PickSpawnReservation((int)SpawnPosition.size());
 
 	if(p1 && p1->GetCharacter())
 		p1->KillCharacter(WEAPON_WORLD, false);
@@ -684,11 +683,11 @@ bool COneOnOneEvent::StartEvent()
 	SaveAndClearCosmetics(m_Player2ID);
 
 	// directly spawn players at their reserved 1on1 positions
-	SpawnAtReservedSlot(p1, spawnPosition, m_SpawnReservation.pos1Idx);
+	SpawnAtReservedSlot(p1, SpawnPosition, m_SpawnReservation.m_Pos1Idx);
 	if(p1 && p1->GetCharacter())
 		p1->GetCharacter()->Bw().FreezeForce(3);
 
-	SpawnAtReservedSlot(p2, spawnPosition, m_SpawnReservation.pos2Idx);
+	SpawnAtReservedSlot(p2, SpawnPosition, m_SpawnReservation.m_Pos2Idx);
 	if(p2 && p2->GetCharacter())
 		p2->GetCharacter()->Bw().FreezeForce(3);
 
@@ -696,9 +695,9 @@ bool COneOnOneEvent::StartEvent()
 	m_MatchStartTick = Server()->Tick();
 
 	// apply config settings: endless hook, weapon restrictions and grants
-	for(int cid : {m_Player1ID, m_Player2ID})
+	for(int Cid : {m_Player1ID, m_Player2ID})
 	{
-		CCharacter *pChr = GameServer()->GetPlayerChar(cid);
+		CCharacter *pChr = GameServer()->GetPlayerChar(Cid);
 		if(!pChr)
 			continue;
 
@@ -719,11 +718,11 @@ bool COneOnOneEvent::StartEvent()
 				// if active weapon was removed, switch to hammer or first available
 				if(pChr->GetActiveWeapon() == w)
 				{
-					for(int alt = 0; alt < 6; alt++)
+					for(int Alt = 0; Alt < 6; Alt++)
 					{
-						if(m_Config.m_aWeapons[alt])
+						if(m_Config.m_aWeapons[Alt])
 						{
-							pChr->SetActiveWeapon(alt);
+							pChr->SetActiveWeapon(Alt);
 							break;
 						}
 					}
@@ -744,7 +743,7 @@ void COneOnOneEvent::OnTick()
 	if(GetState() == EEventState::Ending && m_DeferFinishRestore && m_RestoreAtTick <= m_CurrentTick)
 	{
 		// restore team lock
-		auto pController = (CGameControllerDDNet *)GameServer()->m_pController;
+		auto *pController = (CGameControllerDDNet *)GameServer()->m_pController;
 		if(m_Team >= 0)
 		{
 			pController->Teams().SetTeamEvent(m_Team, false);
@@ -758,8 +757,8 @@ void COneOnOneEvent::OnTick()
 		// restore positions for all players we saved (avoid fallback kill for non-saved)
 		std::vector<int> aSaved;
 		aSaved.reserve(m_pSavedPlayers.size());
-		for(const auto &kv : m_pSavedPlayers)
-			aSaved.push_back(kv.first);
+		for(const auto &Kv : m_pSavedPlayers)
+			aSaved.push_back(Kv.first);
 		for(const int Cid : aSaved)
 		{
 			pController->Teams().SetForceCharacterTeam(Cid, TEAM_FLOCK);
@@ -768,24 +767,24 @@ void COneOnOneEvent::OnTick()
 		}
 
 		// restore solo & collision state for saved players
-		auto &core = ((CGameControllerDDNet *)GameServer()->m_pController)->Teams().m_Core;
+		auto &Core = ((CGameControllerDDNet *)GameServer()->m_pController)->Teams().m_Core;
 		for(const int Cid : aSaved)
 		{
-			auto it = m_PrevSoloState.find(Cid);
-			if(it == m_PrevSoloState.end())
+			auto It = m_PrevSoloState.find(Cid);
+			if(It == m_PrevSoloState.end())
 				continue;
 			CCharacter *pChr = GameServer()->GetPlayerChar(Cid);
 			if(pChr)
 			{
-				if(it->second.solo)
+				if(It->second.m_Solo)
 					pChr->SetSolo(true);
-				pChr->Bw().Core().m_CollisionDisabled = it->second.collision;
+				pChr->Bw().Core().m_CollisionDisabled = It->second.m_Collision;
 			}
 			else
 			{
-				core.SetSolo(Cid, it->second.solo);
+				Core.SetSolo(Cid, It->second.m_Solo);
 			}
-			m_PrevSoloState.erase(it);
+			m_PrevSoloState.erase(It);
 		}
 
 		m_DeferFinishRestore = false;
@@ -805,14 +804,14 @@ void COneOnOneEvent::OnTick()
 		if(GetState() == EEventState::Preparation)
 		{
 			ClearDuelVoteUi();
-			extern CVoteManager g_VoteManager;
-			for(int cid : {m_Player1ID, m_Player2ID})
+
+			for(int Cid : {m_Player1ID, m_Player2ID})
 			{
-				g_VoteManager.NavigateToRoot(cid);
-				GameServer()->Bw().ClearVotes(cid);
+				g_VoteManager.NavigateToRoot(Cid);
+				GameServer()->Bw().ClearVotes(Cid);
 			}
-			int otherCid = !GameServer()->Bw().GetPlayer(m_Player1ID) ? m_Player2ID : m_Player1ID;
-			GameServer()->Bw().SendChatTarget(otherCid, "[1on1] Opponent disconnected during the preparation phase. Match cancelled.");
+			int OtherCid = !GameServer()->Bw().GetPlayer(m_Player1ID) ? m_Player2ID : m_Player1ID;
+			GameServer()->Bw().SendChatTarget(OtherCid, "[1on1] Opponent disconnected during the preparation phase. Match cancelled.");
 			AbortAndRefund(nullptr);
 		}
 		else
@@ -842,9 +841,9 @@ void COneOnOneEvent::OnTick()
 		// Keep configured ninja active for the full round by refreshing its timer.
 		if(m_Config.m_aWeapons[WEAPON_NINJA])
 		{
-			for(int cid : {m_Player1ID, m_Player2ID})
+			for(int Cid : {m_Player1ID, m_Player2ID})
 			{
-				if(CCharacter *pChr = GameServer()->GetPlayerChar(cid))
+				if(CCharacter *pChr = GameServer()->GetPlayerChar(Cid))
 				{
 					if(!pChr->GetWeaponGot(WEAPON_NINJA))
 						pChr->GiveWeapon(WEAPON_NINJA);
@@ -855,9 +854,9 @@ void COneOnOneEvent::OnTick()
 		}
 		else
 		{
-			for(int cid : {m_Player1ID, m_Player2ID})
+			for(int Cid : {m_Player1ID, m_Player2ID})
 			{
-				if(CCharacter *pChr = GameServer()->GetPlayerChar(cid))
+				if(CCharacter *pChr = GameServer()->GetPlayerChar(Cid))
 				{
 					if(pChr->GetWeaponGot(WEAPON_NINJA))
 						pChr->GiveWeapon(WEAPON_NINJA, true);
@@ -869,14 +868,14 @@ void COneOnOneEvent::OnTick()
 		const int StalemateThresholdTicks = Config()->m_Sv1on1DrawFreezeStalemate * Server()->TickSpeed();
 		CCharacter *pChr1 = GameServer()->GetPlayerChar(m_Player1ID);
 		CCharacter *pChr2 = GameServer()->GetPlayerChar(m_Player2ID);
-		bool bothChars = pChr1 && pChr2;
-		bool bothInFreezeTile = bothChars && pChr1->Core()->m_IsInFreeze && pChr2->Core()->m_IsInFreeze;
+		bool BothChars = pChr1 && pChr2;
+		bool BothInFreezeTile = BothChars && pChr1->Core()->m_IsInFreeze && pChr2->Core()->m_IsInFreeze;
 
 		// track if each player is currently in a freeze tile (perma-freeze context)
 		if(pChr1)
 		{
-			bool inFreeze = pChr1->Core()->m_IsInFreeze; // set in DDRaceTick
-			if(inFreeze)
+			bool InFreeze = pChr1->Core()->m_IsInFreeze; // set in DDRaceTick
+			if(InFreeze)
 			{
 				if(!m_P1InFreezeTile)
 					m_P1InFreezeTileTick = m_CurrentTick;
@@ -887,7 +886,7 @@ void COneOnOneEvent::OnTick()
 				m_P1InFreezeTile = false;
 			}
 
-			if(inFreeze)
+			if(InFreeze)
 			{
 				if(!m_P1Frozen)
 					m_P1FrozenTick = m_CurrentTick;
@@ -900,8 +899,8 @@ void COneOnOneEvent::OnTick()
 		}
 		if(pChr2)
 		{
-			bool inFreeze = pChr2->Core()->m_IsInFreeze;
-			if(inFreeze)
+			bool InFreeze = pChr2->Core()->m_IsInFreeze;
+			if(InFreeze)
 			{
 				if(!m_P2InFreezeTile)
 					m_P2InFreezeTileTick = m_CurrentTick;
@@ -912,7 +911,7 @@ void COneOnOneEvent::OnTick()
 				m_P2InFreezeTile = false;
 			}
 
-			if(inFreeze)
+			if(InFreeze)
 			{
 				if(!m_P2Frozen)
 					m_P2FrozenTick = m_CurrentTick;
@@ -923,7 +922,7 @@ void COneOnOneEvent::OnTick()
 				m_P2Frozen = false;
 			}
 		}
-		if(bothInFreezeTile)
+		if(BothInFreezeTile)
 		{
 			if(m_BothFrozenSinceTick == -1)
 			{
@@ -982,15 +981,15 @@ void COneOnOneEvent::OnTick()
 		// time limit enforcement
 		if(GetState() == EEventState::Active && m_Config.m_TimeLimit > 0 && m_MatchStartTick > 0)
 		{
-			int elapsed = (int)((m_CurrentTick - m_MatchStartTick) / Server()->TickSpeed());
-			if(elapsed >= m_Config.m_TimeLimit)
+			int Elapsed = (int)((m_CurrentTick - m_MatchStartTick) / Server()->TickSpeed());
+			if(Elapsed >= m_Config.m_TimeLimit)
 			{
 				// time's up - player with more points wins; tie = draw/refund
-				int s1 = m_Score1.load();
-				int s2 = m_Score2.load();
-				if(s1 > s2)
+				int S1 = m_Score1.load();
+				int S2 = m_Score2.load();
+				if(S1 > S2)
 					m_ForcedWinnerCid = m_Player1ID;
-				else if(s2 > s1)
+				else if(S2 > S1)
 					m_ForcedWinnerCid = m_Player2ID;
 				else
 				{
@@ -1013,10 +1012,10 @@ void COneOnOneEvent::OnTick()
 	if(GetState() == EEventState::Preparation && m_ConfigStartTick > 0)
 	{
 		int WarmupSec = g_Config.m_Sv1on1WarmupSeconds;
-		int elapsed = (int)((m_CurrentTick - m_ConfigStartTick) / Server()->TickSpeed());
-		int remaining = WarmupSec - elapsed;
-		if(remaining < 0)
-			remaining = 0;
+		int Elapsed = (int)((m_CurrentTick - m_ConfigStartTick) / Server()->TickSpeed());
+		int Remaining = WarmupSec - Elapsed;
+		if(Remaining < 0)
+			Remaining = 0;
 
 		char aTimeLimit[32];
 		if(m_Config.m_TimeLimit <= 0)
@@ -1056,7 +1055,7 @@ void COneOnOneEvent::OnTick()
 			pSpawnMode,
 			pEndlessHook,
 			aWeapons,
-			remaining);
+			Remaining);
 
 		char aCfgBroadcastUnderVote[1024];
 		str_format(aCfgBroadcastUnderVote, sizeof(aCfgBroadcastUnderVote), "\n\n\n\n\n\n%s", aCfgBroadcast);
@@ -1070,17 +1069,17 @@ void COneOnOneEvent::OnTick()
 		if(m_DuelVoteLastSendTick >= 0 && (m_CurrentTick - m_DuelVoteLastSendTick) >= Server()->TickSpeed() * 5)
 			SendDuelVoteUi();
 
-		if(elapsed >= WarmupSec)
+		if(Elapsed >= WarmupSec)
 		{
 			GameServer()->Bw().SendChatTarget(m_Player1ID, "[1on1] Preparation phase timed out - match aborted.");
 			GameServer()->Bw().SendChatTarget(m_Player2ID, "[1on1] Preparation phase timed out - match aborted.");
 
 			ClearDuelVoteUi();
-			extern CVoteManager g_VoteManager;
-			for(int cid : {m_Player1ID, m_Player2ID})
+
+			for(int Cid : {m_Player1ID, m_Player2ID})
 			{
-				g_VoteManager.NavigateToRoot(cid);
-				GameServer()->Bw().ClearVotes(cid);
+				g_VoteManager.NavigateToRoot(Cid);
+				GameServer()->Bw().ClearVotes(Cid);
 			}
 
 			AbortAndRefund(nullptr);
@@ -1102,9 +1101,9 @@ void COneOnOneEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 
 	if(GetState() == EEventState::Active)
 	{
-		std::vector<vec2> spawnPos = GetArenaSpawnPositions();
+		std::vector<vec2> vArenaSpawns = GetArenaSpawnPositions();
 
-		int reservedIdx = (ClientId == m_Player1ID) ? m_SpawnReservation.pos1Idx : m_SpawnReservation.pos2Idx;
+		int ReservedIdx = (ClientId == m_Player1ID) ? m_SpawnReservation.m_Pos1Idx : m_SpawnReservation.m_Pos2Idx;
 
 		CCharacter *pSpawned = GameServer()->GetPlayerChar(ClientId);
 		if(pSpawned)
@@ -1114,8 +1113,8 @@ void COneOnOneEvent::OnCharacterSpawn(int ClientId, vec2 SpawnPos)
 
 			// teleport into the arena, clamping to a valid slot so a stale reservation
 			// cannot leave the player wherever the regular spawn system put them
-			if(!spawnPos.empty())
-				GameServer()->Bw().Teleport(pSpawned, spawnPos[(reservedIdx >= 0 && reservedIdx < (int)spawnPos.size()) ? reservedIdx : 0]);
+			if(!vArenaSpawns.empty())
+				GameServer()->Bw().Teleport(pSpawned, vArenaSpawns[(ReservedIdx >= 0 && ReservedIdx < (int)vArenaSpawns.size()) ? ReservedIdx : 0]);
 		}
 	}
 
@@ -1194,9 +1193,9 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 
 	CCharacter *pChr1 = GameServer()->GetPlayerChar(m_Player1ID);
 	CCharacter *pChr2 = GameServer()->GetPlayerChar(m_Player2ID);
-	bool p1InFreezeTileNow = pChr1 ? pChr1->Core()->m_IsInFreeze : m_P1InFreezeTile;
-	bool p2InFreezeTileNow = pChr2 ? pChr2->Core()->m_IsInFreeze : m_P2InFreezeTile;
-	if(p1InFreezeTileNow && p2InFreezeTileNow)
+	bool P1InFreezeTileNow = pChr1 ? pChr1->Core()->m_IsInFreeze : m_P1InFreezeTile;
+	bool P2InFreezeTileNow = pChr2 ? pChr2->Core()->m_IsInFreeze : m_P2InFreezeTile;
+	if(P1InFreezeTileNow && P2InFreezeTileNow)
 	{
 		// Draw: no scoring, ensure no pending award remains
 		m_PendingAwardTo = 0;
@@ -1213,8 +1212,8 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 	}
 
 	bool DrawDetected = false;
-	int tickTolerance = Config()->m_Sv1on1DrawDeathTickTolerance; // max tick diff for immediate dual-death draw
-	if(m_Player1DeathTick != -1 && m_Player2DeathTick != -1 && absolute(m_Player1DeathTick - m_Player2DeathTick) <= tickTolerance)
+	int TickTolerance = Config()->m_Sv1on1DrawDeathTickTolerance; // max tick diff for immediate dual-death draw
+	if(m_Player1DeathTick != -1 && m_Player2DeathTick != -1 && absolute(m_Player1DeathTick - m_Player2DeathTick) <= TickTolerance)
 	{
 		DrawDetected = true;
 	}
@@ -1223,8 +1222,8 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 		// reuse earlier character pointers to avoid shadowing warnings
 		bool Dead1 = !pChr1 || !pChr1->IsAlive();
 		bool Dead2 = !pChr2 || !pChr2->IsAlive();
-		int extendedWindow = Config()->m_Sv1on1DrawDeathExtendedWindow; // ticks
-		if(extendedWindow > 0 && Dead1 && Dead2 && (m_Player1DeathTick != -1 && m_Player2DeathTick != -1) && absolute(m_Player1DeathTick - m_Player2DeathTick) <= extendedWindow)
+		int ExtendedWindow = Config()->m_Sv1on1DrawDeathExtendedWindow; // ticks
+		if(ExtendedWindow > 0 && Dead1 && Dead2 && (m_Player1DeathTick != -1 && m_Player2DeathTick != -1) && absolute(m_Player1DeathTick - m_Player2DeathTick) <= ExtendedWindow)
 		{
 			DrawDetected = true;
 		}
@@ -1251,7 +1250,7 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 		m_Score2.fetch_add(1);
 		m_LastAwardedPlayer = 2;
 		m_LastAwardedTick = Server()->Tick();
-		if(auto p = GameServer()->Bw().GetPlayer(m_Player2ID))
+		if(auto *p = GameServer()->Bw().GetPlayer(m_Player2ID))
 			p->Bw().m_Score = m_Score2.load();
 
 		char aPointMsg[256];
@@ -1280,7 +1279,7 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 		m_Score1.fetch_add(1);
 		m_LastAwardedPlayer = 1;
 		m_LastAwardedTick = Server()->Tick();
-		if(auto p = GameServer()->Bw().GetPlayer(m_Player1ID))
+		if(auto *p = GameServer()->Bw().GetPlayer(m_Player1ID))
 			p->Bw().m_Score = m_Score1.load();
 
 		char aPointMsg[256];
@@ -1308,10 +1307,10 @@ void COneOnOneEvent::OnCharacterDeath(int KillerId, int ClientId, int Weapon)
 
 bool COneOnOneEvent::CheckEndCondition()
 {
-	int limit = m_Config.m_PointsLimit;
-	if(limit <= 0)
-		limit = 10; // fallback
-	return m_Score1.load() >= limit || m_Score2.load() >= limit;
+	int Limit = m_Config.m_PointsLimit;
+	if(Limit <= 0)
+		Limit = 10; // fallback
+	return m_Score1.load() >= Limit || m_Score2.load() >= Limit;
 }
 
 void COneOnOneEvent::CheckFreezePenalties()
@@ -1356,25 +1355,25 @@ void COneOnOneEvent::RestartRoundAfterDraw()
 	m_P1InFreezeTileTick = -1;
 	m_P2InFreezeTileTick = -1;
 
-	std::vector<vec2> startPositions = GetArenaSpawnPositions();
-	PickSpawnReservation((int)startPositions.size());
+	std::vector<vec2> StartPositions = GetArenaSpawnPositions();
+	PickSpawnReservation((int)StartPositions.size());
 
 	CPlayer *p1 = GameServer()->Bw().GetPlayer(m_Player1ID);
 	CPlayer *p2 = GameServer()->Bw().GetPlayer(m_Player2ID);
 
-	auto pController = (CGameControllerDDNet *)GameServer()->m_pController;
+	auto *pController = (CGameControllerDDNet *)GameServer()->m_pController;
 
 	if(p1)
 	{
 		pController->Teams().SetForceCharacterTeam(m_Player1ID, m_Team);
 		p1->KillCharacter(WEAPON_WORLD, false);
-		SpawnAtReservedSlot(p1, startPositions, m_SpawnReservation.pos1Idx);
+		SpawnAtReservedSlot(p1, StartPositions, m_SpawnReservation.m_Pos1Idx);
 	}
 	if(p2)
 	{
 		pController->Teams().SetForceCharacterTeam(m_Player2ID, m_Team);
 		p2->KillCharacter(WEAPON_WORLD, false);
-		SpawnAtReservedSlot(p2, startPositions, m_SpawnReservation.pos2Idx);
+		SpawnAtReservedSlot(p2, StartPositions, m_SpawnReservation.m_Pos2Idx);
 	}
 
 	m_DrawRestartInProgress = false;
@@ -1385,48 +1384,48 @@ void COneOnOneEvent::FinishEvent()
 	// announce winner and restore players
 	CPlayer *pWinner = nullptr;
 	CPlayer *pLoser = nullptr;
-	int winnerCid = -1;
-	int loserCid = -1;
+	int WinnerCid = -1;
+	int LoserCid = -1;
 	if(m_ForcedWinnerCid >= 0)
 	{
-		winnerCid = m_ForcedWinnerCid;
-		loserCid = (winnerCid == m_Player1ID) ? m_Player2ID : m_Player1ID;
+		WinnerCid = m_ForcedWinnerCid;
+		LoserCid = (WinnerCid == m_Player1ID) ? m_Player2ID : m_Player1ID;
 	}
 	else if(m_Score1.load() > m_Score2.load())
 	{
-		winnerCid = m_Player1ID;
-		loserCid = m_Player2ID;
+		WinnerCid = m_Player1ID;
+		LoserCid = m_Player2ID;
 	}
 	else
 	{
-		winnerCid = m_Player2ID;
-		loserCid = m_Player1ID;
+		WinnerCid = m_Player2ID;
+		LoserCid = m_Player1ID;
 	}
-	pWinner = GameServer()->Bw().GetPlayer(winnerCid);
-	pLoser = GameServer()->Bw().GetPlayer(loserCid);
+	pWinner = GameServer()->Bw().GetPlayer(WinnerCid);
+	pLoser = GameServer()->Bw().GetPlayer(LoserCid);
 	if(!m_SuppressFinishBroadcast && pWinner && pLoser)
 	{
 		const char *pName1 = m_Player1ID >= 0 ? Server()->ClientName(m_Player1ID) : "<none>";
 		const char *pName2 = m_Player2ID >= 0 ? Server()->ClientName(m_Player2ID) : "<none>";
-		const char *pWinnerName = (winnerCid == m_Player1ID) ? pName1 : pName2;
+		const char *pWinnerName = (WinnerCid == m_Player1ID) ? pName1 : pName2;
 		char aBuf[256];
 		str_format(aBuf, sizeof(aBuf), "[1on1] - %s vs %s - %s won! (Result: %d - %d)", pName1, pName2, pWinnerName, m_Score1.load(), m_Score2.load());
 		GameServer()->Bw().SendChatTarget(-1, aBuf);
 
 		// post to Discord webhook
 		CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Bw().Http());
-		const char *p1on1Url = g_Config.m_SvDiscordWebhookUrl1on1[0] ? g_Config.m_SvDiscordWebhookUrl1on1 : nullptr;
-		if(Discord.IsConfigured(p1on1Url))
+		const char *P1on1Url = g_Config.m_SvDiscordWebhookUrl1on1[0] ? g_Config.m_SvDiscordWebhookUrl1on1 : nullptr;
+		if(Discord.IsConfigured(P1on1Url))
 		{
 			char aMsg[512];
-			int winnerScore = (winnerCid == m_Player1ID) ? m_Score1.load() : m_Score2.load();
-			int loserScore = (winnerCid == m_Player1ID) ? m_Score2.load() : m_Score1.load();
-			int bp = m_Wager > 0 ? m_Wager : 0;
+			int WinnerScore = (WinnerCid == m_Player1ID) ? m_Score1.load() : m_Score2.load();
+			int LoserScore = (WinnerCid == m_Player1ID) ? m_Score2.load() : m_Score1.load();
+			int Bp = m_Wager > 0 ? m_Wager : 0;
 			const char *pWinnerBracket = pWinnerName;
-			const char *pLoserName = (winnerCid == m_Player1ID) ? pName2 : pName1;
-			str_format(aMsg, sizeof(aMsg), "[**%s**]  %d : %d  [%s]  ->  BP: %d", pWinnerBracket, winnerScore, loserScore, pLoserName, bp);
+			const char *pLoserName = (WinnerCid == m_Player1ID) ? pName2 : pName1;
+			str_format(aMsg, sizeof(aMsg), "[**%s**]  %d : %d  [%s]  ->  BP: %d", pWinnerBracket, WinnerScore, LoserScore, pLoserName, Bp);
 			CDiscordWebhook::SSendOptions Opt;
-			Opt.m_pWebhookUrl = p1on1Url;
+			Opt.m_pWebhookUrl = P1on1Url;
 			Discord.Send(aMsg, Opt);
 		}
 	}
@@ -1434,12 +1433,12 @@ void COneOnOneEvent::FinishEvent()
 	// safe payout via escrow - only if escrow is actually still held (draw path already refunds before calling us)
 	if(m_Wager > 0)
 	{
-		bool escrowHeld;
+		bool EscrowHeld;
 		{
 			std::lock_guard<std::mutex> g(m_Mutex);
-			escrowHeld = m_EscrowCollected;
+			EscrowHeld = m_EscrowCollected;
 		}
-		if(escrowHeld)
+		if(EscrowHeld)
 		{
 			if(pWinner)
 			{
@@ -1456,9 +1455,9 @@ void COneOnOneEvent::FinishEvent()
 			{
 				char aMsg[256];
 				const char *pMap = g_Config.m_SvMap;
-				int loserId = (m_ForcedWinnerCid == m_Player1ID) ? m_Player2ID : m_Player1ID;
-				int winnerId = m_ForcedWinnerCid >= 0 ? m_ForcedWinnerCid : (m_Score1.load() > m_Score2.load() ? m_Player1ID : m_Player2ID);
-				str_format(aMsg, sizeof(aMsg), "1on1 wager transferred on %s: %s -> %s | Amount: %d BP", pMap ? pMap : "<map>", Server()->ClientName(loserId), Server()->ClientName(winnerId), m_Wager);
+				int LoserId = (m_ForcedWinnerCid == m_Player1ID) ? m_Player2ID : m_Player1ID;
+				int WinnerId = m_ForcedWinnerCid >= 0 ? m_ForcedWinnerCid : (m_Score1.load() > m_Score2.load() ? m_Player1ID : m_Player2ID);
+				str_format(aMsg, sizeof(aMsg), "1on1 wager transferred on %s: %s -> %s | Amount: %d BP", pMap ? pMap : "<map>", Server()->ClientName(LoserId), Server()->ClientName(WinnerId), m_Wager);
 				CDiscordWebhook::SSendOptions Opt;
 				Opt.m_pWebhookUrl = pLogsUrl;
 				Discord.Send(aMsg, Opt);
@@ -1480,25 +1479,25 @@ bool COneOnOneEvent::Leave(int ClientId)
 {
 	if(ClientId == m_Player1ID || ClientId == m_Player2ID)
 	{
-		int leaver = ClientId;
-		int opponent = (leaver == m_Player1ID) ? m_Player2ID : m_Player1ID;
+		int Leaver = ClientId;
+		int Opponent = (Leaver == m_Player1ID) ? m_Player2ID : m_Player1ID;
 
-		const char *pLeaverName = leaver >= 0 ? Server()->ClientName(leaver) : "<unknown>";
-		const char *pOpponentName = opponent >= 0 ? Server()->ClientName(opponent) : "<unknown>";
+		const char *pLeaverName = Leaver >= 0 ? Server()->ClientName(Leaver) : "<unknown>";
+		const char *pOpponentName = Opponent >= 0 ? Server()->ClientName(Opponent) : "<unknown>";
 
 		// during warmup/config phase - just abort cleanly, no ragequit
 		if(GetState() == EEventState::Preparation)
 		{
-			GameServer()->Bw().SendChatTarget(leaver, "[1on1] You left the preparation phase. Match cancelled.");
-			GameServer()->Bw().SendChatTarget(opponent, "[1on1] Your opponent left during the preparation phase. Match cancelled.");
+			GameServer()->Bw().SendChatTarget(Leaver, "[1on1] You left the preparation phase. Match cancelled.");
+			GameServer()->Bw().SendChatTarget(Opponent, "[1on1] Your opponent left during the preparation phase. Match cancelled.");
 
 			// clear vote UI then vote pages
 			ClearDuelVoteUi();
-			extern CVoteManager g_VoteManager;
-			for(int cid : {m_Player1ID, m_Player2ID})
+
+			for(int Cid : {m_Player1ID, m_Player2ID})
 			{
-				g_VoteManager.NavigateToRoot(cid);
-				GameServer()->Bw().ClearVotes(cid);
+				g_VoteManager.NavigateToRoot(Cid);
+				GameServer()->Bw().ClearVotes(Cid);
 			}
 
 			AbortAndRefund(nullptr);
@@ -1508,10 +1507,10 @@ bool COneOnOneEvent::Leave(int ClientId)
 		// Active phase - ragequit
 		m_PendingAwardTo = 0;
 		m_PendingAwardTick = -1;
-		m_ForcedWinnerCid = opponent;
+		m_ForcedWinnerCid = Opponent;
 
-		int leaverScore = (leaver == m_Player1ID) ? m_Score1.load() : m_Score2.load();
-		int opponentScore = (leaver == m_Player1ID) ? m_Score2.load() : m_Score1.load();
+		int LeaverScore = (Leaver == m_Player1ID) ? m_Score1.load() : m_Score2.load();
+		int OpponentScore = (Leaver == m_Player1ID) ? m_Score2.load() : m_Score1.load();
 
 		static const char *s_RagequitPhrases[] = {
 			"couldn't handle the smoke",
@@ -1550,39 +1549,39 @@ bool COneOnOneEvent::Leave(int ClientId)
 		};
 		static const int NumPhrases = sizeof(s_RagequitPhrases) / sizeof(s_RagequitPhrases[0]);
 		static const int NumEmotes = sizeof(s_DiscordEmotes) / sizeof(s_DiscordEmotes[0]);
-		int phraseIdx = (int)((unsigned)(Server()->Tick() + leaver) % NumPhrases);
-		int emoteIdx = (int)((unsigned)(Server()->Tick() + leaver + 7) % NumEmotes);
+		int PhraseIdx = (int)((unsigned)(Server()->Tick() + Leaver) % NumPhrases);
+		int EmoteIdx = (int)((unsigned)(Server()->Tick() + Leaver + 7) % NumEmotes);
 
 		m_SuppressFinishBroadcast = true;
 
 		{
 			char aBuf[512];
 			str_format(aBuf, sizeof(aBuf), "[1on1] - %s ragequited the match vs %s! %s %d : %d",
-				pLeaverName, pOpponentName, pOpponentName, opponentScore, leaverScore);
+				pLeaverName, pOpponentName, pOpponentName, OpponentScore, LeaverScore);
 			GameServer()->Bw().SendChatTarget(-1, aBuf);
 		}
 
 		// proactively clear forced team to avoid spawn issues when finishing
-		auto pController = (CGameControllerDDNet *)GameServer()->m_pController;
+		auto *pController = (CGameControllerDDNet *)GameServer()->m_pController;
 		pController->Teams().SetForceCharacterTeam(m_Player1ID, 0);
 		pController->Teams().SetForceCharacterTeam(m_Player2ID, 0);
 
 		// restore solo and collision state for both participants if it was changed for the event
-		auto &core = ((CGameControllerDDNet *)GameServer()->m_pController)->Teams().m_Core;
-		for(const auto &soloEntry : m_PrevSoloState)
+		auto &Core = ((CGameControllerDDNet *)GameServer()->m_pController)->Teams().m_Core;
+		for(const auto &SoloEntry : m_PrevSoloState)
 		{
-			int cid = soloEntry.first;
-			CCharacter *pChr = GameServer()->GetPlayerChar(cid);
+			int Cid = SoloEntry.first;
+			CCharacter *pChr = GameServer()->GetPlayerChar(Cid);
 			if(pChr)
 			{
-				if(soloEntry.second.solo)
+				if(SoloEntry.second.m_Solo)
 					pChr->SetSolo(true);
-				pChr->Bw().Core().m_CollisionDisabled = soloEntry.second.collision;
+				pChr->Bw().Core().m_CollisionDisabled = SoloEntry.second.m_Collision;
 			}
 			else
 			{
 				// fallback to teams core
-				core.SetSolo(cid, soloEntry.second.solo);
+				Core.SetSolo(Cid, SoloEntry.second.m_Solo);
 			}
 		}
 		m_PrevSoloState.clear();
@@ -1591,14 +1590,14 @@ bool COneOnOneEvent::Leave(int ClientId)
 
 		// notify Discord about ragequit
 		CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Bw().Http());
-		const char *p1on1Url = g_Config.m_SvDiscordWebhookUrl1on1[0] ? g_Config.m_SvDiscordWebhookUrl1on1 : nullptr;
-		if(Discord.IsConfigured(p1on1Url))
+		const char *P1on1Url = g_Config.m_SvDiscordWebhookUrl1on1[0] ? g_Config.m_SvDiscordWebhookUrl1on1 : nullptr;
+		if(Discord.IsConfigured(P1on1Url))
 		{
 			char aMsg[512];
 			str_format(aMsg, sizeof(aMsg), "%s ragequit! %s : **%s** %d : %d %s - %s",
-				pLeaverName, s_DiscordEmotes[emoteIdx], pOpponentName, opponentScore, leaverScore, pLeaverName, s_RagequitPhrases[phraseIdx]);
+				pLeaverName, s_DiscordEmotes[EmoteIdx], pOpponentName, OpponentScore, LeaverScore, pLeaverName, s_RagequitPhrases[PhraseIdx]);
 			CDiscordWebhook::SSendOptions Opt;
-			Opt.m_pWebhookUrl = p1on1Url;
+			Opt.m_pWebhookUrl = P1on1Url;
 			Discord.Send(aMsg, Opt);
 		}
 		return true;
@@ -1631,12 +1630,12 @@ std::optional<int> COneOnOneEvent::GetScoreOf(int ClientId) const
 
 bool COneOnOneEvent::CollectEscrow()
 {
-	int wager;
+	int Wager;
 	{
 		std::lock_guard<std::mutex> g(m_Mutex);
 		if(m_EscrowCollected || m_Wager <= 0)
 			return true;
-		wager = m_Wager;
+		Wager = m_Wager;
 	}
 
 	// Validate players and balances without holding match lock
@@ -1649,29 +1648,29 @@ bool COneOnOneEvent::CollectEscrow()
 		GameServer()->Bw().SendChatTarget(-1, "[1on1] Wager requires both players to be logged in.");
 		return false;
 	}
-	if(p1->Bw().GetPlayerBlockpoints() < wager || p2->Bw().GetPlayerBlockpoints() < wager)
+	if(p1->Bw().GetPlayerBlockpoints() < Wager || p2->Bw().GetPlayerBlockpoints() < Wager)
 	{
 		char aBuf[256];
-		const char *pWho = p1->Bw().GetPlayerBlockpoints() < wager ? Server()->ClientName(m_Player1ID) : Server()->ClientName(m_Player2ID);
+		const char *pWho = p1->Bw().GetPlayerBlockpoints() < Wager ? Server()->ClientName(m_Player1ID) : Server()->ClientName(m_Player2ID);
 		str_format(aBuf, sizeof(aBuf), "[1on1] Wager collection failed: %s doesn't have enough blockpoints.", pWho);
 		GameServer()->Bw().SendChatTarget(-1, aBuf);
 		return false;
 	}
 
 	// Deduct to escrow (perform account saves immediately; update state under lock)
-	p1->Bw().SetPlayerBlockpoints(p1->Bw().GetPlayerBlockpoints() - wager);
-	p2->Bw().SetPlayerBlockpoints(p2->Bw().GetPlayerBlockpoints() - wager);
+	p1->Bw().SetPlayerBlockpoints(p1->Bw().GetPlayerBlockpoints() - Wager);
+	p2->Bw().SetPlayerBlockpoints(p2->Bw().GetPlayerBlockpoints() - Wager);
 	GameServer()->Bw().Accounts()->Save(m_Player1ID, &p1->Bw().m_Account);
 	GameServer()->Bw().Accounts()->Save(m_Player2ID, &p2->Bw().m_Account);
 
 	{
 		std::lock_guard<std::mutex> g(m_Mutex);
 		m_EscrowCollected = true;
-		m_EscrowBalance = wager * 2;
+		m_EscrowBalance = Wager * 2;
 	}
 
 	char aBuf[192];
-	str_format(aBuf, sizeof(aBuf), "[1on1] Pot started with %d BP from each player.", wager);
+	str_format(aBuf, sizeof(aBuf), "[1on1] Pot started with %d BP from each player.", Wager);
 	GameServer()->Bw().SendChatTarget(m_Player1ID, aBuf);
 	GameServer()->Bw().SendChatTarget(m_Player2ID, aBuf);
 	return true;
@@ -1679,32 +1678,32 @@ bool COneOnOneEvent::CollectEscrow()
 
 void COneOnOneEvent::RefundEscrow()
 {
-	int wager;
-	bool doRefund = false;
+	int Wager;
+	bool DoRefund = false;
 	{
 		std::lock_guard<std::mutex> g(m_Mutex);
 		if(!m_EscrowCollected || m_EscrowBalance <= 0)
 			return;
 		// snapshot and clear escrow under lock
-		wager = m_Wager;
+		Wager = m_Wager;
 		m_EscrowBalance = 0;
 		m_EscrowCollected = false;
-		doRefund = true;
+		DoRefund = true;
 	}
 
-	if(!doRefund)
+	if(!DoRefund)
 		return;
 
 	CPlayer *p1 = GameServer()->Bw().GetPlayer(m_Player1ID);
 	CPlayer *p2 = GameServer()->Bw().GetPlayer(m_Player2ID);
 	if(p1)
 	{
-		p1->Bw().SetPlayerBlockpoints(p1->Bw().GetPlayerBlockpoints() + wager);
+		p1->Bw().SetPlayerBlockpoints(p1->Bw().GetPlayerBlockpoints() + Wager);
 		GameServer()->Bw().Accounts()->Save(m_Player1ID, &p1->Bw().m_Account);
 	}
 	if(p2)
 	{
-		p2->Bw().SetPlayerBlockpoints(p2->Bw().GetPlayerBlockpoints() + wager);
+		p2->Bw().SetPlayerBlockpoints(p2->Bw().GetPlayerBlockpoints() + Wager);
 		GameServer()->Bw().Accounts()->Save(m_Player2ID, &p2->Bw().m_Account);
 	}
 	if(p1)
@@ -1715,12 +1714,12 @@ void COneOnOneEvent::RefundEscrow()
 
 void COneOnOneEvent::PayoutWinner(CPlayer *pWinner, CPlayer *pLoser)
 {
-	int balance = 0;
+	int Balance = 0;
 	{
 		std::lock_guard<std::mutex> g(m_Mutex);
 		if(!m_EscrowCollected || m_EscrowBalance != m_Wager * 2)
 			return; // escrow not in the expected state - do nothing
-		balance = m_EscrowBalance;
+		Balance = m_EscrowBalance;
 		m_EscrowBalance = 0;
 		m_EscrowCollected = false;
 	}
@@ -1728,10 +1727,10 @@ void COneOnOneEvent::PayoutWinner(CPlayer *pWinner, CPlayer *pLoser)
 	if(!pWinner)
 		return; // caller should have called RefundEscrow instead
 
-	pWinner->Bw().SetPlayerBlockpoints(pWinner->Bw().GetPlayerBlockpoints() + balance);
+	pWinner->Bw().SetPlayerBlockpoints(pWinner->Bw().GetPlayerBlockpoints() + Balance);
 	GameServer()->Bw().Accounts()->Save(pWinner->GetCid(), &pWinner->Bw().m_Account);
 	char aBuf[256];
-	str_format(aBuf, sizeof(aBuf), "[1on1] - %s won the pot of %d blockpoints!", Server()->ClientName(pWinner->GetCid()), balance);
+	str_format(aBuf, sizeof(aBuf), "[1on1] - %s won the pot of %d blockpoints!", Server()->ClientName(pWinner->GetCid()), Balance);
 	GameServer()->Bw().SendChatTarget(-1, aBuf);
 }
 
@@ -1748,7 +1747,7 @@ void COneOnOneEvent::AbortAndRefund(const char *pReason)
 	GameServer()->Bw().SendBroadcast(" ", m_Player1ID, false);
 	GameServer()->Bw().SendBroadcast(" ", m_Player2ID, false);
 
-	auto pController = (CGameControllerDDNet *)GameServer()->m_pController;
+	auto *pController = (CGameControllerDDNet *)GameServer()->m_pController;
 	if(m_Team >= 0)
 	{
 		pController->Teams().SetTeamEvent(m_Team, false);
@@ -1760,31 +1759,31 @@ void COneOnOneEvent::AbortAndRefund(const char *pReason)
 	pController->Teams().SetForceCharacterTeam(m_Player2ID, TEAM_FLOCK);
 
 	// restore positions and weapons for both participants
-	for(int cid : {m_Player1ID, m_Player2ID})
+	for(int Cid : {m_Player1ID, m_Player2ID})
 	{
-		LoadPosition(cid);
-		LoadWeapons(cid);
+		LoadPosition(Cid);
+		LoadWeapons(Cid);
 	}
 
 	// restore solo/collision state
-	auto &core = pController->Teams().m_Core;
-	for(int cid : {m_Player1ID, m_Player2ID})
+	auto &Core = pController->Teams().m_Core;
+	for(int Cid : {m_Player1ID, m_Player2ID})
 	{
-		auto it = m_PrevSoloState.find(cid);
-		if(it == m_PrevSoloState.end())
+		auto It = m_PrevSoloState.find(Cid);
+		if(It == m_PrevSoloState.end())
 			continue;
-		CCharacter *pChr = GameServer()->GetPlayerChar(cid);
+		CCharacter *pChr = GameServer()->GetPlayerChar(Cid);
 		if(pChr)
 		{
-			if(it->second.solo)
+			if(It->second.m_Solo)
 				pChr->SetSolo(true);
-			pChr->Bw().Core().m_CollisionDisabled = it->second.collision;
+			pChr->Bw().Core().m_CollisionDisabled = It->second.m_Collision;
 		}
 		else
 		{
-			core.SetSolo(cid, it->second.solo);
+			Core.SetSolo(Cid, It->second.m_Solo);
 		}
-		m_PrevSoloState.erase(it);
+		m_PrevSoloState.erase(It);
 	}
 
 	{
@@ -1819,7 +1818,7 @@ void COneOnOneEvent::EmergencyShutdown(const char *pMsg)
 void COneOnOneEvent::SetState(COneOnOneEvent::EEventState NewState)
 {
 	EEventState OldState;
-	std::function<void(EEventState, EEventState)> cb;
+	std::function<void(EEventState, EEventState)> Cb;
 	{
 		// Use atomic exchange to set state and obtain old value atomically
 		OldState = m_State.exchange(NewState);
@@ -1827,12 +1826,12 @@ void COneOnOneEvent::SetState(COneOnOneEvent::EEventState NewState)
 			return;
 		// copy callback under lock to avoid races with setter
 		std::lock_guard<std::mutex> g(m_Mutex);
-		cb = m_pfnOnStateChange;
+		Cb = m_pfnOnStateChange;
 	}
 
 	// Invoke callback outside the lock to avoid deadlocks.
-	if(cb)
-		cb(OldState, NewState);
+	if(Cb)
+		Cb(OldState, NewState);
 }
 
 const char *COneOnOneEvent::GetStateName() const
@@ -1883,7 +1882,7 @@ void COneOnOneEvent::LoadWeapons(int ClientId)
 void COneOnOneEvent::SaveAndClearCosmetics(int ClientId)
 {
 	// Guard: only save once per match to avoid overwriting with already-stripped state
-	if(m_SavedCosmetics.count(ClientId) > 0)
+	if(m_SavedCosmetics.contains(ClientId))
 		return;
 
 	CPlayer *pPlayer = GameServer()->Bw().GetPlayer(ClientId);

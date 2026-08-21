@@ -15,12 +15,12 @@
 #include <mutex>
 #include <unordered_map>
 
-void ToLowercase(char *str)
+static void ToLowercase(char *Str)
 {
-	for(; *str; ++str)
+	for(; *Str; ++Str)
 	{
-		if(*str >= 'A' && *str <= 'Z')
-			*str = (char)(*str - 'A' + 'a');
+		if(*Str >= 'A' && *Str <= 'Z')
+			*Str = (char)(*Str - 'A' + 'a');
 	}
 }
 
@@ -70,10 +70,10 @@ CClanManager::CClanManager(CGameContext *pGameServer, CDbConnectionPool *pPool) 
 CClanManager::~CClanManager() = default;
 
 // for thread safety of m_vClansData and clan maps
-std::mutex g_ClansDataMutex;
+static std::mutex g_ClansDataMutex;
 // definitions for global clan maps and mutex for external linkage
-std::unordered_map<int, CClansData> g_ClanIdMap;
-std::unordered_map<std::string, int> g_ClanNameToId;
+static std::unordered_map<int, CClansData> g_ClanIdMap;
+static std::unordered_map<std::string, int> g_ClanNameToId;
 
 // save de-duplication state
 struct SClanSaveState
@@ -152,7 +152,7 @@ void CClanManager::ExecClanThread(bool (*pFuncPtr)(IDbConnection *, const ISqlDa
 bool CClanManager::RateLimitPlayer(int ClientId)
 {
 	CPlayer *pPlayer = GameServer()->m_apPlayers[ClientId];
-	if(pPlayer == 0)
+	if(pPlayer == nullptr)
 		return true;
 	if(pPlayer->m_LastSqlQuery + (int64_t)g_Config.m_SvSqlQueriesDelay * Server()->TickSpeed() >= Server()->Tick())
 		return true;
@@ -190,7 +190,7 @@ void CClanManager::SaveClan(int ClientId, int ClanId)
 	// de-dup saves: if a save is already queued or in-flight, skip enqueue
 	int Now = GameServer()->Server()->Tick();
 	{
-		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
+		std::lock_guard<std::mutex> Lock(g_ClansDataMutex);
 		if(!TryMarkSaveQueued_Locked(ClanId, Now))
 			return;
 	}
@@ -201,7 +201,7 @@ void CClanManager::QueueBackgroundSave(int ClanId)
 {
 	int Now = GameServer()->Server()->Tick();
 	{
-		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
+		std::lock_guard<std::mutex> Lock(g_ClansDataMutex);
 		if(!TryMarkSaveQueued_Locked(ClanId, Now))
 			return; // already queued or saving
 	}
@@ -501,7 +501,7 @@ bool CClanManager::CreateClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		NewClan.m_Dirty = true; // new clan needs a save after creation (level/exp baseline)
 		if(pData->m_pClanManager)
 		{
-			std::lock_guard<std::mutex> lock(g_ClansDataMutex);
+			std::lock_guard<std::mutex> Lock(g_ClansDataMutex);
 			pData->m_pClanManager->m_vClansData.push_back(NewClan);
 			// update global maps so the clan becomes joinable immediately
 			g_ClanIdMap[NewClan.m_Id] = NewClan;
@@ -640,20 +640,20 @@ bool CClanManager::DeleteClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		pResult->m_Action = CClanResult::ACTION_RESET_CLAN_PLAYERS;
 		pResult->m_ActionResetClanId = pData->m_ClanId;
 
-		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
-		auto &vec = pData->m_pClanManager->m_vClansData;
-		for(auto it = vec.begin(); it != vec.end(); ++it)
+		std::lock_guard<std::mutex> Lock(g_ClansDataMutex);
+		auto &Vec = pData->m_pClanManager->m_vClansData;
+		for(auto It = Vec.begin(); It != Vec.end(); ++It)
 		{
-			if(it->m_Id == pData->m_ClanId)
+			if(It->m_Id == pData->m_ClanId)
 			{
 				// erase from vector
-				std::string nameLower(it->m_ClanName);
-				ToLowercaseAscii(nameLower);
-				int id = it->m_Id;
-				vec.erase(it);
+				std::string NameLower(It->m_ClanName);
+				ToLowercaseAscii(NameLower);
+				int Id = It->m_Id;
+				Vec.erase(It);
 				// erase from maps as well
-				g_ClanIdMap.erase(id);
-				g_ClanNameToId.erase(nameLower);
+				g_ClanIdMap.erase(Id);
+				g_ClanNameToId.erase(NameLower);
 				break;
 			}
 		}
@@ -693,9 +693,9 @@ bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *p
 			str_copy(pError, "Inviter not found", ErrorSize);
 			return false;
 		}
-		int inviterAccId = pInviter->Bw().GetAccId();
+		int InviterAccId = pInviter->Bw().GetAccId();
 		// only coleader or leader can invite
-		if(!CheckClanPermission(pSqlServer, inviterAccId, pData->m_ClanId, (int)ClanAuthLevel::COLEADER, pError, ErrorSize))
+		if(!CheckClanPermission(pSqlServer, InviterAccId, pData->m_ClanId, (int)ClanAuthLevel::COLEADER, pError, ErrorSize))
 		{
 			str_copy(pResult->m_aaMessages[0], pError, sizeof(pResult->m_aaMessages[0]));
 			return false;
@@ -845,6 +845,9 @@ bool CClanManager::AssignClanThread(IDbConnection *pSqlServer, const ISqlData *p
 		str_copy(pResult->m_ActionPlayerName, pData->m_aUsername, sizeof(pResult->m_ActionPlayerName));
 	}
 
+	// the manager is null when the request outlives the map change that owned
+	// it; every other use in this file already guards for that
+	if(pData->m_pClanManager)
 	{
 		CGameContext *pGameServer = pData->m_pClanManager->GameServer();
 		char aBroadcast[256];
@@ -988,11 +991,14 @@ bool CClanManager::RemoveFromClanThread(IDbConnection *pSqlServer, const ISqlDat
 		str_copy(pResult->m_ActionPlayerName, pData->m_aUsername, sizeof(pResult->m_ActionPlayerName));
 	}
 
-	CGameContext *pGameServer = pData->m_pClanManager->GameServer();
+	// same guard as everywhere else in this file: the manager is gone if the
+	// request outlived the map change that owned it, and then there is nobody
+	// left to notify anyway
+	CGameContext *pGameServer = pData->m_pClanManager ? pData->m_pClanManager->GameServer() : nullptr;
 
 	// -- notify the kicked player --
 	int KickedClientId = -1;
-	for(int i = 0; i < MAX_CLIENTS; i++)
+	for(int i = 0; pGameServer && i < MAX_CLIENTS; i++)
 	{
 		CPlayer *pTarget = pGameServer->m_apPlayers[i];
 		if(pTarget && pTarget->Bw().IsLoggedIn() && str_comp(pTarget->Bw().m_Account.m_aName, pData->m_aUsername) == 0)
@@ -1001,12 +1007,13 @@ bool CClanManager::RemoveFromClanThread(IDbConnection *pSqlServer, const ISqlDat
 			break;
 		}
 	}
-	if(KickedClientId != -1)
+	if(pGameServer && KickedClientId != -1)
 	{
 		pGameServer->SendChatTarget(KickedClientId, "You have been kicked from your clan!");
 	}
 
 	// -- broadcast to remaining clan members using SendClanChat --
+	if(pGameServer)
 	{
 		char aBroadcast[256];
 		str_format(aBroadcast, sizeof(aBroadcast), "'%s' has been kicked from the clan!", pData->m_aUsername);
@@ -1500,35 +1507,35 @@ bool CClanManager::RenameClanThread(IDbConnection *pSqlServer, const ISqlData *p
 	// update the in-memory clan vector (protected by mutex)
 	if(pData->m_pClanManager)
 	{
-		std::string oldNameLower;
+		std::string OldNameLower;
 		char aOldName[sizeof(((CClansData *)nullptr)->m_ClanName)] = {0};
 		{
-			std::lock_guard<std::mutex> lock(g_ClansDataMutex);
-			auto &vec = pData->m_pClanManager->m_vClansData;
-			for(auto &Clan : vec)
+			std::lock_guard<std::mutex> Lock(g_ClansDataMutex);
+			auto &Vec = pData->m_pClanManager->m_vClansData;
+			for(auto &Clan : Vec)
 			{
 				if(Clan.m_Id == pData->m_ClanId)
 				{
-					oldNameLower = Clan.m_ClanName;
+					OldNameLower = Clan.m_ClanName;
 					str_copy(aOldName, Clan.m_ClanName, sizeof(aOldName));
 					str_copy(Clan.m_ClanName, aNormalizedName, sizeof(Clan.m_ClanName));
 					break;
 				}
 			}
 			// update global maps
-			auto it = g_ClanIdMap.find(pData->m_ClanId);
-			if(it != g_ClanIdMap.end())
+			auto It = g_ClanIdMap.find(pData->m_ClanId);
+			if(It != g_ClanIdMap.end())
 			{
 				// remove old name mapping
-				ToLowercaseAscii(oldNameLower);
-				if(!oldNameLower.empty())
-					g_ClanNameToId.erase(oldNameLower);
+				ToLowercaseAscii(OldNameLower);
+				if(!OldNameLower.empty())
+					g_ClanNameToId.erase(OldNameLower);
 				// set new name in id map and add name->id map
-				it->second.m_ClanName[0] = '\0';
-				str_copy(it->second.m_ClanName, aNormalizedName, sizeof(it->second.m_ClanName));
-				std::string newLower(aNormalizedName);
-				ToLowercaseAscii(newLower);
-				g_ClanNameToId[newLower] = pData->m_ClanId;
+				It->second.m_ClanName[0] = '\0';
+				str_copy(It->second.m_ClanName, aNormalizedName, sizeof(It->second.m_ClanName));
+				std::string NewLower(aNormalizedName);
+				ToLowercaseAscii(NewLower);
+				g_ClanNameToId[NewLower] = pData->m_ClanId;
 			}
 		}
 
@@ -1611,27 +1618,27 @@ bool CClanManager::LoadClansThread(IDbConnection *pSqlServer, const ISqlData *pG
 
 void CClanManager::OnClansLoaded(const std::vector<CClansData> &vClans)
 {
-	std::lock_guard<std::mutex> lock(g_ClansDataMutex);
+	std::lock_guard<std::mutex> Lock(g_ClansDataMutex);
 	m_vClansData = vClans; // atomic swap
 	g_ClanIdMap.clear();
 	g_ClanNameToId.clear();
-	for(const auto &clan : vClans)
+	for(const auto &Clan : vClans)
 	{
 		// validate for duplicate IDs or names
-		if(g_ClanIdMap.count(clan.m_Id))
+		if(g_ClanIdMap.contains(Clan.m_Id))
 		{
-			dbg_msg("clan", "Duplicate clan id %d detected!", clan.m_Id);
+			dbg_msg("clan", "Duplicate clan id %d detected!", Clan.m_Id);
 			continue;
 		}
-		std::string nameLower(clan.m_ClanName);
-		ToLowercaseAscii(nameLower);
-		if(g_ClanNameToId.count(nameLower))
+		std::string NameLower(Clan.m_ClanName);
+		ToLowercaseAscii(NameLower);
+		if(g_ClanNameToId.contains(NameLower))
 		{
-			dbg_msg("clan", "Duplicate clan name '%s' detected!", clan.m_ClanName);
+			dbg_msg("clan", "Duplicate clan name '%s' detected!", Clan.m_ClanName);
 			continue;
 		}
-		g_ClanIdMap[clan.m_Id] = clan; // m_Dirty already false
-		g_ClanNameToId[nameLower] = clan.m_Id;
+		g_ClanIdMap[Clan.m_Id] = Clan; // m_Dirty already false
+		g_ClanNameToId[NameLower] = Clan.m_Id;
 	}
 	m_ClansLoaded = true;
 	dbg_msg("clan", "Loaded %d clans into memory (map size: %zu)", (int)m_vClansData.size(), g_ClanIdMap.size());
@@ -1640,31 +1647,31 @@ void CClanManager::OnClansLoaded(const std::vector<CClansData> &vClans)
 // helper functions because I need help (i'm going crazy)
 int CClanManager::GetClanIdByName(const char *pClanName)
 {
-	std::string nameLower(pClanName);
-	ToLowercaseAscii(nameLower);
-	std::lock_guard<std::mutex> lock(g_ClansDataMutex);
-	auto it = g_ClanNameToId.find(nameLower);
-	if(it != g_ClanNameToId.end())
-		return it->second;
+	std::string NameLower(pClanName);
+	ToLowercaseAscii(NameLower);
+	std::lock_guard<std::mutex> Lock(g_ClansDataMutex);
+	auto It = g_ClanNameToId.find(NameLower);
+	if(It != g_ClanNameToId.end())
+		return It->second;
 	return -1;
 }
 
 std::string CClanManager::GetClanNameCopy(int ClanId) const
 {
-	std::lock_guard<std::mutex> lock(g_ClansDataMutex);
-	auto it = g_ClanIdMap.find(ClanId);
-	if(it != g_ClanIdMap.end())
-		return std::string(it->second.m_ClanName);
+	std::lock_guard<std::mutex> Lock(g_ClansDataMutex);
+	auto It = g_ClanIdMap.find(ClanId);
+	if(It != g_ClanIdMap.end())
+		return std::string(It->second.m_ClanName);
 	return std::string(" ");
 }
 
 bool CClanManager::GetClanSnapshotById(int ClanId, CClansData &Out) const
 {
-	std::lock_guard<std::mutex> lock(g_ClansDataMutex);
-	auto it = g_ClanIdMap.find(ClanId);
-	if(it != g_ClanIdMap.end())
+	std::lock_guard<std::mutex> Lock(g_ClansDataMutex);
+	auto It = g_ClanIdMap.find(ClanId);
+	if(It != g_ClanIdMap.end())
 	{
-		Out = it->second; // copy
+		Out = It->second; // copy
 		return true;
 	}
 	return false;
@@ -1672,11 +1679,11 @@ bool CClanManager::GetClanSnapshotById(int ClanId, CClansData &Out) const
 
 void CClanManager::AddClanExp(int ClanId, int Amount)
 {
-	std::lock_guard<std::mutex> lock(g_ClansDataMutex);
-	auto it = g_ClanIdMap.find(ClanId);
-	if(it != g_ClanIdMap.end())
+	std::lock_guard<std::mutex> Lock(g_ClansDataMutex);
+	auto It = g_ClanIdMap.find(ClanId);
+	if(It != g_ClanIdMap.end())
 	{
-		CClansData &Clan = it->second;
+		CClansData &Clan = It->second;
 		Clan.m_Experience += Amount;
 		while(Clan.m_Experience >= NeededClanExp(Clan.m_Level))
 		{
@@ -1689,13 +1696,13 @@ void CClanManager::AddClanExp(int ClanId, int Amount)
 			GameServer()->Bw().SendChatTarget(-1, aBuf);
 		}
 
-		for(auto &vecClan : m_vClansData)
+		for(auto &VecClan : m_vClansData)
 		{
-			if(vecClan.m_Id == ClanId)
+			if(VecClan.m_Id == ClanId)
 			{
-				vecClan.m_Experience = Clan.m_Experience;
-				vecClan.m_Level = Clan.m_Level;
-				vecClan.m_Dirty = true; // mark dirty for autosave
+				VecClan.m_Experience = Clan.m_Experience;
+				VecClan.m_Level = Clan.m_Level;
+				VecClan.m_Dirty = true; // mark dirty for autosave
 				break;
 			}
 		}
@@ -1704,9 +1711,9 @@ void CClanManager::AddClanExp(int ClanId, int Amount)
 
 bool CClanManager::IsClanJoinable(int ClanId) const
 {
-	std::lock_guard<std::mutex> lock(g_ClansDataMutex);
-	auto it = g_ClanIdMap.find(ClanId);
-	return it != g_ClanIdMap.end();
+	std::lock_guard<std::mutex> Lock(g_ClansDataMutex);
+	auto It = g_ClanIdMap.find(ClanId);
+	return It != g_ClanIdMap.end();
 }
 
 bool CClanManager::SaveClanThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
@@ -1716,7 +1723,7 @@ bool CClanManager::SaveClanThread(IDbConnection *pSqlServer, const ISqlData *pGa
 
 	// mark start of save (prevent further enqueue) under mutex
 	{
-		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
+		std::lock_guard<std::mutex> Lock(g_ClansDataMutex);
 		MarkSaveStarted_Locked(pData->m_ClanId);
 	}
 
@@ -1795,7 +1802,7 @@ bool CClanManager::SaveClanThread(IDbConnection *pSqlServer, const ISqlData *pGa
 	int CurrentTick = pData->m_pClanManager->GameServer()->Server()->Tick();
 	// update the in-memory clan's last saved tick under mutex to avoid races with main thread
 	{
-		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
+		std::lock_guard<std::mutex> Lock(g_ClansDataMutex);
 		for(auto &Clan : pData->m_pClanManager->m_vClansData)
 		{
 			if(Clan.m_Id == ClanCopy.m_Id)
@@ -1808,11 +1815,11 @@ bool CClanManager::SaveClanThread(IDbConnection *pSqlServer, const ISqlData *pGa
 			}
 		}
 		// keep the map entry in sync for snapshot-based reads
-		auto it = g_ClanIdMap.find(ClanCopy.m_Id);
-		if(it != g_ClanIdMap.end())
+		auto It = g_ClanIdMap.find(ClanCopy.m_Id);
+		if(It != g_ClanIdMap.end())
 		{
-			it->second.m_LastSavedTick = CurrentTick;
-			it->second.m_Dirty = false;
+			It->second.m_LastSavedTick = CurrentTick;
+			It->second.m_Dirty = false;
 		}
 	}
 
@@ -1908,8 +1915,8 @@ bool CClanManager::ShowClanMembersThread(IDbConnection *pSqlServer, const ISqlDa
 	char aClanName[BW_CLAN_NAME_BUFFER_SIZE] = {0};
 	if(pData->m_pClanManager)
 	{
-		auto nameStr = pData->m_pClanManager->GetClanNameCopy(pData->m_ClanId);
-		str_copy(aClanName, nameStr.c_str(), sizeof(aClanName));
+		auto NameStr = pData->m_pClanManager->GetClanNameCopy(pData->m_ClanId);
+		str_copy(aClanName, NameStr.c_str(), sizeof(aClanName));
 	}
 
 	char aBuf[256];
@@ -1972,17 +1979,17 @@ int CClanManager::SaveAllClansOnShutdown()
 	int Count = 0;
 	std::vector<int> vIds;
 	{
-		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
+		std::lock_guard<std::mutex> Lock(g_ClansDataMutex);
 		vIds.reserve(m_vClansData.size());
 		for(const auto &c : m_vClansData)
 			vIds.push_back(c.m_Id);
 	}
-	for(int id : vIds)
+	for(int Id : vIds)
 	{
 		auto pResult = std::make_shared<CClanResult>();
 		auto pRequest = std::make_unique<CSqlClanRequest>(pResult, this);
 		pRequest->m_ClientId = -1;
-		pRequest->m_ClanId = id;
+		pRequest->m_ClanId = Id;
 		pRequest->m_Critical = true;
 		if(m_pShutdownCollector)
 			m_pShutdownCollector->push_back(pResult);
@@ -2013,7 +2020,7 @@ void CClanManager::AutosaveTick()
 	int IntervalTicks = GameServer()->Server()->TickSpeed() * g_Config.m_SvClanSaveInterval;
 	std::vector<int> ToSave;
 	{
-		std::lock_guard<std::mutex> lock(g_ClansDataMutex);
+		std::lock_guard<std::mutex> Lock(g_ClansDataMutex);
 		for(const auto &Clan : m_vClansData)
 		{
 			bool Due = Clan.m_Dirty || (Clan.m_LastSavedTick + IntervalTicks < Now);
@@ -2024,13 +2031,13 @@ void CClanManager::AutosaveTick()
 			}
 		}
 	}
-	for(int id : ToSave)
+	for(int Id : ToSave)
 	{
 		// already marked queued; just enqueue the task
 		auto pResult = std::make_shared<CClanResult>();
 		auto pRequest = std::make_unique<CSqlClanRequest>(pResult, this);
 		pRequest->m_ClientId = -1;
-		pRequest->m_ClanId = id;
+		pRequest->m_ClanId = Id;
 		m_pPool->Execute(SaveClanThread, std::move(pRequest), "autosave clan");
 	}
 }

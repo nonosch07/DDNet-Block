@@ -36,12 +36,12 @@ public:
 		if(m_NumIds > 0)
 			m_aIds = new int[m_NumIds];
 		else
-			m_aIds = NULL;
+			m_aIds = nullptr;
 
 		for(int i = 0; i < m_NumIds; i++)
 			m_aIds[i] = Server()->SnapNewId().value_or(-1);
 	}
-	virtual ~CAnimLetter()
+	~CAnimLetter() override
 	{
 		for(int i = 0; i < m_NumIds; i++)
 			Server()->SnapFreeId(m_aIds[i]);
@@ -94,6 +94,11 @@ public:
 	float Width() const { return m_NumIds > 0 ? m_Size * 5 : 0.0f; }
 };
 
+// The tables below are a 5x7 bitmap font: each entry is one pixel, and written
+// as 0/1 the rows read as the glyph they draw. true/false would be correct C++
+// and unreadable. gs_Letter0/gs_Letter1 look like gs_LetterO/gs_LetterI on
+// purpose too -- they are the digits.
+// NOLINTBEGIN(modernize-use-bool-literals,misc-confusable-identifiers)
 static bool gs_LetterA[5 * 7] = {
 	0,
 	1,
@@ -2069,5 +2074,6 @@ static bool gs_LetterSP[5 * 7] = {
 	0,
 	0,
 };
+// NOLINTEND(modernize-use-bool-literals,misc-confusable-identifiers)
 
 #endif // BLOCKWORLDS_COSMETICS_LETTERS_H

@@ -17,13 +17,13 @@ CGameWorld *CMapAnimation::GameWorld() { return m_pGameWorld; }
 
 CAnimationHandler::CAnimationHandler()
 {
-	const char lc_letters[] = "abcdefghijklmnopqrstuvwxyz";
-	const char uc_letters[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-	const char num_letters[] = "0123456789";
-	const char spl_letters[] = "+-!?%$().,:<>=|";
-	const char space[] = " ";
+	const char LcLetters[] = "abcdefghijklmnopqrstuvwxyz";
+	const char UcLetters[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	const char NumLetters[] = "0123456789";
+	const char SplLetters[] = "+-!?%$().,:<>=|";
+	const char Space[] = " ";
 
-	void *num_destinations[] = {
+	void *NumDestinations[] = {
 		gs_Letter0,
 		gs_Letter1,
 		gs_Letter2,
@@ -34,7 +34,7 @@ CAnimationHandler::CAnimationHandler()
 		gs_Letter7,
 		gs_Letter8,
 		gs_Letter9};
-	void *spl_destinations[] = {
+	void *SplDestinations[] = {
 		gs_LetterPL,
 		gs_LetterMN,
 		gs_LetterEM,
@@ -51,7 +51,7 @@ CAnimationHandler::CAnimationHandler()
 		gs_LetterEQ,
 		gs_LetterLV,
 		gs_LetterSP};
-	void *lc_destinations[] = {
+	void *LcDestinations[] = {
 		gs_LetterA,
 		gs_LetterB,
 		gs_LetterC,
@@ -79,7 +79,7 @@ CAnimationHandler::CAnimationHandler()
 		gs_LetterY,
 		gs_LetterZ};
 
-	void *uc_destinations[] = {
+	void *UcDestinations[] = {
 		gs_LetterA,
 		gs_LetterB,
 		gs_LetterC,
@@ -107,32 +107,32 @@ CAnimationHandler::CAnimationHandler()
 		gs_LetterY,
 		gs_LetterZ};
 
-	for(size_t i = 0; i < strlen(lc_letters); i++)
+	for(size_t i = 0; i < strlen(LcLetters); i++)
 	{
-		unsigned char idx = static_cast<unsigned char>(lc_letters[i]);
-		mem_copy(gs_LetterBits[idx], lc_destinations[i], sizeof(gs_LetterBits[0]));
+		unsigned char Idx = static_cast<unsigned char>(LcLetters[i]);
+		mem_copy(gs_LetterBits[Idx], LcDestinations[i], sizeof(gs_LetterBits[0]));
 	}
 
-	for(size_t i = 0; i < strlen(uc_letters); i++)
+	for(size_t i = 0; i < strlen(UcLetters); i++)
 	{
-		unsigned char idx = static_cast<unsigned char>(uc_letters[i]);
-		mem_copy(gs_LetterBits[idx], uc_destinations[i], sizeof(gs_LetterBits[0]));
+		unsigned char Idx = static_cast<unsigned char>(UcLetters[i]);
+		mem_copy(gs_LetterBits[Idx], UcDestinations[i], sizeof(gs_LetterBits[0]));
 	}
 
-	for(size_t i = 0; i < strlen(num_letters); i++)
+	for(size_t i = 0; i < strlen(NumLetters); i++)
 	{
-		unsigned char idx = static_cast<unsigned char>(num_letters[i]);
-		mem_copy(gs_LetterBits[idx], num_destinations[i], sizeof(gs_LetterBits[0]));
+		unsigned char Idx = static_cast<unsigned char>(NumLetters[i]);
+		mem_copy(gs_LetterBits[Idx], NumDestinations[i], sizeof(gs_LetterBits[0]));
 	}
 
-	for(size_t i = 0; i < strlen(spl_letters); i++)
+	for(size_t i = 0; i < strlen(SplLetters); i++)
 	{
-		unsigned char idx = static_cast<unsigned char>(spl_letters[i]);
-		mem_copy(gs_LetterBits[idx], spl_destinations[i], sizeof(gs_LetterBits[0]));
+		unsigned char Idx = static_cast<unsigned char>(SplLetters[i]);
+		mem_copy(gs_LetterBits[Idx], SplDestinations[i], sizeof(gs_LetterBits[0]));
 	}
 
-	unsigned char space_idx = static_cast<unsigned char>(space[0]); // because space is a bxxxx.
-	mem_copy(gs_LetterBits[space_idx], gs_LetterSP, sizeof(gs_LetterBits[0]));
+	unsigned char SpaceIdx = static_cast<unsigned char>(Space[0]); // because space is a bxxxx.
+	mem_copy(gs_LetterBits[SpaceIdx], gs_LetterSP, sizeof(gs_LetterBits[0]));
 }
 
 void CAnimationHandler::Init(CGameContext *pGameServer)
@@ -149,19 +149,19 @@ void CAnimationHandler::Laserwrite(const char *pText, vec2 StartPos, float Size,
 	for(int i = 0; i < Length; i++)
 	{
 		CAnimLetter *pChar = new CAnimLetter(Pos, Server()->Tick(), &GameServer()->m_World, Ticks, gs_LetterBits[(unsigned char)pText[i]], Size, Shotgun);
-		m_lpAnimations.push_back(pChar);
+		m_LpAnimations.push_back(pChar);
 		Pos.x += pChar->Width() + Size + 4.0f;
 	}
 }
 
 void CAnimationHandler::RemoveAnimationsNear(vec2 Pos, float Radius)
 {
-	for(size_t i = 0; i < m_lpAnimations.size(); i++)
+	for(size_t i = 0; i < m_LpAnimations.size(); i++)
 	{
-		if(distance(m_lpAnimations[i]->GetPos(), Pos) <= Radius)
+		if(distance(m_LpAnimations[i]->GetPos(), Pos) <= Radius)
 		{
-			delete m_lpAnimations[i];
-			m_lpAnimations.erase(m_lpAnimations.begin() + i);
+			delete m_LpAnimations[i];
+			m_LpAnimations.erase(m_LpAnimations.begin() + i);
 			i--;
 		}
 	}
@@ -171,9 +171,9 @@ void CAnimationHandler::DoAnimation(vec2 Pos, int Index)
 {
 	switch(Index)
 	{
-	case ANIMATION_LOVE: m_lpAnimations.push_back(new CAnimLove(Pos, Server()->Tick(), &GameServer()->m_World)); break;
-	case ANIMATION_THUNDERSTORM: m_lpAnimations.push_back(new CAnimThunderstorm(Pos, Server()->Tick(), &GameServer()->m_World)); break;
-	case ANIMATION_SPLASH: m_lpAnimations.push_back(new CSplash(Pos, Server()->Tick(), &GameServer()->m_World)); break;
+	case ANIMATION_LOVE: m_LpAnimations.push_back(new CAnimLove(Pos, Server()->Tick(), &GameServer()->m_World)); break;
+	case ANIMATION_THUNDERSTORM: m_LpAnimations.push_back(new CAnimThunderstorm(Pos, Server()->Tick(), &GameServer()->m_World)); break;
+	case ANIMATION_SPLASH: m_LpAnimations.push_back(new CSplash(Pos, Server()->Tick(), &GameServer()->m_World)); break;
 	}
 }
 
@@ -181,9 +181,9 @@ void CAnimationHandler::DoAnimationGundesign(vec2 Pos, int Index, vec2 Direction
 {
 	switch(Index)
 	{
-	case ANIMATION_STARS_CW: m_lpAnimations.push_back(new CStarsCW(Pos, Server()->Tick(), Direction, &GameServer()->m_World)); break;
-	case ANIMATION_STARS_CCW: m_lpAnimations.push_back(new CStarsCCW(Pos, Server()->Tick(), Direction, &GameServer()->m_World)); break;
-	case ANIMATION_STARS_TOC: m_lpAnimations.push_back(new CStarsTOC(Pos, Server()->Tick(), Direction, &GameServer()->m_World)); break;
+	case ANIMATION_STARS_CW: m_LpAnimations.push_back(new CStarsCW(Pos, Server()->Tick(), Direction, &GameServer()->m_World)); break;
+	case ANIMATION_STARS_CCW: m_LpAnimations.push_back(new CStarsCCW(Pos, Server()->Tick(), Direction, &GameServer()->m_World)); break;
+	case ANIMATION_STARS_TOC: m_LpAnimations.push_back(new CStarsTOC(Pos, Server()->Tick(), Direction, &GameServer()->m_World)); break;
 	default:
 		dbg_assert(false, "out of bound animation index");
 	}
@@ -191,16 +191,16 @@ void CAnimationHandler::DoAnimationGundesign(vec2 Pos, int Index, vec2 Direction
 
 void CAnimationHandler::Tick()
 {
-	for(size_t i = 0; i < m_lpAnimations.size(); i++)
+	for(size_t i = 0; i < m_LpAnimations.size(); i++)
 	{
-		if(m_lpAnimations[i]->Done() == false)
+		if(m_LpAnimations[i]->Done() == false)
 		{
-			m_lpAnimations[i]->Tick();
+			m_LpAnimations[i]->Tick();
 		}
 		else
 		{
-			delete m_lpAnimations[i];
-			m_lpAnimations.erase(m_lpAnimations.begin() + i);
+			delete m_LpAnimations[i];
+			m_LpAnimations.erase(m_LpAnimations.begin() + i);
 			i--;
 		}
 	}
@@ -208,7 +208,7 @@ void CAnimationHandler::Tick()
 
 //make this as efficient as possible
 template<typename T>
-inline bool within_reach(const vector2_base<T> a, const vector2_base<T> &b, float Dist, bool Equals = false)
+static inline bool within_reach(const vector2_base<T> a, const vector2_base<T> &b, float Dist, bool Equals = false)
 {
 	vector2_base<T> d = b - a;
 	//out of outer quad
@@ -222,7 +222,7 @@ inline bool within_reach(const vector2_base<T> a, const vector2_base<T> &b, floa
 
 void CAnimationHandler::Snap(int SnappingClient)
 {
-	for(auto *Animation : m_lpAnimations)
+	for(auto *Animation : m_LpAnimations)
 	{
 		float dx = GameServer()->m_apPlayers[SnappingClient]->m_ViewPos.x - Animation->GetPos().x;
 		float dy = GameServer()->m_apPlayers[SnappingClient]->m_ViewPos.y - Animation->GetPos().y;

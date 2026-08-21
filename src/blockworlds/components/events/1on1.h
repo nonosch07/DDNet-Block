@@ -183,8 +183,8 @@ public:
 	// solo & collision state tracking for participants
 	struct SoloCollisionState
 	{
-		bool solo;
-		bool collision;
+		bool m_Solo;
+		bool m_Collision;
 	};
 	std::map<int, SoloCollisionState> m_PrevSoloState;
 

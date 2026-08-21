@@ -66,16 +66,16 @@ void CZCatchGrenadeEvent::StartEvent()
 
 	// find a free DDRace team
 	auto &Teams = GameServer()->m_pController->Teams();
-	int chosenTeam = -1;
+	int ChosenTeam = -1;
 	for(int t = 1; t < NUM_DDRACE_TEAMS; ++t)
 	{
 		if(Teams.GetTeamState(t) == ETeamState::EMPTY && !Teams.IsTeamEvent(t))
 		{
-			chosenTeam = t;
+			ChosenTeam = t;
 			break;
 		}
 	}
-	m_DDRaceTeam = chosenTeam;
+	m_DDRaceTeam = ChosenTeam;
 	if(m_DDRaceTeam == -1)
 	{
 		EmergencyShutdown("No free team was found");
@@ -144,7 +144,7 @@ void CZCatchGrenadeEvent::FinishEvent()
 				if(Discord.IsConfigured(pZCatchUrl))
 				{
 					const char *pWinnerName = Server()->ClientName(m_Winner);
-					int WinScore = m_Scores.count(m_Winner) ? m_Scores.at(m_Winner) : 0;
+					int WinScore = m_Scores.contains(m_Winner) ? m_Scores.at(m_Winner) : 0;
 
 					std::vector<std::pair<int, int>> vSorted(m_Scores.begin(), m_Scores.end());
 					std::sort(vSorted.begin(), vSorted.end(), [](const auto &a, const auto &b) { return a.second > b.second; });
@@ -204,13 +204,13 @@ void CZCatchGrenadeEvent::FinishEvent()
 	CEventComponent::OnTick(); // flush deferred position/weapon queues
 
 	// restore solo/collision state
-	for(const auto &entry : m_PrevSoloState)
+	for(const auto &Entry : m_PrevSoloState)
 	{
-		if(auto *pChar = GameServer()->GetPlayerChar(entry.first))
+		if(auto *pChar = GameServer()->GetPlayerChar(Entry.first))
 		{
-			if(entry.second.solo)
+			if(Entry.second.m_Solo)
 				pChar->SetSolo(true);
-			pChar->Bw().Core().m_CollisionDisabled = entry.second.collision;
+			pChar->Bw().Core().m_CollisionDisabled = Entry.second.m_Collision;
 		}
 	}
 	m_PrevSoloState.clear();
@@ -239,12 +239,12 @@ bool CZCatchGrenadeEvent::CheckEndCondition()
 	if(m_ActiveEndTick > 0 && Server()->Tick() > m_ActiveEndTick)
 	{
 		m_Winner = -1;
-		int best = -1;
+		int Best = -1;
 		for(const auto &[id, score] : m_Scores)
 		{
-			if(score > best)
+			if(score > Best)
 			{
-				best = score;
+				Best = score;
 				m_Winner = id;
 			}
 		}
@@ -264,19 +264,19 @@ bool CZCatchGrenadeEvent::CheckEndCondition()
 	// last fighter standing (all others caught)
 	if((int)m_Participants.size() > 1)
 	{
-		int fightingCount = 0;
-		int lastFighter = -1;
-		for(int id : m_Participants)
+		int FightingCount = 0;
+		int LastFighter = -1;
+		for(int Id : m_Participants)
 		{
-			if(!IsCaught(id))
+			if(!IsCaught(Id))
 			{
-				fightingCount++;
-				lastFighter = id;
+				FightingCount++;
+				LastFighter = Id;
 			}
 		}
-		if(fightingCount <= 1)
+		if(FightingCount <= 1)
 		{
-			m_Winner = lastFighter;
+			m_Winner = LastFighter;
 			return true;
 		}
 	}
@@ -324,13 +324,13 @@ bool CZCatchGrenadeEvent::DeRegister(int ClientId)
 		GameServer()->Bw().SendChatTarget(ClientId, "Registration phase is over!");
 		return false;
 	}
-	auto it = std::find(m_Candidates.begin(), m_Candidates.end(), ClientId);
-	if(it == m_Candidates.end())
+	auto It = std::find(m_Candidates.begin(), m_Candidates.end(), ClientId);
+	if(It == m_Candidates.end())
 	{
 		GameServer()->Bw().SendChatTarget(ClientId, "You are not registered for zCatch Grenade.");
 		return false;
 	}
-	m_Candidates.erase(it);
+	m_Candidates.erase(It);
 	GameServer()->Bw().SendChatTarget(ClientId, "You left zCatch Grenade registration.");
 	return true;
 }
@@ -343,12 +343,12 @@ bool CZCatchGrenadeEvent::Join(int ClientId)
 	auto *pChar = GameServer()->GetPlayerChar(ClientId);
 	if(pChar)
 	{
-		bool wasSolo = pChar->Core()->m_Solo;
-		bool wasCollision = pChar->Core()->m_CollisionDisabled;
-		m_PrevSoloState[ClientId] = {wasSolo, wasCollision};
-		if(wasSolo)
+		bool WasSolo = pChar->Core()->m_Solo;
+		bool WasCollision = pChar->Core()->m_CollisionDisabled;
+		m_PrevSoloState[ClientId] = {WasSolo, WasCollision};
+		if(WasSolo)
 			pChar->SetSolo(false);
-		if(wasCollision)
+		if(WasCollision)
 			pChar->Bw().Core().m_CollisionDisabled = false;
 		pChar->GetPlayer()->Pause(CPlayer::PAUSE_NONE, false);
 		pChar->SetDeepFrozen(false);
@@ -373,24 +373,24 @@ bool CZCatchGrenadeEvent::Join(int ClientId)
 
 bool CZCatchGrenadeEvent::Leave(int ClientId)
 {
-	auto it = std::find(m_Participants.begin(), m_Participants.end(), ClientId);
-	if(it == m_Participants.end())
+	auto It = std::find(m_Participants.begin(), m_Participants.end(), ClientId);
+	if(It == m_Participants.end())
 		return false;
-	m_Participants.erase(it);
+	m_Participants.erase(It);
 
 	// release any captives this player was holding
 	ReleaseCaptives(ClientId);
 
 	// if this player was caught, remove from catcher's list
 	{
-		auto caughtIt = m_CaughtBy.find(ClientId);
-		if(caughtIt != m_CaughtBy.end())
+		auto CaughtIt = m_CaughtBy.find(ClientId);
+		if(CaughtIt != m_CaughtBy.end())
 		{
-			int catcherId = caughtIt->second;
-			m_CaughtBy.erase(caughtIt);
-			auto capIt = m_Captives.find(catcherId);
-			if(capIt != m_Captives.end())
-				capIt->second.erase(ClientId);
+			int CatcherId = CaughtIt->second;
+			m_CaughtBy.erase(CaughtIt);
+			auto CapIt = m_Captives.find(CatcherId);
+			if(CapIt != m_Captives.end())
+				CapIt->second.erase(ClientId);
 		}
 	}
 
@@ -410,13 +410,13 @@ bool CZCatchGrenadeEvent::Leave(int ClientId)
 	// restore solo/collision state
 	if(auto *pChar = GameServer()->GetPlayerChar(ClientId))
 	{
-		auto soloIt = m_PrevSoloState.find(ClientId);
-		if(soloIt != m_PrevSoloState.end())
+		auto SoloIt = m_PrevSoloState.find(ClientId);
+		if(SoloIt != m_PrevSoloState.end())
 		{
-			if(soloIt->second.solo)
+			if(SoloIt->second.m_Solo)
 				pChar->SetSolo(true);
-			pChar->Bw().Core().m_CollisionDisabled = soloIt->second.collision;
-			m_PrevSoloState.erase(soloIt);
+			pChar->Bw().Core().m_CollisionDisabled = SoloIt->second.m_Collision;
+			m_PrevSoloState.erase(SoloIt);
 		}
 	}
 
@@ -531,17 +531,17 @@ void CZCatchGrenadeEvent::OnSnapPlayerInfo(int ClientId, int /*SnappingClient*/,
 		return;
 	if(!IsParticipant(ClientId))
 		return;
-	auto it = m_Scores.find(ClientId);
-	if(it != m_Scores.end())
-		pPlayerInfo->m_Score = it->second;
+	auto It = m_Scores.find(ClientId);
+	if(It != m_Scores.end())
+		pPlayerInfo->m_Score = It->second;
 }
 
 std::optional<int> CZCatchGrenadeEvent::GetScoreOf(int ClientId) const
 {
 	if(!IsParticipant(ClientId))
 		return std::nullopt;
-	auto it = m_Scores.find(ClientId);
-	return (it != m_Scores.end()) ? std::optional<int>{it->second} : std::optional<int>{0};
+	auto It = m_Scores.find(ClientId);
+	return (It != m_Scores.end()) ? std::optional<int>{It->second} : std::optional<int>{0};
 }
 
 void CZCatchGrenadeEvent::OnTick()
@@ -561,7 +561,7 @@ void CZCatchGrenadeEvent::OnTick()
 		}
 		CEventComponent::OnTick(); // test-mode dummies
 		char aTimeLeft[32];
-		FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), (int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()));
+		FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), ((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()));
 
 		for(int i = 0; i < Server()->MaxClients(); ++i)
 		{
@@ -592,15 +592,15 @@ void CZCatchGrenadeEvent::OnTick()
 				pVictimPlayer->SetSpectatorId(catcher);
 		}
 
-		int caughtCount = 0;
-		int leadScore = 0;
-		for(int id : m_Participants)
+		int CaughtCount = 0;
+		int LeadScore = 0;
+		for(int Id : m_Participants)
 		{
-			if(IsCaught(id))
-				caughtCount++;
-			auto it = m_Scores.find(id);
-			if(it != m_Scores.end() && it->second > leadScore)
-				leadScore = it->second;
+			if(IsCaught(Id))
+				CaughtCount++;
+			auto It = m_Scores.find(Id);
+			if(It != m_Scores.end() && It->second > LeadScore)
+				LeadScore = It->second;
 		}
 
 		for(int ClientId : m_Participants)
@@ -611,8 +611,8 @@ void CZCatchGrenadeEvent::OnTick()
 
 			pPlayer->Bw().SendBroadcastAlignedLeft("%d / %d\n"
 							       "Currently caught: %d / %d\n",
-				leadScore, Config()->m_SvZCatchGrenadeKillsToWin,
-				caughtCount, (int)m_Participants.size() - 1);
+				LeadScore, Config()->m_SvZCatchGrenadeKillsToWin,
+				CaughtCount, (int)m_Participants.size() - 1);
 
 			HandleCamping(ClientId);
 		}
@@ -689,7 +689,6 @@ void CZCatchGrenadeEvent::HandleCamping(int ClientId)
 		m_SentCampMsg[ClientId] = false;
 		return;
 	}
-	return;
 }
 
 int CZCatchGrenadeEvent::GetMinCandidates() const
@@ -709,7 +708,7 @@ bool CZCatchGrenadeEvent::IsParticipant(int ClientId) const
 
 bool CZCatchGrenadeEvent::IsCaught(int ClientId) const
 {
-	return m_CaughtBy.count(ClientId) > 0;
+	return m_CaughtBy.contains(ClientId);
 }
 
 bool CZCatchGrenadeEvent::IsFighting(int ClientId) const
@@ -719,23 +718,23 @@ bool CZCatchGrenadeEvent::IsFighting(int ClientId) const
 
 void CZCatchGrenadeEvent::ReleaseCaptives(int CatcherId)
 {
-	auto capIt = m_Captives.find(CatcherId);
-	if(capIt == m_Captives.end())
+	auto CapIt = m_Captives.find(CatcherId);
+	if(CapIt == m_Captives.end())
 		return;
 
-	std::set<int> toRelease = capIt->second;
-	m_Captives.erase(capIt);
+	std::set<int> ToRelease = CapIt->second;
+	m_Captives.erase(CapIt);
 
-	for(int victim : toRelease)
+	for(int Victim : ToRelease)
 	{
-		m_CaughtBy.erase(victim);
+		m_CaughtBy.erase(Victim);
 
-		auto *pVictimPlayer = GameServer()->Bw().GetPlayer(victim);
+		auto *pVictimPlayer = GameServer()->Bw().GetPlayer(Victim);
 		if(pVictimPlayer)
 		{
 			if(pVictimPlayer->GetTeam() == TEAM_SPECTATORS)
 				pVictimPlayer->SetTeam(0, false);
-			GameServer()->m_pController->Teams().SetForceCharacterTeam(victim, m_DDRaceTeam);
+			GameServer()->m_pController->Teams().SetForceCharacterTeam(Victim, m_DDRaceTeam);
 			pVictimPlayer->Respawn();
 		}
 	}

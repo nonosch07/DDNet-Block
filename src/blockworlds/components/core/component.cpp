@@ -27,7 +27,7 @@ bool CComponent::IsDebug() const
 
 void CComponent::OnConsoleInit()
 {
-	CServer *pServer = static_cast<CServer *>(Server());
+	CServer *pServer = Server();
 	pServer->SendRconCmdGroupStart(-1);
 	GameServer()->Bw().SendChatCmdGroupStart(-1);
 	for(auto &Cmd : m_ConsoleCommands)
@@ -66,7 +66,7 @@ void CComponent::OnConsoleTerminate()
 		const auto *Command = Console()->GetCommandInfo(Cmd.m_pName, Cmd.m_Flags, false);
 		if(Command)
 		{
-			static_cast<CServer *>(Server())->SendRconCmdRem(Command, -1);
+			Server()->SendRconCmdRem(Command, -1);
 			if(Command->Flags() & CFGFLAG_CHAT)
 				GameServer()->Bw().SendChatCmdRem(Command, -1);
 		}

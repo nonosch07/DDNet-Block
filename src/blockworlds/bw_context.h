@@ -59,7 +59,7 @@ public:
 	CAnimationHandler *Animations() { return &m_Animations; }
 
 	// --- lifecycle hooks, called from the matching CGameContext methods ---
-	void OnConstruct(bool Resetting);
+	void OnConstruct(bool FirstInit);
 	void OnDestruct();
 	void OnConsoleInit();
 	void OnInit();
@@ -67,7 +67,7 @@ public:
 	void OnTick();
 	void OnSnap(int SnappingClient);
 	void OnClientConnected(int ClientId);
-	void OnSetAuthed(int ClientId, int Level);
+	void OnSetAuthed(int ClientId, int Level) const;
 	void OnPostSnap();
 	void OnClientEnter(int ClientId);
 	void OnClientDrop(int ClientId, const char *pReason);
@@ -78,7 +78,7 @@ public:
 	void OnTickEarly(); // component OnTick fan-out
 	void OnTickAfterController(); // BW world ticks: events, animations, zones, shop
 	void BW_OnTick(); // BW event bookkeeping
-	void OnPlayerTick(int ClientId); // per-second account/passive/cosmetic upkeep
+	void OnPlayerTick(int ClientId) const; // per-second account/passive/cosmetic upkeep
 	void OnPostTick(); // component OnPostTick fan-out + whois maintenance
 	bool SkipVoteParticipant(int ClientId) const; // 1on1 prep players do not vote
 
@@ -88,25 +88,25 @@ public:
 	// cache itself.
 	void OnSnapClientInfo(int ClientId, int SnappingClient, CNetObj_ClientInfo *pClientInfo);
 	void OnSnapPlayerInfo(int ClientId, int SnappingClient, CNetObj_PlayerInfo *pPlayerInfo);
-	void OnSnapDDNetPlayer(int ClientId, CNetObj_DDNetPlayer *pDDNetPlayer);
+	void OnSnapDDNetPlayer(int ClientId, CNetObj_DDNetPlayer *pDDNetPlayer) const;
 
 	// --- net message hooks, return true when BW consumed the message ---
-	bool OnCallVote(const CNetMsg_Cl_CallVote *pMsg, int ClientId);
+	bool OnCallVote(const CNetMsg_Cl_CallVote *pMsg, int ClientId) const;
 	bool OnVote(const CNetMsg_Cl_Vote *pMsg, int ClientId);
 	// Blockworlds has no DDRace teams to talk to, so team chat is clan chat.
 	// Always consumes the message, including when it has to refuse it.
-	bool OnTeamChat(int ClientId, const char *pMessage);
+	bool OnTeamChat(int ClientId, const char *pMessage) const;
 	// Returns true when the message must not reach public chat: silenced during
 	// LMB and TDM, or caught by the chat filter.
-	bool OnPublicChat(int ClientId, const char *pMessage);
+	bool OnPublicChat(int ClientId, const char *pMessage) const;
 	// Relays what was actually said to Discord, once it has gone out.
-	void OnPublicChatSent(int ClientId, const char *pCensoredMessage, const char *pMessage);
+	void OnPublicChatSent(int ClientId, const char *pCensoredMessage, const char *pMessage) const;
 	// Returns true when a whisper must be refused: neither side of a whisper may
 	// be a player inside LMB or TDM, and the filter applies here too.
-	bool OnWhisper(int ClientId, int VictimId, const char *pMessage);
+	bool OnWhisper(int ClientId, int VictimId, const char *pMessage) const;
 	// Joining spectators means leaving the event or duel you are in, and during
 	// a duel's preparation it is refused outright. True when BW handled it.
-	bool OnJoinSpectators(int ClientId);
+	bool OnJoinSpectators(int ClientId) const;
 	// Self-kill is up to the event: a duel forbids it while being configured,
 	// TDM only allows it once you have been frozen long enough, and so on.
 	bool BlocksSelfKill(int ClientId);
@@ -124,7 +124,7 @@ public:
 	bool OwnsVoteUi(int ClientId) const;
 
 	// --- gameplay hooks ---
-	void OnCharacterSpawn(class CCharacter *pChr);
+	void OnCharacterSpawn(class CCharacter *pChr) const;
 	// Runs before upstream builds the kill message. Returns true when the death
 	// was a block that the tracker has already announced, or when killer or
 	// victim is in an event, both of which suppress the normal kill message.
@@ -134,15 +134,15 @@ public:
 	void OnCharacterDied(class CCharacter *pChr, int Killer, int Weapon);
 	// Finishing the race pays EXP, rate-limited per player and per session so a
 	// short map cannot be farmed.
-	void OnRaceFinish(class CPlayer *pPlayer);
+	void OnRaceFinish(class CPlayer *pPlayer) const;
 	// A 1on1 participant or an event participant spawns where the match puts
 	// them, not where the map's spawn tiles do. Returns true when it picked a
 	// position, in which case the controller's CanSpawn must not run.
 	bool OverrideSpawnPos(int ClientId, vec2 *pSpawnPos);
 	// Opening the vote menu resends the cosmetics pages, unless the player is in
 	// an event -- there the menu stays empty so it cannot distract them.
-	void OnPlayerEnterMenu(int ClientId);
-	int SnapPlayerScore(int SnappingClient, class CPlayer *pPlayer);
+	void OnPlayerEnterMenu(int ClientId) const;
+	int SnapPlayerScore(int SnappingClient, class CPlayer *pPlayer) const;
 	void OnSnapGameInfo(int SnappingClient, CNetObj_GameInfo *pGameInfo);
 	void OnSnapGameInfoEx(int SnappingClient, CNetObj_GameInfoEx *pGameInfoEx);
 	void OnCharacterTakeDamage(class CCharacter *pChar, vec2 Force, int Dmg, int From, int Weapon);
@@ -173,13 +173,13 @@ public:
 	bool m_SuppressSpawnEvent = false;
 
 	// --- helpers used across BW code ---
-	CPlayer *GetPlayer(int ClientId);
-	CPlayer *GetPlayerByName(const char *pName);
-	int GetNextClientID();
-	bool isInEvent(int ClientId);
+	CPlayer *GetPlayer(int ClientId) const;
+	CPlayer *GetPlayerByName(const char *pName) const;
+	int GetNextClientID() const;
+	bool isInEvent(int pPlayerID);
 	static SHA256_DIGEST HashPassword(const char *pPassword);
 	static int GetTilePositions(int TileId, CGameContext *pSelf, std::vector<vec2> &vResult);
-	static int getSwitchTilePositions(int Type, int Delay, int Number, CGameContext *pSelf, std::vector<vec2> &vResult);
+	static int GetSwitchTilePositions(int Type, int Delay, int Number, CGameContext *pSelf, std::vector<vec2> &vResult);
 
 	// --- chat helpers (format-string convenience over upstream's plain versions) ---
 	void SendChatTarget(int To, const char *pText) const;
@@ -217,22 +217,22 @@ public:
 	}
 
 	// --- votes / votemenu ---
-	void SendCosmeticsVoteOptions(int ClientId);
-	bool HandleCosmeticsVote(const CNetMsg_Cl_CallVote *pMsg, int ClientId);
+	void SendCosmeticsVoteOptions(int ClientId) const;
+	bool HandleCosmeticsVote(const CNetMsg_Cl_CallVote *pMsg, int ClientId) const;
 	void SetVoteDescriptionAtIndex(int *pIndex, const char *pStr, CNetMsg_Sv_VoteOptionListAdd *pOptionMsg);
 	void CreateStripline(char *pDst, int DstSize, const char *pTitle);
-	void ClearVotes(int ClientId);
-	void RemoveVoteByDescription(const char *pDescription);
-	void UpdateWeaponkitsVoteOption();
-	void UpdateLMBVoteOption();
+	void ClearVotes(int ClientId) const;
+	void RemoveVoteByDescription(const char *pDescription) const;
+	void UpdateWeaponkitsVoteOption() const;
+	void UpdateLMBVoteOption() const;
 
 	// --- deferred join/leave chat until the entry checks cleared a client ---
-	void HoldJoinMessage(int ClientId);
-	void ReleaseJoinMessage(int ClientId);
-	void SendPendingJoinMessage(int ClientId);
+	void HoldJoinMessage(int ClientId) const;
+	void ReleaseJoinMessage(int ClientId) const;
+	void SendPendingJoinMessage(int ClientId) const;
 
 	// --- mutes (upstream keeps these private on CGameContext) ---
-	void AddIpMuteSilent(const NETADDR *pAddr, int Secs, const char *pReason);
+	void AddIpMuteSilent(const NETADDR *pAddr, int Secs, const char *pReason) const;
 	int GetRemainingMuteSecondsPublic(int ClientId) const;
 
 	// --- broadcast helpers ---
@@ -265,32 +265,32 @@ public:
 	// grown its own headless client concept for debug dummies, so BW rides on
 	// that instead: a bot is a normal client slot flagged as a debug dummy, which
 	// already keeps it out of the server info and gives it a synthetic address.
-	void BotJoin(int BotId, const char *pName);
-	void BotLeave(int BotId, bool Silent = false);
+	void BotJoin(int BotId, const char *pName) const;
+	void BotLeave(int BotId, bool Silent = false) const;
 
 	// Upstream's IServer::RedirectClient(id, port) refuses clients that are too
 	// old and puts the slot into STATE_REDIRECTED. The BW port proxy needs a
 	// forced variant that does neither, because it hands the client to a server
 	// on another port that is about to take over the same slot.
-	void RedirectClient(int ClientId, int Port, bool Force = false);
+	void RedirectClient(int ClientId, int Port, bool Force = false) const;
 
 	// --- server browser ---
 	// What the master server and the browser should show for this client: the
 	// Blockworlds clan rather than the vanilla one, and the account level as the
 	// score. Both are empty/zero for a player who is not logged in.
 	const char *ServerInfoClan(int ClientId);
-	int ServerInfoScore(int ClientId);
+	int ServerInfoScore(int ClientId) const;
 
 	// --- moderation logging ---
 	// Sends a line to the rcon-log Discord webhook, naming who ran the command.
 	// Silently does nothing when no webhook is configured.
-	[[gnu::format(printf, 3, 4)]] void LogModeration(int ExecutorId, const char *pFmt, ...);
+	[[gnu::format(printf, 3, 4)]] void LogModeration(int ExecutorId, const char *pFmt, ...) const;
 
 	// --- misc ---
-	void CreateExplosionVisual(vec2 Pos, CClientMask Mask = CClientMask().set());
+	void CreateExplosionVisual(vec2 Pos, CClientMask Mask = CClientMask().set()) const;
 	// CGameContext::Teleport is private upstream; CBlockworlds is a friend.
 	void Teleport(class CCharacter *pChr, vec2 Pos);
-	void RegisterBlockworldsChatCommands();
+	void RegisterBlockworldsChatCommands() const;
 	void ProcessComponentsQueue();
 
 	bool m_WeaponkitsAllowed = false;

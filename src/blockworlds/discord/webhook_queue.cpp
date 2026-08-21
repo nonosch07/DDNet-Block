@@ -12,6 +12,7 @@
 
 #include <blockworlds/bw_base.h>
 
+#include <algorithm>
 #include <chrono>
 #include <thread>
 
@@ -66,11 +67,11 @@ public:
 		if(State() == STATE_ABORTED)
 			return;
 
-		auto upReq = HttpPostJson(m_Url.c_str(), m_Payload.c_str());
-		upReq->HeaderString("Content-Type", "application/json");
-		upReq->Timeout(CTimeout{10000, 30000, 100, 10});
-		upReq->FailOnErrorStatus(false);
-		std::shared_ptr<IHttpRequest> pReq(std::move(upReq));
+		auto UpReq = HttpPostJson(m_Url.c_str(), m_Payload.c_str());
+		UpReq->HeaderString("Content-Type", "application/json");
+		UpReq->Timeout(CTimeout{10000, 30000, 100, 10});
+		UpReq->FailOnErrorStatus(false);
+		std::shared_ptr<IHttpRequest> pReq(std::move(UpReq));
 		m_pHttp->Run(pReq);
 		pReq->Wait();
 
@@ -148,12 +149,9 @@ void CDiscordWebhookQueueManager::StartProcessingJob()
 bool CDiscordWebhookQueueManager::HasPendingMessages()
 {
 	std::lock_guard<std::mutex> Lock(m_Mutex);
-	for(auto &Pair : m_Queues)
-	{
-		if(!Pair.second.m_Messages.empty())
-			return true;
-	}
-	return false;
+	return std::ranges::any_of(m_Queues, [](const auto &Pair) {
+		return !Pair.second.m_Messages.empty();
+	});
 }
 
 std::string CDiscordWebhookQueueManager::BatchMessages(SDiscordMessageQueue *pQueue)

@@ -37,25 +37,25 @@ CShop::CShop(CGameContext *pGameContext, CPlayer *pOwner, int pCategory, int pCo
 		return;
 	}
 
-	bool validIndex = false;
+	bool ValidIndex = false;
 	switch(pCategory)
 	{
 	case CATEGORY_GUNDESIGN:
-		validIndex = (pCosmetics >= 0 && pCosmetics < CCosmeticsHandler::NUM_GUNDESIGNS);
+		ValidIndex = (pCosmetics >= 0 && pCosmetics < CCosmeticsHandler::NUM_GUNDESIGNS);
 		break;
 	case CATEGORY_KNOCKOUT:
-		validIndex = (pCosmetics >= 0 && pCosmetics < CCosmeticsHandler::NUM_KNOCKOUTS);
+		ValidIndex = (pCosmetics >= 0 && pCosmetics < CCosmeticsHandler::NUM_KNOCKOUTS);
 		break;
 	case CATEGORY_SKINMANI:
-		validIndex = (pCosmetics >= 0 && pCosmetics < CCosmeticsHandler::NUM_SKINMANIS);
+		ValidIndex = (pCosmetics >= 0 && pCosmetics < CCosmeticsHandler::NUM_SKINMANIS);
 		break;
 	case CATEGORY_UTILITY:
-		validIndex = (pCosmetics >= 0 && pCosmetics < CCosmeticsHandler::NUM_UTILITY_ITEMS);
+		ValidIndex = (pCosmetics >= 0 && pCosmetics < CCosmeticsHandler::NUM_UTILITY_ITEMS);
 		break;
 	default:
 		break;
 	}
-	if(!validIndex)
+	if(!ValidIndex)
 	{
 		if(m_pGameContext)
 			m_pGameContext->SendChatTarget(pOwner->GetCid(), "Invalid cosmetic selection.");

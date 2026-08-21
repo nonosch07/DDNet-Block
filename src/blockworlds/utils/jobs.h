@@ -76,9 +76,9 @@ public:
 	 * Submit a task for execution.
 	 *
 	 * @tparam F Callable type (lambda, function, functor)
-	 * @tparam Args Argument types for the callable
+	 * @tparam TArgs Argument types for the callable
 	 * @param f The callable to execute
-	 * @param args Arguments to pass to the callable
+	 * @param Args Arguments to pass to the callable
 	 * @return std::future with the result of the callable
 	 *
 	 * @code
@@ -86,15 +86,17 @@ public:
 	 *   auto result = future.get(); // blocks until task completes
 	 * @endcode
 	 */
-	template<typename F, typename... Args>
-	auto Submit(F &&f, Args &&...args) -> std::future<std::invoke_result_t<F, Args...>>
+	template<typename F, typename... TArgs>
+	auto Submit(F &&f, TArgs &&...Args) -> std::future<std::invoke_result_t<F, TArgs...>>
 	{
-		using return_type = std::invoke_result_t<F, Args...>;
+		using return_type = std::invoke_result_t<F, TArgs...>;
 
 		auto Task = std::make_shared<std::packaged_task<return_type()>>(
-			std::bind(std::forward<F>(f), std::forward<Args>(args)...));
+			[Func = std::forward<F>(f), ... BoundArgs = std::forward<TArgs>(Args)]() mutable {
+				return Func(std::move(BoundArgs)...);
+			});
 
-		std::future<return_type> result = Task->get_future();
+		std::future<return_type> Result = Task->get_future();
 		{
 			std::scoped_lock Lock(m_Mutex);
 			dbg_assert(!m_Shutdown, "Cannot submit task to shutdown pool");
@@ -102,16 +104,16 @@ public:
 		}
 
 		m_Semaphore.release();
-		return result;
+		return Result;
 	}
 
 	/**
 	 * Submit a cancellable task that receives a std::stop_token.
 	 *
 	 * @tparam F Callable that takes std::stop_token as first parameter
-	 * @tparam Args Additional argument types
+	 * @tparam TArgs Additional argument types
 	 * @param f The callable to execute
-	 * @param args Additional arguments
+	 * @param Args Additional arguments
 	 * @return std::future with the result
 	 *
 	 * @code
@@ -124,27 +126,29 @@ public:
 	 *   // Task can be cancelled via pool shutdown
 	 * @endcode
 	 */
-	template<typename F, typename... Args>
-	auto SubmitCancellable(F &&f, Args &&...args) -> std::future<std::invoke_result_t<F, std::stop_token, Args...>>
+	template<typename F, typename... TArgs>
+	auto SubmitCancellable(F &&f, TArgs &&...Args) -> std::future<std::invoke_result_t<F, std::stop_token, TArgs...>>
 	{
-		using return_type = std::invoke_result_t<F, std::stop_token, Args...>;
+		using return_type = std::invoke_result_t<F, std::stop_token, TArgs...>;
 
 		auto Task = std::make_shared<std::packaged_task<return_type(std::stop_token)>>(
-			std::bind(std::forward<F>(f), std::placeholders::_1, std::forward<Args>(args)...));
+			[Func = std::forward<F>(f), ... BoundArgs = std::forward<TArgs>(Args)](std::stop_token StopToken) mutable {
+				return Func(std::move(StopToken), std::move(BoundArgs)...);
+			});
 
-		std::future<return_type> result = Task->get_future();
+		std::future<return_type> Result = Task->get_future();
 		{
 			std::scoped_lock Lock(m_Mutex);
 			dbg_assert(!m_Shutdown, "Cannot submit task to shutdown pool");
 			m_Tasks.emplace_back([Task, this]() {
-				auto it = std::find_if(m_Workers.begin(), m_Workers.end(),
-					[id = std::this_thread::get_id()](const std::jthread &t) {
-						return t.get_id() == id;
+				auto It = std::find_if(m_Workers.begin(), m_Workers.end(),
+					[Id = std::this_thread::get_id()](const std::jthread &t) {
+						return t.get_id() == Id;
 					});
 
-				if(it != m_Workers.end())
+				if(It != m_Workers.end())
 				{
-					(*Task)(it->get_stop_token());
+					(*Task)(It->get_stop_token());
 				}
 				else
 				{
@@ -155,7 +159,7 @@ public:
 		}
 
 		m_Semaphore.release();
-		return result;
+		return Result;
 	}
 
 	/**
@@ -185,7 +189,7 @@ public:
 		while(true)
 		{
 			std::scoped_lock Lock(m_Mutex);
-			if(m_Tasks.empty() && m_active_workers == 0)
+			if(m_Tasks.empty() && m_ActiveWorkers == 0)
 			{
 				break;
 			}
@@ -253,7 +257,7 @@ private:
 
 				Task = std::move(m_Tasks.front());
 				m_Tasks.pop_front();
-				++m_active_workers;
+				++m_ActiveWorkers;
 			}
 
 			if(Task)
@@ -264,7 +268,7 @@ private:
 			// Mark worker as idle
 			{
 				std::scoped_lock Lock(m_Mutex);
-				--m_active_workers;
+				--m_ActiveWorkers;
 			}
 		}
 	}
@@ -274,7 +278,7 @@ private:
 
 	mutable std::mutex m_Mutex;
 	std::deque<std::function<void()>> m_Tasks;
-	std::atomic<size_t> m_active_workers{0};
+	std::atomic<size_t> m_ActiveWorkers{0};
 	bool m_Shutdown{false};
 };
 

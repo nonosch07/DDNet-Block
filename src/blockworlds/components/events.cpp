@@ -85,10 +85,10 @@ std::shared_ptr<CEventComponent> CEvents::CreateEventByName(const char *pName)
 	char aClearName[64];
 	str_copy(aClearName, pName);
 	str_clean_whitespaces(aClearName);
-	auto it = m_EventsFactory.find(aClearName);
-	if(it == m_EventsFactory.end())
+	auto It = m_EventsFactory.find(aClearName);
+	if(It == m_EventsFactory.end())
 		return nullptr;
-	return it->second.m_Factory(GameServer());
+	return It->second.m_Factory(GameServer());
 }
 
 void CEvents::SetActiveEvent(std::shared_ptr<CEventComponent> pEvent)
@@ -138,40 +138,40 @@ void CEvents::ConEventsStatus(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pThis = (CEvents *)pUserData;
 
-	pThis->Log("Current event: %s", pThis->m_pActiveEvent ? pThis->m_pActiveEvent->GetEventName() : "none");
-	pThis->Log("State: %s", pThis->m_pActiveEvent ? pThis->m_pActiveEvent->GetStateName() : "none");
-	pThis->Log("Candidates: %" PRIzu, pThis->m_pActiveEvent ? pThis->m_pActiveEvent->Candidates().size() : 0);
-	pThis->Log("Participants: %" PRIzu, pThis->m_pActiveEvent ? pThis->m_pActiveEvent->Participants().size() : 0);
+	CEvents::Log("Current event: %s", pThis->m_pActiveEvent ? pThis->m_pActiveEvent->GetEventName() : "none");
+	CEvents::Log("State: %s", pThis->m_pActiveEvent ? pThis->m_pActiveEvent->GetStateName() : "none");
+	CEvents::Log("Candidates: %" PRIzu, pThis->m_pActiveEvent ? pThis->m_pActiveEvent->Candidates().size() : 0);
+	CEvents::Log("Participants: %" PRIzu, pThis->m_pActiveEvent ? pThis->m_pActiveEvent->Participants().size() : 0);
 }
 void CEvents::ConEventsList(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pThis = (CEvents *)pUserData;
 
-	pThis->Log("Available Events (Public):");
+	CEvents::Log("Available Events (Public):");
 	for(const auto &[Name, Rec] : pThis->m_EventsFactory)
 		if(Rec.m_Category == EEventCategory::Public)
-			pThis->Log(" - %s", Name.c_str());
-	pThis->Log("Available Events (Private):");
+			CEvents::Log(" - %s", Name.c_str());
+	CEvents::Log("Available Events (Private):");
 	for(const auto &[Name, Rec] : pThis->m_EventsFactory)
 		if(Rec.m_Category == EEventCategory::Private)
-			pThis->Log(" - %s", Name.c_str());
+			CEvents::Log(" - %s", Name.c_str());
 }
 
 void CEvents::ConEventsListPublic(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pThis = (CEvents *)pUserData;
-	pThis->Log("Public Events:");
+	CEvents::Log("Public Events:");
 	for(const auto &[Name, Rec] : pThis->m_EventsFactory)
 		if(Rec.m_Category == EEventCategory::Public)
-			pThis->Log(" - %s", Name.c_str());
+			CEvents::Log(" - %s", Name.c_str());
 }
 void CEvents::ConEventsListPrivate(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pThis = (CEvents *)pUserData;
-	pThis->Log("Private Events:");
+	CEvents::Log("Private Events:");
 	for(const auto &[Name, Rec] : pThis->m_EventsFactory)
 		if(Rec.m_Category == EEventCategory::Private)
-			pThis->Log(" - %s", Name.c_str());
+			CEvents::Log(" - %s", Name.c_str());
 }
 void CEvents::ConEventsStart(IConsole::IResult *pResult, void *pUserData)
 {
@@ -179,7 +179,7 @@ void CEvents::ConEventsStart(IConsole::IResult *pResult, void *pUserData)
 
 	if(pThis->m_pActiveEvent)
 	{
-		pThis->Log("Event is already running");
+		CEvents::Log("Event is already running");
 		return;
 	}
 
@@ -188,16 +188,16 @@ void CEvents::ConEventsStart(IConsole::IResult *pResult, void *pUserData)
 	str_copy(aClearName, pName);
 	str_clean_whitespaces(aClearName);
 
-	auto it = pThis->m_EventsFactory.find(aClearName);
-	if(it == pThis->m_EventsFactory.end())
+	auto It = pThis->m_EventsFactory.find(aClearName);
+	if(It == pThis->m_EventsFactory.end())
 	{
-		pThis->Log("Event with this name wasn't found");
+		CEvents::Log("Event with this name wasn't found");
 		return;
 	}
 
 	// Don't ask, just believe
 	auto pThisShared = ((CEvents *)pUserData)->Registry()->Get<CEvents>();
-	pThis->m_pActiveEvent = it->second.m_Factory(pThis->GameServer());
+	pThis->m_pActiveEvent = It->second.m_Factory(pThis->GameServer());
 	pThis->m_pActiveEvent->SetStateChangeCallback(MakeSafeCallback(&CEvents::OnEventStateChange, pThisShared.Store()));
 	pThis->m_pActiveEvent->SetStateChangeCallback([pThis](auto OldState, auto NewState) { pThis->OnEventStateChange(OldState, NewState); });
 	if(!pThis->m_pActiveEvent->EmergencyShutdown())
@@ -209,7 +209,7 @@ void CEvents::ConEventsForceNextState(IConsole::IResult *pResult, void *pUserDat
 
 	if(!pThis->m_pActiveEvent)
 	{
-		pThis->Log("No active event at this time");
+		CEvents::Log("No active event at this time");
 		return;
 	}
 
@@ -221,7 +221,7 @@ void CEvents::ConEventsForceEnd(IConsole::IResult *pResult, void *pUserData)
 
 	if(!pThis->m_pActiveEvent)
 	{
-		pThis->Log("No active event at this time");
+		CEvents::Log("No active event at this time");
 		return;
 	}
 
@@ -232,12 +232,12 @@ void CEvents::ConJoin(IConsole::IResult *pResult, void *pUserData)
 {
 	auto *pThis = (CEvents *)pUserData;
 
-	if(auto oneOnOneMgr = g_ComponentRegistry.Get<COneOnOneManager>(); oneOnOneMgr)
+	if(auto OneOnOneMgr = g_ComponentRegistry.Get<COneOnOneManager>(); OneOnOneMgr)
 	{
 		// any match that has not finished still owns this player's position, team and
 		// cosmetics, so let it restore them before the player queues for an event
-		auto match = oneOnOneMgr->GetMatchForPlayer(pResult->m_ClientId);
-		if(match && match->GetState() != COneOnOneEvent::EEventState::Finished)
+		auto Match = OneOnOneMgr->GetMatchForPlayer(pResult->m_ClientId);
+		if(Match && Match->GetState() != COneOnOneEvent::EEventState::Finished)
 		{
 			pThis->GameServer()->Bw().SendChatTarget(pResult->m_ClientId, "You are currently in a 1on1, finish it before joining an event.");
 			return;
@@ -258,28 +258,28 @@ void CEvents::ConLeave(IConsole::IResult *pResult, void *pUserData)
 	const int ClientId = pResult->m_ClientId;
 
 	// handle 1on1 leave directly here (ConLeaveEvent in gamecontext is shadowed by this registration)
-	if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>())
+	if(auto Mgr = g_ComponentRegistry.Get<COneOnOneManager>())
 	{
-		if(auto match = mgr->GetMatchForPlayer(ClientId))
+		if(auto Match = Mgr->GetMatchForPlayer(ClientId))
 		{
-			auto state = match->GetState();
-			if(state == COneOnOneEvent::EEventState::Preparation)
+			auto State = Match->GetState();
+			if(State == COneOnOneEvent::EEventState::Preparation)
 			{
-				int otherCid = (ClientId == match->m_Player1ID) ? match->m_Player2ID : match->m_Player1ID;
+				int OtherCid = (ClientId == Match->m_Player1ID) ? Match->m_Player2ID : Match->m_Player1ID;
 				pThis->GameServer()->Bw().SendChatTarget(ClientId, "[1on1] You left the warmup. Match cancelled.");
-				pThis->GameServer()->Bw().SendChatTarget(otherCid, "[1on1] Your opponent left during warmup. Match cancelled.");
-				match->ClearDuelVoteUi();
-				for(int cid : {match->m_Player1ID, match->m_Player2ID})
+				pThis->GameServer()->Bw().SendChatTarget(OtherCid, "[1on1] Your opponent left during warmup. Match cancelled.");
+				Match->ClearDuelVoteUi();
+				for(int Cid : {Match->m_Player1ID, Match->m_Player2ID})
 				{
-					g_VoteManager.NavigateToRoot(cid);
-					pThis->GameServer()->Bw().ClearVotes(cid);
+					g_VoteManager.NavigateToRoot(Cid);
+					pThis->GameServer()->Bw().ClearVotes(Cid);
 				}
-				match->AbortAndRefund(nullptr);
+				Match->AbortAndRefund(nullptr);
 				return;
 			}
-			else if(state == COneOnOneEvent::EEventState::Active)
+			else if(State == COneOnOneEvent::EEventState::Active)
 			{
-				match->Leave(ClientId);
+				Match->Leave(ClientId);
 				return;
 			}
 		}
@@ -315,8 +315,8 @@ void CEvents::OnEventStateChange(CEventComponent::EEventState OldState, CEventCo
 
 	if(NewState == CEventComponent::EEventState::Finished && m_pActiveEvent)
 	{
-		const auto &parts = m_pActiveEvent->Participants();
-		for(int ClientId : parts)
+		const auto &Parts = m_pActiveEvent->Participants();
+		for(int ClientId : Parts)
 		{
 			if(ClientId < 0)
 				continue;
@@ -327,12 +327,12 @@ void CEvents::OnEventStateChange(CEventComponent::EEventState OldState, CEventCo
 
 std::vector<std::string> CEvents::GetEventsByCategory(EEventCategory Category) const
 {
-	std::vector<std::string> out;
-	out.reserve(m_EventsFactory.size());
-	for(const auto &kv : m_EventsFactory)
-		if(kv.second.m_Category == Category)
-			out.push_back(kv.first);
-	return out;
+	std::vector<std::string> Out;
+	Out.reserve(m_EventsFactory.size());
+	for(const auto &Kv : m_EventsFactory)
+		if(Kv.second.m_Category == Category)
+			Out.push_back(Kv.first);
+	return Out;
 }
 
 bool CEvents::DropRegistration(int ClientId)
@@ -354,8 +354,8 @@ std::optional<CEvents::EEventCategory> CEvents::GetCategoryOf(const char *pName)
 	char aName[64];
 	str_copy(aName, pName);
 	str_clean_whitespaces(aName);
-	auto it = m_EventsFactory.find(aName);
-	if(it == m_EventsFactory.end())
+	auto It = m_EventsFactory.find(aName);
+	if(It == m_EventsFactory.end())
 		return std::nullopt;
-	return it->second.m_Category;
+	return It->second.m_Category;
 }

@@ -51,10 +51,10 @@ private:
 		// victim id -> (count, firstTick, lastTick, wasAfkVictimCount aggregated separately)
 		struct SVictimStats
 		{
-			int Count;
-			int64_t FirstTick;
-			int64_t LastTick;
-			bool LastWasAfk;
+			int m_Count;
+			int64_t m_FirstTick;
+			int64_t m_LastTick;
+			bool m_LastWasAfk;
 		};
 		std::unordered_map<int, SVictimStats> m_Victims;
 		int m_TodayExp; // for daily soft cap

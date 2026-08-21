@@ -33,10 +33,10 @@ public:
 		m_aPos[3] = GetPos();
 	}
 
-	~CAnimLove()
+	~CAnimLove() override
 	{
-		for(int i = 0; i < NUM; i++)
-			Server()->SnapFreeId(m_aIds[i]);
+		for(int Id : m_aIds)
+			Server()->SnapFreeId(Id);
 	}
 
 	void Tick() override
@@ -98,15 +98,15 @@ public:
 		m_Rad = 50.0f;
 		m_Done = false;
 
-		for(int i = 0; i < MAX_PARTICLES; i++)
-			m_aIds[i] = Server()->SnapNewId().value_or(-1);
+		for(int &Id : m_aIds)
+			Id = Server()->SnapNewId().value_or(-1);
 	}
 
-	~CSplash()
+	~CSplash() override
 	{
-		for(int i = 0; i < MAX_PARTICLES; i++)
+		for(int Id : m_aIds)
 		{
-			Server()->SnapFreeId(m_aIds[i]);
+			Server()->SnapFreeId(Id);
 		}
 	}
 
@@ -161,10 +161,10 @@ public:
 		}
 	}
 
-	~CAnimThunderstorm()
+	~CAnimThunderstorm() override
 	{
-		for(int i = 0; i < NUM; i++)
-			Server()->SnapFreeId(m_aIds[i]);
+		for(int Id : m_aIds)
+			Server()->SnapFreeId(Id);
 	}
 
 	void Tick() override
@@ -214,8 +214,8 @@ public:
 	CStarsCW(vec2 Pos, int64_t Tick, vec2 Dir, CGameWorld *pGameWorld) :
 		CMapAnimation(Pos, Tick, pGameWorld)
 	{
-		for(int i = 0; i < NUM; i++)
-			m_aSpawned[i] = false;
+		for(bool &i : m_aSpawned)
+			i = false;
 
 		m_Direction = Dir;
 	}
@@ -252,8 +252,8 @@ public:
 	CStarsCCW(vec2 Pos, int64_t Tick, vec2 Dir, CGameWorld *pGameWorld) :
 		CMapAnimation(Pos, Tick, pGameWorld)
 	{
-		for(int i = 0; i < NUM; i++)
-			m_aSpawned[i] = false;
+		for(bool &i : m_aSpawned)
+			i = false;
 
 		m_Direction = Dir;
 	}
@@ -290,8 +290,8 @@ public:
 	CStarsTOC(vec2 Pos, int64_t Tick, vec2 Dir, CGameWorld *pGameWorld) :
 		CMapAnimation(Pos, Tick, pGameWorld)
 	{
-		for(int i = 0; i < NUM; i++)
-			m_aSpawned[i] = false;
+		for(bool &i : m_aSpawned)
+			i = false;
 
 		m_Direction = Dir;
 	}

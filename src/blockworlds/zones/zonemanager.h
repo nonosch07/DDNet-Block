@@ -28,7 +28,7 @@ class CZoneManager
 	CGameContext *m_pGameServer;
 	IZone *m_aZones[NUM_ZONES];
 	std::vector<IZone *> m_vExtraZones; // dynamic zones (shops, custom zones)
-	std::vector<C1on1ArenaZone *> m_v1on1Arenas; // 1on1 selectable match arenas
+	std::vector<C1on1ArenaZone *> m_V1on1Arenas; // 1on1 selectable match arenas
 
 	CGameContext *GameServer() const { return m_pGameServer; }
 
@@ -41,11 +41,11 @@ public:
 
 	std::vector<vec2> Get1on1PrepPositions() const;
 
-	int Get1on1ArenaCount() const { return (int)m_v1on1Arenas.size(); }
+	int Get1on1ArenaCount() const { return (int)m_V1on1Arenas.size(); }
 
-	const char *Get1on1ArenaName(int idx) const;
+	const char *Get1on1ArenaName(int Idx) const;
 
-	std::vector<vec2> Get1on1ArenaPositions(int idx) const;
+	std::vector<vec2> Get1on1ArenaPositions(int Idx) const;
 
 	// return centers of quads from named quad layers (e.g. "tdm_red", "tdm_blue")
 	std::vector<vec2> GetNamedQuadCenters(const char *pName) const;

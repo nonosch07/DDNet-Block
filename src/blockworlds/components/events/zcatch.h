@@ -85,8 +85,8 @@ private:
 	// previous solo/collision state for participants
 	struct SSoloCollisionState
 	{
-		bool solo;
-		bool collision;
+		bool m_Solo;
+		bool m_Collision;
 	};
 	std::map<int, SSoloCollisionState> m_PrevSoloState;
 

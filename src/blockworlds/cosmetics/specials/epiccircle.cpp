@@ -25,9 +25,9 @@ CEpicCircle::CEpicCircle(CGameWorld *pGameWorld, vec2 Pos, int Owner) :
 	m_Owner = Owner;
 	m_Pos = Pos;
 
-	for(int i = 0; i < MAX_PARTICLES; i++)
+	for(int &Id : m_aIDs)
 	{
-		m_aIDs[i] = Server()->SnapNewId().value_or(-1);
+		Id = Server()->SnapNewId().value_or(-1);
 	}
 	GameWorld()->InsertEntity(this);
 }
@@ -35,9 +35,9 @@ CEpicCircle::CEpicCircle(CGameWorld *pGameWorld, vec2 Pos, int Owner) :
 void CEpicCircle::Reset()
 {
 	m_MarkedForDestroy = true;
-	for(int i = 0; i < MAX_PARTICLES; i++)
+	for(int Id : m_aIDs)
 	{
-		Server()->SnapFreeId(m_aIDs[i]);
+		Server()->SnapFreeId(Id);
 	}
 }
 
@@ -49,10 +49,10 @@ void CEpicCircle::Tick()
 
 	for(int i = 0; i < MAX_PARTICLES; i++)
 	{
-		float rad = 16.0f * powf(sinf(Server()->Tick() / 30.0f), 3) * 1 + 50;
+		float Rad = 16.0f * powf(sinf(Server()->Tick() / 30.0f), 3) * 1 + 50;
 		float TurnFac = 0.025f;
-		m_RotatePos[i].x = cosf(2 * pi * (i / (float)MAX_PARTICLES) + Server()->Tick() * TurnFac) * rad;
-		m_RotatePos[i].y = sinf(2 * pi * (i / (float)MAX_PARTICLES) + Server()->Tick() * TurnFac) * rad;
+		m_RotatePos[i].x = cosf(2 * pi * (i / (float)MAX_PARTICLES) + Server()->Tick() * TurnFac) * Rad;
+		m_RotatePos[i].y = sinf(2 * pi * (i / (float)MAX_PARTICLES) + Server()->Tick() * TurnFac) * Rad;
 	}
 }
 

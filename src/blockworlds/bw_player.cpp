@@ -32,7 +32,7 @@ IServer *CBwPlayer::Server() const { return m_pPlayer->Server(); }
 int CBwPlayer::GetCid() const { return m_pPlayer->GetCid(); }
 CCharacter *CBwPlayer::GetCharacter() const { return m_pPlayer->GetCharacter(); }
 
-int CBwPlayer::GetClanLevel()
+int CBwPlayer::GetClanLevel() const
 {
 	CClansData Tmp;
 	if(m_Account.m_ClanId > 0 && GameServer()->Bw().Clans()->GetClanSnapshotById(m_Account.m_ClanId, Tmp))
@@ -40,7 +40,7 @@ int CBwPlayer::GetClanLevel()
 	return 0;
 }
 
-int CBwPlayer::GetClanExperience()
+int CBwPlayer::GetClanExperience() const
 {
 	CClansData Tmp;
 	if(m_Account.m_ClanId > 0 && GameServer()->Bw().Clans()->GetClanSnapshotById(m_Account.m_ClanId, Tmp))
@@ -207,7 +207,7 @@ void CBwPlayer::BWProcessClansResult(CClanResult &Result)
 {
 	CDiscordWebhook Discord(GameServer()->Engine(), GameServer()->Bw().Http());
 	const char *pLogsUrl = g_Config.m_SvDiscordWebhookUrlLogs[0] ? g_Config.m_SvDiscordWebhookUrlLogs : nullptr;
-	bool discordConfigured = Discord.IsConfigured(pLogsUrl);
+	bool DiscordConfigured = Discord.IsConfigured(pLogsUrl);
 
 	// capture Top Clans into the inline leaderboard buffer if requested
 	if(m_CaptureTopToMenu && Result.m_Success)
@@ -248,13 +248,13 @@ void CBwPlayer::BWProcessClansResult(CClanResult &Result)
 					pTarget->Bw().m_Account.m_ClanId = Result.m_ActionNewClanId;
 					pTarget->Bw().m_Account.m_AuthLevel = static_cast<ClanAuthLevel>(Result.m_ActionNewAuthLevel);
 
-					if(discordConfigured && Result.m_Success)
+					if(DiscordConfigured && Result.m_Success)
 					{
 						if(Result.m_ActionNewClanId > 0 && Result.m_ActionNewAuthLevel == static_cast<int>(ClanAuthLevel::LEADER))
 						{
-							std::string clanName = GameServer()->Bw().Clans()->GetClanNameCopy(Result.m_ActionNewClanId);
+							std::string ClanName = GameServer()->Bw().Clans()->GetClanNameCopy(Result.m_ActionNewClanId);
 							char aMsg[512];
-							str_format(aMsg, sizeof(aMsg), "[CLAN] Created: %s (cid=%d) created clan '%s' (id=%d)", pPlayerName, Result.m_ActionClientId, clanName.c_str(), Result.m_ActionNewClanId);
+							str_format(aMsg, sizeof(aMsg), "[CLAN] Created: %s (cid=%d) created clan '%s' (id=%d)", pPlayerName, Result.m_ActionClientId, ClanName.c_str(), Result.m_ActionNewClanId);
 							CDiscordWebhook::SSendOptions Opt;
 							Opt.m_pWebhookUrl = pLogsUrl;
 							Discord.Send(aMsg, Opt);
@@ -267,32 +267,31 @@ void CBwPlayer::BWProcessClansResult(CClanResult &Result)
 			if(Result.m_ActionPlayerName[0] != '\0')
 			{
 				// find target player by name to capture previous clan for logging
-				for(int i = 0; i < MAX_CLIENTS; ++i)
+				for(auto *pTarget : GameServer()->m_apPlayers)
 				{
-					CPlayer *pTarget = GameServer()->m_apPlayers[i];
 					if(pTarget && pTarget->Bw().IsLoggedIn() && str_comp(pTarget->Bw().m_Account.m_aName, Result.m_ActionPlayerName) == 0)
 					{
-						int prevClan = pTarget->Bw().GetClanId();
+						int PrevClan = pTarget->Bw().GetClanId();
 						const char *pPlayerName = pTarget->Bw().GetPlayerName();
 						pTarget->Bw().m_Account.m_ClanId = Result.m_ActionNewClanId;
 						pTarget->Bw().m_Account.m_AuthLevel = static_cast<ClanAuthLevel>(Result.m_ActionNewAuthLevel);
 
-						if(discordConfigured && Result.m_Success)
+						if(DiscordConfigured && Result.m_Success)
 						{
-							if(Result.m_ActionNewClanId > 0 && prevClan == 0)
+							if(Result.m_ActionNewClanId > 0 && PrevClan == 0)
 							{
-								std::string clanName = GameServer()->Bw().Clans()->GetClanNameCopy(Result.m_ActionNewClanId);
+								std::string ClanName = GameServer()->Bw().Clans()->GetClanNameCopy(Result.m_ActionNewClanId);
 								char aMsg[512];
-								str_format(aMsg, sizeof(aMsg), "[CLAN] Joined: %s joined clan '%s' (id=%d)", pPlayerName, clanName.c_str(), Result.m_ActionNewClanId);
+								str_format(aMsg, sizeof(aMsg), "[CLAN] Joined: %s joined clan '%s' (id=%d)", pPlayerName, ClanName.c_str(), Result.m_ActionNewClanId);
 								CDiscordWebhook::SSendOptions Opt;
 								Opt.m_pWebhookUrl = pLogsUrl;
 								Discord.Send(aMsg, Opt);
 							}
-							else if(Result.m_ActionNewClanId == 0 && prevClan > 0)
+							else if(Result.m_ActionNewClanId == 0 && PrevClan > 0)
 							{
-								std::string clanName = GameServer()->Bw().Clans()->GetClanNameCopy(prevClan);
+								std::string ClanName = GameServer()->Bw().Clans()->GetClanNameCopy(PrevClan);
 								char aMsg[512];
-								str_format(aMsg, sizeof(aMsg), "[CLAN] Removed: %s was removed/left clan '%s' (id=%d)", pPlayerName, clanName.c_str(), prevClan);
+								str_format(aMsg, sizeof(aMsg), "[CLAN] Removed: %s was removed/left clan '%s' (id=%d)", pPlayerName, ClanName.c_str(), PrevClan);
 								CDiscordWebhook::SSendOptions Opt;
 								Opt.m_pWebhookUrl = pLogsUrl;
 								Discord.Send(aMsg, Opt);
@@ -308,24 +307,23 @@ void CBwPlayer::BWProcessClansResult(CClanResult &Result)
 			// update target by name
 			if(Result.m_ActionPlayerName[0] != '\0')
 			{
-				for(int i = 0; i < MAX_CLIENTS; ++i)
+				for(auto *pTarget : GameServer()->m_apPlayers)
 				{
-					CPlayer *pTarget = GameServer()->m_apPlayers[i];
 					if(pTarget && pTarget->Bw().IsLoggedIn() && str_comp(pTarget->Bw().m_Account.m_aName, Result.m_ActionPlayerName) == 0)
 					{
-						int prevClan = pTarget->Bw().GetClanId();
+						int PrevClan = pTarget->Bw().GetClanId();
 						const char *pPlayerName = pTarget->Bw().GetPlayerName();
 						pTarget->Bw().m_Account.m_ClanId = Result.m_ActionNewClanId;
 						pTarget->Bw().m_Account.m_AuthLevel = static_cast<ClanAuthLevel>(Result.m_ActionNewAuthLevel2);
 
 						// discord logging for promotion
-						if(discordConfigured && Result.m_Success)
+						if(DiscordConfigured && Result.m_Success)
 						{
-							if(Result.m_ActionNewClanId > 0 && prevClan == 0 && Result.m_ActionNewAuthLevel2 == static_cast<int>(ClanAuthLevel::LEADER))
+							if(Result.m_ActionNewClanId > 0 && PrevClan == 0 && Result.m_ActionNewAuthLevel2 == static_cast<int>(ClanAuthLevel::LEADER))
 							{
-								std::string clanName = GameServer()->Bw().Clans()->GetClanNameCopy(Result.m_ActionNewClanId);
+								std::string ClanName = GameServer()->Bw().Clans()->GetClanNameCopy(Result.m_ActionNewClanId);
 								char aMsg[512];
-								str_format(aMsg, sizeof(aMsg), "[CLAN] Transferred: %s is now leader of '%s' (id=%d)", pPlayerName, clanName.c_str(), Result.m_ActionNewClanId);
+								str_format(aMsg, sizeof(aMsg), "[CLAN] Transferred: %s is now leader of '%s' (id=%d)", pPlayerName, ClanName.c_str(), Result.m_ActionNewClanId);
 								CDiscordWebhook::SSendOptions Opt;
 								Opt.m_pWebhookUrl = pLogsUrl;
 								Discord.Send(aMsg, Opt);
@@ -346,7 +344,7 @@ void CBwPlayer::BWProcessClansResult(CClanResult &Result)
 					pIssuer->Bw().m_Account.m_AuthLevel = static_cast<ClanAuthLevel>(Result.m_ActionNewAuthLevel);
 
 					// discord logging for demotion
-					if(discordConfigured && Result.m_Success)
+					if(DiscordConfigured && Result.m_Success)
 					{
 						if(Result.m_ActionNewClanId > 0 && Result.m_ActionNewAuthLevel == static_cast<int>(ClanAuthLevel::COLEADER))
 						{
@@ -365,18 +363,17 @@ void CBwPlayer::BWProcessClansResult(CClanResult &Result)
 			if(Result.m_ActionResetClanId > 0)
 			{
 				// log clan deletion
-				if(discordConfigured && Result.m_Success)
+				if(DiscordConfigured && Result.m_Success)
 				{
-					std::string clanName = GameServer()->Bw().Clans()->GetClanNameCopy(Result.m_ActionResetClanId);
+					std::string ClanName = GameServer()->Bw().Clans()->GetClanNameCopy(Result.m_ActionResetClanId);
 					char aMsg[512];
-					str_format(aMsg, sizeof(aMsg), "[CLAN] Deleted: Clan '%s' (id=%d) was deleted", clanName.c_str(), Result.m_ActionResetClanId);
+					str_format(aMsg, sizeof(aMsg), "[CLAN] Deleted: Clan '%s' (id=%d) was deleted", ClanName.c_str(), Result.m_ActionResetClanId);
 					CDiscordWebhook::SSendOptions Opt;
 					Opt.m_pWebhookUrl = pLogsUrl;
 					Discord.Send(aMsg, Opt);
 				}
-				for(int i = 0; i < MAX_CLIENTS; ++i)
+				for(auto *pTarget : GameServer()->m_apPlayers)
 				{
-					CPlayer *pTarget = GameServer()->m_apPlayers[i];
 					if(pTarget && pTarget->Bw().IsLoggedIn() && pTarget->Bw().m_Account.m_ClanId == Result.m_ActionResetClanId)
 					{
 						pTarget->Bw().m_Account.m_ClanId = 0;
@@ -400,7 +397,7 @@ void CBwPlayer::BWProcessClansResult(CClanResult &Result)
 						GameServer()->Bw().SendChatTarget(i, aBuf);
 					}
 				}
-				if(discordConfigured && Result.m_Success)
+				if(DiscordConfigured && Result.m_Success)
 				{
 					char aMsg[512];
 					str_format(aMsg, sizeof(aMsg), "[CLAN] Renamed: '%s' -> '%s'", pOld, pNew);
@@ -416,34 +413,34 @@ void CBwPlayer::BWProcessClansResult(CClanResult &Result)
 
 		if(Result.m_Success && Result.m_ActionChargeClientId >= 0 && Result.m_ActionChargeAmount > 0)
 		{
-			int cid = Result.m_ActionChargeClientId;
-			if(cid >= 0 && cid < MAX_CLIENTS)
+			int Cid = Result.m_ActionChargeClientId;
+			if(Cid >= 0 && Cid < MAX_CLIENTS)
 			{
-				CPlayer *pCharger = GameServer()->m_apPlayers[cid];
+				CPlayer *pCharger = GameServer()->m_apPlayers[Cid];
 				if(pCharger && pCharger->Bw().IsLoggedIn())
 				{
-					int cost = Result.m_ActionChargeAmount;
-					if(pCharger->Bw().GetPlayerBlockpoints() >= cost)
+					int Cost = Result.m_ActionChargeAmount;
+					if(pCharger->Bw().GetPlayerBlockpoints() >= Cost)
 					{
-						pCharger->Bw().SetPlayerBlockpoints(pCharger->Bw().GetPlayerBlockpoints() - cost);
-						GameServer()->Bw().Accounts()->Save(cid, &pCharger->Bw().m_Account);
+						pCharger->Bw().SetPlayerBlockpoints(pCharger->Bw().GetPlayerBlockpoints() - Cost);
+						GameServer()->Bw().Accounts()->Save(Cid, &pCharger->Bw().m_Account);
 						char aBuf[128];
-						if(cost == g_Config.m_SvClanRenamePrice)
-							str_format(aBuf, sizeof(aBuf), "You paid %d blockpoints to rename the clan.", cost);
-						else if(cost == g_Config.m_SvClanCreatePrice)
-							str_format(aBuf, sizeof(aBuf), "You paid %d blockpoints to create the clan.", cost);
+						if(Cost == g_Config.m_SvClanRenamePrice)
+							str_format(aBuf, sizeof(aBuf), "You paid %d blockpoints to rename the clan.", Cost);
+						else if(Cost == g_Config.m_SvClanCreatePrice)
+							str_format(aBuf, sizeof(aBuf), "You paid %d blockpoints to create the clan.", Cost);
 						else
-							str_format(aBuf, sizeof(aBuf), "You paid %d blockpoints.", cost);
-						GameServer()->Bw().SendChatTarget(cid, aBuf);
+							str_format(aBuf, sizeof(aBuf), "You paid %d blockpoints.", Cost);
+						GameServer()->Bw().SendChatTarget(Cid, aBuf);
 					}
 					else
 					{
 						if(Result.m_ActionChargeAmount == g_Config.m_SvClanRenamePrice)
-							GameServer()->Bw().SendChatTarget(cid, "Rename fee could not be charged due to insufficient blockpoints after rename.");
+							GameServer()->Bw().SendChatTarget(Cid, "Rename fee could not be charged due to insufficient blockpoints after rename.");
 						else if(Result.m_ActionChargeAmount == g_Config.m_SvClanCreatePrice)
-							GameServer()->Bw().SendChatTarget(cid, "Creation fee could not be charged due to insufficient blockpoints after creation.");
+							GameServer()->Bw().SendChatTarget(Cid, "Creation fee could not be charged due to insufficient blockpoints after creation.");
 						else
-							GameServer()->Bw().SendChatTarget(cid, "Fee could not be charged due to insufficient blockpoints.");
+							GameServer()->Bw().SendChatTarget(Cid, "Fee could not be charged due to insufficient blockpoints.");
 					}
 				}
 			}
@@ -490,7 +487,7 @@ void CBwPlayer::BWProcessClansResult(CClanResult &Result)
 	}
 }
 
-void CBwPlayer::BWProcessAdminCommandResult(CAdminCommandResult &Result)
+void CBwPlayer::BWProcessAdminCommandResult(CAdminCommandResult &Result) const
 {
 	if(Result.m_Success) // SQL request was successful
 	{
@@ -840,7 +837,6 @@ bool CBwPlayer::ToggleSpecial(int SpecialIndex)
 
 	if(SpecialIndex == CCosmeticsHandler::SPECIAL_BALL)
 	{
-		extern class CBall *CreateBall(CGameWorld *, vec2, int);
 		// fallback: use direct constructor if available
 		m_pSpecialEntity = new CBall(&GameServer()->m_World, GetCharacter() ? GetCharacter()->m_Pos : Player()->m_ViewPos, GetCid());
 	}
@@ -870,9 +866,9 @@ void CBwPlayer::ProcessWeeklyReward()
 		return;
 
 	time_t t = time(nullptr);
-	struct tm tmres;
-	time_localtime_safe(&t, &tmres);
-	int TodayDate = (tmres.tm_year + 1900) * 10000 + (tmres.tm_mon + 1) * 100 + tmres.tm_mday;
+	struct tm Tmres;
+	time_localtime_safe(&t, &Tmres);
+	int TodayDate = (Tmres.tm_year + 1900) * 10000 + (Tmres.tm_mon + 1) * 100 + Tmres.tm_mday;
 
 	int LastClaim = GetWeeklyLastClaim();
 
@@ -891,8 +887,8 @@ void CBwPlayer::ProcessWeeklyReward()
 		if(pLastColon)
 			*pLastColon = '\0';
 
-		auto it = GameServer()->Bw().m_WeeklyRewardClaimedByIp.find(aIpKey);
-		if(it != GameServer()->Bw().m_WeeklyRewardClaimedByIp.end() && it->second == TodayDate)
+		auto It = GameServer()->Bw().m_WeeklyRewardClaimedByIp.find(aIpKey);
+		if(It != GameServer()->Bw().m_WeeklyRewardClaimedByIp.end() && It->second == TodayDate)
 		{
 			GameServer()->Bw().SendChatTarget(GetCid(), "[Daily Reward] You have already claimed today's reward!");
 			return;
@@ -908,22 +904,22 @@ void CBwPlayer::ProcessWeeklyReward()
 		int LastMonth = (LastClaim / 100) % 100;
 		int LastDay = LastClaim % 100;
 
-		struct tm tmLast = {};
-		tmLast.tm_year = LastYear - 1900;
-		tmLast.tm_mon = LastMonth - 1;
-		tmLast.tm_mday = LastDay;
-		tmLast.tm_hour = 12;
-		time_t tLast = mktime(&tmLast);
+		struct tm TmLast = {};
+		TmLast.tm_year = LastYear - 1900;
+		TmLast.tm_mon = LastMonth - 1;
+		TmLast.tm_mday = LastDay;
+		TmLast.tm_hour = 12;
+		time_t TLast = mktime(&TmLast);
 
-		struct tm tmToday = {};
-		tmToday.tm_year = tmres.tm_year;
-		tmToday.tm_mon = tmres.tm_mon;
-		tmToday.tm_mday = tmres.tm_mday;
-		tmToday.tm_hour = 12;
-		time_t tToday = mktime(&tmToday);
+		struct tm TmToday = {};
+		TmToday.tm_year = Tmres.tm_year;
+		TmToday.tm_mon = Tmres.tm_mon;
+		TmToday.tm_mday = Tmres.tm_mday;
+		TmToday.tm_hour = 12;
+		time_t TToday = mktime(&TmToday);
 
-		double diffDays = difftime(tToday, tLast) / 86400.0;
-		if(diffDays > 1.5) // More than 1 day gap -> reset streak
+		double DiffDays = difftime(TToday, TLast) / 86400.0;
+		if(DiffDays > 1.5) // More than 1 day gap -> reset streak
 			Day = 0;
 	}
 	else
@@ -1012,15 +1008,15 @@ void CBwPlayer::AddPlayerExp(int Amount, bool ApplyMultiplier)
 	if(g_Config.m_SvWeekendExpEnabled)
 	{
 		time_t t = time(nullptr);
-		struct tm tmres;
-		time_localtime_safe(&t, &tmres);
-		int wday = tmres.tm_wday; // 0=Sunday, 6=Saturday
-		if(wday == 0 || wday == 6)
+		struct tm Tmres;
+		time_localtime_safe(&t, &Tmres);
+		int Wday = Tmres.tm_wday; // 0=Sunday, 6=Saturday
+		if(Wday == 0 || Wday == 6)
 		{
-			float weekendMult = (float)g_Config.m_SvWeekendExpMultiplier / 100.0f;
-			if(weekendMult < 0.01f)
-				weekendMult = 0.01f;
-			TotalMult *= weekendMult;
+			float WeekendMult = (float)g_Config.m_SvWeekendExpMultiplier / 100.0f;
+			if(WeekendMult < 0.01f)
+				WeekendMult = 0.01f;
+			TotalMult *= WeekendMult;
 		}
 	}
 	Amount = (int)((float)Amount * TotalMult);
@@ -1080,11 +1076,11 @@ void CBwPlayer::AddPlayerExp(int Amount, bool ApplyMultiplier)
 
 void CBwPlayer::AddExpMultiplier(int ModifierPercent, int Duration)
 {
-	auto it = m_ExpModifiers.find(ModifierPercent);
-	if(it == m_ExpModifiers.end())
+	auto It = m_ExpModifiers.find(ModifierPercent);
+	if(It == m_ExpModifiers.end())
 		m_ExpModifiers.emplace(ModifierPercent, Server()->Tick() + Duration * 60 * Server()->TickSpeed());
 	else
-		it->second += Duration * 60 * Server()->TickSpeed();
+		It->second += Duration * 60 * Server()->TickSpeed();
 
 	CalculateExpMultiplier();
 }
@@ -1255,17 +1251,17 @@ void CBwPlayer::Tick()
 
 	{
 		bool RecalculationNeeded = false;
-		auto it = m_ExpModifiers.begin();
-		for(; it != m_ExpModifiers.end();)
+		auto It = m_ExpModifiers.begin();
+		for(; It != m_ExpModifiers.end();)
 		{
-			if(it->second <= Server()->Tick())
+			if(It->second <= Server()->Tick())
 			{
-				it = m_ExpModifiers.erase(it);
+				It = m_ExpModifiers.erase(It);
 				RecalculationNeeded = true;
 			}
 			else
 			{
-				++it;
+				++It;
 			}
 		}
 
@@ -1300,8 +1296,8 @@ void CBwPlayer::Reset()
 	m_CaptureTopToMenu = false;
 	m_CaptureTopCategory = -1;
 	m_TopMessagesCount = 0;
-	for(int i = 0; i < TOP_MAX_LINES; ++i)
-		m_aTopMessages[i][0] = '\0';
+	for(auto &TopMessage : m_aTopMessages)
+		TopMessage[0] = '\0';
 
 	GameServer()->Bw().BlockTracker().StopTrackPlayer(GetCid());
 	m_ExpModifiers.clear();

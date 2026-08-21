@@ -93,17 +93,17 @@ bool CCosmeticsHandler::ToggleSpecial(int ClientID, const char *pName)
 
 	if(m_pGameServer)
 	{
-		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+		if(auto EventsAccessor = g_ComponentRegistry.Get<CEvents>(); EventsAccessor)
 		{
-			auto pEv = eventsAccessor->GetActiveEvent();
+			auto pEv = EventsAccessor->GetActiveEvent();
 			if(pEv)
 			{
 				const char *pEvName = pEv->GetEventName();
 				bool IsBlockedEvent = (str_comp(pEvName, "LMB") == 0) || (str_comp(pEvName, "Team Deathmatch") == 0);
 				if(IsBlockedEvent)
 				{
-					const auto &parts = pEv->Participants();
-					if(std::find(parts.begin(), parts.end(), ClientID) != parts.end())
+					const auto &Parts = pEv->Participants();
+					if(std::find(Parts.begin(), Parts.end(), ClientID) != Parts.end())
 					{
 						m_pGameServer->SendChatTarget(ClientID, "Cosmetics are disabled during LMB/TDM.");
 						return false;
@@ -113,10 +113,10 @@ bool CCosmeticsHandler::ToggleSpecial(int ClientID, const char *pName)
 		}
 	}
 
-	std::string sName = pName ? pName : "";
+	std::string SName = pName ? pName : "";
 	for(int i = 0; i < CCosmeticsHandler::NUM_SPECIALS; ++i)
 	{
-		if(str_comp_nocase(g_SpecialNames[i], sName.c_str()) == 0)
+		if(str_comp_nocase(g_SpecialNames[i], SName.c_str()) == 0)
 		{
 			CPlayer *pPlayer = GameServer()->Bw().GetPlayer(ClientID);
 			if(!pPlayer)
@@ -156,12 +156,12 @@ const char *CCosmeticsHandler::GetPlayerSpecials()
 	return ""; // placeholder not used
 }
 
-inline int HslToCc(vec3 HSL)
+static inline int HslToCc(vec3 HSL)
 {
 	return ((int)(HSL.h * 255) << 16) + ((int)(HSL.s * 255) << 8) + (HSL.l - 0.5f) * 255 * 2;
 }
 
-inline vec3 CcToHsl(int Cc)
+static inline vec3 CcToHsl(int Cc)
 {
 	return vec3(((Cc >> 16) & 0xff) / 255.0f, ((Cc >> 8) & 0xff) / 255.0f, 0.5f + (Cc & 0xff) / 255.0f * 0.5f);
 }
@@ -240,13 +240,15 @@ void CCosmeticsHandler::DoKnockoutEffectRaw(vec2 Pos, int Effect)
 		GameServer()->CreateHammerHit(Pos);
 	else if(Effect == KNOCKOUT_KOSTARS)
 	{
-		for(float i = 0.1f; i < 2 * pi; i += pi / 4.0f)
-			GameServer()->CreateDamageInd(Pos, i, 1);
+		// 8 evenly spaced indicators; an int counter keeps the count exact
+		for(int Step = 0; Step < 8; Step++)
+			GameServer()->CreateDamageInd(Pos, 0.1f + Step * (pi / 4.0f), 1);
 	}
 	else if(Effect == KNOCKOUT_STARRING)
 	{
-		for(float i = 0.0f; i < 2 * pi; i += pi / 20.0f)
-			GameServer()->CreateDamageInd(Pos, i, 1);
+		// 40 evenly spaced indicators
+		for(int Step = 0; Step < 40; Step++)
+			GameServer()->CreateDamageInd(Pos, Step * (pi / 20.0f), 1);
 	}
 	else if(Effect == KNOCKOUT_STAREXPLOSION)
 	{
@@ -254,8 +256,9 @@ void CCosmeticsHandler::DoKnockoutEffectRaw(vec2 Pos, int Effect)
 
 		GameServer()->CreateExplosion(Pos, -1, WEAPON_GRENADE, true, 0);
 
-		for(float i = 0.1f; i < 2 * pi; i += pi / 4.0f)
-			GameServer()->CreateDamageInd(Pos, i, 1);
+		// 8 evenly spaced indicators; an int counter keeps the count exact
+		for(int Step = 0; Step < 8; Step++)
+			GameServer()->CreateDamageInd(Pos, 0.1f + Step * (pi / 4.0f), 1);
 	}
 	else if(Effect == KNOCKOUT_LOVE)
 		GameServer()->Bw().Animations()->DoAnimation(Pos, CAnimationHandler::ANIMATION_LOVE);
@@ -291,17 +294,17 @@ bool CCosmeticsHandler::ToggleKnockout(int ClientID, const char *pName)
 
 	if(m_pGameServer)
 	{
-		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+		if(auto EventsAccessor = g_ComponentRegistry.Get<CEvents>(); EventsAccessor)
 		{
-			auto pEv = eventsAccessor->GetActiveEvent();
+			auto pEv = EventsAccessor->GetActiveEvent();
 			if(pEv)
 			{
 				const char *pEvName = pEv->GetEventName();
 				bool IsBlockedEvent = (str_comp(pEvName, "LMB") == 0) || (str_comp(pEvName, "Team Deathmatch") == 0);
 				if(IsBlockedEvent)
 				{
-					const auto &parts = pEv->Participants();
-					if(std::find(parts.begin(), parts.end(), ClientID) != parts.end())
+					const auto &Parts = pEv->Participants();
+					if(std::find(Parts.begin(), Parts.end(), ClientID) != Parts.end())
 					{
 						m_pGameServer->SendChatTarget(ClientID, "Cosmetics are disabled during LMB/TDM.");
 						return false;
@@ -361,7 +364,7 @@ bool CCosmeticsHandler::HasGundesign(int ClientID, int Index)
 
 bool CCosmeticsHandler::DoGundesign(int ClientID, vec2 Pos, vec2 Direction)
 {
-	if(ClientID < 0 || ClientID >= MAX_CLIENTS || GameServer()->m_apPlayers[ClientID] == 0x0)
+	if(ClientID < 0 || ClientID >= MAX_CLIENTS || GameServer()->m_apPlayers[ClientID] == nullptr)
 		return false;
 
 	int Effect = GameServer()->Bw().GetPlayer(ClientID)->Bw().GetGunDesign();
@@ -427,8 +430,8 @@ bool CCosmeticsHandler::DoGundesignRaw(vec2 Pos, int Effect, vec2 Direction)
 		for(int i = 0; i < 6; i++)
 		{
 			float a = random_float() * 2.0f * pi;
-			float dist = 10.0f + random_float() * 40.0f;
-			GameServer()->CreateDamageInd(Pos + direction(a) * dist, a, 1);
+			float Dist = 10.0f + random_float() * 40.0f;
+			GameServer()->CreateDamageInd(Pos + direction(a) * Dist, a, 1);
 		}
 	}
 	else
@@ -444,17 +447,17 @@ bool CCosmeticsHandler::ToggleGundesign(int ClientID, const char *pName)
 
 	if(m_pGameServer)
 	{
-		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+		if(auto EventsAccessor = g_ComponentRegistry.Get<CEvents>(); EventsAccessor)
 		{
-			auto pEv = eventsAccessor->GetActiveEvent();
+			auto pEv = EventsAccessor->GetActiveEvent();
 			if(pEv)
 			{
 				const char *pEvName = pEv->GetEventName();
 				bool IsBlockedEvent = (str_comp(pEvName, "LMB") == 0) || (str_comp(pEvName, "Team Deathmatch") == 0);
 				if(IsBlockedEvent)
 				{
-					const auto &parts = pEv->Participants();
-					if(std::find(parts.begin(), parts.end(), ClientID) != parts.end())
+					const auto &Parts = pEv->Participants();
+					if(std::find(Parts.begin(), Parts.end(), ClientID) != Parts.end())
 					{
 						m_pGameServer->SendChatTarget(ClientID, "Cosmetics are disabled during LMB/TDM.");
 						return false;
@@ -534,8 +537,8 @@ bool CCosmeticsHandler::SnapGundesignRaw(vec2 Pos, vec2 Dir, int Effect, int Ent
 	{
 		// random spark around the bullet each tick
 		float a = ((float)(Server()->Tick() * 7 % 31)) / 31.0f * 2.0f * pi;
-		float dist = 12.0f + ((Server()->Tick() * 13 % 17) / 17.0f) * 20.0f;
-		GameServer()->CreateDamageInd(Pos + direction(a) * dist, a + pi, 1, CClientMask().set(SnappingClient));
+		float Dist = 12.0f + ((Server()->Tick() * 13 % 17) / 17.0f) * 20.0f;
+		GameServer()->CreateDamageInd(Pos + direction(a) * Dist, a + pi, 1, CClientMask().set(SnappingClient));
 		return false; // show normal bullet too
 	}
 
@@ -581,20 +584,23 @@ bool CCosmeticsHandler::ToggleSkinmani(int ClientID, const char *pName)
 {
 	if(ClientID < 0 || ClientID >= MAX_CLIENTS)
 		return false;
+	// m_pGameServer is only set in Init(); the rest of this file guards it too
+	if(!m_pGameServer)
+		return false;
 
 	if(m_pGameServer)
 	{
-		if(auto eventsAccessor = g_ComponentRegistry.Get<CEvents>(); eventsAccessor)
+		if(auto EventsAccessor = g_ComponentRegistry.Get<CEvents>(); EventsAccessor)
 		{
-			auto pEv = eventsAccessor->GetActiveEvent();
+			auto pEv = EventsAccessor->GetActiveEvent();
 			if(pEv)
 			{
 				const char *pEvName = pEv->GetEventName();
 				bool IsBlockedEvent = (str_comp(pEvName, "LMB") == 0) || (str_comp(pEvName, "Team Deathmatch") == 0);
 				if(IsBlockedEvent)
 				{
-					const auto &parts = pEv->Participants();
-					if(std::find(parts.begin(), parts.end(), ClientID) != parts.end())
+					const auto &Parts = pEv->Participants();
+					if(std::find(Parts.begin(), Parts.end(), ClientID) != Parts.end())
 					{
 						m_pGameServer->SendChatTarget(ClientID, "Cosmetics are disabled during LMB/TDM.");
 						return false;
@@ -693,7 +699,7 @@ void CCosmeticsHandler::SnapSkinmaniRaw(int64_t Tick, CNetObj_ClientInfo *pClien
 	}
 	else if(Effect == SKINMANI_FEET_RGB)
 	{
-		HSLFeet.h = 0.3f * ((int)(Server()->Tick() / (Server()->TickSpeed() * 2)) % 3);
+		HSLFeet.h = 0.3f * ((Server()->Tick() / (Server()->TickSpeed() * 2)) % 3);
 		HSLFeet.s = 1.0f;
 		HSLFeet.l = 0.5f;
 		pClientInfo->m_ColorFeet = HslToCc(HSLFeet);
@@ -701,7 +707,7 @@ void CCosmeticsHandler::SnapSkinmaniRaw(int64_t Tick, CNetObj_ClientInfo *pClien
 	}
 	else if(Effect == SKINMANI_FEET_CMY)
 	{
-		HSLFeet.h = 0.15f + 0.3f * ((int)(Server()->Tick() / (Server()->TickSpeed() * 2)) % 3);
+		HSLFeet.h = 0.15f + 0.3f * ((Server()->Tick() / (Server()->TickSpeed() * 2)) % 3);
 		HSLFeet.s = 1.0f;
 		HSLFeet.l = 0.5f;
 		pClientInfo->m_ColorFeet = HslToCc(HSLFeet);
@@ -741,11 +747,11 @@ void CCosmeticsHandler::SnapSkinmaniRaw(int64_t Tick, CNetObj_ClientInfo *pClien
 	}
 	else if(Effect == SKINMANI_VIP_RAINBOW)
 	{
-		float base = 300.0f;
+		float Base = 300.0f;
 		if(ClientID >= 0 && ClientID < MAX_CLIENTS && GameServer()->GetPlayerChar(ClientID) && GameServer()->GetPlayerChar(ClientID)->Bw().IsHookRainbowActive())
-			base *= GameServer()->GetPlayerChar(ClientID)->Bw().GetHookRainbowDivider();
+			Base *= GameServer()->GetPlayerChar(ClientID)->Bw().GetHookRainbowDivider();
 
-		HSLBody.h = (sinf(TickDef / base) + 1.0f) / 2.0f;
+		HSLBody.h = (sinf(TickDef / Base) + 1.0f) / 2.0f;
 		HSLBody.s = 0.6f;
 		HSLBody.l = 0.5f;
 		pClientInfo->m_ColorBody = HslToCc(HSLBody);
@@ -754,11 +760,11 @@ void CCosmeticsHandler::SnapSkinmaniRaw(int64_t Tick, CNetObj_ClientInfo *pClien
 	}
 	else if(Effect == SKINMANI_VIP_RAINBOW_EPI)
 	{
-		float freq = 2.0f;
+		float Freq = 2.0f;
 		if(ClientID >= 0 && ClientID < MAX_CLIENTS && GameServer()->GetPlayerChar(ClientID) && GameServer()->GetPlayerChar(ClientID)->Bw().IsHookRainbowActive())
-			freq *= GameServer()->GetPlayerChar(ClientID)->Bw().GetHookRainbowDivider();
+			Freq *= GameServer()->GetPlayerChar(ClientID)->Bw().GetHookRainbowDivider();
 
-		HSLBody.h = (sinf(TickDef / freq) + 1.0f) / 2.0f;
+		HSLBody.h = (sinf(TickDef / Freq) + 1.0f) / 2.0f;
 		HSLBody.s = 1.0f;
 		HSLBody.l = 0.5f;
 		pClientInfo->m_ColorBody = HslToCc(HSLBody);
@@ -838,8 +844,8 @@ void CCosmeticsHandler::SnapSkinmaniRaw(int64_t Tick, CNetObj_ClientInfo *pClien
 	{
 		// Smooth warm hue: pink(0.93) -> red(0.0) -> orange(0.10), using circular hue wrap
 		float t = (sinf(TickDef / 150.0f) + 1.0f) / 2.0f;
-		float hue = fmodf(0.93f + t * 0.17f, 1.0f);
-		HSLBody.h = hue;
+		float Hue = fmodf(0.93f + t * 0.17f, 1.0f);
+		HSLBody.h = Hue;
 		HSLBody.s = 0.85f;
 		HSLBody.l = 0.55f;
 		pClientInfo->m_ColorBody = HslToCc(HSLBody);
@@ -850,8 +856,8 @@ void CCosmeticsHandler::SnapSkinmaniRaw(int64_t Tick, CNetObj_ClientInfo *pClien
 	{
 		// Smooth cool hue cycling: teal(0.45) -> blue(0.66) -> purple(0.80)
 		float t = (sinf(TickDef / 130.0f) + 1.0f) / 2.0f;
-		float hue = 0.45f + t * 0.35f;
-		HSLBody.h = hue;
+		float Hue = 0.45f + t * 0.35f;
+		HSLBody.h = Hue;
 		HSLBody.s = 0.7f;
 		HSLBody.l = 0.55f;
 		pClientInfo->m_ColorBody = HslToCc(HSLBody);

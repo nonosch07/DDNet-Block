@@ -55,11 +55,11 @@ public:
 		DuelReady,
 	};
 
-	struct Action
+	struct SAction
 	{
-		EActionKind Kind{EActionKind::None};
-		int A{-1};
-		int B{-1};
+		EActionKind m_Kind{EActionKind::None};
+		int m_A{-1};
+		int m_B{-1};
 	};
 
 	// render the root voting menu for the given player (page-based UI)
@@ -85,10 +85,10 @@ public:
 
 private:
 	// exact option text => action mapping for last sent menu for that client
-	std::unordered_map<int, std::vector<std::pair<std::string, Action>>> m_MapByClient;
+	std::unordered_map<int, std::vector<std::pair<std::string, SAction>>> m_MapByClient;
 
 	// page stack: 0=root, 1=cosmetics-root, >=2=cosmetics-category (value stores category index)
-	struct Page
+	struct SPage
 	{
 		// type encodes which builder to use; data holds category index for cosmetics pages.
 		enum Type
@@ -105,32 +105,31 @@ private:
 			SHOP,
 			SHOP_CATEGORY, // Data = shop category index
 			DUEL_CONFIG, // 1on1 match configuration dashboard
-		} PageType{ROOT};
-		int Data{-1};
+		} m_PageType{ROOT};
+		int m_Data{-1};
 	};
 
-	std::unordered_map<int, std::vector<Page>> m_PageStack; // per client
+	std::unordered_map<int, std::vector<SPage>> m_PageStack; // per client
 
-private:
 	// rendering helpers
-	void BuildRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
-	void BuildRules(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
-	void BuildLeaderboards(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
-	void BuildLeaderboardDetail(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int CategoryIndex, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
-	void BuildServerInfos(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
-	void BuildServerInfosTopic(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int TopicIndex, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
-	void BuildMapTransfers(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
-	void BuildCosmeticsRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
-	void BuildCosmeticsCategory(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int CategoryIndex, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
-	void BuildShop(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
-	void BuildShopCategory(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int CategoryIndex, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
-	void BuildDuelConfig(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<Action> &OutActions);
+	void BuildRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<SAction> &OutActions);
+	void BuildRules(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<SAction> &OutActions);
+	void BuildLeaderboards(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<SAction> &OutActions);
+	void BuildLeaderboardDetail(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int CategoryIndex, std::vector<std::string> &OutLabels, std::vector<SAction> &OutActions);
+	void BuildServerInfos(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<SAction> &OutActions);
+	void BuildServerInfosTopic(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int TopicIndex, std::vector<std::string> &OutLabels, std::vector<SAction> &OutActions);
+	void BuildMapTransfers(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<SAction> &OutActions);
+	void BuildCosmeticsRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<SAction> &OutActions);
+	void BuildCosmeticsCategory(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int CategoryIndex, std::vector<std::string> &OutLabels, std::vector<SAction> &OutActions);
+	void BuildShop(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<SAction> &OutActions);
+	void BuildShopCategory(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, int CategoryIndex, std::vector<std::string> &OutLabels, std::vector<SAction> &OutActions);
+	void BuildDuelConfig(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<SAction> &OutActions);
 
 	// nav helpers
-	void PushPage(int ClientID, Page::Type T, int Data = -1);
+	void PushPage(int ClientID, SPage::Type T, int Data = -1);
 	bool PopPage(int ClientID);
-	const std::vector<Page> &GetStack(int ClientID);
-	std::vector<Page> &GetPageStackMut(int ClientID) { return m_PageStack[ClientID]; }
+	const std::vector<SPage> &GetStack(int ClientID);
+	std::vector<SPage> &GetPageStackMut(int ClientID) { return m_PageStack[ClientID]; }
 };
 
 extern CVoteManager g_VoteManager;

@@ -2,6 +2,8 @@
 
 #include <blockworlds/bw_base.h>
 
+#include <algorithm>
+
 CVpnClientInfo::CVpnClientInfo() :
 	m_ClientId(-1),
 	m_PendingChecks(0),
@@ -23,14 +25,9 @@ std::shared_ptr<IVpnServiceResult> CVpnClientInfo::GetResultByService(const char
 
 bool CVpnClientInfo::IsBadIP() const
 {
-	for(const auto &pResult : m_Results)
-	{
-		if(pResult && pResult->IsValid() && pResult->IsBadIP())
-		{
-			return true;
-		}
-	}
-	return false;
+	return std::ranges::any_of(m_Results, [](const auto &pResult) {
+		return pResult && pResult->IsValid() && pResult->IsBadIP();
+	});
 }
 
 int CVpnClientInfo::GetAverageRiskScore() const

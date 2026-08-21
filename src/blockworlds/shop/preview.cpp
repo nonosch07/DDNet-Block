@@ -98,7 +98,7 @@ void CShopPreview::Tick()
 
 void CShopPreview::DisplayPickupGundesigns()
 {
-	int NumGundesigns = GameServer()->Bw().Cosmetics()->NUM_GUNDESIGNS;
+	int NumGundesigns = CCosmeticsHandler::NUM_GUNDESIGNS;
 	if((int)m_vPickups.size() < NumGundesigns)
 		m_vPickups.resize(NumGundesigns, nullptr);
 
@@ -133,7 +133,7 @@ void CShopPreview::DisplayPickupGundesigns()
 // Fast gun designs: star bursts, PEW, damage-indicator effects — all very short-lived
 void CShopPreview::DisplayFastGundesigns()
 {
-	for(int i = 0; i < GameServer()->Bw().Cosmetics()->NUM_GUNDESIGNS; i++)
+	for(int i = 0; i < CCosmeticsHandler::NUM_GUNDESIGNS; i++)
 	{
 		int Price = 0, Level = 0;
 		vec2 PreviewPos;
@@ -170,13 +170,13 @@ void CShopPreview::DisplaySlowKnockouts()
 		CCosmeticsHandler::KNOCKOUT_VIP_SPLASH,
 	};
 
-	for(int ko : SlowKnockouts)
+	for(int Ko : SlowKnockouts)
 	{
 		int Price = 0, Level = 0;
 		vec2 PreviewPos;
-		if(m_pGameContext->Bw().Cosmetics()->ShopInfoKnockout(ko, Price, Level, PreviewPos))
+		if(m_pGameContext->Bw().Cosmetics()->ShopInfoKnockout(Ko, Price, Level, PreviewPos))
 		{
-			GameServer()->Bw().Cosmetics()->DoKnockoutEffectRaw(PreviewPos, ko);
+			GameServer()->Bw().Cosmetics()->DoKnockoutEffectRaw(PreviewPos, Ko);
 		}
 	}
 }
@@ -196,13 +196,13 @@ void CShopPreview::DisplayMediumKnockouts()
 		CCosmeticsHandler::KNOCKOUT_HAMMERHIT,
 	};
 
-	for(int ko : MediumKnockouts)
+	for(int Ko : MediumKnockouts)
 	{
 		int Price = 0, Level = 0;
 		vec2 PreviewPos;
-		if(m_pGameContext->Bw().Cosmetics()->ShopInfoKnockout(ko, Price, Level, PreviewPos))
+		if(m_pGameContext->Bw().Cosmetics()->ShopInfoKnockout(Ko, Price, Level, PreviewPos))
 		{
-			GameServer()->Bw().Cosmetics()->DoKnockoutEffectRaw(PreviewPos, ko);
+			GameServer()->Bw().Cosmetics()->DoKnockoutEffectRaw(PreviewPos, Ko);
 		}
 	}
 }
@@ -215,13 +215,13 @@ void CShopPreview::DisplayFastKnockouts()
 		CCosmeticsHandler::KNOCKOUT_STARRING,
 	};
 
-	for(int ko : FastKnockouts)
+	for(int Ko : FastKnockouts)
 	{
 		int Price = 0, Level = 0;
 		vec2 PreviewPos;
-		if(m_pGameContext->Bw().Cosmetics()->ShopInfoKnockout(ko, Price, Level, PreviewPos))
+		if(m_pGameContext->Bw().Cosmetics()->ShopInfoKnockout(Ko, Price, Level, PreviewPos))
 		{
-			GameServer()->Bw().Cosmetics()->DoKnockoutEffectRaw(PreviewPos, ko);
+			GameServer()->Bw().Cosmetics()->DoKnockoutEffectRaw(PreviewPos, Ko);
 		}
 	}
 }
@@ -230,7 +230,7 @@ void CShopPreview::DisplayFastKnockouts()
 
 void CShopPreview::DisplaySkinManipulations()
 {
-	int Num = GameServer()->Bw().Cosmetics()->NUM_SKINMANIS;
+	int Num = CCosmeticsHandler::NUM_SKINMANIS;
 	if(m_pNpcManager)
 		m_pNpcManager->Resize(Num);
 
@@ -266,7 +266,7 @@ void CShopPreview::DisplayPriceLevel(const vec2 &PreviewPos, int Price, int Leve
 
 void CShopPreview::DisplayPricesAndLevels()
 {
-	for(int i = 0; i < GameServer()->Bw().Cosmetics()->NUM_GUNDESIGNS; i++)
+	for(int i = 0; i < CCosmeticsHandler::NUM_GUNDESIGNS; i++)
 	{
 		int Price = 0, Level = 0;
 		vec2 PreviewPos;
@@ -274,7 +274,7 @@ void CShopPreview::DisplayPricesAndLevels()
 			DisplayPriceLevel(PreviewPos, Price, Level);
 	}
 
-	for(int i = 0; i < GameServer()->Bw().Cosmetics()->NUM_KNOCKOUTS; i++)
+	for(int i = 0; i < CCosmeticsHandler::NUM_KNOCKOUTS; i++)
 	{
 		int Price = 0, Level = 0;
 		vec2 PreviewPos;
@@ -282,7 +282,7 @@ void CShopPreview::DisplayPricesAndLevels()
 			DisplayPriceLevel(PreviewPos, Price, Level);
 	}
 
-	for(int i = 0; i < GameServer()->Bw().Cosmetics()->NUM_SKINMANIS; i++)
+	for(int i = 0; i < CCosmeticsHandler::NUM_SKINMANIS; i++)
 	{
 		int Price = 0, Level = 0;
 		vec2 PreviewPos;

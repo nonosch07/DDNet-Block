@@ -68,7 +68,7 @@ void CAgonesComponent::OnTick()
 //         ((CAgonesComponent *)pUserData)->SendPlayerCapacity(pResult->GetInteger(0));
 // }
 
-void CAgonesComponent::SendHttp(std::string_view Path, std::string Data, EHttpType Type)
+void CAgonesComponent::SendHttp(std::string_view Path, const std::string &Data, EHttpType Type)
 {
 	m_JobPool.Submit([PathStr = std::string(Path), Type](const std::string &Payload, int Port, IHttp *Http) {
 		std::string_view BaseUrlView = g_Config.m_SvAgonesBaseUrl;

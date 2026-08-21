@@ -53,8 +53,8 @@ void CLastManBlockingEvent::OnTick()
 
 		CEventComponent::OnTick(); // test-mode dummies
 		char aTimeLeft[32];
-		FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), (int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()));
-		auto p1on1 = g_ComponentRegistry.Get<COneOnOneManager>();
+		FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), ((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()));
+		auto P1on1 = g_ComponentRegistry.Get<COneOnOneManager>();
 		IServer *pServer = Server();
 		for(int i = 0; i < pServer->MaxClients(); ++i)
 		{
@@ -63,7 +63,7 @@ void CLastManBlockingEvent::OnTick()
 			CPlayer *pPlayer = GameServer()->Bw().GetPlayer(i);
 			if(!pPlayer)
 				continue;
-			if(p1on1 && p1on1->GetMatchForPlayer(i))
+			if(P1on1 && P1on1->GetMatchForPlayer(i))
 				continue; // don't send LMB registration broadcasts to 1on1 participants
 
 			pPlayer->Bw().SendBroadcastAlignedLeft("%s is about to start!\n"
@@ -80,15 +80,15 @@ void CLastManBlockingEvent::OnTick()
 	else if(GetState() == CEventComponent::EEventState::Active)
 	{
 		char aTimeLeft[32];
-		FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), (int)((m_ActiveEndTick - Server()->Tick()) / Server()->TickSpeed()));
+		FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), ((m_ActiveEndTick - Server()->Tick()) / Server()->TickSpeed()));
 
-		auto p1on1 = g_ComponentRegistry.Get<COneOnOneManager>();
+		auto P1on1 = g_ComponentRegistry.Get<COneOnOneManager>();
 		for(const auto &ClientId : Participants())
 		{
 			CPlayer *pPlayer = GameServer()->Bw().GetPlayer(ClientId);
 			if(!pPlayer)
 				continue;
-			if(p1on1 && p1on1->GetMatchForPlayer(ClientId))
+			if(P1on1 && P1on1->GetMatchForPlayer(ClientId))
 				continue; // skip sending to players that are in a 1on1 match
 			pPlayer->Bw().SendBroadcastAlignedLeft("Participants left: %" PRIzu "\n"
 							       "Time left: %s",
@@ -167,16 +167,16 @@ void CLastManBlockingEvent::StartEvent()
 
 	auto &Teams = GameServer()->m_pController->Teams();
 	// choose an empty team that is not currently used by another event
-	int chosenTeam = -1;
+	int ChosenTeam = -1;
 	for(int t = 1; t < NUM_DDRACE_TEAMS; ++t)
 	{
 		if(Teams.GetTeamState(t) == ETeamState::EMPTY && !Teams.IsTeamEvent(t))
 		{
-			chosenTeam = t;
+			ChosenTeam = t;
 			break;
 		}
 	}
-	m_DDRaceTeam = chosenTeam;
+	m_DDRaceTeam = ChosenTeam;
 	if(m_DDRaceTeam == -1)
 	{
 		EmergencyShutdown("No free team was found");
@@ -298,13 +298,13 @@ void CLastManBlockingEvent::FinishEvent()
 
 	CEventComponent::OnTick();
 
-	for(const auto &soloEntry : m_PrevSoloState)
+	for(const auto &SoloEntry : m_PrevSoloState)
 	{
-		if(auto *pChar = GameServer()->GetPlayerChar(soloEntry.first))
+		if(auto *pChar = GameServer()->GetPlayerChar(SoloEntry.first))
 		{
-			if(soloEntry.second.solo)
+			if(SoloEntry.second.m_Solo)
 				pChar->SetSolo(true);
-			pChar->Bw().Core().m_CollisionDisabled = soloEntry.second.collision;
+			pChar->Bw().Core().m_CollisionDisabled = SoloEntry.second.m_Collision;
 		}
 	}
 	m_PrevSoloState.clear();
@@ -416,23 +416,28 @@ bool CLastManBlockingEvent::Join(int ClientId)
 	if(pChar)
 	{
 		// save previous solo and collision state, set not solo (character+teams) and enable collision for event
-		bool wasSolo = pChar->Core()->m_Solo;
-		bool wasCollisionDisabled = pChar->Core()->m_CollisionDisabled;
-		m_PrevSoloState[ClientId] = {wasSolo, wasCollisionDisabled};
-		if(wasSolo)
+		bool WasSolo = pChar->Core()->m_Solo;
+		bool WasCollisionDisabled = pChar->Core()->m_CollisionDisabled;
+		m_PrevSoloState[ClientId] = {WasSolo, WasCollisionDisabled};
+		if(WasSolo)
 			pChar->SetSolo(false);
-		if(wasCollisionDisabled)
+		if(WasCollisionDisabled)
 			pChar->Bw().Core().m_CollisionDisabled = false;
 		pChar->GetPlayer()->Pause(CPlayer::PAUSE_NONE, false);
 		pChar->SetDeepFrozen(false);
 	}
 	GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, m_DDRaceTeam);
-	pChar->ResetVelocity();
-	pChar->Bw().FreezeForce(Config()->m_SvLMBInitialFreezeTime);
-	m_FrozenSince.emplace(ClientId, Server()->Tick());
-	GameServer()->Bw().Teleport(pChar, RandomSpawnPos(m_SpawnPositions, m_UsedSpawnIndices));
+	// pChar is null when the player joins while dead or spectating; the block
+	// above already allows for that, so these must too
+	if(pChar)
+	{
+		pChar->ResetVelocity();
+		pChar->Bw().FreezeForce(Config()->m_SvLMBInitialFreezeTime);
+		m_FrozenSince.emplace(ClientId, Server()->Tick());
+		GameServer()->Bw().Teleport(pChar, RandomSpawnPos(m_SpawnPositions, m_UsedSpawnIndices));
+	}
 
-	if(auto pPlayer = GameServer()->Bw().GetPlayer(ClientId))
+	if(auto *pPlayer = GameServer()->Bw().GetPlayer(ClientId))
 	{
 		// save cosmetics snapshot before stripping (guard in SaveAndClearCosmetics prevents double-save)
 		SaveAndClearCosmetics(ClientId);
@@ -468,13 +473,13 @@ bool CLastManBlockingEvent::Leave(int ClientId)
 	// restore solo and collision state if needed
 	if(auto *pChar = GameServer()->GetPlayerChar(ClientId))
 	{
-		auto it = m_PrevSoloState.find(ClientId);
-		if(it != m_PrevSoloState.end())
+		auto It = m_PrevSoloState.find(ClientId);
+		if(It != m_PrevSoloState.end())
 		{
-			if(it->second.solo)
+			if(It->second.m_Solo)
 				pChar->SetSolo(true);
-			pChar->Bw().Core().m_CollisionDisabled = it->second.collision;
-			m_PrevSoloState.erase(it);
+			pChar->Bw().Core().m_CollisionDisabled = It->second.m_Collision;
+			m_PrevSoloState.erase(It);
 		}
 	}
 
@@ -558,9 +563,9 @@ void CLastManBlockingEvent::CheckFreezeTime()
 		}
 		int FrozenSince = 0;
 		{
-			auto itfs = m_FrozenSince.find(ClientId);
-			if(itfs != m_FrozenSince.end())
-				FrozenSince = itfs->second;
+			auto Itfs = m_FrozenSince.find(ClientId);
+			if(Itfs != m_FrozenSince.end())
+				FrozenSince = Itfs->second;
 		}
 		bool WasFrozenTickBefore = FrozenSince != 0;
 		bool IsFrozenNow = pChar->m_FreezeTime;
@@ -590,10 +595,10 @@ int CLastManBlockingEvent::GetMinCandidates() const
 
 int CLastManBlockingEvent::GetFrozenSince(int ClientId) const
 {
-	auto it = m_FrozenSince.find(ClientId);
-	if(it == m_FrozenSince.end())
+	auto It = m_FrozenSince.find(ClientId);
+	if(It == m_FrozenSince.end())
 		return 0;
-	return it->second;
+	return It->second;
 }
 void CLastManBlockingEvent::SetFrozenSince(int ClientId, int Tick)
 {

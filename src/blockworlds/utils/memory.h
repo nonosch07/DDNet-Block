@@ -19,21 +19,21 @@ template<typename T, typename... TArgs>
 std::function<void(TArgs...)> MakeSafeCallback(void (T::*pMemberFunc)(TArgs...), std::shared_ptr<T> pOwner)
 {
 	std::weak_ptr<T> pWeakOwner = pOwner;
-	return [pWeakOwner, pMemberFunc](TArgs... args) {
+	return [pWeakOwner, pMemberFunc](TArgs... Args) {
 		if(auto pStrongOwner = pWeakOwner.lock())
 		{
-			(pStrongOwner.get()->*pMemberFunc)(std::forward<TArgs>(args)...);
+			(pStrongOwner.get()->*pMemberFunc)(std::forward<TArgs>(Args)...);
 		}
 	};
 }
 template<typename T, typename... TArgs>
-std::function<void(TArgs...)> MakeSafeCallback(void (T::*pMemberFunc)(TArgs...), std::weak_ptr<T> pOwner)
+std::function<void(TArgs...)> MakeSafeCallback(void (T::*pMemberFunc)(TArgs...), const std::weak_ptr<T> &pOwner)
 {
-	std::weak_ptr<T> pWeakOwner = pOwner;
-	return [pWeakOwner, pMemberFunc](TArgs... args) {
+	const std::weak_ptr<T> &pWeakOwner = std::move(pOwner);
+	return [pWeakOwner, pMemberFunc](TArgs... Args) {
 		if(auto pStrongOwner = pWeakOwner.lock())
 		{
-			(pStrongOwner.get()->*pMemberFunc)(std::forward<TArgs>(args)...);
+			(pStrongOwner.get()->*pMemberFunc)(std::forward<TArgs>(Args)...);
 		}
 	};
 }
@@ -65,8 +65,8 @@ public:
 	CComponentAccessor &operator=(CComponentAccessor &&) noexcept = default;
 
 	template<typename U, typename = std::enable_if_t<std::is_convertible_v<U *, T *>>>
-	CComponentAccessor(CComponentAccessor<U> &&other) noexcept :
-		m_pPtr(std::move(other.m_pPtr))
+	CComponentAccessor(CComponentAccessor<U> &&Other) noexcept :
+		m_pPtr(std::move(Other.m_pPtr))
 	{
 	}
 

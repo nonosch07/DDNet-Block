@@ -80,7 +80,7 @@ public:
 
 	void BWProcessAccountsResult(CAccountResult &Result);
 	void BWProcessClansResult(CClanResult &Result);
-	void BWProcessAdminCommandResult(CAdminCommandResult &Result);
+	void BWProcessAdminCommandResult(CAdminCommandResult &Result) const;
 	std::queue<std::shared_ptr<CAccountResult>> m_AccountQueryResult;
 	std::queue<std::shared_ptr<CClanResult>> m_ClanQueryResult;
 	std::queue<std::shared_ptr<CAdminCommandResult>> m_AdminCommandQueryResult;
@@ -280,44 +280,44 @@ public:
 	}
 
 	// Getters
-	int GetPlayerId() { return m_Account.m_Id; }
+	int GetPlayerId() const { return m_Account.m_Id; }
 	const char *GetPlayerName() { return m_Account.m_aName; }
 	const char *GetPlayerPassword() { return m_Account.m_aPassword; }
 	const char *GetPlayerAddress() { return m_Account.m_aAddress; }
-	int GetPlayerVip() { return m_Account.m_Vip; }
-	int GetPlayerPages() { return m_Account.m_Pages; }
-	int GetPlayerPassiveRemovers() { return m_Account.m_PassiveRemovers; }
-	int GetPlayerLevel() { return m_Account.m_Level; }
-	int GetClanLevel();
-	int GetPlayerExperience() { return m_Account.m_Experience; }
-	int GetClanExperience();
-	int GetPlayerWeaponkits() { return m_Account.m_Weaponkits; }
-	int GetPlayerRanking() { return m_Account.m_Ranking; }
-	int GetClanId() { return m_Account.m_ClanId; }
-	ClanAuthLevel GetAuthLevel() { return m_Account.m_AuthLevel; }
-	int GetPlayerBlockpoints() { return m_Account.m_Blockpoints; }
+	int GetPlayerVip() const { return m_Account.m_Vip; }
+	int GetPlayerPages() const { return m_Account.m_Pages; }
+	int GetPlayerPassiveRemovers() const { return m_Account.m_PassiveRemovers; }
+	int GetPlayerLevel() const { return m_Account.m_Level; }
+	int GetClanLevel() const;
+	int GetPlayerExperience() const { return m_Account.m_Experience; }
+	int GetClanExperience() const;
+	int GetPlayerWeaponkits() const { return m_Account.m_Weaponkits; }
+	int GetPlayerRanking() const { return m_Account.m_Ranking; }
+	int GetClanId() const { return m_Account.m_ClanId; }
+	ClanAuthLevel GetAuthLevel() const { return m_Account.m_AuthLevel; }
+	int GetPlayerBlockpoints() const { return m_Account.m_Blockpoints; }
 	const char *GetPlayerKnockouts() { return m_Account.m_aKnockouts; }
 	const char *GetPlayerGundesign() { return m_Account.m_aGundesign; }
 	const char *GetPlayerSkinmani() { return m_Account.m_aSkinmani; }
 
-	int GetPlayerPassive() { return m_Account.m_Passive; }
+	int GetPlayerPassive() const { return m_Account.m_Passive; }
 	const char *GetPlayerRegisterDate() { return m_Account.m_RegisterDate; }
-	int GetPlayerRankedGames() { return m_Account.m_RankedGames; }
-	int GetPlayerRankedKills() { return m_Account.m_RankedKills; }
-	int GetPlayerRankedDeaths() { return m_Account.m_RankedDeaths; }
-	int GetPlayerRankedWins() { return m_Account.m_RankedWins; }
-	int GetPlayerKills() { return m_Account.m_Kills; }
-	int GetPlayerDeaths() { return m_Account.m_Deaths; }
-	int GetPlayerTourneyWin() { return m_Account.m_TourneyWin; }
-	long long GetPlayerPlaytime() { return m_Account.m_Playtime; }
-	int GetPlayerKillstreak() { return m_Account.m_Killstreak; }
-	int GetWeeklyDay() { return m_Account.m_WeeklyDay; }
-	int GetWeeklyLastClaim() { return m_Account.m_WeeklyLastClaim; }
-	long long GetWeeklyExpBoostUntil() { return m_Account.m_WeeklyExpBoostUntil; }
+	int GetPlayerRankedGames() const { return m_Account.m_RankedGames; }
+	int GetPlayerRankedKills() const { return m_Account.m_RankedKills; }
+	int GetPlayerRankedDeaths() const { return m_Account.m_RankedDeaths; }
+	int GetPlayerRankedWins() const { return m_Account.m_RankedWins; }
+	int GetPlayerKills() const { return m_Account.m_Kills; }
+	int GetPlayerDeaths() const { return m_Account.m_Deaths; }
+	int GetPlayerTourneyWin() const { return m_Account.m_TourneyWin; }
+	long long GetPlayerPlaytime() const { return m_Account.m_Playtime; }
+	int GetPlayerKillstreak() const { return m_Account.m_Killstreak; }
+	int GetWeeklyDay() const { return m_Account.m_WeeklyDay; }
+	int GetWeeklyLastClaim() const { return m_Account.m_WeeklyLastClaim; }
+	long long GetWeeklyExpBoostUntil() const { return m_Account.m_WeeklyExpBoostUntil; }
 	const char *GetPlayerLastName() { return m_Account.m_aLastName; }
 	const char *GetPlayerLastSkin() { return m_Account.m_aLastSkin; }
-	int GetPlayerLastBodyColor() { return m_Account.m_LastBodyColor; }
-	int GetPlayerLastFeetColor() { return m_Account.m_LastFeetColor; }
+	int GetPlayerLastBodyColor() const { return m_Account.m_LastBodyColor; }
+	int GetPlayerLastFeetColor() const { return m_Account.m_LastFeetColor; }
 
 	CAccountData m_Account;
 
@@ -351,8 +351,8 @@ public:
 
 	//events
 	// used for 1on1, default to true
-	bool m_allowDeath;
-	int sent1on1InviteTo;
+	bool m_AllowDeath;
+	int m_Sent1on1InviteTo;
 	// last tick when the player sent a 1on1 invite (anti-spam)
 	int64_t m_Last1on1InviteTick;
 	// last tick when player created a blockpoint transfer offer
@@ -384,12 +384,12 @@ public:
 	int m_RaceFinishExpCount = 0; // finishes awarded this session
 
 	// 0 = not in TDM, 1 = inside TDM, 2 has sent an invite (only leaders can), 3 received leader invite, 4 received clan user invite, 5 accepted & waiting
-	int s_TDM;
-	int s_TDM_team;
-	int s_TDM_start;
-	int TDM_invited_by;
+	int m_STdm;
+	int m_STdmTeam;
+	int m_STdmStart;
+	int m_TdmInvitedBy;
 	CTeeInfo m_OldTeeInfos;
-	bool m_spectateTDM = false;
+	bool m_SpectateTdm = false;
 	//cosmetics
 private:
 	int m_CurrentKnockout = -1;
@@ -502,19 +502,19 @@ public:
 	[[gnu::format(printf, 2, 3)]] void SendBroadcast(const char *pFmt, ...)
 	{
 		char aBuf[1024];
-		va_list args;
-		va_start(args, pFmt);
-		str_format_v(aBuf, sizeof(aBuf), pFmt, args);
-		va_end(args);
+		va_list Args;
+		va_start(Args, pFmt);
+		str_format_v(aBuf, sizeof(aBuf), pFmt, Args);
+		va_end(Args);
 		SendBroadcastImp(aBuf);
 	}
 	[[gnu::format(printf, 2, 3)]] void SendBroadcastAlignedLeft(const char *pFmt, ...)
 	{
 		char aBuf[1024];
-		va_list args;
-		va_start(args, pFmt);
-		str_format_v(aBuf, sizeof(aBuf), pFmt, args);
-		va_end(args);
+		va_list Args;
+		va_start(Args, pFmt);
+		str_format_v(aBuf, sizeof(aBuf), pFmt, Args);
+		va_end(Args);
 		str_append(aBuf, BROADCAST_PADDING, sizeof(aBuf));
 		SendBroadcastImp(aBuf);
 	}

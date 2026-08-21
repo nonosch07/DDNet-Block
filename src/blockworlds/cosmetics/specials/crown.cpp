@@ -18,8 +18,8 @@ CCrown::CCrown(CGameWorld *pGameWorld, int Owner) :
 {
 	m_Owner = Owner;
 
-	for(int i = 0; i < 4; i++)
-		m_aIds[i] = Server()->SnapNewId().value_or(-1);
+	for(int &Id : m_aIds)
+		Id = Server()->SnapNewId().value_or(-1);
 	std::sort(m_aIds, m_aIds + std::size(m_aIds));
 
 	GameWorld()->InsertEntity(this);
@@ -29,8 +29,8 @@ void CCrown::Reset()
 {
 	m_MarkedForDestroy = true;
 
-	for(int i = 0; i < 4; i++)
-		Server()->SnapFreeId(m_aIds[i]);
+	for(int Id : m_aIds)
+		Server()->SnapFreeId(Id);
 }
 
 void CCrown::Tick()

@@ -24,7 +24,7 @@
 
 #include <array>
 
-inline void IntsToStr(const int *pInts, int Num, char *pStr)
+static inline void IntsToStr(const int *pInts, int Num, char *pStr)
 {
 	while(Num)
 	{
@@ -56,7 +56,7 @@ CZoneManager::CZoneManager()
 
 CZoneManager::~CZoneManager()
 {
-	for(auto z : m_vExtraZones)
+	for(auto *z : m_vExtraZones)
 		delete z;
 }
 
@@ -71,15 +71,15 @@ void CZoneManager::Init(CGameContext *pGameServer)
 	pMap->GetType(MAPITEMTYPE_LAYER, &LayersStart, &LayersNum);
 
 	// prepare covered flags; we'll fill them as we detect quad-based shops
-	std::vector<bool> covered_skin;
-	std::vector<bool> covered_gun;
-	std::vector<bool> covered_ko;
+	std::vector<bool> CoveredSkin;
+	std::vector<bool> CoveredGun;
+	std::vector<bool> CoveredKo;
 
 	if(GameServer()->Bw().Cosmetics())
 	{
-		covered_skin.assign(GameServer()->Bw().Cosmetics()->NUM_SKINMANIS, false);
-		covered_gun.assign(GameServer()->Bw().Cosmetics()->NUM_GUNDESIGNS, false);
-		covered_ko.assign(GameServer()->Bw().Cosmetics()->NUM_KNOCKOUTS, false);
+		CoveredSkin.assign(CCosmeticsHandler::NUM_SKINMANIS, false);
+		CoveredGun.assign(CCosmeticsHandler::NUM_GUNDESIGNS, false);
+		CoveredKo.assign(CCosmeticsHandler::NUM_KNOCKOUTS, false);
 	}
 
 	for(int g = 0; g < GroupsNum; g++)
@@ -143,11 +143,11 @@ void CZoneManager::Init(CGameContext *pGameServer)
 					else if(str_comp_nocase_num(aName, "1on1_", 5) == 0)
 					{
 						// any "1on1_*" layer that is not "1on1_prep" becomes a match arena
-						int arenaIdx = (int)m_v1on1Arenas.size();
-						C1on1ArenaZone *pArenaZone = new C1on1ArenaZone(GameServer(), aName, arenaIdx);
+						int ArenaIdx = (int)m_V1on1Arenas.size();
+						C1on1ArenaZone *pArenaZone = new C1on1ArenaZone(GameServer(), aName, ArenaIdx);
 						pArenaZone->Init(pQuads);
 						m_vExtraZones.push_back(pArenaZone); // ownership for deletion
-						m_v1on1Arenas.push_back(pArenaZone); // indexed access (borrowed)
+						m_V1on1Arenas.push_back(pArenaZone); // indexed access (borrowed)
 						// dbg_msg("zones", "loaded 1on1 arena zone '%s' (idx=%d) with %d quads", aName, arenaIdx, pQuads->m_NumQuads);
 					}
 					else if(str_comp_nocase_num(aName, "redi_", 5) == 0)
@@ -200,60 +200,60 @@ void CZoneManager::Init(CGameContext *pGameServer)
 						int Item = 0;
 						char aBuf[64];
 						str_copy(aBuf, aName, sizeof(aBuf));
-						char *tokens[4] = {0};
+						char *Tokens[4] = {nullptr};
 						int t = 0;
-						char *tok = strtok(aBuf, "_");
-						while(tok && t < 4)
+						char *Tok = strtok(aBuf, "_");
+						while(Tok && t < 4)
 						{
-							tokens[t++] = tok;
-							tok = strtok(nullptr, "_");
+							Tokens[t++] = Tok;
+							Tok = strtok(nullptr, "_");
 						}
 
 						// tokens[0] == "shop"
-						if(t >= 2 && tokens[1])
+						if(t >= 2 && Tokens[1])
 						{
-							if(isdigit(tokens[1][0]))
+							if(isdigit(Tokens[1][0]))
 							{
-								Category = atoi(tokens[1]);
+								Category = atoi(Tokens[1]);
 							}
 							else
 							{
-								if(str_comp_nocase(tokens[1], "skin") == 0 || str_comp_nocase(tokens[1], "skinmani") == 0)
+								if(str_comp_nocase(Tokens[1], "skin") == 0 || str_comp_nocase(Tokens[1], "skinmani") == 0)
 									Category = CShop::CATEGORY_SKINMANI;
-								else if(str_comp_nocase(tokens[1], "gundesign") == 0 || str_comp_nocase(tokens[1], "gun") == 0)
+								else if(str_comp_nocase(Tokens[1], "gundesign") == 0 || str_comp_nocase(Tokens[1], "gun") == 0)
 									Category = CShop::CATEGORY_GUNDESIGN;
-								else if(str_comp_nocase(tokens[1], "knockout") == 0 || str_comp_nocase(tokens[1], "ko") == 0)
+								else if(str_comp_nocase(Tokens[1], "knockout") == 0 || str_comp_nocase(Tokens[1], "ko") == 0)
 									Category = CShop::CATEGORY_KNOCKOUT;
-								else if(str_comp_nocase(tokens[1], "kit") == 0)
+								else if(str_comp_nocase(Tokens[1], "kit") == 0)
 								{
 									Category = CShop::CATEGORY_UTILITY;
 									Item = 0; // weaponkit item
 								}
-								else if(str_comp_nocase(tokens[1], "page") == 0)
+								else if(str_comp_nocase(Tokens[1], "page") == 0)
 								{
 									Category = CShop::CATEGORY_UTILITY;
 									Item = 1; // deathnote page item
 								}
 								else
 								{
-									Category = atoi(tokens[1]);
+									Category = atoi(Tokens[1]);
 								}
 							}
 						}
-						if(t >= 3 && tokens[2] && isdigit(tokens[2][0]))
-							Item = atoi(tokens[2]);
+						if(t >= 3 && Tokens[2] && isdigit(Tokens[2][0]))
+							Item = atoi(Tokens[2]);
 						CShopZone *pShopZone = new CShopZone(GameServer(), Category, Item);
 						pShopZone->Init(pQuads);
 						m_vExtraZones.push_back(pShopZone);
 						// mark covered
 						if(GameServer()->Bw().Cosmetics())
 						{
-							if(Category == CShop::CATEGORY_SKINMANI && Item >= 0 && Item < (int)covered_skin.size())
-								covered_skin[Item] = true;
-							else if(Category == CShop::CATEGORY_GUNDESIGN && Item >= 0 && Item < (int)covered_gun.size())
-								covered_gun[Item] = true;
-							else if(Category == CShop::CATEGORY_KNOCKOUT && Item >= 0 && Item < (int)covered_ko.size())
-								covered_ko[Item] = true;
+							if(Category == CShop::CATEGORY_SKINMANI && Item >= 0 && Item < (int)CoveredSkin.size())
+								CoveredSkin[Item] = true;
+							else if(Category == CShop::CATEGORY_GUNDESIGN && Item >= 0 && Item < (int)CoveredGun.size())
+								CoveredGun[Item] = true;
+							else if(Category == CShop::CATEGORY_KNOCKOUT && Item >= 0 && Item < (int)CoveredKo.size())
+								CoveredKo[Item] = true;
 						}
 					}
 				}
@@ -302,40 +302,40 @@ std::vector<vec2> CZoneManager::Get1on1PrepPositions() const
 	auto *pPrep = m_aZones[ZONE_1ON1_PREP];
 	if(pPrep && pPrep->IsEnabled())
 	{
-		auto positions = static_cast<C1on1PrepZone *>(pPrep)->GetSpawnPositions();
-		if(!positions.empty())
-			return positions;
+		auto Positions = static_cast<C1on1PrepZone *>(pPrep)->GetSpawnPositions();
+		if(!Positions.empty())
+			return Positions;
 	}
 	// fallback: use positions from the first arena
-	if(!m_v1on1Arenas.empty())
-		return m_v1on1Arenas[0]->GetSpawnPositions();
+	if(!m_V1on1Arenas.empty())
+		return m_V1on1Arenas[0]->GetSpawnPositions();
 	return {};
 }
 
-const char *CZoneManager::Get1on1ArenaName(int idx) const
+const char *CZoneManager::Get1on1ArenaName(int Idx) const
 {
-	if(idx >= 0 && idx < (int)m_v1on1Arenas.size())
-		return m_v1on1Arenas[idx]->GetDisplayName();
+	if(Idx >= 0 && Idx < (int)m_V1on1Arenas.size())
+		return m_V1on1Arenas[Idx]->GetDisplayName();
 	return "Unknown";
 }
 
-std::vector<vec2> CZoneManager::Get1on1ArenaPositions(int idx) const
+std::vector<vec2> CZoneManager::Get1on1ArenaPositions(int Idx) const
 {
-	if(idx >= 0 && idx < (int)m_v1on1Arenas.size())
-		return m_v1on1Arenas[idx]->GetSpawnPositions();
+	if(Idx >= 0 && Idx < (int)m_V1on1Arenas.size())
+		return m_V1on1Arenas[Idx]->GetSpawnPositions();
 	// -1 or out of range: pool positions from all arenas
-	std::vector<vec2> all;
-	for(auto *pArena : m_v1on1Arenas)
+	std::vector<vec2> All;
+	for(auto *pArena : m_V1on1Arenas)
 	{
-		auto pos = pArena->GetSpawnPositions();
-		all.insert(all.end(), pos.begin(), pos.end());
+		auto Pos = pArena->GetSpawnPositions();
+		All.insert(All.end(), Pos.begin(), Pos.end());
 	}
-	return all;
+	return All;
 }
 
 std::vector<vec2> CZoneManager::GetNamedQuadCenters(const char *pName) const
 {
-	std::vector<vec2> centers;
+	std::vector<vec2> Centers;
 	int GroupsStart, LayersStart, GroupsNum, LayersNum;
 	IMap *pMap = GameServer()->Layers()->Map();
 
@@ -369,11 +369,11 @@ std::vector<vec2> CZoneManager::GetNamedQuadCenters(const char *pName) const
 						{
 							CQuad &Q = pQuadData[q];
 							// compute center average of four points
-							vec2 center = {0, 0};
+							vec2 Center = {0, 0};
 							for(int i = 0; i < 4; ++i)
-								center += vec2{fx2f(Q.m_aPoints[i].x), fx2f(Q.m_aPoints[i].y)};
-							center /= 4.0f;
-							centers.push_back(center);
+								Center += vec2{fx2f(Q.m_aPoints[i].x), fx2f(Q.m_aPoints[i].y)};
+							Center /= 4.0f;
+							Centers.push_back(Center);
 						}
 						// Continue searching to support multiple layers with the same name
 					}
@@ -381,12 +381,12 @@ std::vector<vec2> CZoneManager::GetNamedQuadCenters(const char *pName) const
 			}
 		}
 	}
-	return centers;
+	return Centers;
 }
 
 std::vector<std::array<vec2, 4>> CZoneManager::GetNamedQuads(const char *pName) const
 {
-	std::vector<std::array<vec2, 4>> quads;
+	std::vector<std::array<vec2, 4>> Quads;
 	int GroupsStart, LayersStart, GroupsNum, LayersNum;
 	IMap *pMap = GameServer()->Layers()->Map();
 
@@ -419,10 +419,10 @@ std::vector<std::array<vec2, 4>> CZoneManager::GetNamedQuads(const char *pName) 
 						for(int q = 0; q < pQuads->m_NumQuads; q++)
 						{
 							CQuad &Q = pQuadData[q];
-							std::array<vec2, 4> corners;
+							std::array<vec2, 4> Corners;
 							for(int i = 0; i < 4; ++i)
-								corners[i] = vec2{fx2f(Q.m_aPoints[i].x), fx2f(Q.m_aPoints[i].y)};
-							quads.push_back(corners);
+								Corners[i] = vec2{fx2f(Q.m_aPoints[i].x), fx2f(Q.m_aPoints[i].y)};
+							Quads.push_back(Corners);
 						}
 						// Continue searching to support multiple layers with the same name
 					}
@@ -430,5 +430,5 @@ std::vector<std::array<vec2, 4>> CZoneManager::GetNamedQuads(const char *pName) 
 			}
 		}
 	}
-	return quads;
+	return Quads;
 }

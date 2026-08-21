@@ -53,7 +53,7 @@ bool SVpnServiceQueue::HasPendingRequest(const char *pIpAddress, int ClientId) c
 	});
 }
 
-bool SVpnServiceQueue::EnqueueRequest(std::shared_ptr<IVpnServiceRequest> pRequest, int MaxQueueSize)
+bool SVpnServiceQueue::EnqueueRequest(const std::shared_ptr<IVpnServiceRequest> &pRequest, int MaxQueueSize)
 {
 	if(!pRequest)
 		return false;

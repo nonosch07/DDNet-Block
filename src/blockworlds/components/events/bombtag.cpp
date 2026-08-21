@@ -67,16 +67,16 @@ void CBombTagEvent::StartEvent()
 
 	// find a free DDRace team
 	auto &Teams = GameServer()->m_pController->Teams();
-	int chosenTeam = -1;
+	int ChosenTeam = -1;
 	for(int t = 1; t < NUM_DDRACE_TEAMS; ++t)
 	{
 		if(Teams.GetTeamState(t) == ETeamState::EMPTY && !Teams.IsTeamEvent(t))
 		{
-			chosenTeam = t;
+			ChosenTeam = t;
 			break;
 		}
 	}
-	m_DDRaceTeam = chosenTeam;
+	m_DDRaceTeam = ChosenTeam;
 	if(m_DDRaceTeam == -1)
 	{
 		EmergencyShutdown("No free team was found");
@@ -173,13 +173,13 @@ void CBombTagEvent::FinishEvent()
 	CEventComponent::OnTick(); // flush deferred position/weapon queues
 
 	// restore solo/collision state
-	for(const auto &entry : m_PrevSoloState)
+	for(const auto &Entry : m_PrevSoloState)
 	{
-		if(auto *pChar = GameServer()->GetPlayerChar(entry.first))
+		if(auto *pChar = GameServer()->GetPlayerChar(Entry.first))
 		{
-			if(entry.second.solo)
+			if(Entry.second.m_Solo)
 				pChar->SetSolo(true);
-			pChar->Bw().Core().m_CollisionDisabled = entry.second.collision;
+			pChar->Bw().Core().m_CollisionDisabled = Entry.second.m_Collision;
 		}
 	}
 	m_PrevSoloState.clear();
@@ -257,13 +257,13 @@ bool CBombTagEvent::DeRegister(int ClientId)
 		GameServer()->Bw().SendChatTarget(ClientId, "Registration phase is over!");
 		return false;
 	}
-	auto it = std::find(m_Candidates.begin(), m_Candidates.end(), ClientId);
-	if(it == m_Candidates.end())
+	auto It = std::find(m_Candidates.begin(), m_Candidates.end(), ClientId);
+	if(It == m_Candidates.end())
 	{
 		GameServer()->Bw().SendChatTarget(ClientId, "You are not registered for BombTag.");
 		return false;
 	}
-	m_Candidates.erase(it);
+	m_Candidates.erase(It);
 	GameServer()->Bw().SendChatTarget(ClientId, "You left BombTag registration.");
 	return true;
 }
@@ -276,12 +276,12 @@ bool CBombTagEvent::Join(int ClientId)
 	auto *pChar = GameServer()->GetPlayerChar(ClientId);
 	if(pChar)
 	{
-		bool wasSolo = pChar->Core()->m_Solo;
-		bool wasCollision = pChar->Core()->m_CollisionDisabled;
-		m_PrevSoloState[ClientId] = {wasSolo, wasCollision};
-		if(wasSolo)
+		bool WasSolo = pChar->Core()->m_Solo;
+		bool WasCollision = pChar->Core()->m_CollisionDisabled;
+		m_PrevSoloState[ClientId] = {WasSolo, WasCollision};
+		if(WasSolo)
 			pChar->SetSolo(false);
-		if(wasCollision)
+		if(WasCollision)
 			pChar->Bw().Core().m_CollisionDisabled = false;
 		pChar->GetPlayer()->Pause(CPlayer::PAUSE_NONE, false);
 		pChar->SetDeepFrozen(false);
@@ -306,10 +306,10 @@ bool CBombTagEvent::Join(int ClientId)
 
 bool CBombTagEvent::Leave(int ClientId)
 {
-	auto it = std::find(m_Participants.begin(), m_Participants.end(), ClientId);
-	if(it == m_Participants.end())
+	auto It = std::find(m_Participants.begin(), m_Participants.end(), ClientId);
+	if(It == m_Participants.end())
 		return false;
-	m_Participants.erase(it);
+	m_Participants.erase(It);
 
 	if(m_Bomb == ClientId)
 		m_Bomb = -1;
@@ -323,13 +323,13 @@ bool CBombTagEvent::Leave(int ClientId)
 	// restore solo/collision state
 	if(auto *pChar = GameServer()->GetPlayerChar(ClientId))
 	{
-		auto soloIt = m_PrevSoloState.find(ClientId);
-		if(soloIt != m_PrevSoloState.end())
+		auto SoloIt = m_PrevSoloState.find(ClientId);
+		if(SoloIt != m_PrevSoloState.end())
 		{
-			if(soloIt->second.solo)
+			if(SoloIt->second.m_Solo)
 				pChar->SetSolo(true);
-			pChar->Bw().Core().m_CollisionDisabled = soloIt->second.collision;
-			m_PrevSoloState.erase(soloIt);
+			pChar->Bw().Core().m_CollisionDisabled = SoloIt->second.m_Collision;
+			m_PrevSoloState.erase(SoloIt);
 		}
 	}
 
@@ -453,7 +453,7 @@ void CBombTagEvent::OnTick()
 		}
 		CEventComponent::OnTick(); // test-mode dummies
 		char aTimeLeft[32];
-		FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), (int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()));
+		FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), ((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()));
 
 		for(int i = 0; i < Server()->MaxClients(); ++i)
 		{
@@ -537,13 +537,13 @@ void CBombTagEvent::SetBomb(int ClientId)
 // Elects a new bomb when none is active
 void CBombTagEvent::ElectBomb()
 {
-	int elected = m_Participants[rand() % m_Participants.size()];
+	int Elected = m_Participants[rand() % m_Participants.size()];
 
-	SetBomb(elected);
+	SetBomb(Elected);
 	m_BombExplodeTick = Server()->Tick() + Config()->m_SvBombTagBombDuration * Server()->TickSpeed();
 
 	char aBuf[128];
-	str_format(aBuf, sizeof(aBuf), "%s is the new bomb !", Server()->ClientName(elected));
+	str_format(aBuf, sizeof(aBuf), "%s is the new bomb !", Server()->ClientName(Elected));
 	GameServer()->SendChat(-1, m_DDRaceTeam, aBuf);
 }
 

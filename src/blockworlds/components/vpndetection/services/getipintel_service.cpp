@@ -7,17 +7,14 @@
 #include <blockworlds/bw_base.h>
 
 CGetIPIntelService::CGetIPIntelService() :
-	m_ContactEmail(""),
-	m_Flags(""),
-	m_OutputFlags(""),
+
 	m_Threshold(0.95f)
 {
 }
 
 CGetIPIntelService::CGetIPIntelService(const char *pContactEmail) :
 	m_ContactEmail(VpnServiceConfig::Trim(pContactEmail)),
-	m_Flags(""),
-	m_OutputFlags(""),
+
 	m_Threshold(0.95f)
 {
 }

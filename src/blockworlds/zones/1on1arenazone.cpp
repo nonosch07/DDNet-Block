@@ -12,33 +12,33 @@ static std::string BuildDisplayName(const char *pLayerName)
 		pSuffix = pLayerName + 5;
 
 	// capitalize first character, replace underscores with spaces
-	std::string name;
-	bool nextUpper = true;
+	std::string Name;
+	bool NextUpper = true;
 	for(const char *p = pSuffix; *p; ++p)
 	{
 		if(*p == '_')
 		{
-			name += ' ';
-			nextUpper = false;
+			Name += ' ';
+			NextUpper = false;
 		}
-		else if(nextUpper)
+		else if(NextUpper)
 		{
-			name += (char)std::toupper((unsigned char)*p);
-			nextUpper = false;
+			Name += (char)std::toupper((unsigned char)*p);
+			NextUpper = false;
 		}
 		else
 		{
-			name += *p;
+			Name += *p;
 		}
 	}
-	if(name.empty())
-		name = "Arena";
-	return name;
+	if(Name.empty())
+		Name = "Arena";
+	return Name;
 }
 
-C1on1ArenaZone::C1on1ArenaZone(CGameContext *pGameServer, const char *pLayerName, int arenaIndex) :
+C1on1ArenaZone::C1on1ArenaZone(CGameContext *pGameServer, const char *pLayerName, int ArenaIndex) :
 	IZone(pGameServer, -1),
 	m_DisplayName(BuildDisplayName(pLayerName)),
-	m_ArenaIndex(arenaIndex)
+	m_ArenaIndex(ArenaIndex)
 {
 }

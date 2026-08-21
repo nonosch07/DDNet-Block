@@ -65,16 +65,16 @@ void CZCatchEvent::StartEvent()
 
 	// find a free DDRace team
 	auto &Teams = GameServer()->m_pController->Teams();
-	int chosenTeam = -1;
+	int ChosenTeam = -1;
 	for(int t = 1; t < NUM_DDRACE_TEAMS; ++t)
 	{
 		if(Teams.GetTeamState(t) == ETeamState::EMPTY && !Teams.IsTeamEvent(t))
 		{
-			chosenTeam = t;
+			ChosenTeam = t;
 			break;
 		}
 	}
-	m_DDRaceTeam = chosenTeam;
+	m_DDRaceTeam = ChosenTeam;
 	if(m_DDRaceTeam == -1)
 	{
 		EmergencyShutdown("No free team was found");
@@ -136,7 +136,7 @@ void CZCatchEvent::FinishEvent()
 				if(Discord.IsConfigured(pZCatchUrl))
 				{
 					const char *pWinnerName = Server()->ClientName(m_Winner);
-					int WinScore = m_Scores.count(m_Winner) ? m_Scores.at(m_Winner) : 0;
+					int WinScore = m_Scores.contains(m_Winner) ? m_Scores.at(m_Winner) : 0;
 
 					// Sort all scores descending for the leaderboard
 					std::vector<std::pair<int, int>> vSorted(m_Scores.begin(), m_Scores.end());
@@ -150,14 +150,14 @@ void CZCatchEvent::FinishEvent()
 								pDst[0] = '\0';
 							return;
 						}
-						int out = 0;
-						for(int i = 0; pSrc[i] && out < DstSize - 1; ++i)
+						int Out = 0;
+						for(int i = 0; pSrc[i] && Out < DstSize - 1; ++i)
 						{
 							unsigned char c = (unsigned char)pSrc[i];
 							if(c >= 0x20 && c <= 0x7E) // printable ASCII only
-								pDst[out++] = pSrc[i];
+								pDst[Out++] = pSrc[i];
 						}
-						pDst[out] = '\0';
+						pDst[Out] = '\0';
 					};
 
 					char aSafeWinner[22];
@@ -240,13 +240,13 @@ void CZCatchEvent::FinishEvent()
 	CEventComponent::OnTick(); // flush deferred position/weapon queues
 
 	// restore solo/collision state
-	for(const auto &entry : m_PrevSoloState)
+	for(const auto &Entry : m_PrevSoloState)
 	{
-		if(auto *pChar = GameServer()->GetPlayerChar(entry.first))
+		if(auto *pChar = GameServer()->GetPlayerChar(Entry.first))
 		{
-			if(entry.second.solo)
+			if(Entry.second.m_Solo)
 				pChar->SetSolo(true);
-			pChar->Bw().Core().m_CollisionDisabled = entry.second.collision;
+			pChar->Bw().Core().m_CollisionDisabled = Entry.second.m_Collision;
 		}
 	}
 	m_PrevSoloState.clear();
@@ -275,12 +275,12 @@ bool CZCatchEvent::CheckEndCondition()
 	if(m_ActiveEndTick > 0 && Server()->Tick() > m_ActiveEndTick)
 	{
 		m_Winner = -1;
-		int best = -1;
+		int Best = -1;
 		for(const auto &[id, score] : m_Scores)
 		{
-			if(score > best)
+			if(score > Best)
 			{
-				best = score;
+				Best = score;
 				m_Winner = id;
 			}
 		}
@@ -300,19 +300,19 @@ bool CZCatchEvent::CheckEndCondition()
 	// last fighter standing (all others caught)
 	if((int)m_Participants.size() > 1)
 	{
-		int fightingCount = 0;
-		int lastFighter = -1;
-		for(int id : m_Participants)
+		int FightingCount = 0;
+		int LastFighter = -1;
+		for(int Id : m_Participants)
 		{
-			if(!IsCaught(id))
+			if(!IsCaught(Id))
 			{
-				fightingCount++;
-				lastFighter = id;
+				FightingCount++;
+				LastFighter = Id;
 			}
 		}
-		if(fightingCount <= 1)
+		if(FightingCount <= 1)
 		{
-			m_Winner = lastFighter;
+			m_Winner = LastFighter;
 			return true;
 		}
 	}
@@ -359,13 +359,13 @@ bool CZCatchEvent::DeRegister(int ClientId)
 		GameServer()->Bw().SendChatTarget(ClientId, "Registration phase is over!");
 		return false;
 	}
-	auto it = std::find(m_Candidates.begin(), m_Candidates.end(), ClientId);
-	if(it == m_Candidates.end())
+	auto It = std::find(m_Candidates.begin(), m_Candidates.end(), ClientId);
+	if(It == m_Candidates.end())
 	{
 		GameServer()->Bw().SendChatTarget(ClientId, "You are not registered for zCatch.");
 		return false;
 	}
-	m_Candidates.erase(it);
+	m_Candidates.erase(It);
 	GameServer()->Bw().SendChatTarget(ClientId, "You left zCatch registration.");
 	return true;
 }
@@ -378,12 +378,12 @@ bool CZCatchEvent::Join(int ClientId)
 	auto *pChar = GameServer()->GetPlayerChar(ClientId);
 	if(pChar)
 	{
-		bool wasSolo = pChar->Core()->m_Solo;
-		bool wasCollision = pChar->Core()->m_CollisionDisabled;
-		m_PrevSoloState[ClientId] = {wasSolo, wasCollision};
-		if(wasSolo)
+		bool WasSolo = pChar->Core()->m_Solo;
+		bool WasCollision = pChar->Core()->m_CollisionDisabled;
+		m_PrevSoloState[ClientId] = {WasSolo, WasCollision};
+		if(WasSolo)
 			pChar->SetSolo(false);
-		if(wasCollision)
+		if(WasCollision)
 			pChar->Bw().Core().m_CollisionDisabled = false;
 		pChar->GetPlayer()->Pause(CPlayer::PAUSE_NONE, false);
 		pChar->SetDeepFrozen(false);
@@ -405,24 +405,24 @@ bool CZCatchEvent::Join(int ClientId)
 
 bool CZCatchEvent::Leave(int ClientId)
 {
-	auto it = std::find(m_Participants.begin(), m_Participants.end(), ClientId);
-	if(it == m_Participants.end())
+	auto It = std::find(m_Participants.begin(), m_Participants.end(), ClientId);
+	if(It == m_Participants.end())
 		return false;
-	m_Participants.erase(it);
+	m_Participants.erase(It);
 
 	// release any captives this player was holding
 	ReleaseCaptives(ClientId);
 
 	// if this player was caught, remove from catcher's list
 	{
-		auto caughtIt = m_CaughtBy.find(ClientId);
-		if(caughtIt != m_CaughtBy.end())
+		auto CaughtIt = m_CaughtBy.find(ClientId);
+		if(CaughtIt != m_CaughtBy.end())
 		{
-			int catcherId = caughtIt->second;
-			m_CaughtBy.erase(caughtIt);
-			auto capIt = m_Captives.find(catcherId);
-			if(capIt != m_Captives.end())
-				capIt->second.erase(ClientId);
+			int CatcherId = CaughtIt->second;
+			m_CaughtBy.erase(CaughtIt);
+			auto CapIt = m_Captives.find(CatcherId);
+			if(CapIt != m_Captives.end())
+				CapIt->second.erase(ClientId);
 		}
 	}
 
@@ -442,13 +442,13 @@ bool CZCatchEvent::Leave(int ClientId)
 	// restore solo/collision state
 	if(auto *pChar = GameServer()->GetPlayerChar(ClientId))
 	{
-		auto soloIt = m_PrevSoloState.find(ClientId);
-		if(soloIt != m_PrevSoloState.end())
+		auto SoloIt = m_PrevSoloState.find(ClientId);
+		if(SoloIt != m_PrevSoloState.end())
 		{
-			if(soloIt->second.solo)
+			if(SoloIt->second.m_Solo)
 				pChar->SetSolo(true);
-			pChar->Bw().Core().m_CollisionDisabled = soloIt->second.collision;
-			m_PrevSoloState.erase(soloIt);
+			pChar->Bw().Core().m_CollisionDisabled = SoloIt->second.m_Collision;
+			m_PrevSoloState.erase(SoloIt);
 		}
 	}
 
@@ -516,12 +516,12 @@ bool CZCatchEvent::AllowKillCommandFor(int ClientId) const
 	if(!IsParticipant(ClientId) || IsCaught(ClientId))
 		return false;
 	// block tracker still holds the live impactor (not yet cleared, player hasn't died)
-	int impactor = GameServer()->Bw().BlockTracker().GetImpactorOf(ClientId);
-	if(impactor >= 0 && IsParticipant(impactor) && !IsCaught(impactor))
+	int Impactor = GameServer()->Bw().BlockTracker().GetImpactorOf(ClientId);
+	if(Impactor >= 0 && IsParticipant(Impactor) && !IsCaught(Impactor))
 		return true;
 	// fall back to shadow-tracked impactor
-	auto it = m_LastImpactorOf.find(ClientId);
-	return it != m_LastImpactorOf.end() && IsParticipant(it->second) && !IsCaught(it->second);
+	auto It = m_LastImpactorOf.find(ClientId);
+	return It != m_LastImpactorOf.end() && IsParticipant(It->second) && !IsCaught(It->second);
 }
 
 void CZCatchEvent::OnPlayerImpacted(int VictimId, int InitiatorId)
@@ -539,8 +539,8 @@ std::optional<int> CZCatchEvent::GetScoreOf(int ClientId) const
 {
 	if(!IsParticipant(ClientId))
 		return std::nullopt;
-	auto it = m_Scores.find(ClientId);
-	return (it != m_Scores.end()) ? std::optional<int>{it->second} : std::optional<int>{0};
+	auto It = m_Scores.find(ClientId);
+	return (It != m_Scores.end()) ? std::optional<int>{It->second} : std::optional<int>{0};
 }
 
 void CZCatchEvent::OnTick()
@@ -560,7 +560,7 @@ void CZCatchEvent::OnTick()
 		}
 		CEventComponent::OnTick(); // test-mode dummies
 		char aTimeLeft[32];
-		FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), (int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()));
+		FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), ((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()));
 
 		for(int i = 0; i < Server()->MaxClients(); ++i)
 		{
@@ -598,69 +598,69 @@ void CZCatchEvent::OnTick()
 		// skip during the initial freeze window so the round-start freeze doesn't
 		// trigger a kill (block tracker may hold stale pre-event impact state).
 		{
-			const int graceTicks = Config()->m_SvZCatchInitialFreezeTime * Server()->TickSpeed();
-			if((Server()->Tick() - m_ActiveStartTick) < graceTicks)
+			const int GraceTicks = Config()->m_SvZCatchInitialFreezeTime * Server()->TickSpeed();
+			if((Server()->Tick() - m_ActiveStartTick) < GraceTicks)
 			{
 				m_FrozenSince.clear(); // discard any stale entries accumulated during grace period
 			}
 			else
 			{
-				std::vector<int> toKill;
-				for(int id : m_Participants)
+				std::vector<int> ToKill;
+				for(int Id : m_Participants)
 				{
-					if(IsCaught(id))
+					if(IsCaught(Id))
 					{
-						m_FrozenSince.erase(id);
+						m_FrozenSince.erase(Id);
 						continue;
 					}
-					auto *pChar = GameServer()->GetPlayerChar(id);
+					auto *pChar = GameServer()->GetPlayerChar(Id);
 					if(!pChar)
 					{
-						m_FrozenSince.erase(id);
+						m_FrozenSince.erase(Id);
 						continue;
 					}
-					bool isFrozen = pChar->m_FreezeTime > 0;
-					auto fsIt = m_FrozenSince.find(id);
-					if(isFrozen && fsIt == m_FrozenSince.end())
+					bool IsFrozen = pChar->m_FreezeTime > 0;
+					auto FsIt = m_FrozenSince.find(Id);
+					if(IsFrozen && FsIt == m_FrozenSince.end())
 					{
-						m_FrozenSince[id] = Server()->Tick();
+						m_FrozenSince[Id] = Server()->Tick();
 					}
-					else if(!isFrozen && fsIt != m_FrozenSince.end())
+					else if(!IsFrozen && FsIt != m_FrozenSince.end())
 					{
-						m_FrozenSince.erase(fsIt);
+						m_FrozenSince.erase(FsIt);
 					}
-					else if(isFrozen && fsIt != m_FrozenSince.end())
+					else if(IsFrozen && FsIt != m_FrozenSince.end())
 					{
-						int frozenTicks = Server()->Tick() - fsIt->second;
-						int limitTicks = Config()->m_SvZCatchFreezeTimeout * Server()->TickSpeed();
-						if(frozenTicks >= limitTicks)
+						int FrozenTicks = Server()->Tick() - FsIt->second;
+						int LimitTicks = Config()->m_SvZCatchFreezeTimeout * Server()->TickSpeed();
+						if(FrozenTicks >= LimitTicks)
 						{
 							// verify there's a tracked impactor who is a free participant
-							int impactor = GameServer()->Bw().BlockTracker().GetImpactorOf(id);
-							if(impactor >= 0 && IsParticipant(impactor) && !IsCaught(impactor))
-								toKill.push_back(id);
+							int Impactor = GameServer()->Bw().BlockTracker().GetImpactorOf(Id);
+							if(Impactor >= 0 && IsParticipant(Impactor) && !IsCaught(Impactor))
+								ToKill.push_back(Id);
 
-							m_FrozenSince.erase(fsIt); // reset so we don't retry every tick
+							m_FrozenSince.erase(FsIt); // reset so we don't retry every tick
 						}
 					}
 				}
-				for(int id : toKill)
+				for(int Id : ToKill)
 				{
-					if(auto *pChar = GameServer()->GetPlayerChar(id))
+					if(auto *pChar = GameServer()->GetPlayerChar(Id))
 						pChar->Die(-1, WEAPON_GAME);
 				}
 			}
 		}
 
-		int caughtCount = 0;
-		int leadScore = 0;
-		for(int id : m_Participants)
+		int CaughtCount = 0;
+		int LeadScore = 0;
+		for(int Id : m_Participants)
 		{
-			if(IsCaught(id))
-				caughtCount++;
-			auto it = m_Scores.find(id);
-			if(it != m_Scores.end() && it->second > leadScore)
-				leadScore = it->second;
+			if(IsCaught(Id))
+				CaughtCount++;
+			auto It = m_Scores.find(Id);
+			if(It != m_Scores.end() && It->second > LeadScore)
+				LeadScore = It->second;
 		}
 
 		for(int ClientId : m_Participants)
@@ -671,8 +671,8 @@ void CZCatchEvent::OnTick()
 
 			pPlayer->Bw().SendBroadcastAlignedLeft("%d / %d\n"
 							       "Currently caught: %d / %d\n",
-				leadScore, Config()->m_SvZCatchKillsToWin,
-				caughtCount, (int)m_Participants.size() - 1);
+				LeadScore, Config()->m_SvZCatchKillsToWin,
+				CaughtCount, (int)m_Participants.size() - 1);
 		}
 
 		CEventComponent::OnTick(); // process deferred position/weapon restores
@@ -724,14 +724,14 @@ void CZCatchEvent::OnCharacterDeath(int /*KillerId*/, int ClientId, int /*Weapon
 	// the catch is silently skipped and the player would respawn freely. Fall back to our
 	// own shadow-tracked impactor which is set on every hammer/hook impact and outlives
 	// the tracker's own lifetime.
-	auto impactIt = m_LastImpactorOf.find(ClientId);
-	if(impactIt != m_LastImpactorOf.end())
+	auto ImpactIt = m_LastImpactorOf.find(ClientId);
+	if(ImpactIt != m_LastImpactorOf.end())
 	{
-		int impactor = impactIt->second;
-		m_LastImpactorOf.erase(impactIt);
-		if(impactor >= 0 && IsParticipant(impactor) && !IsCaught(impactor))
+		int Impactor = ImpactIt->second;
+		m_LastImpactorOf.erase(ImpactIt);
+		if(Impactor >= 0 && IsParticipant(Impactor) && !IsCaught(Impactor))
 		{
-			OnBlockedKill(ClientId, impactor);
+			OnBlockedKill(ClientId, Impactor);
 			return;
 		}
 	}
@@ -760,9 +760,9 @@ void CZCatchEvent::OnSnapPlayerInfo(int ClientId, int /*SnappingClient*/, CNetOb
 		return;
 	if(!IsParticipant(ClientId))
 		return;
-	auto it = m_Scores.find(ClientId);
-	if(it != m_Scores.end())
-		pPlayerInfo->m_Score = it->second;
+	auto It = m_Scores.find(ClientId);
+	if(It != m_Scores.end())
+		pPlayerInfo->m_Score = It->second;
 }
 
 // ---------------------------------------------------------------------------
@@ -781,7 +781,7 @@ bool CZCatchEvent::IsParticipant(int ClientId) const
 
 bool CZCatchEvent::IsCaught(int ClientId) const
 {
-	return m_CaughtBy.count(ClientId) > 0;
+	return m_CaughtBy.contains(ClientId);
 }
 
 bool CZCatchEvent::IsFighting(int ClientId) const
@@ -791,26 +791,26 @@ bool CZCatchEvent::IsFighting(int ClientId) const
 
 void CZCatchEvent::ReleaseCaptives(int CatcherId)
 {
-	auto capIt = m_Captives.find(CatcherId);
-	if(capIt == m_Captives.end())
+	auto CapIt = m_Captives.find(CatcherId);
+	if(CapIt == m_Captives.end())
 		return;
 
 	// Copy to avoid modification during iteration
-	std::set<int> toRelease = capIt->second;
-	m_Captives.erase(capIt);
+	std::set<int> ToRelease = CapIt->second;
+	m_Captives.erase(CapIt);
 
-	for(int victim : toRelease)
+	for(int Victim : ToRelease)
 	{
-		m_CaughtBy.erase(victim);
+		m_CaughtBy.erase(Victim);
 
-		auto *pVictimPlayer = GameServer()->Bw().GetPlayer(victim);
+		auto *pVictimPlayer = GameServer()->Bw().GetPlayer(Victim);
 		if(pVictimPlayer)
 		{
 			// Restore game team so the player can respawn
 			if(pVictimPlayer->GetTeam() == TEAM_SPECTATORS)
 				pVictimPlayer->SetTeam(0, false);
 			// Put them back into the event DDRace team
-			GameServer()->m_pController->Teams().SetForceCharacterTeam(victim, m_DDRaceTeam);
+			GameServer()->m_pController->Teams().SetForceCharacterTeam(Victim, m_DDRaceTeam);
 			pVictimPlayer->Respawn();
 		}
 

@@ -11,6 +11,8 @@
 
 #include <blockworlds/bw_context.h>
 
+#include <cmath>
+
 CBall::CBall(CGameWorld *pGameWorld, vec2 Pos, int Owner) :
 	CEntity(pGameWorld, CGameWorld::ENTTYPE_LASER, true)
 {
@@ -28,8 +30,8 @@ CBall::CBall(CGameWorld *pGameWorld, vec2 Pos, int Owner) :
 	m_TableDirV[2] = -12;
 	m_TableDirV[3] = -5;
 
-	for(int i = 0; i < 2; i++)
-		m_aIds[i] = Server()->SnapNewId().value_or(-1);
+	for(int &Id : m_aIds)
+		Id = Server()->SnapNewId().value_or(-1);
 
 	GameWorld()->InsertEntity(this);
 }
@@ -37,8 +39,8 @@ CBall::CBall(CGameWorld *pGameWorld, vec2 Pos, int Owner) :
 void CBall::Reset()
 {
 	m_MarkedForDestroy = true;
-	for(int i = 0; i < 2; i++)
-		Server()->SnapFreeId(m_aIds[i]);
+	for(int Id : m_aIds)
+		Server()->SnapFreeId(Id);
 }
 
 void CBall::Tick()
@@ -47,8 +49,8 @@ void CBall::Tick()
 	// If owner character exists, follow it. Otherwise keep last position and remain alive
 	if(pOwnerChar && pOwnerChar->IsAlive())
 	{
-		m_Pos.x = pOwnerChar->m_Pos.x + 70 * sin(m_LaserDirAngle * pi / 180.0f);
-		m_Pos.y = pOwnerChar->m_Pos.y + 70 * cos(m_LaserDirAngle * pi / 180.0f);
+		m_Pos.x = pOwnerChar->m_Pos.x + 70 * std::sin(m_LaserDirAngle * pi / 180.0f);
+		m_Pos.y = pOwnerChar->m_Pos.y + 70 * std::cos(m_LaserDirAngle * pi / 180.0f);
 	}
 
 	m_RotateDelay--;
@@ -68,12 +70,12 @@ void CBall::Tick()
 	// If we have an owner character, position updated above. Otherwise keep last m_Pos
 	if(pOwnerChar && pOwnerChar->IsAlive())
 	{
-		m_Pos2.x = m_Pos.x + 20 * sin(Server()->Tick() * 13 * pi / 180.0f);
-		m_Pos2.y = m_Pos.y + 20 * cos(Server()->Tick() * 13 * pi / 180.0f);
+		m_Pos2.x = m_Pos.x + 20 * std::sin(Server()->Tick() * 13 * pi / 180.0f);
+		m_Pos2.y = m_Pos.y + 20 * std::cos(Server()->Tick() * 13 * pi / 180.0f);
 	}
 
-	m_Pos2.x = m_Pos.x + 20 * sin(Server()->Tick() * 13 * pi / 180.0f);
-	m_Pos2.y = m_Pos.y + 20 * cos(Server()->Tick() * 13 * pi / 180.0f);
+	m_Pos2.x = m_Pos.x + 20 * std::sin(Server()->Tick() * 13 * pi / 180.0f);
+	m_Pos2.y = m_Pos.y + 20 * std::cos(Server()->Tick() * 13 * pi / 180.0f);
 }
 
 void CBall::Snap(int SnappingClient)

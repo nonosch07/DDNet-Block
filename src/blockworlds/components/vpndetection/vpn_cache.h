@@ -20,11 +20,11 @@ class CVpnCache
 public:
 	CVpnCache() = default;
 
-	void Add(std::shared_ptr<IVpnServiceResult> pResult);
+	void Add(const std::shared_ptr<IVpnServiceResult> &pResult);
 	std::shared_ptr<IVpnServiceResult> Get(const char *pIpAddress, const char *pServiceName);
 	void GetAllForIP(const char *pIpAddress, std::vector<std::shared_ptr<IVpnServiceResult>> &Results);
 	void SetTtlDays(int Days);
-	bool IsExpired(std::shared_ptr<IVpnServiceResult> pResult) const;
+	bool IsExpired(const std::shared_ptr<IVpnServiceResult> &pResult) const;
 
 	bool Load(const char *pFilename);
 	bool Save(const char *pFilename);

@@ -161,11 +161,11 @@ inline CAccountCore CAccountData::ToCore() const
 inline CAccountProgress CAccountData::ToProgress() const { return CAccountProgress{m_Level, m_Experience, m_Ranking, m_ClanId, m_AuthLevel, m_Blockpoints, m_Passive, m_Kills, m_Deaths, m_TourneyWin, m_Playtime, m_Killstreak, m_WeeklyDay, m_WeeklyLastClaim, m_WeeklyExpBoostUntil}; }
 inline CAccountInventory CAccountData::ToInventory() const
 {
-	CAccountInventory inv{m_Vip, m_Pages, m_Weaponkits, m_PassiveRemovers, {0}, {0}, {0}};
-	str_copy(inv.m_aKnockouts, m_aKnockouts, sizeof(inv.m_aKnockouts));
-	str_copy(inv.m_aGundesign, m_aGundesign, sizeof(inv.m_aGundesign));
-	str_copy(inv.m_aSkinmani, m_aSkinmani, sizeof(inv.m_aSkinmani));
-	return inv;
+	CAccountInventory Inv{m_Vip, m_Pages, m_Weaponkits, m_PassiveRemovers, {0}, {0}, {0}};
+	str_copy(Inv.m_aKnockouts, m_aKnockouts, sizeof(Inv.m_aKnockouts));
+	str_copy(Inv.m_aGundesign, m_aGundesign, sizeof(Inv.m_aGundesign));
+	str_copy(Inv.m_aSkinmani, m_aSkinmani, sizeof(Inv.m_aSkinmani));
+	return Inv;
 }
 inline CAccountRanked CAccountData::ToRanked() const { return CAccountRanked{m_RankedGames, m_RankedKills, m_RankedDeaths, m_RankedWins}; }
 
@@ -402,7 +402,7 @@ class CAccounts
 
 public:
 	CAccounts(CGameContext *pGameServer, CDbConnectionPool *pPool);
-	~CAccounts() {}
+	~CAccounts() = default;
 
 	// Mark start of shutdown flush; all subsequently queued queries become critical.
 	void BeginShutdownFlush() { m_ShutdownFlushActive = true; }

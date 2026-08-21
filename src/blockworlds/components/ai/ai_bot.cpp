@@ -25,16 +25,16 @@
 
 void CAiBotComponent::SActionStats::Decay(float f)
 {
-	moveLeft = (uint32_t)(moveLeft * f);
-	moveRight = (uint32_t)(moveRight * f);
-	moveIdle = (uint32_t)(moveIdle * f);
-	jump = (uint32_t)(jump * f);
-	noJump = (uint32_t)(noJump * f);
-	fire = (uint32_t)(fire * f);
-	noFire = (uint32_t)(noFire * f);
-	hook = (uint32_t)(hook * f);
-	noHook = (uint32_t)(noHook * f);
-	blockReward = (uint32_t)(blockReward * f);
+	m_MoveLeft = (uint32_t)(m_MoveLeft * f);
+	m_MoveRight = (uint32_t)(m_MoveRight * f);
+	m_MoveIdle = (uint32_t)(m_MoveIdle * f);
+	m_Jump = (uint32_t)(m_Jump * f);
+	m_NoJump = (uint32_t)(m_NoJump * f);
+	m_Fire = (uint32_t)(m_Fire * f);
+	m_NoFire = (uint32_t)(m_NoFire * f);
+	m_Hook = (uint32_t)(m_Hook * f);
+	m_NoHook = (uint32_t)(m_NoHook * f);
+	m_BlockReward = (uint32_t)(m_BlockReward * f);
 }
 
 CAiBotComponent::CAiBotComponent(CGameContext *pGameServer) :
@@ -97,7 +97,7 @@ void CAiBotComponent::TickCollect()
 				continue;
 
 			CCharacter *pEnemy = nullptr;
-			float dist2 = 0.f;
+			float Dist2 = 0.f;
 			for(int j = 0; j < MAX_CLIENTS; j++)
 			{
 				if(j == i)
@@ -108,23 +108,23 @@ void CAiBotComponent::TickCollect()
 				CCharacter *pOChr = pOther->GetCharacter();
 				if(!pOChr)
 					continue;
-				float d2 = length(pChr->m_Pos - pOChr->m_Pos);
-				if(!pEnemy || d2 < dist2)
+				float D2 = length(pChr->m_Pos - pOChr->m_Pos);
+				if(!pEnemy || D2 < Dist2)
 				{
 					pEnemy = pOChr;
-					dist2 = d2;
+					Dist2 = D2;
 				}
 			}
-			uint64_t key = BuildFeatureKey(pChr, pEnemy);
-			UpdateStats(key, pChr);
+			uint64_t Key = BuildFeatureKey(pChr, pEnemy);
+			UpdateStats(Key, pChr);
 			++m_SampleCount;
 		}
 		m_BestPlayerCid = -1;
 	}
 	else
 	{
-		int best = -1;
-		int bestLevel = -1;
+		int Best = -1;
+		int BestLevel = -1;
 		for(int i = 0; i < MAX_CLIENTS; i++)
 		{
 			CPlayer *pPl = GameServer()->m_apPlayers[i];
@@ -137,25 +137,25 @@ void CAiBotComponent::TickCollect()
 			CCharacter *pChr = pPl->GetCharacter();
 			if(!pChr)
 				continue;
-			int lvl = pPl->Bw().GetPlayerLevel();
-			if(lvl > bestLevel)
+			int Lvl = pPl->Bw().GetPlayerLevel();
+			if(Lvl > BestLevel)
 			{
-				bestLevel = lvl;
-				best = i;
+				BestLevel = Lvl;
+				Best = i;
 			}
 		}
-		m_BestPlayerCid = best;
-		if(best >= 0)
+		m_BestPlayerCid = Best;
+		if(Best >= 0)
 		{
-			CPlayer *pBest = GameServer()->m_apPlayers[best];
+			CPlayer *pBest = GameServer()->m_apPlayers[Best];
 			CCharacter *pBestChr = pBest->GetCharacter();
 			if(pBestChr)
 			{
 				CCharacter *pEnemy = nullptr;
-				float dist2 = 0.f;
+				float Dist2 = 0.f;
 				for(int i = 0; i < MAX_CLIENTS; i++)
 				{
-					if(i == best)
+					if(i == Best)
 						continue;
 					CPlayer *pOther = GameServer()->m_apPlayers[i];
 					if(!pOther || pOther->Bw().m_IsNpc)
@@ -163,15 +163,15 @@ void CAiBotComponent::TickCollect()
 					CCharacter *pOChr = pOther->GetCharacter();
 					if(!pOChr)
 						continue;
-					float d2 = length(pBestChr->m_Pos - pOChr->m_Pos);
-					if(!pEnemy || d2 < dist2)
+					float D2 = length(pBestChr->m_Pos - pOChr->m_Pos);
+					if(!pEnemy || D2 < Dist2)
 					{
 						pEnemy = pOChr;
-						dist2 = d2;
+						Dist2 = D2;
 					}
 				}
-				uint64_t key = BuildFeatureKey(pBestChr, pEnemy);
-				UpdateStats(key, pBestChr);
+				uint64_t Key = BuildFeatureKey(pBestChr, pEnemy);
+				UpdateStats(Key, pBestChr);
 				++m_SampleCount;
 			}
 		}
@@ -181,8 +181,8 @@ void CAiBotComponent::TickCollect()
 	if(Server()->Tick() - m_LastDecayTick > m_DecayIntervalTicks)
 	{
 		m_LastDecayTick = Server()->Tick();
-		for(auto &kv : m_Table)
-			kv.second.Decay(m_DecayFactor);
+		for(auto &Kv : m_Table)
+			Kv.second.Decay(m_DecayFactor);
 		m_Dirty = true;
 	}
 }
@@ -207,123 +207,123 @@ void CAiBotComponent::EnsureBotSpawned()
 	if(IsBotActive())
 		return;
 
-	int slot = -1;
+	int Slot = -1;
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		if(!GameServer()->m_apPlayers[i])
 		{
-			slot = i;
+			Slot = i;
 			break;
 		}
 	}
-	if(slot < 0)
+	if(Slot < 0)
 		return;
-	GameServer()->Bw().BotJoin(slot, "mabite");
+	GameServer()->Bw().BotJoin(Slot, "mabite");
 
-	if(GameServer()->m_apPlayers[slot])
+	if(GameServer()->m_apPlayers[Slot])
 	{
-		delete GameServer()->m_apPlayers[slot];
-		GameServer()->m_apPlayers[slot] = nullptr;
+		delete GameServer()->m_apPlayers[Slot];
+		GameServer()->m_apPlayers[Slot] = nullptr;
 	}
 
-	GameServer()->m_apPlayers[slot] = new(slot) CPlayer(GameServer(), (uint32_t)slot, slot, TEAM_RED);
-	GameServer()->m_apPlayers[slot]->Bw().m_IsNpc = true;
-	m_BotCid = slot;
+	GameServer()->m_apPlayers[Slot] = new(Slot) CPlayer(GameServer(), (uint32_t)Slot, Slot, TEAM_RED);
+	GameServer()->m_apPlayers[Slot]->Bw().m_IsNpc = true;
+	m_BotCid = Slot;
 	LoginBotAccount();
-	GameServer()->m_apPlayers[slot]->Respawn();
-	Log("Spawned AI bot at cid=%d", slot);
+	GameServer()->m_apPlayers[Slot]->Respawn();
+	Log("Spawned AI bot at cid=%d", Slot);
 }
 
 void CAiBotComponent::DespawnBot()
 {
 	if(!IsBotActive())
 		return;
-	int cid = m_BotCid;
-	GameServer()->Bw().BotLeave(cid, true);
-	if(GameServer()->m_apPlayers[cid])
+	int Cid = m_BotCid;
+	GameServer()->Bw().BotLeave(Cid, true);
+	if(GameServer()->m_apPlayers[Cid])
 	{
-		delete GameServer()->m_apPlayers[cid];
-		GameServer()->m_apPlayers[cid] = nullptr;
+		delete GameServer()->m_apPlayers[Cid];
+		GameServer()->m_apPlayers[Cid] = nullptr;
 	}
 	m_BotCid = -1;
-	Log("AI bot despawned cid=%d", cid);
+	Log("AI bot despawned cid=%d", Cid);
 }
 
 uint64_t CAiBotComponent::BuildFeatureKey(const CCharacter *pChr, const CCharacter *pEnemy) const
 {
-	int px = (int)round(pChr->m_Pos.x / 64.0f);
-	int py = (int)round(pChr->m_Pos.y / 64.0f);
+	int px = (int)std::round(pChr->m_Pos.x / 64.0f);
+	int py = (int)std::round(pChr->m_Pos.y / 64.0f);
 
 	CCharacter *pMutable = const_cast<CCharacter *>(pChr);
-	int vx = pMutable->Core()->m_Vel.x > 1.0f ? 1 : (pMutable->Core()->m_Vel.x < -1.0f ? 2 : 0);
-	int vy = pMutable->Core()->m_Vel.y > 1.0f ? 1 : (pMutable->Core()->m_Vel.y < -1.0f ? 2 : 0);
-	int grounded = pMutable->IsGrounded() ? 1 : 0;
-	int weapon = pMutable->Core()->m_ActiveWeapon & 7;
-	int relq = 0;
-	int distBucket = 0;
+	int Vx = pMutable->Core()->m_Vel.x > 1.0f ? 1 : (pMutable->Core()->m_Vel.x < -1.0f ? 2 : 0);
+	int Vy = pMutable->Core()->m_Vel.y > 1.0f ? 1 : (pMutable->Core()->m_Vel.y < -1.0f ? 2 : 0);
+	int Grounded = pMutable->IsGrounded() ? 1 : 0;
+	int Weapon = pMutable->Core()->m_ActiveWeapon & 7;
+	int Relq = 0;
+	int DistBucket = 0;
 	if(pEnemy)
 	{
 		vec2 d = pEnemy->m_Pos - pChr->m_Pos;
-		relq = (d.x >= 0 ? 1 : 0) | (d.y >= 0 ? 2 : 0); // 2 bits
-		float d2 = length(d);
-		distBucket = d2 < 200 ? 0 : d2 < 400 ? 1 :
-				    d2 < 800         ? 2 :
+		Relq = (d.x >= 0 ? 1 : 0) | (d.y >= 0 ? 2 : 0); // 2 bits
+		float D2 = length(d);
+		DistBucket = D2 < 200 ? 0 : D2 < 400 ? 1 :
+				    D2 < 800         ? 2 :
 						       3;
 	}
-	uint64_t key = 0;
-	auto pack = [&](uint64_t v, int bits) { key = (key << bits) | (v & ((1ULL << bits) - 1)); };
-	pack((uint64_t)(px & 0x7F), 7);
-	pack((uint64_t)(py & 0x7F), 7);
-	pack(vx, 2);
-	pack(vy, 2);
-	pack(grounded, 1);
-	pack(weapon, 3);
-	pack(relq, 2);
-	pack(distBucket, 2);
-	return key;
+	uint64_t Key = 0;
+	auto Pack = [&](uint64_t v, int Bits) { Key = (Key << Bits) | (v & ((1ULL << Bits) - 1)); };
+	Pack((uint64_t)(px & 0x7F), 7);
+	Pack((uint64_t)(py & 0x7F), 7);
+	Pack(Vx, 2);
+	Pack(Vy, 2);
+	Pack(Grounded, 1);
+	Pack(Weapon, 3);
+	Pack(Relq, 2);
+	Pack(DistBucket, 2);
+	return Key;
 }
 
-void CAiBotComponent::UpdateStats(uint64_t key, const CCharacter *pChr)
+void CAiBotComponent::UpdateStats(uint64_t Key, const CCharacter *pChr)
 {
-	auto &row = m_Table[key];
+	auto &Row = m_Table[Key];
 	CCharacter *pMutable = const_cast<CCharacter *>(pChr);
-	const auto &in = pMutable->Core()->m_Input;
-	int dir = in.m_Direction;
-	if(dir < -1)
-		dir = -1;
-	if(dir > 1)
-		dir = 1;
-	if(dir == -1)
-		row.moveLeft++;
-	else if(dir == 1)
-		row.moveRight++;
+	const auto &In = pMutable->Core()->m_Input;
+	int Dir = In.m_Direction;
+	if(Dir < -1)
+		Dir = -1;
+	if(Dir > 1)
+		Dir = 1;
+	if(Dir == -1)
+		Row.m_MoveLeft++;
+	else if(Dir == 1)
+		Row.m_MoveRight++;
 	else
-		row.moveIdle++;
-	if(in.m_Jump & 1)
-		row.jump++;
+		Row.m_MoveIdle++;
+	if(In.m_Jump & 1)
+		Row.m_Jump++;
 	else
-		row.noJump++;
-	if(in.m_Fire & 1)
-		row.fire++;
+		Row.m_NoJump++;
+	if(In.m_Fire & 1)
+		Row.m_Fire++;
 	else
-		row.noFire++;
-	if(in.m_Hook & 1)
-		row.hook++;
+		Row.m_NoFire++;
+	if(In.m_Hook & 1)
+		Row.m_Hook++;
 	else
-		row.noHook++;
-	int weapon = std::clamp(pMutable->Core()->m_ActiveWeapon, 0, 7);
-	row.weaponUsed[weapon]++;
+		Row.m_NoHook++;
+	int Weapon = std::clamp(pMutable->Core()->m_ActiveWeapon, 0, 7);
+	Row.m_WeaponUsed[Weapon]++;
 	static int s_LastWeapon[MAX_CLIENTS] = {0};
-	int cid = pMutable->GetPlayer()->GetCid();
-	if(s_LastWeapon[cid] != weapon)
+	int Cid = pMutable->GetPlayer()->GetCid();
+	if(s_LastWeapon[Cid] != Weapon)
 	{
-		row.switchedWeapon++;
-		s_LastWeapon[cid] = weapon;
+		Row.m_SwitchedWeapon++;
+		s_LastWeapon[Cid] = Weapon;
 	}
-	vec2 tgt = vec2(in.m_TargetX, in.m_TargetY);
-	if(length(tgt) > 0.1f)
+	vec2 Tgt = vec2(In.m_TargetX, In.m_TargetY);
+	if(length(Tgt) > 0.1f)
 	{
-		row.aimSector[ComputeAimSector(tgt)]++;
+		Row.m_AimSector[ComputeAimSector(Tgt)]++;
 	}
 	m_Dirty = true;
 }
@@ -338,7 +338,7 @@ void CAiBotComponent::InferAndApplyInput()
 		return;
 
 	CCharacter *pEnemy = nullptr;
-	float dist2 = 0.f;
+	float Dist2 = 0.f;
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		if(i == m_BotCid)
@@ -348,92 +348,92 @@ void CAiBotComponent::InferAndApplyInput()
 			continue;
 		if(pO->Bw().m_IsNpc)
 			continue;
-		CCharacter *pc = pO->GetCharacter();
-		if(!pc)
+		CCharacter *Pc = pO->GetCharacter();
+		if(!Pc)
 			continue;
-		float d2 = length(pChr->m_Pos - pc->m_Pos);
-		if(!pEnemy || d2 < dist2)
+		float D2 = length(pChr->m_Pos - Pc->m_Pos);
+		if(!pEnemy || D2 < Dist2)
 		{
-			pEnemy = pc;
-			dist2 = d2;
+			pEnemy = Pc;
+			Dist2 = D2;
 		}
 	}
-	uint64_t key = BuildFeatureKey(pChr, pEnemy);
-	m_LastBotKey = key;
+	uint64_t Key = BuildFeatureKey(pChr, pEnemy);
+	m_LastBotKey = Key;
 	m_HaveLastBotKey = true;
-	auto it = m_Table.find(key);
-	CNetObj_PlayerInput input{};
+	auto It = m_Table.find(Key);
+	CNetObj_PlayerInput Input{};
 
 	if(pEnemy)
 	{
 		vec2 d = pEnemy->m_Pos - pChr->m_Pos;
 		if(fabs(d.x) < 1.f)
 			d.x = (d.x >= 0) ? 1.f : -1.f;
-		input.m_TargetX = (int)d.x;
-		input.m_TargetY = (int)d.y;
+		Input.m_TargetX = (int)d.x;
+		Input.m_TargetY = (int)d.y;
 	}
 	else
 	{
-		input.m_TargetX = 0;
-		input.m_TargetY = -1;
+		Input.m_TargetX = 0;
+		Input.m_TargetY = -1;
 	}
 
-	if(it != m_Table.end())
+	if(It != m_Table.end())
 	{
-		const auto &row = it->second;
+		const auto &Row = It->second;
 
-		uint64_t wLeft = row.moveLeft * (1 + row.blockReward);
-		uint64_t wRight = row.moveRight * (1 + row.blockReward);
-		uint64_t wIdle = row.moveIdle * (1 + row.blockReward);
-		int move = 0;
-		uint64_t best = wIdle;
-		if(wLeft > best)
+		uint64_t WLeft = Row.m_MoveLeft * (1 + Row.m_BlockReward);
+		uint64_t WRight = Row.m_MoveRight * (1 + Row.m_BlockReward);
+		uint64_t WIdle = Row.m_MoveIdle * (1 + Row.m_BlockReward);
+		int Move = 0;
+		uint64_t Best = WIdle;
+		if(WLeft > Best)
 		{
-			move = -1;
-			best = wLeft;
+			Move = -1;
+			Best = WLeft;
 		}
-		if(wRight > best)
+		if(WRight > Best)
 		{
-			move = 1;
+			Move = 1;
 		}
-		input.m_Direction = move;
-		input.m_Jump = row.jump >= row.noJump ? 1 : 0;
-		input.m_Fire = row.fire >= row.noFire ? 1 : 0;
-		input.m_Hook = row.hook >= row.noHook ? 1 : 0;
+		Input.m_Direction = Move;
+		Input.m_Jump = Row.m_Jump >= Row.m_NoJump ? 1 : 0;
+		Input.m_Fire = Row.m_Fire >= Row.m_NoFire ? 1 : 0;
+		Input.m_Hook = Row.m_Hook >= Row.m_NoHook ? 1 : 0;
 
 		if(m_BlockingMode)
 		{
 			float dx = m_BlockTarget.x - pChr->m_Pos.x;
-			if(fabs(dx) > 8.0f)
-				input.m_Direction = dx > 0 ? 1 : -1;
+			if(std::fabs(dx) > 8.0f)
+				Input.m_Direction = dx > 0 ? 1 : -1;
 			else
-				input.m_Direction = 0; // hold position
+				Input.m_Direction = 0; // hold position
 		}
-		int sector = 0;
-		uint32_t sbest = 0;
+		int Sector = 0;
+		uint32_t Sbest = 0;
 		for(int s = 0; s < 8; s++)
 		{
-			if(row.aimSector[s] > sbest)
+			if(Row.m_AimSector[s] > Sbest)
 			{
-				sbest = row.aimSector[s];
-				sector = s;
+				Sbest = Row.m_AimSector[s];
+				Sector = s;
 			}
 		}
-		float angle = (float)sector * (pi / 4.0f) + (pi / 8.0f);
-		input.m_TargetX = (int)(cosf(angle) * 1000.0f);
-		input.m_TargetY = (int)(sinf(angle) * 1000.0f);
+		float Angle = (float)Sector * (pi / 4.0f) + (pi / 8.0f);
+		Input.m_TargetX = (int)(cosf(Angle) * 1000.0f);
+		Input.m_TargetY = (int)(sinf(Angle) * 1000.0f);
 	}
 	else
 	{
 		if(pEnemy)
-			input.m_Direction = (pEnemy->m_Pos.x > pChr->m_Pos.x) ? 1 : -1;
-		input.m_Jump = (Server()->Tick() % 50 == 0) ? 1 : 0;
-		input.m_Fire = (Server()->Tick() % 30 == 0) ? 1 : 0;
-		input.m_Hook = 0;
+			Input.m_Direction = (pEnemy->m_Pos.x > pChr->m_Pos.x) ? 1 : -1;
+		Input.m_Jump = (Server()->Tick() % 50 == 0) ? 1 : 0;
+		Input.m_Fire = (Server()->Tick() % 30 == 0) ? 1 : 0;
+		Input.m_Hook = 0;
 	}
 
-	input.m_PlayerFlags = 0;
-	ApplyInput(pBot, input);
+	Input.m_PlayerFlags = 0;
+	ApplyInput(pBot, Input);
 }
 
 void CAiBotComponent::EvaluateBlockingReward()
@@ -457,28 +457,28 @@ void CAiBotComponent::EvaluateBlockingReward()
 		CCharacter *pOC = pO->GetCharacter();
 		if(!pOC)
 			continue;
-		float dist = distance(pOC->m_Pos, pBotChr->m_Pos);
-		float curSpeed = length(pOC->Core()->m_Vel);
-		float prev = m_LastEnemySpeed[i];
-		if(dist < m_BlockDetectRadius && prev > 0.1f && curSpeed < prev * m_BlockSpeedDropFactor)
+		float Dist = distance(pOC->m_Pos, pBotChr->m_Pos);
+		float CurSpeed = length(pOC->Core()->m_Vel);
+		float Prev = m_LastEnemySpeed[i];
+		if(Dist < m_BlockDetectRadius && Prev > 0.1f && CurSpeed < Prev * m_BlockSpeedDropFactor)
 		{
-			auto it = m_Table.find(m_LastBotKey);
-			if(it != m_Table.end())
+			auto It = m_Table.find(m_LastBotKey);
+			if(It != m_Table.end())
 			{
-				it->second.blockReward += (uint32_t)ceilf(m_RewardPerEvent);
+				It->second.m_BlockReward += (uint32_t)ceilf(m_RewardPerEvent);
 				m_Dirty = true;
 			}
 			m_LastRewardTick = Server()->Tick();
 			break;
 		}
-		m_LastEnemySpeed[i] = curSpeed;
+		m_LastEnemySpeed[i] = CurSpeed;
 	}
 
 	m_BlockingMode = false;
 	if(pBotChr && !m_Chokepoints.empty())
 	{
 		CCharacter *pTargetEnemy = nullptr;
-		float bestScore = 0.f;
+		float BestScore = 0.f;
 		for(int i = 0; i < MAX_CLIENTS; i++)
 		{
 			if(i == m_BotCid)
@@ -489,19 +489,19 @@ void CAiBotComponent::EvaluateBlockingReward()
 			CCharacter *pOC = pO->GetCharacter();
 			if(!pOC)
 				continue;
-			float spd = length(pOC->Core()->m_Vel);
-			if(spd > bestScore)
+			float Spd = length(pOC->Core()->m_Vel);
+			if(Spd > BestScore)
 			{
-				bestScore = spd;
+				BestScore = Spd;
 				pTargetEnemy = pOC;
 			}
 		}
 		if(pTargetEnemy)
 		{
-			vec2 spot = FindBlockingSpot(pTargetEnemy, pBotChr);
-			if(length(spot) > 0.1f)
+			vec2 Spot = FindBlockingSpot(pTargetEnemy, pBotChr);
+			if(length(Spot) > 0.1f)
 			{
-				m_BlockTarget = spot;
+				m_BlockTarget = Spot;
 				m_BlockingMode = true;
 			}
 		}
@@ -524,13 +524,13 @@ void CAiBotComponent::AnalyzeMap()
 	{
 		for(int x = 2; x < W - 2; x++)
 		{
-			int leftSolid = pCol->GetTile(x - 1, y) == TILE_SOLID;
-			int rightSolid = pCol->GetTile(x + 1, y) == TILE_SOLID;
-			int centerEmpty = pCol->GetTile(x, y) != TILE_SOLID;
-			if(leftSolid && rightSolid && centerEmpty)
+			int LeftSolid = pCol->GetTile(x - 1, y) == TILE_SOLID;
+			int RightSolid = pCol->GetTile(x + 1, y) == TILE_SOLID;
+			int CenterEmpty = pCol->GetTile(x, y) != TILE_SOLID;
+			if(LeftSolid && RightSolid && CenterEmpty)
 			{
-				vec2 pos = vec2(x * 32.0f + 16.0f, y * 32.0f + 16.0f);
-				m_Chokepoints.push_back({pos});
+				vec2 Pos = vec2(x * 32.0f + 16.0f, y * 32.0f + 16.0f);
+				m_Chokepoints.push_back({Pos});
 			}
 		}
 	}
@@ -545,45 +545,45 @@ vec2 CAiBotComponent::FindBlockingSpot(const CCharacter *pEnemy, const CCharacte
 	if(m_Chokepoints.empty() || !pEnemy || !pBot)
 		return vec2(0, 0);
 	CCharacter *pEnemyMut = const_cast<CCharacter *>(pEnemy);
-	vec2 future = pEnemy->m_Pos + pEnemyMut->Core()->m_Vel * 10.0f; // simple projection
-	float best = 1e9f;
-	vec2 bestPos(0, 0);
+	vec2 Future = pEnemy->m_Pos + pEnemyMut->Core()->m_Vel * 10.0f; // simple projection
+	float Best = 1e9f;
+	vec2 BestPos(0, 0);
 	for(const auto &c : m_Chokepoints)
 	{
-		float dEnemy = distance(future, c.Pos);
-		float dBot = distance(pBot->m_Pos, c.Pos);
+		float DEnemy = distance(Future, c.m_Pos);
+		float DBot = distance(pBot->m_Pos, c.m_Pos);
 		// choose chokepoint near enemy trajectory but not too far for bot (weighted sum)
-		float score = dEnemy + dBot * 0.5f;
-		if(score < best && PredictEnemyThroughChoke(pEnemy, c.Pos))
+		float Score = DEnemy + DBot * 0.5f;
+		if(Score < Best && PredictEnemyThroughChoke(pEnemy, c.m_Pos))
 		{
-			best = score;
-			bestPos = c.Pos;
+			Best = Score;
+			BestPos = c.m_Pos;
 		}
 	}
-	return bestPos;
+	return BestPos;
 }
 
 bool CAiBotComponent::PredictEnemyThroughChoke(const CCharacter *pEnemy, const vec2 &ChokePos) const
 {
 	if(!pEnemy)
 		return false;
-	vec2 rel = ChokePos - pEnemy->m_Pos;
+	vec2 Rel = ChokePos - pEnemy->m_Pos;
 	CCharacter *pEnemyMut = const_cast<CCharacter *>(pEnemy);
 	vec2 v = pEnemyMut->Core()->m_Vel;
 	if(length(v) < 1.0f)
 		return false;
-	float t = dot(rel, v) / (length(v) * length(v));
+	float t = dot(Rel, v) / (length(v) * length(v));
 	if(t < 0 || t > 2.0f)
 		return false; // only near-term
-	vec2 proj = pEnemy->m_Pos + v * t;
-	return distance(proj, ChokePos) < 96.0f;
+	vec2 Proj = pEnemy->m_Pos + v * t;
+	return distance(Proj, ChokePos) < 96.0f;
 }
 
 void CAiBotComponent::ApplyInput(CPlayer *pBot, const CNetObj_PlayerInput &In)
 {
-	CNetObj_PlayerInput tmp = In;
-	pBot->OnPredictedInput(&tmp);
-	pBot->OnDirectInput(&tmp);
+	CNetObj_PlayerInput Tmp = In;
+	pBot->OnPredictedInput(&Tmp);
+	pBot->OnDirectInput(&Tmp);
 }
 
 void CAiBotComponent::LoginBotAccount()
@@ -607,39 +607,39 @@ void CAiBotComponent::LoadModel()
 	IOHANDLE f = GameServer()->Storage()->OpenFile("ai_model.dat", IOFLAG_READ, IStorage::TYPE_SAVE);
 	if(!f)
 		return;
-	char magic[9] = {0};
-	if(io_read(f, magic, 8) != 8)
+	char Magic[9] = {0};
+	if(io_read(f, Magic, 8) != 8)
 	{
 		io_close(f);
 		return;
 	}
-	if(str_comp(magic, "AIBOTV2") != 0 && str_comp(magic, "AIBOTV3") != 0)
+	if(str_comp(Magic, "AIBOTV2") != 0 && str_comp(Magic, "AIBOTV3") != 0)
 	{
 		io_close(f);
 		return;
 	}
-	int version = 0;
-	io_read(f, &version, sizeof(version));
-	if(version != 2 && version != 3)
+	int Version = 0;
+	io_read(f, &Version, sizeof(Version));
+	if(Version != 2 && Version != 3)
 	{
 		io_close(f);
 		return;
 	}
-	uint64_t count = 0;
-	if(io_read(f, &count, sizeof(count)) != sizeof(count))
+	uint64_t Count = 0;
+	if(io_read(f, &Count, sizeof(Count)) != sizeof(Count))
 	{
 		io_close(f);
 		return;
 	}
-	for(uint64_t i = 0; i < count; i++)
+	for(uint64_t i = 0; i < Count; i++)
 	{
-		uint64_t key;
-		SActionStats stats{};
-		if(io_read(f, &key, sizeof(key)) != sizeof(key))
+		uint64_t Key;
+		SActionStats Stats{};
+		if(io_read(f, &Key, sizeof(Key)) != sizeof(Key))
 			break;
-		if(io_read(f, &stats, sizeof(stats)) != sizeof(stats))
+		if(io_read(f, &Stats, sizeof(Stats)) != sizeof(Stats))
 			break;
-		m_Table[key] = stats;
+		m_Table[Key] = Stats;
 	}
 	io_close(f);
 	char aBuf[128];
@@ -654,15 +654,15 @@ void CAiBotComponent::SaveModel()
 	IOHANDLE f = GameServer()->Storage()->OpenFile("ai_model.dat.tmp", IOFLAG_WRITE, IStorage::TYPE_SAVE);
 	if(!f)
 		return;
-	const char *magic = "AIBOTV2";
-	io_write(f, magic, 8);
+	const char *Magic = "AIBOTV2";
+	io_write(f, Magic, 8);
 	io_write(f, &m_ModelVersion, sizeof(m_ModelVersion));
-	uint64_t count = m_Table.size();
-	io_write(f, &count, sizeof(count));
-	for(const auto &kv : m_Table)
+	uint64_t Count = m_Table.size();
+	io_write(f, &Count, sizeof(Count));
+	for(const auto &Kv : m_Table)
 	{
-		io_write(f, &kv.first, sizeof(kv.first));
-		io_write(f, &kv.second, sizeof(kv.second));
+		io_write(f, &Kv.first, sizeof(Kv.first));
+		io_write(f, &Kv.second, sizeof(Kv.second));
 	}
 	io_close(f);
 
@@ -673,16 +673,16 @@ void CAiBotComponent::SaveModel()
 
 int CAiBotComponent::ComputeAimSector(const vec2 &Delta) const
 {
-	float ang = atan2f(Delta.y, Delta.x);
-	if(ang < 0)
-		ang += 2.0f * pi;
+	float Ang = atan2f(Delta.y, Delta.x);
+	if(Ang < 0)
+		Ang += 2.0f * pi;
 
-	int sector = (int)floorf(ang / (pi / 4.0f));
-	if(sector < 0)
-		sector = 0;
-	if(sector > 7)
-		sector = 7;
-	return sector;
+	int Sector = (int)floorf(Ang / (pi / 4.0f));
+	if(Sector < 0)
+		Sector = 0;
+	if(Sector > 7)
+		Sector = 7;
+	return Sector;
 }
 
 void CAiBotComponent::MaybeAutoSave()

@@ -46,7 +46,7 @@ class CRequests : public CComponent
 	};
 
 	// helper conversion
-	inline int ToInt(SRequest::EType t) { return static_cast<int>(t); }
+	int ToInt(SRequest::EType t) { return static_cast<int>(t); }
 
 	// create requests
 	int Create1on1Invite(int FromClient, int ToClient, int Wager, int ExpireSeconds);
@@ -62,18 +62,18 @@ class CRequests : public CComponent
 
 	// cancel all requests involving a client (either as sender or receiver). Optional type filter.
 	// returns number of cancelled requests.
-	int CancelRequestsInvolving(int ClientId, std::optional<SRequest::EType> typeFilter = std::nullopt, const char *pReason = nullptr);
+	int CancelRequestsInvolving(int ClientId, std::optional<SRequest::EType> TypeFilter = std::nullopt, const char *pReason = nullptr);
 
 	// accept/decline
 	bool AcceptRequest(int RequestId);
 	bool DeclineRequest(int RequestId);
 
 	// If typeFilter is std::nullopt, return all
-	std::vector<int> GetRequestsFor(int ClientId, std::optional<SRequest::EType> typeFilter = std::nullopt) const;
+	std::vector<int> GetRequestsFor(int ClientId, std::optional<SRequest::EType> TypeFilter = std::nullopt) const;
 
 	// convenience lookups
-	std::vector<int> GetRequestIdsTo(int ToClient, std::optional<SRequest::EType> typeFilter = std::nullopt) const;
-	std::vector<int> GetRequestIdsFromTo(int FromClient, int ToClient, std::optional<SRequest::EType> typeFilter = std::nullopt) const;
+	std::vector<int> GetRequestIdsTo(int ToClient, std::optional<SRequest::EType> TypeFilter = std::nullopt) const;
+	std::vector<int> GetRequestIdsFromTo(int FromClient, int ToClient, std::optional<SRequest::EType> TypeFilter = std::nullopt) const;
 
 	bool GetRequestInfo(int RequestId, SRequest &pOut) const;
 

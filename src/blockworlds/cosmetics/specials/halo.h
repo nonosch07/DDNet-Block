@@ -8,9 +8,9 @@ class CHalo : public CEntity
 {
 public:
 	CHalo(CGameWorld *pGameWorld, int Owner);
-	virtual void Reset() override;
-	virtual void Tick() override;
-	virtual void Snap(int SnappingClient) override;
+	void Reset() override;
+	void Tick() override;
+	void Snap(int SnappingClient) override;
 
 private:
 	int m_Owner;

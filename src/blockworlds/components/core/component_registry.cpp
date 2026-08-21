@@ -28,8 +28,8 @@ CComponentAccessor<CComponent> CComponentRegistry::Create(const std::string &Nam
 
 CComponentAccessor<CComponent> CComponentRegistry::Get(std::type_index Type)
 {
-	if(auto it = m_Components.find(Type); it != m_Components.end())
-		return CComponentAccessor(it->second);
+	if(auto It = m_Components.find(Type); It != m_Components.end())
+		return CComponentAccessor(It->second);
 	return nullptr;
 }
 CComponentAccessor<CComponent> CComponentRegistry::Get(const std::string &Name)
@@ -44,11 +44,11 @@ bool CComponentRegistry::Remove(std::type_index Type)
 {
 	if(m_RequiredComponents.contains(Type))
 		return false;
-	if(const auto it = m_Components.find(Type); it != m_Components.end())
+	if(const auto It = m_Components.find(Type); It != m_Components.end())
 	{
-		it->second->OnConsoleTerminate();
-		it->second->OnDisable();
-		m_Components.erase(it);
+		It->second->OnConsoleTerminate();
+		It->second->OnDisable();
+		m_Components.erase(It);
 		return true;
 	}
 	return false;
@@ -95,8 +95,8 @@ std::unordered_map<std::type_index, CComponentAccessor<CComponent>> CComponentRe
 	vComponents.reserve(m_TypeToFactory.size());
 	for(auto &[Type, Factory] : m_TypeToFactory)
 	{
-		if(auto it = m_Components.find(Type); it != m_Components.end())
-			vComponents.emplace(Type, it->second);
+		if(auto It = m_Components.find(Type); It != m_Components.end())
+			vComponents.emplace(Type, It->second);
 		else
 			vComponents.emplace(Type, nullptr);
 	}

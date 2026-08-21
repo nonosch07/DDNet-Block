@@ -46,7 +46,7 @@ void CNoCollisionZone::Tick()
 				}
 			}
 
-			const int myId = pChar->GetPlayer()->GetCid();
+			const int MyId = pChar->GetPlayer()->GetCid();
 			for(int h = 0; h < MAX_CLIENTS; ++h)
 			{
 				if(h == i)
@@ -54,7 +54,7 @@ void CNoCollisionZone::Tick()
 				CCharacter *pHooker = GameServer()->GetPlayerChar(h);
 				if(!pHooker)
 					continue;
-				if(pHooker->Core()->HookedPlayer() == myId)
+				if(pHooker->Core()->HookedPlayer() == MyId)
 				{
 					pHooker->ReleaseHook();
 				}

@@ -37,14 +37,14 @@ static const char *SafeClientName(CGameContext *pGameServer, int ClientId)
 
 static int CurrentUtcYyyymmdd()
 {
-	time_t now = time(nullptr);
-	struct tm utc{};
+	time_t Now = time(nullptr);
+	struct tm Utc{};
 #if defined(__unix__) || defined(__APPLE__)
-	gmtime_r(&now, &utc);
+	gmtime_r(&Now, &Utc);
 #else
 	utc = *gmtime(&now);
 #endif
-	return (utc.tm_year + 1900) * 10000 + (utc.tm_mon + 1) * 100 + utc.tm_mday;
+	return (Utc.tm_year + 1900) * 10000 + (Utc.tm_mon + 1) * 100 + Utc.tm_mday;
 }
 
 int CRequests::Create1on1Invite(int FromClient, int ToClient, int Wager, int ExpireSeconds)
@@ -57,14 +57,14 @@ int CRequests::Create1on1Invite(int FromClient, int ToClient, int Wager, int Exp
 		return -1;
 	}
 
-	for(const auto &existing : m_Requests)
+	for(const auto &Existing : m_Requests)
 	{
-		if(existing.m_Type == SRequest::EType::OneOnOne && existing.m_From == FromClient && existing.m_To == ToClient)
+		if(Existing.m_Type == SRequest::EType::OneOnOne && Existing.m_From == FromClient && Existing.m_To == ToClient)
 		{
-			int64_t ticksLeft = existing.m_ExpireTick - Server()->Tick();
-			int secondsLeft = ticksLeft > 0 ? (int)(ticksLeft / Server()->TickSpeed()) : 0;
+			int64_t TicksLeft = Existing.m_ExpireTick - Server()->Tick();
+			int SecondsLeft = TicksLeft > 0 ? (int)(TicksLeft / Server()->TickSpeed()) : 0;
 			char aBuf[256];
-			str_format(aBuf, sizeof(aBuf), "You already have a pending 1on1 invite to this player. Expires in %d second%s.", secondsLeft, secondsLeft != 1 ? "s" : "");
+			str_format(aBuf, sizeof(aBuf), "You already have a pending 1on1 invite to this player. Expires in %d second%s.", SecondsLeft, SecondsLeft != 1 ? "s" : "");
 			if(CheckClientId(FromClient) && GameServer()->m_apPlayers[FromClient])
 				GameServer()->Bw().SendChatTarget(FromClient, aBuf);
 			return -1;
@@ -83,42 +83,42 @@ int CRequests::Create1on1Invite(int FromClient, int ToClient, int Wager, int Exp
 	if(pFrom)
 	{
 		const int InviteCooldownSeconds = g_Config.m_Sv1on1InviteCooldown;
-		int64_t now = Server()->Tick();
-		if(pFrom->Bw().m_Last1on1InviteTick != 0 && now - pFrom->Bw().m_Last1on1InviteTick < InviteCooldownSeconds * Server()->TickSpeed())
+		int64_t Now = Server()->Tick();
+		if(pFrom->Bw().m_Last1on1InviteTick != 0 && Now - pFrom->Bw().m_Last1on1InviteTick < InviteCooldownSeconds * Server()->TickSpeed())
 		{
-			int remaining = (int)((InviteCooldownSeconds * Server()->TickSpeed() - (now - pFrom->Bw().m_Last1on1InviteTick)) / Server()->TickSpeed());
+			int Remaining = (int)((InviteCooldownSeconds * Server()->TickSpeed() - (Now - pFrom->Bw().m_Last1on1InviteTick)) / Server()->TickSpeed());
 			char aBuf[128];
-			str_format(aBuf, sizeof(aBuf), "Please wait %d second%s before sending another 1on1 invite.", remaining, remaining != 1 ? "s" : "");
+			str_format(aBuf, sizeof(aBuf), "Please wait %d second%s before sending another 1on1 invite.", Remaining, Remaining != 1 ? "s" : "");
 			if(CheckClientId(FromClient) && GameServer()->m_apPlayers[FromClient])
 				GameServer()->Bw().SendChatTarget(FromClient, aBuf);
 			return -1;
 		}
 
-		int outstanding = 0;
+		int Outstanding = 0;
 		for(const auto &r : m_Requests)
 		{
 			if(r.m_Type == SRequest::EType::OneOnOne && r.m_From == FromClient)
-				outstanding++;
+				Outstanding++;
 		}
 		const int MaxOutstanding = g_Config.m_Sv1on1MaxOutstandingInvitesPerSender;
-		if(outstanding >= MaxOutstanding)
+		if(Outstanding >= MaxOutstanding)
 		{
 			char aBuf[256];
-			str_format(aBuf, sizeof(aBuf), "You already have %d outstanding 1on1 invite%s. Please wait.", outstanding, outstanding != 1 ? "s" : "");
+			str_format(aBuf, sizeof(aBuf), "You already have %d outstanding 1on1 invite%s. Please wait.", Outstanding, Outstanding != 1 ? "s" : "");
 			if(CheckClientId(FromClient) && GameServer()->m_apPlayers[FromClient])
 				GameServer()->Bw().SendChatTarget(FromClient, aBuf);
 			return -1;
 		}
 	}
 
-	int expiryCfg = g_Config.m_Sv1on1InviteExpiry > 0 ? g_Config.m_Sv1on1InviteExpiry : ExpireSeconds;
+	int ExpiryCfg = g_Config.m_Sv1on1InviteExpiry > 0 ? g_Config.m_Sv1on1InviteExpiry : ExpireSeconds;
 	SRequest r;
 	r.m_Id = NextId();
 	r.m_Type = SRequest::EType::OneOnOne;
 	r.m_From = FromClient;
 	r.m_To = ToClient;
 	r.m_Wager = Wager;
-	r.m_ExpireTick = Server()->Tick() + expiryCfg * Server()->TickSpeed();
+	r.m_ExpireTick = Server()->Tick() + ExpiryCfg * Server()->TickSpeed();
 	m_Requests.push_back(r);
 
 	// record last invite tick on the sender for cooldown enforcement
@@ -135,7 +135,7 @@ int CRequests::Create1on1Invite(int FromClient, int ToClient, int Wager, int Exp
 
 int CRequests::CreateShopRequest(int OwnerClient, int Category, int ItemId, int Price, int ExpireSeconds)
 {
-	int expiryCfg = g_Config.m_SvShopRequestExpiry > 0 ? g_Config.m_SvShopRequestExpiry : ExpireSeconds;
+	int ExpiryCfg = g_Config.m_SvShopRequestExpiry > 0 ? g_Config.m_SvShopRequestExpiry : ExpireSeconds;
 	SRequest r;
 	r.m_Id = NextId();
 	r.m_Type = SRequest::EType::Shop;
@@ -143,16 +143,16 @@ int CRequests::CreateShopRequest(int OwnerClient, int Category, int ItemId, int 
 	r.m_To = OwnerClient; // owner/operator
 	r.m_Category = Category;
 	r.m_Item = ItemId;
-	r.m_ExpireTick = Server()->Tick() + expiryCfg * Server()->TickSpeed();
+	r.m_ExpireTick = Server()->Tick() + ExpiryCfg * Server()->TickSpeed();
 	m_Requests.push_back(r);
 	return r.m_Id;
 }
 
 int CRequests::CreateClanInvite(int FromClient, int ToClient, int ClanId, int ExpireSeconds)
 {
-	for(const auto &existing : m_Requests)
+	for(const auto &Existing : m_Requests)
 	{
-		if(existing.m_Type == SRequest::EType::Clan && existing.m_From == FromClient && existing.m_To == ToClient && existing.m_ClanId == ClanId)
+		if(Existing.m_Type == SRequest::EType::Clan && Existing.m_From == FromClient && Existing.m_To == ToClient && Existing.m_ClanId == ClanId)
 		{
 			if(CheckClientId(FromClient) && GameServer()->m_apPlayers[FromClient])
 			{
@@ -162,14 +162,14 @@ int CRequests::CreateClanInvite(int FromClient, int ToClient, int ClanId, int Ex
 		}
 	}
 
-	int expiryCfg = g_Config.m_SvClanInviteExpiry > 0 ? g_Config.m_SvClanInviteExpiry : ExpireSeconds;
+	int ExpiryCfg = g_Config.m_SvClanInviteExpiry > 0 ? g_Config.m_SvClanInviteExpiry : ExpireSeconds;
 	SRequest r;
 	r.m_Id = NextId();
 	r.m_Type = SRequest::EType::Clan;
 	r.m_From = FromClient; // issuer (clan leader/co-leader)
 	r.m_To = ToClient; // target player
 	r.m_ClanId = ClanId;
-	r.m_ExpireTick = Server()->Tick() + expiryCfg * Server()->TickSpeed();
+	r.m_ExpireTick = Server()->Tick() + ExpiryCfg * Server()->TickSpeed();
 	m_Requests.push_back(r);
 
 	const char *pFromName = SafeClientName(GameServer(), FromClient);
@@ -177,9 +177,9 @@ int CRequests::CreateClanInvite(int FromClient, int ToClient, int ClanId, int Ex
 	const char *pClanName = "<clan>";
 	if(GameServer()->Bw().Clans())
 	{
-		CClansData tmp;
-		if(GameServer()->Bw().Clans()->GetClanSnapshotById(ClanId, tmp))
-			pClanName = tmp.m_ClanName;
+		CClansData Tmp;
+		if(GameServer()->Bw().Clans()->GetClanSnapshotById(ClanId, Tmp))
+			pClanName = Tmp.m_ClanName;
 	}
 	str_format(aBuf, sizeof(aBuf), "%s invited you to join clan '%s'. Use /clan_accept or /clan_decline.", pFromName, pClanName);
 	if(CheckClientId(ToClient) && GameServer()->m_apPlayers[ToClient])
@@ -235,16 +235,16 @@ int CRequests::CreateBlockpointTransfer(int FromClient, int ToClient, int Amount
 
 	// cap outstanding offers per sender (only those from this sender to anyone)
 	{
-		int outstanding = 0;
+		int Outstanding = 0;
 		for(const auto &r : m_Requests)
 		{
 			if(r.m_Type == SRequest::EType::BlockpointTransfer && r.m_From == FromClient)
-				outstanding++;
+				Outstanding++;
 		}
-		if(outstanding >= g_Config.m_SvBpTransferMaxOutstandingPerSender)
+		if(Outstanding >= g_Config.m_SvBpTransferMaxOutstandingPerSender)
 		{
 			char aBuf[160];
-			str_format(aBuf, sizeof(aBuf), "You already have %d outstanding BP transfer offer%s.", outstanding, outstanding != 1 ? "s" : "");
+			str_format(aBuf, sizeof(aBuf), "You already have %d outstanding BP transfer offer%s.", Outstanding, Outstanding != 1 ? "s" : "");
 			GameServer()->Bw().SendChatTarget(FromClient, aBuf);
 			return -1;
 		}
@@ -261,20 +261,20 @@ int CRequests::CreateBlockpointTransfer(int FromClient, int ToClient, int Amount
 		const int AccId = pFrom->Bw().GetAccId();
 		if(AccId > 0)
 		{
-			int today = CurrentUtcYyyymmdd();
-			auto &ctr = m_BpDailyCounters[AccId];
-			if(ctr.m_TodayDate != today)
+			int Today = CurrentUtcYyyymmdd();
+			auto &Ctr = m_BpDailyCounters[AccId];
+			if(Ctr.m_TodayDate != Today)
 			{
-				ctr.m_TodayDate = today;
-				ctr.m_TodayAmount = 0;
-				ctr.m_TodayCount = 0;
+				Ctr.m_TodayDate = Today;
+				Ctr.m_TodayAmount = 0;
+				Ctr.m_TodayCount = 0;
 			}
-			if(g_Config.m_SvBpTransferDailyCountCap > 0 && ctr.m_TodayCount >= g_Config.m_SvBpTransferDailyCountCap)
+			if(g_Config.m_SvBpTransferDailyCountCap > 0 && Ctr.m_TodayCount >= g_Config.m_SvBpTransferDailyCountCap)
 			{
 				GameServer()->Bw().SendChatTarget(FromClient, "Daily transfer count cap reached. Try again tomorrow.");
 				return -1;
 			}
-			if(g_Config.m_SvBpTransferDailyAmountCap > 0 && ctr.m_TodayAmount >= g_Config.m_SvBpTransferDailyAmountCap)
+			if(g_Config.m_SvBpTransferDailyAmountCap > 0 && Ctr.m_TodayAmount >= g_Config.m_SvBpTransferDailyAmountCap)
 			{
 				GameServer()->Bw().SendChatTarget(FromClient, "Daily transfer amount cap reached. Try again tomorrow.");
 				return -1;
@@ -283,30 +283,30 @@ int CRequests::CreateBlockpointTransfer(int FromClient, int ToClient, int Amount
 	}
 
 	// prevent duplicate pending transfer (same pair, same amount) to avoid spam
-	for(const auto &existing : m_Requests)
+	for(const auto &Existing : m_Requests)
 	{
-		if(existing.m_Type == SRequest::EType::BlockpointTransfer && existing.m_From == FromClient && existing.m_To == ToClient && existing.m_Wager == Amount)
+		if(Existing.m_Type == SRequest::EType::BlockpointTransfer && Existing.m_From == FromClient && Existing.m_To == ToClient && Existing.m_Wager == Amount)
 		{
-			int64_t ticksLeft = existing.m_ExpireTick - Server()->Tick();
-			int secondsLeft = ticksLeft > 0 ? (int)(ticksLeft / Server()->TickSpeed()) : 0;
+			int64_t TicksLeft = Existing.m_ExpireTick - Server()->Tick();
+			int SecondsLeft = TicksLeft > 0 ? (int)(TicksLeft / Server()->TickSpeed()) : 0;
 			if(CheckClientId(FromClient) && GameServer()->m_apPlayers[FromClient])
 			{
 				char aBuf[256];
-				str_format(aBuf, sizeof(aBuf), "You already have a pending BP transfer to this player (%d BP). Expires in %d second%s.", Amount, secondsLeft, secondsLeft != 1 ? "s" : "");
+				str_format(aBuf, sizeof(aBuf), "You already have a pending BP transfer to this player (%d BP). Expires in %d second%s.", Amount, SecondsLeft, SecondsLeft != 1 ? "s" : "");
 				GameServer()->Bw().SendChatTarget(FromClient, aBuf);
 			}
 			return -1;
 		}
 	}
 
-	int expiryCfg = g_Config.m_SvBpTransferExpiry > 0 ? g_Config.m_SvBpTransferExpiry : ExpireSeconds;
+	int ExpiryCfg = g_Config.m_SvBpTransferExpiry > 0 ? g_Config.m_SvBpTransferExpiry : ExpireSeconds;
 	SRequest r;
 	r.m_Id = NextId();
 	r.m_Type = SRequest::EType::BlockpointTransfer;
 	r.m_From = FromClient;
 	r.m_To = ToClient;
 	r.m_Wager = Amount; // reuse field
-	r.m_ExpireTick = Server()->Tick() + expiryCfg * Server()->TickSpeed();
+	r.m_ExpireTick = Server()->Tick() + ExpiryCfg * Server()->TickSpeed();
 	m_Requests.push_back(r);
 
 	const char *pFromName = SafeClientName(GameServer(), FromClient);
@@ -329,8 +329,8 @@ int CRequests::CreateClanDeleteConfirm(int ClientId, int ClanId, int ExpireSecon
 	r.m_To = ClientId; // self-confirmation
 	r.m_ClanId = ClanId;
 	{
-		int expiry = ExpireSeconds > 0 ? ExpireSeconds : g_Config.m_SvClanConfirmExpiry;
-		r.m_ExpireTick = Server()->Tick() + expiry * Server()->TickSpeed();
+		int Expiry = ExpireSeconds > 0 ? ExpireSeconds : g_Config.m_SvClanConfirmExpiry;
+		r.m_ExpireTick = Server()->Tick() + Expiry * Server()->TickSpeed();
 	}
 	m_Requests.push_back(r);
 
@@ -338,9 +338,9 @@ int CRequests::CreateClanDeleteConfirm(int ClientId, int ClanId, int ExpireSecon
 	const char *pClanName = "<clan>";
 	if(GameServer()->Bw().Clans())
 	{
-		CClansData tmp;
-		if(GameServer()->Bw().Clans()->GetClanSnapshotById(ClanId, tmp))
-			pClanName = tmp.m_ClanName;
+		CClansData Tmp;
+		if(GameServer()->Bw().Clans()->GetClanSnapshotById(ClanId, Tmp))
+			pClanName = Tmp.m_ClanName;
 	}
 	char aBuf[256];
 	str_format(aBuf, sizeof(aBuf), "Are you sure you want to delete clan '%s'? Type /clan_yes or /clan_no.", pClanName);
@@ -358,8 +358,8 @@ int CRequests::CreateClanKickConfirm(int ClientId, int ClanId, const char *pTarg
 	r.m_To = ClientId; // self-confirmation
 	r.m_ClanId = ClanId;
 	{
-		int expiry = ExpireSeconds > 0 ? ExpireSeconds : g_Config.m_SvClanConfirmExpiry;
-		r.m_ExpireTick = Server()->Tick() + expiry * Server()->TickSpeed();
+		int Expiry = ExpireSeconds > 0 ? ExpireSeconds : g_Config.m_SvClanConfirmExpiry;
+		r.m_ExpireTick = Server()->Tick() + Expiry * Server()->TickSpeed();
 	}
 	r.m_aUsername[0] = '\0';
 	if(pTargetAccountName)
@@ -369,9 +369,9 @@ int CRequests::CreateClanKickConfirm(int ClientId, int ClanId, const char *pTarg
 	const char *pClanName = "<clan>";
 	if(GameServer()->Bw().Clans())
 	{
-		CClansData tmp;
-		if(GameServer()->Bw().Clans()->GetClanSnapshotById(ClanId, tmp))
-			pClanName = tmp.m_ClanName;
+		CClansData Tmp;
+		if(GameServer()->Bw().Clans()->GetClanSnapshotById(ClanId, Tmp))
+			pClanName = Tmp.m_ClanName;
 	}
 	char aBuf[256];
 	str_format(aBuf, sizeof(aBuf), "Are you sure you want to kick '%s' from clan '%s'? Type /clan_yes or /clan_no.", r.m_aUsername[0] ? r.m_aUsername : "<unknown>", pClanName);
@@ -389,8 +389,8 @@ int CRequests::CreateClanTransferConfirm(int ClientId, int ClanId, const char *p
 	r.m_To = ClientId; // self-confirmation
 	r.m_ClanId = ClanId;
 	{
-		int expiry = ExpireSeconds > 0 ? ExpireSeconds : g_Config.m_SvClanConfirmExpiry;
-		r.m_ExpireTick = Server()->Tick() + expiry * Server()->TickSpeed();
+		int Expiry = ExpireSeconds > 0 ? ExpireSeconds : g_Config.m_SvClanConfirmExpiry;
+		r.m_ExpireTick = Server()->Tick() + Expiry * Server()->TickSpeed();
 	}
 	r.m_aUsername[0] = '\0';
 	if(pTargetAccountName)
@@ -400,9 +400,9 @@ int CRequests::CreateClanTransferConfirm(int ClientId, int ClanId, const char *p
 	const char *pClanName = "<clan>";
 	if(GameServer()->Bw().Clans())
 	{
-		CClansData tmp;
-		if(GameServer()->Bw().Clans()->GetClanSnapshotById(ClanId, tmp))
-			pClanName = tmp.m_ClanName;
+		CClansData Tmp;
+		if(GameServer()->Bw().Clans()->GetClanSnapshotById(ClanId, Tmp))
+			pClanName = Tmp.m_ClanName;
 	}
 	char aBuf[256];
 	str_format(aBuf, sizeof(aBuf), "Are you sure you want to give ownership of clan '%s' to '%s'? Type /clan_yes or /clan_no.", pClanName, r.m_aUsername[0] ? r.m_aUsername : "<target>");
@@ -420,8 +420,8 @@ int CRequests::CreateClanRenameConfirm(int ClientId, int ClanId, const char *pOl
 	r.m_To = ClientId;
 	r.m_ClanId = ClanId;
 	{
-		int expiry = ExpireSeconds > 0 ? ExpireSeconds : g_Config.m_SvClanConfirmExpiry;
-		r.m_ExpireTick = Server()->Tick() + expiry * Server()->TickSpeed();
+		int Expiry = ExpireSeconds > 0 ? ExpireSeconds : g_Config.m_SvClanConfirmExpiry;
+		r.m_ExpireTick = Server()->Tick() + Expiry * Server()->TickSpeed();
 	}
 	r.m_aOldClanName[0] = '\0';
 	r.m_aNewClanName[0] = '\0';
@@ -447,8 +447,8 @@ int CRequests::CreateClanCreateConfirm(int ClientId, const char *pNewClanName, i
 	r.m_To = ClientId; // self-confirmation
 	r.m_ClanId = 0; // not created yet
 	{
-		int expiry = ExpireSeconds > 0 ? ExpireSeconds : g_Config.m_SvClanConfirmExpiry;
-		r.m_ExpireTick = Server()->Tick() + expiry * Server()->TickSpeed();
+		int Expiry = ExpireSeconds > 0 ? ExpireSeconds : g_Config.m_SvClanConfirmExpiry;
+		r.m_ExpireTick = Server()->Tick() + Expiry * Server()->TickSpeed();
 	}
 	r.m_aNewClanName[0] = '\0';
 	if(pNewClanName)
@@ -456,9 +456,9 @@ int CRequests::CreateClanCreateConfirm(int ClientId, const char *pNewClanName, i
 	m_Requests.push_back(r);
 
 	char aBuf[256];
-	const int price = g_Config.m_SvClanCreatePrice;
-	if(price > 0)
-		str_format(aBuf, sizeof(aBuf), "Are you sure you want to create clan '%s' for %d BP? Type /clan_yes or /clan_no.", r.m_aNewClanName[0] ? r.m_aNewClanName : "<name>", price);
+	const int Price = g_Config.m_SvClanCreatePrice;
+	if(Price > 0)
+		str_format(aBuf, sizeof(aBuf), "Are you sure you want to create clan '%s' for %d BP? Type /clan_yes or /clan_no.", r.m_aNewClanName[0] ? r.m_aNewClanName : "<name>", Price);
 	else
 		str_format(aBuf, sizeof(aBuf), "Are you sure you want to create clan '%s'? Type /clan_yes or /clan_no.", r.m_aNewClanName[0] ? r.m_aNewClanName : "<name>");
 	if(CheckClientId(ClientId) && GameServer()->m_apPlayers[ClientId])
@@ -475,8 +475,8 @@ int CRequests::CreateClanRenameNotice(int FromClient, int ToClient, int ClanId, 
 	r.m_To = ToClient;
 	r.m_ClanId = ClanId;
 	{
-		int expiry = ExpireSeconds > 0 ? ExpireSeconds : g_Config.m_SvClanConfirmExpiry;
-		r.m_ExpireTick = Server()->Tick() + expiry * Server()->TickSpeed();
+		int Expiry = ExpireSeconds > 0 ? ExpireSeconds : g_Config.m_SvClanConfirmExpiry;
+		r.m_ExpireTick = Server()->Tick() + Expiry * Server()->TickSpeed();
 	}
 	r.m_aOldClanName[0] = '\0';
 	r.m_aNewClanName[0] = '\0';
@@ -500,277 +500,277 @@ int CRequests::CreateClanRenameNotice(int FromClient, int ToClient, int ClanId, 
 
 bool CRequests::AcceptRequest(int RequestId)
 {
-	auto it = std::find_if(m_Requests.begin(), m_Requests.end(), [RequestId](const SRequest &r) { return r.m_Id == RequestId; });
-	if(it == m_Requests.end())
+	auto It = std::find_if(m_Requests.begin(), m_Requests.end(), [RequestId](const SRequest &r) { return r.m_Id == RequestId; });
+	if(It == m_Requests.end())
 		return false;
-	if(it->m_Type == SRequest::EType::OneOnOne)
+	if(It->m_Type == SRequest::EType::OneOnOne)
 	{
 		// start a 1on1 match via new component-based event system
-		int from = it->m_From;
-		int to = it->m_To;
-		int wager = it->m_Wager;
+		int From = It->m_From;
+		int To = It->m_To;
+		int Wager = It->m_Wager;
 
-		bool fromPresent = CheckClientId(from) && GameServer()->m_apPlayers[from];
-		bool toPresent = CheckClientId(to) && GameServer()->m_apPlayers[to];
-		if(!fromPresent || !toPresent)
+		bool FromPresent = CheckClientId(From) && GameServer()->m_apPlayers[From];
+		bool ToPresent = CheckClientId(To) && GameServer()->m_apPlayers[To];
+		if(!FromPresent || !ToPresent)
 		{
-			if(fromPresent)
-				GameServer()->Bw().SendChatTarget(from, "Your 1on1 could not be started because the other player disconnected.");
-			if(toPresent)
-				GameServer()->Bw().SendChatTarget(to, "The 1on1 you tried to accept could not be started because the other player disconnected.");
+			if(FromPresent)
+				GameServer()->Bw().SendChatTarget(From, "Your 1on1 could not be started because the other player disconnected.");
+			if(ToPresent)
+				GameServer()->Bw().SendChatTarget(To, "The 1on1 you tried to accept could not be started because the other player disconnected.");
 			// Erase by id after handling
-			int id = it->m_Id;
-			auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
-			if(eraseIt != m_Requests.end())
-				m_Requests.erase(eraseIt);
+			int Id = It->m_Id;
+			auto EraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
+			if(EraseIt != m_Requests.end())
+				m_Requests.erase(EraseIt);
 			return false;
 		}
 
-		if(GameServer()->Bw().isInEvent(from) || GameServer()->Bw().isInEvent(to))
+		if(GameServer()->Bw().isInEvent(From) || GameServer()->Bw().isInEvent(To))
 		{
-			GameServer()->Bw().SendChatTarget(to, "Cannot start 1on1: one of the players is already in an event.");
-			GameServer()->Bw().SendChatTarget(from, "Your 1on1 could not be started because a player is in another event.");
-			int id = it->m_Id;
-			auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
-			if(eraseIt != m_Requests.end())
-				m_Requests.erase(eraseIt);
+			GameServer()->Bw().SendChatTarget(To, "Cannot start 1on1: one of the players is already in an event.");
+			GameServer()->Bw().SendChatTarget(From, "Your 1on1 could not be started because a player is in another event.");
+			int Id = It->m_Id;
+			auto EraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
+			if(EraseIt != m_Requests.end())
+				m_Requests.erase(EraseIt);
 			return false;
 		}
 
-		CPlayer *pFrom = GameServer()->m_apPlayers[from];
-		CPlayer *pTo = GameServer()->m_apPlayers[to];
+		CPlayer *pFrom = GameServer()->m_apPlayers[From];
+		CPlayer *pTo = GameServer()->m_apPlayers[To];
 		if(!pFrom || !pTo)
 			return false;
-		if(wager > 0)
+		if(Wager > 0)
 		{
 			if(!pFrom->Bw().IsLoggedIn() || !pTo->Bw().IsLoggedIn())
 			{
-				GameServer()->Bw().SendChatTarget(to, "Both players must be logged in to play with a wager.");
-				GameServer()->Bw().SendChatTarget(from, "Both players must be logged in to play with a wager.");
-				int id = it->m_Id;
-				auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
-				if(eraseIt != m_Requests.end())
-					m_Requests.erase(eraseIt);
+				GameServer()->Bw().SendChatTarget(To, "Both players must be logged in to play with a wager.");
+				GameServer()->Bw().SendChatTarget(From, "Both players must be logged in to play with a wager.");
+				int Id = It->m_Id;
+				auto EraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
+				if(EraseIt != m_Requests.end())
+					m_Requests.erase(EraseIt);
 				return false;
 			}
-			if(pFrom->Bw().GetPlayerBlockpoints() < wager || pTo->Bw().GetPlayerBlockpoints() < wager)
+			if(pFrom->Bw().GetPlayerBlockpoints() < Wager || pTo->Bw().GetPlayerBlockpoints() < Wager)
 			{
 				char aBuf[256];
-				str_format(aBuf, sizeof(aBuf), "Cannot start 1on1: %s doesn't have enough blockpoints for the wager.", pFrom->Bw().GetPlayerBlockpoints() < wager ? SafeClientName(GameServer(), from) : SafeClientName(GameServer(), to));
-				GameServer()->Bw().SendChatTarget(from, aBuf);
-				GameServer()->Bw().SendChatTarget(to, aBuf);
-				int id = it->m_Id;
-				auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
-				if(eraseIt != m_Requests.end())
-					m_Requests.erase(eraseIt);
+				str_format(aBuf, sizeof(aBuf), "Cannot start 1on1: %s doesn't have enough blockpoints for the wager.", pFrom->Bw().GetPlayerBlockpoints() < Wager ? SafeClientName(GameServer(), From) : SafeClientName(GameServer(), To));
+				GameServer()->Bw().SendChatTarget(From, aBuf);
+				GameServer()->Bw().SendChatTarget(To, aBuf);
+				int Id = It->m_Id;
+				auto EraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
+				if(EraseIt != m_Requests.end())
+					m_Requests.erase(EraseIt);
 				return false;
 			}
 		}
 
 		{
-			bool hasArenas = GameServer()->Bw().ZoneManager()->Get1on1ArenaCount() > 0;
-			if(!hasArenas)
+			bool HasArenas = GameServer()->Bw().ZoneManager()->Get1on1ArenaCount() > 0;
+			if(!HasArenas)
 			{
-				GameServer()->Bw().SendChatTarget(from, "Cannot start 1on1: map is missing 1on1 arena zones.");
-				GameServer()->Bw().SendChatTarget(to, "Cannot start 1on1: map is missing 1on1 arena zones.");
-				int id = it->m_Id;
-				auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
-				if(eraseIt != m_Requests.end())
-					m_Requests.erase(eraseIt);
+				GameServer()->Bw().SendChatTarget(From, "Cannot start 1on1: map is missing 1on1 arena zones.");
+				GameServer()->Bw().SendChatTarget(To, "Cannot start 1on1: map is missing 1on1 arena zones.");
+				int Id = It->m_Id;
+				auto EraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
+				if(EraseIt != m_Requests.end())
+					m_Requests.erase(EraseIt);
 				return false;
 			}
 		}
 
 		// notify both parties of acceptance before starting the event
-		if(CheckClientId(from) && GameServer()->m_apPlayers[from])
+		if(CheckClientId(From) && GameServer()->m_apPlayers[From])
 		{
 			char aBuf[192];
-			str_format(aBuf, sizeof(aBuf), "%s accepted your 1on1 challenge%s%s", SafeClientName(GameServer(), to), wager > 0 ? " (wager " : "", wager > 0 ? std::to_string(wager).c_str() : "");
-			if(wager > 0)
+			str_format(aBuf, sizeof(aBuf), "%s accepted your 1on1 challenge%s%s", SafeClientName(GameServer(), To), Wager > 0 ? " (wager " : "", Wager > 0 ? std::to_string(Wager).c_str() : "");
+			if(Wager > 0)
 			{
-				int len = str_length(aBuf);
-				if(len < (int)sizeof(aBuf) - 2)
+				int Len = str_length(aBuf);
+				if(Len < (int)sizeof(aBuf) - 2)
 					str_append(aBuf, ")", sizeof(aBuf));
 			}
-			GameServer()->Bw().SendChatTarget(from, aBuf);
+			GameServer()->Bw().SendChatTarget(From, aBuf);
 		}
-		if(CheckClientId(to) && GameServer()->m_apPlayers[to])
+		if(CheckClientId(To) && GameServer()->m_apPlayers[To])
 		{
 			char aBuf[192];
-			str_format(aBuf, sizeof(aBuf), "You accepted the 1on1 challenge from %s%s%s", SafeClientName(GameServer(), from), wager > 0 ? " (wager " : "", wager > 0 ? std::to_string(wager).c_str() : "");
-			if(wager > 0)
+			str_format(aBuf, sizeof(aBuf), "You accepted the 1on1 challenge from %s%s%s", SafeClientName(GameServer(), From), Wager > 0 ? " (wager " : "", Wager > 0 ? std::to_string(Wager).c_str() : "");
+			if(Wager > 0)
 			{
-				int len = str_length(aBuf);
-				if(len < (int)sizeof(aBuf) - 2)
+				int Len = str_length(aBuf);
+				if(Len < (int)sizeof(aBuf) - 2)
 					str_append(aBuf, ")", sizeof(aBuf));
 			}
-			GameServer()->Bw().SendChatTarget(to, aBuf);
+			GameServer()->Bw().SendChatTarget(To, aBuf);
 		}
-		if(auto mgr = g_ComponentRegistry.Get<COneOnOneManager>(); mgr)
+		if(auto Mgr = g_ComponentRegistry.Get<COneOnOneManager>(); Mgr)
 		{
 			// create a new independent 1on1 match via manager with config phase
-			auto match = mgr->CreateMatchWithConfig(from, to, wager);
-			if(!match)
+			auto Match = Mgr->CreateMatchWithConfig(From, To, Wager);
+			if(!Match)
 			{
-				if(CheckClientId(from) && GameServer()->m_apPlayers[from])
-					GameServer()->Bw().SendChatTarget(from, "Failed to start 1on1: opponent busy or no free teams available.");
-				if(CheckClientId(to) && GameServer()->m_apPlayers[to])
-					GameServer()->Bw().SendChatTarget(to, "Failed to start 1on1: opponent busy or no free teams available.");
+				if(CheckClientId(From) && GameServer()->m_apPlayers[From])
+					GameServer()->Bw().SendChatTarget(From, "Failed to start 1on1: opponent busy or no free teams available.");
+				if(CheckClientId(To) && GameServer()->m_apPlayers[To])
+					GameServer()->Bw().SendChatTarget(To, "Failed to start 1on1: opponent busy or no free teams available.");
 			}
 		}
 		else
 		{
 			// fallback to broadcast if manager isn't available
 			char aBuf[128];
-			str_format(aBuf, sizeof(aBuf), "Starting 1on1 between %s and %s (wager %d)", SafeClientName(GameServer(), from), SafeClientName(GameServer(), to), wager);
+			str_format(aBuf, sizeof(aBuf), "Starting 1on1 between %s and %s (wager %d)", SafeClientName(GameServer(), From), SafeClientName(GameServer(), To), Wager);
 			GameServer()->Bw().SendChatTarget(-1, aBuf);
 		}
 
 		// success path: remove the request by id
 		{
-			int id = it->m_Id;
-			auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
-			if(eraseIt != m_Requests.end())
-				m_Requests.erase(eraseIt);
+			int Id = It->m_Id;
+			auto EraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
+			if(EraseIt != m_Requests.end())
+				m_Requests.erase(EraseIt);
 		}
 		return true;
 	}
 
-	if(it->m_Type == SRequest::EType::ClanDeleteConfirm)
+	if(It->m_Type == SRequest::EType::ClanDeleteConfirm)
 	{
-		int clientId = it->m_From; // same as To
-		int clanId = it->m_ClanId;
-		CPlayer *pPl = CheckClientId(clientId) ? GameServer()->m_apPlayers[clientId] : nullptr;
+		int ClientId = It->m_From; // same as To
+		int ClanId = It->m_ClanId;
+		CPlayer *pPl = CheckClientId(ClientId) ? GameServer()->m_apPlayers[ClientId] : nullptr;
 		if(!pPl || !pPl->Bw().IsLoggedIn())
 		{
-			if(CheckClientId(clientId) && GameServer()->m_apPlayers[clientId])
-				GameServer()->Bw().SendChatTarget(clientId, "You must be logged in to confirm clan deletion.");
-			m_Requests.erase(it);
+			if(CheckClientId(ClientId) && GameServer()->m_apPlayers[ClientId])
+				GameServer()->Bw().SendChatTarget(ClientId, "You must be logged in to confirm clan deletion.");
+			m_Requests.erase(It);
 			return false;
 		}
-		if(pPl->Bw().GetClanId() != clanId || pPl->Bw().GetAuthLevel() != ClanAuthLevel::LEADER)
+		if(pPl->Bw().GetClanId() != ClanId || pPl->Bw().GetAuthLevel() != ClanAuthLevel::LEADER)
 		{
-			GameServer()->Bw().SendChatTarget(clientId, "You are no longer the leader of this clan.");
-			m_Requests.erase(it);
+			GameServer()->Bw().SendChatTarget(ClientId, "You are no longer the leader of this clan.");
+			m_Requests.erase(It);
 			return false;
 		}
 		if(GameServer()->Bw().Clans())
 		{
-			GameServer()->Bw().Clans()->DeleteClan(clientId, clanId, pPl->Bw().GetAccId());
-			GameServer()->Bw().SendChatTarget(clientId, "Clan deletion confirmed.");
+			GameServer()->Bw().Clans()->DeleteClan(ClientId, ClanId, pPl->Bw().GetAccId());
+			GameServer()->Bw().SendChatTarget(ClientId, "Clan deletion confirmed.");
 		}
-		m_Requests.erase(it);
+		m_Requests.erase(It);
 		return true;
 	}
 
-	if(it->m_Type == SRequest::EType::ClanKickConfirm)
+	if(It->m_Type == SRequest::EType::ClanKickConfirm)
 	{
-		int clientId = it->m_From;
-		int clanId = it->m_ClanId;
-		CPlayer *pPl = CheckClientId(clientId) ? GameServer()->m_apPlayers[clientId] : nullptr;
+		int ClientId = It->m_From;
+		int ClanId = It->m_ClanId;
+		CPlayer *pPl = CheckClientId(ClientId) ? GameServer()->m_apPlayers[ClientId] : nullptr;
 		if(!pPl || !pPl->Bw().IsLoggedIn())
 		{
-			if(CheckClientId(clientId) && GameServer()->m_apPlayers[clientId])
-				GameServer()->Bw().SendChatTarget(clientId, "You must be logged in to confirm clan kick.");
-			m_Requests.erase(it);
+			if(CheckClientId(ClientId) && GameServer()->m_apPlayers[ClientId])
+				GameServer()->Bw().SendChatTarget(ClientId, "You must be logged in to confirm clan kick.");
+			m_Requests.erase(It);
 			return false;
 		}
-		if(pPl->Bw().GetClanId() != clanId || pPl->Bw().GetAuthLevel() < ClanAuthLevel::COLEADER)
+		if(pPl->Bw().GetClanId() != ClanId || pPl->Bw().GetAuthLevel() < ClanAuthLevel::COLEADER)
 		{
-			GameServer()->Bw().SendChatTarget(clientId, "You no longer have permission to kick from this clan.");
-			m_Requests.erase(it);
+			GameServer()->Bw().SendChatTarget(ClientId, "You no longer have permission to kick from this clan.");
+			m_Requests.erase(It);
 			return false;
 		}
 		if(GameServer()->Bw().Clans())
 		{
-			GameServer()->Bw().Clans()->RemoveFromClan(clientId, it->m_aUsername, clanId);
+			GameServer()->Bw().Clans()->RemoveFromClan(ClientId, It->m_aUsername, ClanId);
 			// char aBuf[192];
 			// str_format(aBuf, sizeof(aBuf), "Clan kick confirmed: '%s' will be removed.", it->m_aUsername);
 			// GameServer()->Bw().SendChatTarget(clientId, aBuf);
 		}
-		m_Requests.erase(it);
+		m_Requests.erase(It);
 		return true;
 	}
 
-	if(it->m_Type == SRequest::EType::ClanTransferConfirm)
+	if(It->m_Type == SRequest::EType::ClanTransferConfirm)
 	{
-		int clientId = it->m_From;
-		int clanId = it->m_ClanId;
-		CPlayer *pPl = CheckClientId(clientId) ? GameServer()->m_apPlayers[clientId] : nullptr;
+		int ClientId = It->m_From;
+		int ClanId = It->m_ClanId;
+		CPlayer *pPl = CheckClientId(ClientId) ? GameServer()->m_apPlayers[ClientId] : nullptr;
 		if(!pPl || !pPl->Bw().IsLoggedIn())
 		{
-			if(CheckClientId(clientId) && GameServer()->m_apPlayers[clientId])
-				GameServer()->Bw().SendChatTarget(clientId, "You must be logged in to confirm clan transfer.");
-			m_Requests.erase(it);
+			if(CheckClientId(ClientId) && GameServer()->m_apPlayers[ClientId])
+				GameServer()->Bw().SendChatTarget(ClientId, "You must be logged in to confirm clan transfer.");
+			m_Requests.erase(It);
 			return false;
 		}
-		if(pPl->Bw().GetClanId() != clanId || pPl->Bw().GetAuthLevel() != ClanAuthLevel::LEADER)
+		if(pPl->Bw().GetClanId() != ClanId || pPl->Bw().GetAuthLevel() != ClanAuthLevel::LEADER)
 		{
-			GameServer()->Bw().SendChatTarget(clientId, "You are no longer the leader of this clan.");
-			m_Requests.erase(it);
+			GameServer()->Bw().SendChatTarget(ClientId, "You are no longer the leader of this clan.");
+			m_Requests.erase(It);
 			return false;
 		}
-		if(it->m_aUsername[0] == '\0')
+		if(It->m_aUsername[0] == '\0')
 		{
-			GameServer()->Bw().SendChatTarget(clientId, "Invalid transfer target.");
-			m_Requests.erase(it);
+			GameServer()->Bw().SendChatTarget(ClientId, "Invalid transfer target.");
+			m_Requests.erase(It);
 			return false;
 		}
 		if(GameServer()->Bw().Clans())
 		{
-			GameServer()->Bw().Clans()->TransferLeadership(clientId, it->m_aUsername, clanId);
+			GameServer()->Bw().Clans()->TransferLeadership(ClientId, It->m_aUsername, ClanId);
 			char aBuf[256];
-			str_format(aBuf, sizeof(aBuf), "Clan transfer requested: '%s' will be made leader.", it->m_aUsername);
-			GameServer()->Bw().SendChatTarget(clientId, aBuf);
+			str_format(aBuf, sizeof(aBuf), "Clan transfer requested: '%s' will be made leader.", It->m_aUsername);
+			GameServer()->Bw().SendChatTarget(ClientId, aBuf);
 		}
-		m_Requests.erase(it);
+		m_Requests.erase(It);
 		return true;
 	}
 
-	if(it->m_Type == SRequest::EType::ClanRenameConfirm)
+	if(It->m_Type == SRequest::EType::ClanRenameConfirm)
 	{
-		int clientId = it->m_From;
-		int clanId = it->m_ClanId;
-		CPlayer *pPl = CheckClientId(clientId) ? GameServer()->m_apPlayers[clientId] : nullptr;
+		int ClientId = It->m_From;
+		int ClanId = It->m_ClanId;
+		CPlayer *pPl = CheckClientId(ClientId) ? GameServer()->m_apPlayers[ClientId] : nullptr;
 		if(!pPl || !pPl->Bw().IsLoggedIn())
 		{
-			if(CheckClientId(clientId) && GameServer()->m_apPlayers[clientId])
-				GameServer()->Bw().SendChatTarget(clientId, "You must be logged in to confirm clan rename.");
-			m_Requests.erase(it);
+			if(CheckClientId(ClientId) && GameServer()->m_apPlayers[ClientId])
+				GameServer()->Bw().SendChatTarget(ClientId, "You must be logged in to confirm clan rename.");
+			m_Requests.erase(It);
 			return false;
 		}
-		if(pPl->Bw().GetClanId() != clanId || pPl->Bw().GetAuthLevel() != ClanAuthLevel::LEADER)
+		if(pPl->Bw().GetClanId() != ClanId || pPl->Bw().GetAuthLevel() != ClanAuthLevel::LEADER)
 		{
-			GameServer()->Bw().SendChatTarget(clientId, "You are no longer the leader of this clan.");
-			m_Requests.erase(it);
+			GameServer()->Bw().SendChatTarget(ClientId, "You are no longer the leader of this clan.");
+			m_Requests.erase(It);
 			return false;
 		}
 		// re-validate price at accept time
 		if(g_Config.m_SvClanRenamePrice > 0 && pPl->Bw().GetPlayerBlockpoints() < g_Config.m_SvClanRenamePrice)
 		{
-			GameServer()->Bw().SendChatTarget(clientId, "Insufficient blockpoints to complete rename.");
-			m_Requests.erase(it);
+			GameServer()->Bw().SendChatTarget(ClientId, "Insufficient blockpoints to complete rename.");
+			m_Requests.erase(It);
 			return false;
 		}
 
 		if(GameServer()->Bw().Clans())
 		{
-			GameServer()->Bw().Clans()->RenameClan(clientId, clanId, it->m_aNewClanName[0] ? it->m_aNewClanName : "");
-			GameServer()->Bw().SendChatTarget(clientId, "Clan rename confirmed.");
+			GameServer()->Bw().Clans()->RenameClan(ClientId, ClanId, It->m_aNewClanName[0] ? It->m_aNewClanName : "");
+			GameServer()->Bw().SendChatTarget(ClientId, "Clan rename confirmed.");
 		}
-		m_Requests.erase(it);
+		m_Requests.erase(It);
 		return true;
 	}
 
-	if(it->m_Type == SRequest::EType::ClanCreateConfirm)
+	if(It->m_Type == SRequest::EType::ClanCreateConfirm)
 	{
-		int clientId = it->m_From;
-		CPlayer *pPl = CheckClientId(clientId) ? GameServer()->m_apPlayers[clientId] : nullptr;
+		int ClientId = It->m_From;
+		CPlayer *pPl = CheckClientId(ClientId) ? GameServer()->m_apPlayers[ClientId] : nullptr;
 		if(!pPl || !pPl->Bw().IsLoggedIn())
 		{
-			if(CheckClientId(clientId) && GameServer()->m_apPlayers[clientId])
-				GameServer()->Bw().SendChatTarget(clientId, "You must be logged in to create a clan.");
-			m_Requests.erase(it);
+			if(CheckClientId(ClientId) && GameServer()->m_apPlayers[ClientId])
+				GameServer()->Bw().SendChatTarget(ClientId, "You must be logged in to create a clan.");
+			m_Requests.erase(It);
 			return false;
 		}
 		// re-validate level requirement and BP price
@@ -778,247 +778,247 @@ bool CRequests::AcceptRequest(int RequestId)
 		{
 			char aBuf[128];
 			str_format(aBuf, sizeof(aBuf), "You must be at least level %d to create a clan!", g_Config.m_SvClanMinLevel);
-			GameServer()->Bw().SendChatTarget(clientId, aBuf);
-			m_Requests.erase(it);
+			GameServer()->Bw().SendChatTarget(ClientId, aBuf);
+			m_Requests.erase(It);
 			return false;
 		}
 		if(g_Config.m_SvClanCreatePrice > 0 && pPl->Bw().GetPlayerBlockpoints() < g_Config.m_SvClanCreatePrice)
 		{
-			GameServer()->Bw().SendChatTarget(clientId, "Insufficient blockpoints to create a clan.");
-			m_Requests.erase(it);
+			GameServer()->Bw().SendChatTarget(ClientId, "Insufficient blockpoints to create a clan.");
+			m_Requests.erase(It);
 			return false;
 		}
 		if(GameServer()->Bw().Clans())
 		{
-			GameServer()->Bw().Clans()->CreateClan(clientId, it->m_aNewClanName[0] ? it->m_aNewClanName : "", pPl->Bw().GetAccId());
-			GameServer()->Bw().SendChatTarget(clientId, "Clan creation confirmed.");
+			GameServer()->Bw().Clans()->CreateClan(ClientId, It->m_aNewClanName[0] ? It->m_aNewClanName : "", pPl->Bw().GetAccId());
+			GameServer()->Bw().SendChatTarget(ClientId, "Clan creation confirmed.");
 		}
-		m_Requests.erase(it);
+		m_Requests.erase(It);
 		return true;
 	}
 
-	if(it->m_Type == SRequest::EType::Clan)
+	if(It->m_Type == SRequest::EType::Clan)
 	{
 		// clan invite accept flow
-		int from = it->m_From; // issuer
-		int to = it->m_To; // accepting player
-		int clanId = it->m_ClanId;
+		int From = It->m_From; // issuer
+		int To = It->m_To; // accepting player
+		int ClanId = It->m_ClanId;
 
-		bool fromPresent = CheckClientId(from) && GameServer()->m_apPlayers[from];
-		bool toPresent = CheckClientId(to) && GameServer()->m_apPlayers[to];
-		if(!fromPresent || !toPresent)
+		bool FromPresent = CheckClientId(From) && GameServer()->m_apPlayers[From];
+		bool ToPresent = CheckClientId(To) && GameServer()->m_apPlayers[To];
+		if(!FromPresent || !ToPresent)
 		{
-			if(fromPresent)
-				GameServer()->Bw().SendChatTarget(from, "Your clan invite could not be accepted because the other player disconnected.");
-			if(toPresent)
-				GameServer()->Bw().SendChatTarget(to, "You could not accept the clan invite because the inviter disconnected.");
-			int id = it->m_Id;
-			auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
-			if(eraseIt != m_Requests.end())
-				m_Requests.erase(eraseIt);
+			if(FromPresent)
+				GameServer()->Bw().SendChatTarget(From, "Your clan invite could not be accepted because the other player disconnected.");
+			if(ToPresent)
+				GameServer()->Bw().SendChatTarget(To, "You could not accept the clan invite because the inviter disconnected.");
+			int Id = It->m_Id;
+			auto EraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
+			if(EraseIt != m_Requests.end())
+				m_Requests.erase(EraseIt);
 			return false;
 		}
 
-		CPlayer *pTo = GameServer()->m_apPlayers[to];
-		CPlayer *pFrom = GameServer()->m_apPlayers[from];
+		CPlayer *pTo = GameServer()->m_apPlayers[To];
+		CPlayer *pFrom = GameServer()->m_apPlayers[From];
 		if(!pTo || !pFrom)
 		{
-			int id = it->m_Id;
-			auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
-			if(eraseIt != m_Requests.end())
-				m_Requests.erase(eraseIt);
+			int Id = It->m_Id;
+			auto EraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
+			if(EraseIt != m_Requests.end())
+				m_Requests.erase(EraseIt);
 			return false;
 		}
 
 		if(pTo->Bw().GetClanId() != 0)
 		{
-			GameServer()->Bw().SendChatTarget(to, "You are already in a clan.");
-			int id = it->m_Id;
-			auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
-			if(eraseIt != m_Requests.end())
-				m_Requests.erase(eraseIt);
+			GameServer()->Bw().SendChatTarget(To, "You are already in a clan.");
+			int Id = It->m_Id;
+			auto EraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
+			if(EraseIt != m_Requests.end())
+				m_Requests.erase(EraseIt);
 			return false;
 		}
 
-		if(!GameServer()->Bw().Clans() || !GameServer()->Bw().Clans()->IsClanJoinable(clanId))
+		if(!GameServer()->Bw().Clans() || !GameServer()->Bw().Clans()->IsClanJoinable(ClanId))
 		{
-			GameServer()->Bw().SendChatTarget(to, "Clan is no longer joinable.");
-			int id = it->m_Id;
-			auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
-			if(eraseIt != m_Requests.end())
-				m_Requests.erase(eraseIt);
+			GameServer()->Bw().SendChatTarget(To, "Clan is no longer joinable.");
+			int Id = It->m_Id;
+			auto EraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
+			if(EraseIt != m_Requests.end())
+				m_Requests.erase(EraseIt);
 			return false;
 		}
 
-		if(pFrom->Bw().GetClanId() != clanId || pFrom->Bw().GetAuthLevel() < ClanAuthLevel::COLEADER)
+		if(pFrom->Bw().GetClanId() != ClanId || pFrom->Bw().GetAuthLevel() < ClanAuthLevel::COLEADER)
 		{
-			if(CheckClientId(to) && GameServer()->m_apPlayers[to])
-				GameServer()->Bw().SendChatTarget(to, "Invite no longer valid: inviter lost sufficient clan rights.");
-			if(CheckClientId(from) && GameServer()->m_apPlayers[from])
-				GameServer()->Bw().SendChatTarget(from, "Your pending clan invite was invalidated due to insufficient rights.");
-			int id = it->m_Id;
-			auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
-			if(eraseIt != m_Requests.end())
-				m_Requests.erase(eraseIt);
+			if(CheckClientId(To) && GameServer()->m_apPlayers[To])
+				GameServer()->Bw().SendChatTarget(To, "Invite no longer valid: inviter lost sufficient clan rights.");
+			if(CheckClientId(From) && GameServer()->m_apPlayers[From])
+				GameServer()->Bw().SendChatTarget(From, "Your pending clan invite was invalidated due to insufficient rights.");
+			int Id = It->m_Id;
+			auto EraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
+			if(EraseIt != m_Requests.end())
+				m_Requests.erase(EraseIt);
 			return false;
 		}
 
 		if(!GameServer()->Bw().Clans())
 		{
-			dbg_msg("clan", "AcceptRequest: Clans() subsystem unavailable while accepting invite (from=%d to=%d clan=%d)", from, to, clanId);
-			if(CheckClientId(to) && GameServer()->m_apPlayers[to])
-				GameServer()->Bw().SendChatTarget(to, "Clan system unavailable. Try again later.");
-			int id = it->m_Id;
-			auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
-			if(eraseIt != m_Requests.end())
-				m_Requests.erase(eraseIt);
+			dbg_msg("clan", "AcceptRequest: Clans() subsystem unavailable while accepting invite (from=%d to=%d clan=%d)", From, To, ClanId);
+			if(CheckClientId(To) && GameServer()->m_apPlayers[To])
+				GameServer()->Bw().SendChatTarget(To, "Clan system unavailable. Try again later.");
+			int Id = It->m_Id;
+			auto EraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
+			if(EraseIt != m_Requests.end())
+				m_Requests.erase(EraseIt);
 			return false;
 		}
 
-		GameServer()->Bw().Clans()->AssignClan(from, pTo->Bw().m_Account.m_aName, clanId, pTo->Bw().GetAccId());
+		GameServer()->Bw().Clans()->AssignClan(From, pTo->Bw().m_Account.m_aName, ClanId, pTo->Bw().GetAccId());
 
-		if(CheckClientId(from) && GameServer()->m_apPlayers[from])
-			GameServer()->Bw().SendChatTarget(from, "Your clan invite was accepted. Assigning player...");
+		if(CheckClientId(From) && GameServer()->m_apPlayers[From])
+			GameServer()->Bw().SendChatTarget(From, "Your clan invite was accepted. Assigning player...");
 
-		int id = it->m_Id;
-		auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
-		if(eraseIt != m_Requests.end())
-			m_Requests.erase(eraseIt);
+		int Id = It->m_Id;
+		auto EraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
+		if(EraseIt != m_Requests.end())
+			m_Requests.erase(EraseIt);
 
 		return true;
 	}
 
-	if(it->m_Type == SRequest::EType::ClanRenameNotice)
+	if(It->m_Type == SRequest::EType::ClanRenameNotice)
 	{
 		// simple notification request; no accept flow needed. Remove it if accepted generically.
-		int id = it->m_Id;
-		auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
-		if(eraseIt != m_Requests.end())
-			m_Requests.erase(eraseIt);
+		int Id = It->m_Id;
+		auto EraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
+		if(EraseIt != m_Requests.end())
+			m_Requests.erase(EraseIt);
 		return true;
 	}
 
-	if(it->m_Type == SRequest::EType::BlockpointTransfer)
+	if(It->m_Type == SRequest::EType::BlockpointTransfer)
 	{
-		int from = it->m_From;
-		int to = it->m_To;
-		int amount = it->m_Wager;
-		bool fromPresent = CheckClientId(from) && GameServer()->m_apPlayers[from];
-		bool toPresent = CheckClientId(to) && GameServer()->m_apPlayers[to];
-		CPlayer *pFrom = fromPresent ? GameServer()->m_apPlayers[from] : nullptr;
-		CPlayer *pTo = toPresent ? GameServer()->m_apPlayers[to] : nullptr;
-		if(from == to)
+		int From = It->m_From;
+		int To = It->m_To;
+		int Amount = It->m_Wager;
+		bool FromPresent = CheckClientId(From) && GameServer()->m_apPlayers[From];
+		bool ToPresent = CheckClientId(To) && GameServer()->m_apPlayers[To];
+		CPlayer *pFrom = FromPresent ? GameServer()->m_apPlayers[From] : nullptr;
+		CPlayer *pTo = ToPresent ? GameServer()->m_apPlayers[To] : nullptr;
+		if(From == To)
 		{
 			// shouldn't happen, but guard against self-accept
-			if(toPresent)
-				GameServer()->Bw().SendChatTarget(to, "You cannot accept your own transfer offer.");
-			int id = it->m_Id;
-			auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
-			if(eraseIt != m_Requests.end())
-				m_Requests.erase(eraseIt);
+			if(ToPresent)
+				GameServer()->Bw().SendChatTarget(To, "You cannot accept your own transfer offer.");
+			int Id = It->m_Id;
+			auto EraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
+			if(EraseIt != m_Requests.end())
+				m_Requests.erase(EraseIt);
 			return false;
 		}
-		if(!fromPresent || !toPresent || !pFrom || !pTo || !pFrom->Bw().IsLoggedIn() || !pTo->Bw().IsLoggedIn())
+		if(!FromPresent || !ToPresent || !pFrom || !pTo || !pFrom->Bw().IsLoggedIn() || !pTo->Bw().IsLoggedIn())
 		{
-			if(toPresent)
-				GameServer()->Bw().SendChatTarget(to, "Transfer failed: one of the players disconnected or is not logged in.");
-			int id = it->m_Id;
-			auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
-			if(eraseIt != m_Requests.end())
-				m_Requests.erase(eraseIt);
+			if(ToPresent)
+				GameServer()->Bw().SendChatTarget(To, "Transfer failed: one of the players disconnected or is not logged in.");
+			int Id = It->m_Id;
+			auto EraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
+			if(EraseIt != m_Requests.end())
+				m_Requests.erase(EraseIt);
 			return false;
 		}
 		// disallow accept if either is in an event
-		if(GameServer()->Bw().isInEvent(from) || GameServer()->Bw().isInEvent(to))
+		if(GameServer()->Bw().isInEvent(From) || GameServer()->Bw().isInEvent(To))
 		{
-			if(toPresent)
-				GameServer()->Bw().SendChatTarget(to, "Transfers are not allowed while either player is in an event.");
-			if(fromPresent)
-				GameServer()->Bw().SendChatTarget(from, "Your blockpoint transfer was cancelled: event restriction.");
-			int id = it->m_Id;
-			auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
-			if(eraseIt != m_Requests.end())
-				m_Requests.erase(eraseIt);
+			if(ToPresent)
+				GameServer()->Bw().SendChatTarget(To, "Transfers are not allowed while either player is in an event.");
+			if(FromPresent)
+				GameServer()->Bw().SendChatTarget(From, "Your blockpoint transfer was cancelled: event restriction.");
+			int Id = It->m_Id;
+			auto EraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
+			if(EraseIt != m_Requests.end())
+				m_Requests.erase(EraseIt);
 			return false;
 		}
 		// check bounds and current funds again at acceptance time
-		if(amount <= 0 || amount < g_Config.m_SvBpTransferAmountMin || amount > g_Config.m_SvBpTransferAmountCap || pFrom->Bw().GetPlayerBlockpoints() < amount)
+		if(Amount <= 0 || Amount < g_Config.m_SvBpTransferAmountMin || Amount > g_Config.m_SvBpTransferAmountCap || pFrom->Bw().GetPlayerBlockpoints() < Amount)
 		{
-			GameServer()->Bw().SendChatTarget(to, "Transfer cancelled: invalid amount or insufficient sender funds.");
-			if(fromPresent)
-				GameServer()->Bw().SendChatTarget(from, "Your blockpoint transfer was cancelled due to invalid amount or insufficient funds.");
-			int id = it->m_Id;
-			auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
-			if(eraseIt != m_Requests.end())
-				m_Requests.erase(eraseIt);
+			GameServer()->Bw().SendChatTarget(To, "Transfer cancelled: invalid amount or insufficient sender funds.");
+			if(FromPresent)
+				GameServer()->Bw().SendChatTarget(From, "Your blockpoint transfer was cancelled due to invalid amount or insufficient funds.");
+			int Id = It->m_Id;
+			auto EraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
+			if(EraseIt != m_Requests.end())
+				m_Requests.erase(EraseIt);
 			return false;
 		}
 		// enforce daily caps at accept time (UTC day, per sender account)
 		{
-			const int fromAcc = pFrom->Bw().GetAccId();
-			int today = CurrentUtcYyyymmdd();
-			auto &ctr = m_BpDailyCounters[fromAcc];
-			if(ctr.m_TodayDate != today)
+			const int FromAcc = pFrom->Bw().GetAccId();
+			int Today = CurrentUtcYyyymmdd();
+			auto &Ctr = m_BpDailyCounters[FromAcc];
+			if(Ctr.m_TodayDate != Today)
 			{
-				ctr.m_TodayDate = today;
-				ctr.m_TodayAmount = 0;
-				ctr.m_TodayCount = 0;
+				Ctr.m_TodayDate = Today;
+				Ctr.m_TodayAmount = 0;
+				Ctr.m_TodayCount = 0;
 			}
-			if(g_Config.m_SvBpTransferDailyCountCap > 0 && ctr.m_TodayCount + 1 > g_Config.m_SvBpTransferDailyCountCap)
+			if(g_Config.m_SvBpTransferDailyCountCap > 0 && Ctr.m_TodayCount + 1 > g_Config.m_SvBpTransferDailyCountCap)
 			{
-				GameServer()->Bw().SendChatTarget(to, "Transfer cancelled: sender reached daily transfer count cap.");
-				if(fromPresent)
-					GameServer()->Bw().SendChatTarget(from, "Blockpoint transfer cancelled: daily transfer count cap reached.");
-				int id2 = it->m_Id;
-				auto eraseIt2 = std::find_if(m_Requests.begin(), m_Requests.end(), [id2](const SRequest &r) { return r.m_Id == id2; });
-				if(eraseIt2 != m_Requests.end())
-					m_Requests.erase(eraseIt2);
+				GameServer()->Bw().SendChatTarget(To, "Transfer cancelled: sender reached daily transfer count cap.");
+				if(FromPresent)
+					GameServer()->Bw().SendChatTarget(From, "Blockpoint transfer cancelled: daily transfer count cap reached.");
+				int Id2 = It->m_Id;
+				auto EraseIt2 = std::find_if(m_Requests.begin(), m_Requests.end(), [Id2](const SRequest &r) { return r.m_Id == Id2; });
+				if(EraseIt2 != m_Requests.end())
+					m_Requests.erase(EraseIt2);
 				return false;
 			}
-			if(g_Config.m_SvBpTransferDailyAmountCap > 0 && ctr.m_TodayAmount + amount > g_Config.m_SvBpTransferDailyAmountCap)
+			if(g_Config.m_SvBpTransferDailyAmountCap > 0 && Ctr.m_TodayAmount + Amount > g_Config.m_SvBpTransferDailyAmountCap)
 			{
-				GameServer()->Bw().SendChatTarget(to, "Transfer cancelled: sender would exceed daily transfer amount cap.");
-				if(fromPresent)
-					GameServer()->Bw().SendChatTarget(from, "Blockpoint transfer cancelled: daily transfer amount cap would be exceeded.");
-				int id2 = it->m_Id;
-				auto eraseIt2 = std::find_if(m_Requests.begin(), m_Requests.end(), [id2](const SRequest &r) { return r.m_Id == id2; });
-				if(eraseIt2 != m_Requests.end())
-					m_Requests.erase(eraseIt2);
+				GameServer()->Bw().SendChatTarget(To, "Transfer cancelled: sender would exceed daily transfer amount cap.");
+				if(FromPresent)
+					GameServer()->Bw().SendChatTarget(From, "Blockpoint transfer cancelled: daily transfer amount cap would be exceeded.");
+				int Id2 = It->m_Id;
+				auto EraseIt2 = std::find_if(m_Requests.begin(), m_Requests.end(), [Id2](const SRequest &r) { return r.m_Id == Id2; });
+				if(EraseIt2 != m_Requests.end())
+					m_Requests.erase(EraseIt2);
 				return false;
 			}
 		}
 
 		// remove request first to avoid any chance of re-entrancy duplicate application
-		int id = it->m_Id;
-		auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
-		if(eraseIt != m_Requests.end())
-			m_Requests.erase(eraseIt);
+		int Id = It->m_Id;
+		auto EraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
+		if(EraseIt != m_Requests.end())
+			m_Requests.erase(EraseIt);
 
 		// apply transfer atomically after removal
-		pFrom->Bw().SetPlayerBlockpoints(pFrom->Bw().GetPlayerBlockpoints() - amount);
-		pTo->Bw().SetPlayerBlockpoints(pTo->Bw().GetPlayerBlockpoints() + amount);
-		GameServer()->Bw().Accounts()->Save(from, &pFrom->Bw().m_Account);
-		GameServer()->Bw().Accounts()->Save(to, &pTo->Bw().m_Account);
+		pFrom->Bw().SetPlayerBlockpoints(pFrom->Bw().GetPlayerBlockpoints() - Amount);
+		pTo->Bw().SetPlayerBlockpoints(pTo->Bw().GetPlayerBlockpoints() + Amount);
+		GameServer()->Bw().Accounts()->Save(From, &pFrom->Bw().m_Account);
+		GameServer()->Bw().Accounts()->Save(To, &pTo->Bw().m_Account);
 		char aBuf[256];
-		str_format(aBuf, sizeof(aBuf), "You sent %d blockpoints to %s (now %d)", amount, SafeClientName(GameServer(), to), pFrom->Bw().GetPlayerBlockpoints());
-		GameServer()->Bw().SendChatTarget(from, aBuf);
-		str_format(aBuf, sizeof(aBuf), "You received %d blockpoints from %s (now %d)", amount, SafeClientName(GameServer(), from), pTo->Bw().GetPlayerBlockpoints());
-		GameServer()->Bw().SendChatTarget(to, aBuf);
-		dbg_msg("bp_transfer", "transfer id=%d from=%d to=%d amount=%d", it->m_Id, from, to, amount);
+		str_format(aBuf, sizeof(aBuf), "You sent %d blockpoints to %s (now %d)", Amount, SafeClientName(GameServer(), To), pFrom->Bw().GetPlayerBlockpoints());
+		GameServer()->Bw().SendChatTarget(From, aBuf);
+		str_format(aBuf, sizeof(aBuf), "You received %d blockpoints from %s (now %d)", Amount, SafeClientName(GameServer(), From), pTo->Bw().GetPlayerBlockpoints());
+		GameServer()->Bw().SendChatTarget(To, aBuf);
+		dbg_msg("bp_transfer", "transfer id=%d from=%d to=%d amount=%d", It->m_Id, From, To, Amount);
 
 		// update daily counters for sender
 		{
-			const int fromAcc = pFrom->Bw().GetAccId();
-			int today = CurrentUtcYyyymmdd();
-			auto &ctr = m_BpDailyCounters[fromAcc];
-			if(ctr.m_TodayDate != today)
+			const int FromAcc = pFrom->Bw().GetAccId();
+			int Today = CurrentUtcYyyymmdd();
+			auto &Ctr = m_BpDailyCounters[FromAcc];
+			if(Ctr.m_TodayDate != Today)
 			{
-				ctr.m_TodayDate = today;
-				ctr.m_TodayAmount = 0;
-				ctr.m_TodayCount = 0;
+				Ctr.m_TodayDate = Today;
+				Ctr.m_TodayAmount = 0;
+				Ctr.m_TodayCount = 0;
 			}
-			ctr.m_TodayAmount += amount;
-			ctr.m_TodayCount += 1;
+			Ctr.m_TodayAmount += Amount;
+			Ctr.m_TodayCount += 1;
 		}
 
 		// discord log for accepted transfer
@@ -1029,7 +1029,7 @@ bool CRequests::AcceptRequest(int RequestId)
 			{
 				char aMsg[512];
 				str_format(aMsg, sizeof(aMsg), "[BP] Transfer accepted: %s -> %s : %d BP | sender now %d, receiver now %d",
-					SafeClientName(GameServer(), from), SafeClientName(GameServer(), to), amount, pFrom->Bw().GetPlayerBlockpoints(), pTo->Bw().GetPlayerBlockpoints());
+					SafeClientName(GameServer(), From), SafeClientName(GameServer(), To), Amount, pFrom->Bw().GetPlayerBlockpoints(), pTo->Bw().GetPlayerBlockpoints());
 				CDiscordWebhook::SSendOptions Opt;
 				Opt.m_pWebhookUrl = pUrl;
 				Discord.Send(aMsg, Opt);
@@ -1040,56 +1040,56 @@ bool CRequests::AcceptRequest(int RequestId)
 
 	// unknown/other request types: just erase and return false
 	{
-		int id = it->m_Id;
-		auto eraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
-		if(eraseIt != m_Requests.end())
-			m_Requests.erase(eraseIt);
+		int Id = It->m_Id;
+		auto EraseIt = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
+		if(EraseIt != m_Requests.end())
+			m_Requests.erase(EraseIt);
 	}
 	return false;
 }
 
 bool CRequests::DeclineRequest(int RequestId)
 {
-	auto it = std::find_if(m_Requests.begin(), m_Requests.end(), [RequestId](const SRequest &r) { return r.m_Id == RequestId; });
-	if(it == m_Requests.end())
+	auto It = std::find_if(m_Requests.begin(), m_Requests.end(), [RequestId](const SRequest &r) { return r.m_Id == RequestId; });
+	if(It == m_Requests.end())
 		return false;
 
-	if(it->m_Type == SRequest::EType::OneOnOne)
+	if(It->m_Type == SRequest::EType::OneOnOne)
 	{
-		int from = it->m_From; // inviter
-		int to = it->m_To; // declining player
-		if(CheckClientId(to) && GameServer()->m_apPlayers[to])
-			GameServer()->Bw().SendChatTarget(to, "You declined the 1on1 challenge.");
-		if(CheckClientId(from) && GameServer()->m_apPlayers[from])
+		int From = It->m_From; // inviter
+		int To = It->m_To; // declining player
+		if(CheckClientId(To) && GameServer()->m_apPlayers[To])
+			GameServer()->Bw().SendChatTarget(To, "You declined the 1on1 challenge.");
+		if(CheckClientId(From) && GameServer()->m_apPlayers[From])
 		{
 			char aBuf[160];
-			str_format(aBuf, sizeof(aBuf), "Your 1on1 challenge to %s was declined.", SafeClientName(GameServer(), to));
-			GameServer()->Bw().SendChatTarget(from, aBuf);
+			str_format(aBuf, sizeof(aBuf), "Your 1on1 challenge to %s was declined.", SafeClientName(GameServer(), To));
+			GameServer()->Bw().SendChatTarget(From, aBuf);
 		}
-		m_Requests.erase(it);
+		m_Requests.erase(It);
 		return true;
 	}
 
-	if(it->m_Type == SRequest::EType::Clan)
+	if(It->m_Type == SRequest::EType::Clan)
 	{
-		int from = it->m_From;
-		int to = it->m_To;
-		if(CheckClientId(to) && GameServer()->m_apPlayers[to])
-			GameServer()->Bw().SendChatTarget(to, "You have declined the clan invitation.");
-		if(CheckClientId(from) && GameServer()->m_apPlayers[from])
-			GameServer()->Bw().SendChatTarget(from, "The clan invitation was declined.");
-		m_Requests.erase(it);
+		int From = It->m_From;
+		int To = It->m_To;
+		if(CheckClientId(To) && GameServer()->m_apPlayers[To])
+			GameServer()->Bw().SendChatTarget(To, "You have declined the clan invitation.");
+		if(CheckClientId(From) && GameServer()->m_apPlayers[From])
+			GameServer()->Bw().SendChatTarget(From, "The clan invitation was declined.");
+		m_Requests.erase(It);
 		return true;
 	}
 
-	if(it->m_Type == SRequest::EType::BlockpointTransfer)
+	if(It->m_Type == SRequest::EType::BlockpointTransfer)
 	{
-		int from = it->m_From;
-		int to = it->m_To;
-		if(CheckClientId(to) && GameServer()->m_apPlayers[to])
-			GameServer()->Bw().SendChatTarget(to, "You declined the blockpoint transfer.");
-		if(CheckClientId(from) && GameServer()->m_apPlayers[from])
-			GameServer()->Bw().SendChatTarget(from, "Your blockpoint transfer was declined.");
+		int From = It->m_From;
+		int To = It->m_To;
+		if(CheckClientId(To) && GameServer()->m_apPlayers[To])
+			GameServer()->Bw().SendChatTarget(To, "You declined the blockpoint transfer.");
+		if(CheckClientId(From) && GameServer()->m_apPlayers[From])
+			GameServer()->Bw().SendChatTarget(From, "Your blockpoint transfer was declined.");
 
 		// discord log for decline
 		{
@@ -1099,110 +1099,110 @@ bool CRequests::DeclineRequest(int RequestId)
 			{
 				char aMsg[512];
 				str_format(aMsg, sizeof(aMsg), "[BP] Transfer declined: %s -> %s",
-					SafeClientName(GameServer(), from), SafeClientName(GameServer(), to));
+					SafeClientName(GameServer(), From), SafeClientName(GameServer(), To));
 				CDiscordWebhook::SSendOptions Opt;
 				Opt.m_pWebhookUrl = pUrl;
 				Discord.Send(aMsg, Opt);
 			}
 		}
-		m_Requests.erase(it);
+		m_Requests.erase(It);
 		return true;
 	}
 
-	if(it->m_Type == SRequest::EType::ClanDeleteConfirm)
+	if(It->m_Type == SRequest::EType::ClanDeleteConfirm)
 	{
-		int clientId = it->m_From;
-		if(CheckClientId(clientId) && GameServer()->m_apPlayers[clientId])
-			GameServer()->Bw().SendChatTarget(clientId, "Cancelled clan deletion.");
-		m_Requests.erase(it);
+		int ClientId = It->m_From;
+		if(CheckClientId(ClientId) && GameServer()->m_apPlayers[ClientId])
+			GameServer()->Bw().SendChatTarget(ClientId, "Cancelled clan deletion.");
+		m_Requests.erase(It);
 		return true;
 	}
 
-	if(it->m_Type == SRequest::EType::ClanKickConfirm)
+	if(It->m_Type == SRequest::EType::ClanKickConfirm)
 	{
-		int clientId = it->m_From;
-		if(CheckClientId(clientId) && GameServer()->m_apPlayers[clientId])
+		int ClientId = It->m_From;
+		if(CheckClientId(ClientId) && GameServer()->m_apPlayers[ClientId])
 		{
 			char aBuf[192];
-			str_format(aBuf, sizeof(aBuf), "Cancelled kicking '%s' from clan.", it->m_aUsername);
-			GameServer()->Bw().SendChatTarget(clientId, aBuf);
+			str_format(aBuf, sizeof(aBuf), "Cancelled kicking '%s' from clan.", It->m_aUsername);
+			GameServer()->Bw().SendChatTarget(ClientId, aBuf);
 		}
-		m_Requests.erase(it);
+		m_Requests.erase(It);
 		return true;
 	}
 
-	if(it->m_Type == SRequest::EType::ClanRenameNotice)
+	if(It->m_Type == SRequest::EType::ClanRenameNotice)
 	{
-		int to = it->m_To;
-		if(CheckClientId(to) && GameServer()->m_apPlayers[to])
+		int To = It->m_To;
+		if(CheckClientId(To) && GameServer()->m_apPlayers[To])
 		{
 			char aBuf[192];
-			const char *pOld = it->m_aOldClanName[0] ? it->m_aOldClanName : "<old>";
-			const char *pNew = it->m_aNewClanName[0] ? it->m_aNewClanName : "<new>";
+			const char *pOld = It->m_aOldClanName[0] ? It->m_aOldClanName : "<old>";
+			const char *pNew = It->m_aNewClanName[0] ? It->m_aNewClanName : "<new>";
 			str_format(aBuf, sizeof(aBuf), "Dismissed: Clan renamed '%s' -> '%s'", pOld, pNew);
-			GameServer()->Bw().SendChatTarget(to, aBuf);
+			GameServer()->Bw().SendChatTarget(To, aBuf);
 		}
-		m_Requests.erase(it);
+		m_Requests.erase(It);
 		return true;
 	}
 
 	char aBuf[256];
 	str_copy(aBuf, "Your invite has been declined.", sizeof(aBuf));
-	if(CheckClientId(it->m_From) && GameServer()->m_apPlayers[it->m_From])
-		GameServer()->Bw().SendChatTarget(it->m_From, aBuf);
-	m_Requests.erase(it);
+	if(CheckClientId(It->m_From) && GameServer()->m_apPlayers[It->m_From])
+		GameServer()->Bw().SendChatTarget(It->m_From, aBuf);
+	m_Requests.erase(It);
 	return true;
 }
 
 bool CRequests::GetRequestInfo(int RequestId, SRequest &pOut) const
 {
-	auto it = std::find_if(m_Requests.begin(), m_Requests.end(), [RequestId](const SRequest &r) { return r.m_Id == RequestId; });
-	if(it == m_Requests.end())
+	auto It = std::find_if(m_Requests.begin(), m_Requests.end(), [RequestId](const SRequest &r) { return r.m_Id == RequestId; });
+	if(It == m_Requests.end())
 		return false;
-	pOut = *it;
+	pOut = *It;
 	return true;
 }
 
-std::vector<int> CRequests::GetRequestsFor(int ClientId, std::optional<SRequest::EType> typeFilter) const
+std::vector<int> CRequests::GetRequestsFor(int ClientId, std::optional<SRequest::EType> TypeFilter) const
 {
-	std::vector<int> out;
+	std::vector<int> Out;
 	for(const auto &r : m_Requests)
 	{
 		if(r.m_To == ClientId || r.m_From == ClientId)
 		{
-			if(!typeFilter.has_value() || r.m_Type == *typeFilter)
-				out.push_back(r.m_Id);
+			if(!TypeFilter.has_value() || r.m_Type == *TypeFilter)
+				Out.push_back(r.m_Id);
 		}
 	}
-	return out;
+	return Out;
 }
 
-std::vector<int> CRequests::GetRequestIdsTo(int ToClient, std::optional<SRequest::EType> typeFilter) const
+std::vector<int> CRequests::GetRequestIdsTo(int ToClient, std::optional<SRequest::EType> TypeFilter) const
 {
-	std::vector<int> out;
+	std::vector<int> Out;
 	for(const auto &r : m_Requests)
 	{
 		if(r.m_To == ToClient)
 		{
-			if(!typeFilter.has_value() || r.m_Type == *typeFilter)
-				out.push_back(r.m_Id);
+			if(!TypeFilter.has_value() || r.m_Type == *TypeFilter)
+				Out.push_back(r.m_Id);
 		}
 	}
-	return out;
+	return Out;
 }
 
-std::vector<int> CRequests::GetRequestIdsFromTo(int FromClient, int ToClient, std::optional<SRequest::EType> typeFilter) const
+std::vector<int> CRequests::GetRequestIdsFromTo(int FromClient, int ToClient, std::optional<SRequest::EType> TypeFilter) const
 {
-	std::vector<int> out;
+	std::vector<int> Out;
 	for(const auto &r : m_Requests)
 	{
 		if(r.m_To == ToClient && r.m_From == FromClient)
 		{
-			if(!typeFilter.has_value() || r.m_Type == *typeFilter)
-				out.push_back(r.m_Id);
+			if(!TypeFilter.has_value() || r.m_Type == *TypeFilter)
+				Out.push_back(r.m_Id);
 		}
 	}
-	return out;
+	return Out;
 }
 
 void CRequests::OnTick()
@@ -1217,29 +1217,29 @@ void CRequests::OnTick()
 
 	for(int Id : ExpiredIds)
 	{
-		SRequest req;
-		if(!GetRequestInfo(Id, req))
+		SRequest Req;
+		if(!GetRequestInfo(Id, Req))
 			continue; // already handled/removed
 
 		char aBufFrom[256];
 		char aBufTo[256];
-		bool notifyTo = false;
+		bool NotifyTo = false;
 
-		if(req.m_Type == SRequest::EType::OneOnOne)
+		if(Req.m_Type == SRequest::EType::OneOnOne)
 		{
-			const char *pToName = SafeClientName(GameServer(), req.m_To);
-			const char *pFromName = SafeClientName(GameServer(), req.m_From);
+			const char *pToName = SafeClientName(GameServer(), Req.m_To);
+			const char *pFromName = SafeClientName(GameServer(), Req.m_From);
 			str_format(aBufFrom, sizeof(aBufFrom), "Your 1on1 invite to '%s' has expired.", pToName);
 			str_format(aBufTo, sizeof(aBufTo), "The 1on1 invite from '%s' has expired.", pFromName);
-			notifyTo = true;
+			NotifyTo = true;
 		}
-		else if(req.m_Type == SRequest::EType::BlockpointTransfer)
+		else if(Req.m_Type == SRequest::EType::BlockpointTransfer)
 		{
-			const char *pToName = SafeClientName(GameServer(), req.m_To);
-			const char *pFromName = SafeClientName(GameServer(), req.m_From);
-			str_format(aBufFrom, sizeof(aBufFrom), "Your blockpoint transfer to '%s' (%d BP) has expired.", pToName, req.m_Wager);
-			str_format(aBufTo, sizeof(aBufTo), "The blockpoint transfer from '%s' (%d BP) has expired.", pFromName, req.m_Wager);
-			notifyTo = true;
+			const char *pToName = SafeClientName(GameServer(), Req.m_To);
+			const char *pFromName = SafeClientName(GameServer(), Req.m_From);
+			str_format(aBufFrom, sizeof(aBufFrom), "Your blockpoint transfer to '%s' (%d BP) has expired.", pToName, Req.m_Wager);
+			str_format(aBufTo, sizeof(aBufTo), "The blockpoint transfer from '%s' (%d BP) has expired.", pFromName, Req.m_Wager);
+			NotifyTo = true;
 
 			// discord log for expiry
 			{
@@ -1249,43 +1249,43 @@ void CRequests::OnTick()
 				{
 					char aMsg[512];
 					str_format(aMsg, sizeof(aMsg), "[BP] Transfer expired: %s -> %s : %d BP",
-						SafeClientName(GameServer(), req.m_From), SafeClientName(GameServer(), req.m_To), req.m_Wager);
+						SafeClientName(GameServer(), Req.m_From), SafeClientName(GameServer(), Req.m_To), Req.m_Wager);
 					CDiscordWebhook::SSendOptions Opt;
 					Opt.m_pWebhookUrl = pUrl;
 					Discord.Send(aMsg, Opt);
 				}
 			}
 		}
-		else if(req.m_Type == SRequest::EType::Clan)
+		else if(Req.m_Type == SRequest::EType::Clan)
 		{
-			const char *pToName = SafeClientName(GameServer(), req.m_To);
-			const char *pFromName = SafeClientName(GameServer(), req.m_From);
+			const char *pToName = SafeClientName(GameServer(), Req.m_To);
+			const char *pFromName = SafeClientName(GameServer(), Req.m_From);
 			str_format(aBufFrom, sizeof(aBufFrom), "Your clan invite to '%s' has expired.", pToName);
 			str_format(aBufTo, sizeof(aBufTo), "The clan invite from '%s' has expired.", pFromName);
-			notifyTo = true;
+			NotifyTo = true;
 		}
-		else if(req.m_Type == SRequest::EType::ClanDeleteConfirm)
+		else if(Req.m_Type == SRequest::EType::ClanDeleteConfirm)
 		{
 			str_copy(aBufFrom, "Your clan deletion confirmation expired.", sizeof(aBufFrom));
 		}
-		else if(req.m_Type == SRequest::EType::ClanKickConfirm)
+		else if(Req.m_Type == SRequest::EType::ClanKickConfirm)
 		{
 			char aTmp[64];
-			str_format(aTmp, sizeof(aTmp), "%s", req.m_aUsername[0] ? req.m_aUsername : "target");
+			str_format(aTmp, sizeof(aTmp), "%s", Req.m_aUsername[0] ? Req.m_aUsername : "target");
 			str_format(aBufFrom, sizeof(aBufFrom), "Your confirmation to kick '%s' expired.", aTmp);
 		}
-		else if(req.m_Type == SRequest::EType::ClanRenameConfirm)
+		else if(Req.m_Type == SRequest::EType::ClanRenameConfirm)
 		{
 			str_copy(aBufFrom, "Clan rename confirmation expired.", sizeof(aBufFrom));
 		}
-		else if(req.m_Type == SRequest::EType::ClanCreateConfirm)
+		else if(Req.m_Type == SRequest::EType::ClanCreateConfirm)
 		{
 			str_copy(aBufFrom, "Clan creation confirmation expired.", sizeof(aBufFrom));
 		}
-		else if(req.m_Type == SRequest::EType::ClanRenameNotice)
+		else if(Req.m_Type == SRequest::EType::ClanRenameNotice)
 		{
-			const char *pOld = req.m_aOldClanName[0] ? req.m_aOldClanName : "<old>";
-			const char *pNew = req.m_aNewClanName[0] ? req.m_aNewClanName : "<new>";
+			const char *pOld = Req.m_aOldClanName[0] ? Req.m_aOldClanName : "<old>";
+			const char *pNew = Req.m_aNewClanName[0] ? Req.m_aNewClanName : "<new>";
 			str_format(aBufFrom, sizeof(aBufFrom), "Clan rename notice expired: '%s' -> '%s'", pOld, pNew);
 		}
 		else
@@ -1293,52 +1293,52 @@ void CRequests::OnTick()
 			str_copy(aBufFrom, "Your shop request has expired.", sizeof(aBufFrom));
 		}
 
-		if(CheckClientId(req.m_From) && GameServer()->m_apPlayers[req.m_From])
-			GameServer()->Bw().SendChatTarget(req.m_From, aBufFrom);
-		if(notifyTo && req.m_From != req.m_To && CheckClientId(req.m_To) && GameServer()->m_apPlayers[req.m_To])
-			GameServer()->Bw().SendChatTarget(req.m_To, aBufTo);
+		if(CheckClientId(Req.m_From) && GameServer()->m_apPlayers[Req.m_From])
+			GameServer()->Bw().SendChatTarget(Req.m_From, aBufFrom);
+		if(NotifyTo && Req.m_From != Req.m_To && CheckClientId(Req.m_To) && GameServer()->m_apPlayers[Req.m_To])
+			GameServer()->Bw().SendChatTarget(Req.m_To, aBufTo);
 
-		auto it = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
-		if(it != m_Requests.end())
-			m_Requests.erase(it);
+		auto It = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
+		if(It != m_Requests.end())
+			m_Requests.erase(It);
 	}
 }
 
-int CRequests::CancelRequestsInvolving(int ClientId, std::optional<SRequest::EType> typeFilter, const char *pReason)
+int CRequests::CancelRequestsInvolving(int ClientId, std::optional<SRequest::EType> TypeFilter, const char *pReason)
 {
-	int cancelled = 0;
+	int Cancelled = 0;
 	// collect first to avoid iterator invalidation complexity
-	std::vector<int> ids;
+	std::vector<int> Ids;
 	for(const auto &r : m_Requests)
 	{
-		if((r.m_From == ClientId || r.m_To == ClientId) && (!typeFilter.has_value() || r.m_Type == *typeFilter))
-			ids.push_back(r.m_Id);
+		if((r.m_From == ClientId || r.m_To == ClientId) && (!TypeFilter.has_value() || r.m_Type == *TypeFilter))
+			Ids.push_back(r.m_Id);
 	}
-	for(int id : ids)
+	for(int Id : Ids)
 	{
-		auto it = std::find_if(m_Requests.begin(), m_Requests.end(), [id](const SRequest &r) { return r.m_Id == id; });
-		if(it == m_Requests.end())
+		auto It = std::find_if(m_Requests.begin(), m_Requests.end(), [Id](const SRequest &r) { return r.m_Id == Id; });
+		if(It == m_Requests.end())
 			continue;
 		// notify counterpart if online
-		int other = (it->m_From == ClientId) ? it->m_To : it->m_From;
-		if(CheckClientId(other) && GameServer()->m_apPlayers[other])
+		int Other = (It->m_From == ClientId) ? It->m_To : It->m_From;
+		if(CheckClientId(Other) && GameServer()->m_apPlayers[Other])
 		{
 			char aBuf[256];
 			if(pReason)
-				str_format(aBuf, sizeof(aBuf), "A pending %s request was cancelled: %s", it->m_Type == SRequest::EType::BlockpointTransfer ? "blockpoint transfer" : it->m_Type == SRequest::EType::OneOnOne ? "1on1" :
-																					     it->m_Type == SRequest::EType::Clan             ? "clan" :
+				str_format(aBuf, sizeof(aBuf), "A pending %s request was cancelled: %s", It->m_Type == SRequest::EType::BlockpointTransfer ? "blockpoint transfer" : It->m_Type == SRequest::EType::OneOnOne ? "1on1" :
+																					     It->m_Type == SRequest::EType::Clan             ? "clan" :
 																											       "request",
 					pReason);
 			else
-				str_format(aBuf, sizeof(aBuf), "A pending %s request was cancelled.", it->m_Type == SRequest::EType::BlockpointTransfer ? "blockpoint transfer" : it->m_Type == SRequest::EType::OneOnOne ? "1on1" :
-																					  it->m_Type == SRequest::EType::Clan             ? "clan" :
+				str_format(aBuf, sizeof(aBuf), "A pending %s request was cancelled.", It->m_Type == SRequest::EType::BlockpointTransfer ? "blockpoint transfer" : It->m_Type == SRequest::EType::OneOnOne ? "1on1" :
+																					  It->m_Type == SRequest::EType::Clan             ? "clan" :
 																											    "request");
-			GameServer()->Bw().SendChatTarget(other, aBuf);
+			GameServer()->Bw().SendChatTarget(Other, aBuf);
 		}
-		m_Requests.erase(it);
-		cancelled++;
+		m_Requests.erase(It);
+		Cancelled++;
 	}
-	if(cancelled > 0)
-		dbg_msg("requests", "cancelled %d request(s) involving client %d", cancelled, ClientId);
-	return cancelled;
+	if(Cancelled > 0)
+		dbg_msg("requests", "cancelled %d request(s) involving client %d", Cancelled, ClientId);
+	return Cancelled;
 }

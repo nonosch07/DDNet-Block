@@ -36,11 +36,11 @@ void CTeamDeathmatchEvent::AssignTeamsShuffled()
 		return;
 
 	std::shuffle(m_Participants.begin(), m_Participants.end(), m_Rng);
-	const int split = (int)m_Participants.size() / 2;
+	const int Split = (int)m_Participants.size() / 2;
 	for(size_t i = 0; i < m_Participants.size(); ++i)
 	{
-		int side = (int)i >= split ? 1 : 0; // 0 = blue, 1 = red
-		m_ClientTeam[m_Participants[i]] = side;
+		int Side = (int)i >= Split ? 1 : 0; // 0 = blue, 1 = red
+		m_ClientTeam[m_Participants[i]] = Side;
 	}
 }
 
@@ -51,7 +51,7 @@ void CTeamDeathmatchEvent::ApplyParticipantVisuals(int ClientId, int Side)
 		p->Bw().m_OldTeeInfos = p->TeeInfos();
 		CTeeInfo TeeInfo = p->TeeInfos();
 		str_copy(TeeInfo.m_aSkinName, "default", sizeof(TeeInfo.m_aSkinName));
-		TeeInfo.m_UseCustomColor = 1;
+		TeeInfo.m_UseCustomColor = true;
 		if(Side == 0)
 		{
 			TeeInfo.m_ColorBody = 10223467; // blue
@@ -96,19 +96,19 @@ void CTeamDeathmatchEvent::SaveAndPrepareParticipants()
 		SaveWeapons(ClientId);
 		SavePosition(ClientId);
 
-		auto it = m_ClientTeam.find(ClientId);
-		if(it != m_ClientTeam.end())
-			ApplyParticipantVisuals(ClientId, it->second);
+		auto It = m_ClientTeam.find(ClientId);
+		if(It != m_ClientTeam.end())
+			ApplyParticipantVisuals(ClientId, It->second);
 
 		if(auto *pChar = GameServer()->GetPlayerChar(ClientId))
 		{
 			// save transient solo/collision, then ensure normal interaction in the event
-			bool wasSolo = pChar->Core()->m_Solo;
-			bool wasCollisionDisabled = pChar->Core()->m_CollisionDisabled;
-			m_PrevSoloState[ClientId] = {wasSolo, wasCollisionDisabled};
-			if(wasSolo)
+			bool WasSolo = pChar->Core()->m_Solo;
+			bool WasCollisionDisabled = pChar->Core()->m_CollisionDisabled;
+			m_PrevSoloState[ClientId] = {WasSolo, WasCollisionDisabled};
+			if(WasSolo)
 				pChar->SetSolo(false);
-			if(wasCollisionDisabled)
+			if(WasCollisionDisabled)
 				pChar->Bw().Core().m_CollisionDisabled = false;
 			pChar->GetPlayer()->Pause(CPlayer::PAUSE_NONE, false);
 			pChar->SetDeepFrozen(false);
@@ -123,23 +123,23 @@ void CTeamDeathmatchEvent::RestoreParticipants()
 		RestoreParticipantVisuals(ClientId);
 
 	// restore solo/collision
-	for(const auto &kv : m_PrevSoloState)
+	for(const auto &Kv : m_PrevSoloState)
 	{
-		if(auto *pChar = GameServer()->GetPlayerChar(kv.first))
+		if(auto *pChar = GameServer()->GetPlayerChar(Kv.first))
 		{
-			if(kv.second.solo)
+			if(Kv.second.m_Solo)
 				pChar->SetSolo(true);
-			pChar->Bw().Core().m_CollisionDisabled = kv.second.collision;
+			pChar->Bw().Core().m_CollisionDisabled = Kv.second.m_Collision;
 		}
 	}
 	m_PrevSoloState.clear();
 
 	// restore saved position & weapons (deferred processed right after)
-	std::vector<int> ids;
-	ids.reserve(m_pSavedPlayers.size());
-	for(const auto &kv : m_pSavedPlayers)
-		ids.push_back(kv.first);
-	for(int ClientId : ids)
+	std::vector<int> Ids;
+	Ids.reserve(m_pSavedPlayers.size());
+	for(const auto &Kv : m_pSavedPlayers)
+		Ids.push_back(Kv.first);
+	for(int ClientId : Ids)
 	{
 		LoadPosition(ClientId);
 		LoadWeapons(ClientId);
@@ -151,15 +151,15 @@ std::optional<vec2> CTeamDeathmatchEvent::ChooseSpawnFor(int ClientId)
 {
 	if(!m_EventStartPositions.empty())
 	{
-		auto it = m_AssignedSpawnIndex.find(ClientId);
-		if(it != m_AssignedSpawnIndex.end())
+		auto It = m_AssignedSpawnIndex.find(ClientId);
+		if(It != m_AssignedSpawnIndex.end())
 		{
-			int idx = it->second;
-			m_AssignedSpawnIndex.erase(it); // consume reservation
-			if(idx >= 0 && idx < (int)m_EventStartPositions.size())
+			int Idx = It->second;
+			m_AssignedSpawnIndex.erase(It); // consume reservation
+			if(Idx >= 0 && Idx < (int)m_EventStartPositions.size())
 			{
-				m_UsedSpawnIndices.insert(idx);
-				return m_EventStartPositions[(size_t)idx];
+				m_UsedSpawnIndices.insert(Idx);
+				return m_EventStartPositions[(size_t)Idx];
 			}
 		}
 
@@ -174,19 +174,19 @@ void CTeamDeathmatchEvent::TeleportToSpawn(int ClientId)
 {
 	if(auto *pChar = GameServer()->GetPlayerChar(ClientId))
 	{
-		if(auto pos = ChooseSpawnFor(ClientId))
-			GameServer()->Bw().Teleport(pChar, *pos);
+		if(auto Pos = ChooseSpawnFor(ClientId))
+			GameServer()->Bw().Teleport(pChar, *Pos);
 		pChar->ResetVelocity();
 	}
 }
 
 void CTeamDeathmatchEvent::BroadcastStatus()
 {
-	int secs = (int)((m_ActiveEndTick - Server()->Tick()) / Server()->TickSpeed());
-	if(secs < 0)
-		secs = 0;
+	int Secs = ((m_ActiveEndTick - Server()->Tick()) / Server()->TickSpeed());
+	if(Secs < 0)
+		Secs = 0;
 	char aTimeLeft[32];
-	FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), secs);
+	FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), Secs);
 
 	for(int ClientId : m_Participants)
 	{
@@ -194,8 +194,8 @@ void CTeamDeathmatchEvent::BroadcastStatus()
 		if(!pPlayer)
 			continue;
 
-		int side = GetSideOf(ClientId);
-		if(side == 0)
+		int Side = GetSideOf(ClientId);
+		if(Side == 0)
 		{
 			pPlayer->Bw().SendBroadcastAlignedLeft("Team Blue\n"
 							       "Blue %d / %d\n"
@@ -203,7 +203,7 @@ void CTeamDeathmatchEvent::BroadcastStatus()
 							       "Time left: %s",
 				m_ScoreTeam[0], m_TargetScore, m_ScoreTeam[1], m_TargetScore, aTimeLeft);
 		}
-		else if(side == 1)
+		else if(Side == 1)
 		{
 			pPlayer->Bw().SendBroadcastAlignedLeft("Team Red\n"
 							       "Red %d / %d\n"
@@ -239,30 +239,30 @@ void CTeamDeathmatchEvent::TrackFreezeAndAutokill()
 			continue;
 
 		// track freeze start/stop
-		const bool isFrozen = pChar->m_FreezeTime;
-		int since = GetFrozenSince(ClientId);
-		if(isFrozen && since == 0)
+		const bool IsFrozen = pChar->m_FreezeTime;
+		int Since = GetFrozenSince(ClientId);
+		if(IsFrozen && Since == 0)
 			SetFrozenSince(ClientId, Server()->Tick());
-		if(!isFrozen && since != 0)
+		if(!IsFrozen && Since != 0)
 			SetFrozenSince(ClientId, 0);
 
-		if(isFrozen)
+		if(IsFrozen)
 		{
-			int &lastVal = m_LastFreezeTimeValue[ClientId];
-			if(lastVal == 0)
-				lastVal = pChar->m_FreezeTime; // initialize
+			int &LastVal = m_LastFreezeTimeValue[ClientId];
+			if(LastVal == 0)
+				LastVal = pChar->m_FreezeTime; // initialize
 
-			if(pChar->m_FreezeTime < lastVal)
+			if(pChar->m_FreezeTime < LastVal)
 			{
 				// countdown progressed -> not perma-frozen; restart delay
 				m_PermanentFreezeSince.erase(ClientId);
 			}
 			else // equal or increased: not decreasing
 			{
-				int &st = m_PermanentFreezeSince[ClientId];
-				if(st == 0)
-					st = Server()->Tick();
-				if(Server()->Tick() - st >= RequiredFreezeTicks)
+				int &St = m_PermanentFreezeSince[ClientId];
+				if(St == 0)
+					St = Server()->Tick();
+				if(Server()->Tick() - St >= RequiredFreezeTicks)
 				{
 					// autokill due to permanent freeze should not emit a kill message
 					pChar->Die(-1, WEAPON_WORLD, false);
@@ -276,7 +276,7 @@ void CTeamDeathmatchEvent::TrackFreezeAndAutokill()
 					}
 				}
 			}
-			lastVal = pChar->m_FreezeTime;
+			LastVal = pChar->m_FreezeTime;
 		}
 		else
 		{
@@ -299,12 +299,12 @@ void CTeamDeathmatchEvent::ApplyGroundHookPenalty(int ClientId)
 
 void CTeamDeathmatchEvent::UpdatePerPlayerScores()
 {
-	for(int pid : m_Participants)
+	for(int Pid : m_Participants)
 	{
-		if(auto *p = GameServer()->Bw().GetPlayer(pid))
+		if(auto *p = GameServer()->Bw().GetPlayer(Pid))
 		{
-			int side = GetSideOf(pid);
-			p->Bw().m_Score = side == 0 ? m_ScoreTeam[0] : m_ScoreTeam[1];
+			int Side = GetSideOf(Pid);
+			p->Bw().m_Score = Side == 0 ? m_ScoreTeam[0] : m_ScoreTeam[1];
 		}
 	}
 }
@@ -330,8 +330,8 @@ void CTeamDeathmatchEvent::ResetTransientState()
 
 int CTeamDeathmatchEvent::GetSideOf(int ClientId) const
 {
-	auto it = m_ClientTeam.find(ClientId);
-	return it == m_ClientTeam.end() ? -1 : it->second;
+	auto It = m_ClientTeam.find(ClientId);
+	return It == m_ClientTeam.end() ? -1 : It->second;
 }
 
 void CTeamDeathmatchEvent::SetFrozenSince(int ClientId, int Tick)
@@ -341,8 +341,8 @@ void CTeamDeathmatchEvent::SetFrozenSince(int ClientId, int Tick)
 
 int CTeamDeathmatchEvent::GetFrozenSince(int ClientId) const
 {
-	auto it = m_FrozenSince.find(ClientId);
-	return it == m_FrozenSince.end() ? 0 : it->second;
+	auto It = m_FrozenSince.find(ClientId);
+	return It == m_FrozenSince.end() ? 0 : It->second;
 }
 
 void CTeamDeathmatchEvent::UpdateRespawns()
@@ -350,54 +350,54 @@ void CTeamDeathmatchEvent::UpdateRespawns()
 	if(m_RespawnAtTick.empty())
 		return;
 
-	std::vector<int> ready;
-	ready.reserve(m_RespawnAtTick.size());
-	for(auto &kv : m_RespawnAtTick)
+	std::vector<int> Ready;
+	Ready.reserve(m_RespawnAtTick.size());
+	for(auto &Kv : m_RespawnAtTick)
 	{
-		int cid = kv.first;
-		int when = kv.second;
-		int ticksLeft = when - Server()->Tick();
-		int secsLeft = ticksLeft > 0 ? (ticksLeft + Server()->TickSpeed() - 1) / Server()->TickSpeed() : 0; // ceil
-		int &lastShown = m_LastRespawnSeconds[cid];
-		if(secsLeft != lastShown)
+		int Cid = Kv.first;
+		int When = Kv.second;
+		int TicksLeft = When - Server()->Tick();
+		int SecsLeft = TicksLeft > 0 ? (TicksLeft + Server()->TickSpeed() - 1) / Server()->TickSpeed() : 0; // ceil
+		int &LastShown = m_LastRespawnSeconds[Cid];
+		if(SecsLeft != LastShown)
 		{
-			lastShown = secsLeft;
-			if(secsLeft > 0)
+			LastShown = SecsLeft;
+			if(SecsLeft > 0)
 			{
-				CPlayer *pPlayer = GameServer()->Bw().GetPlayer(cid);
+				CPlayer *pPlayer = GameServer()->Bw().GetPlayer(Cid);
 				if(pPlayer)
-					pPlayer->Bw().SendBroadcastAlignedLeft("You will respawn in %d %s", secsLeft, secsLeft == 1 ? "sec" : "secs");
+					pPlayer->Bw().SendBroadcastAlignedLeft("You will respawn in %d %s", SecsLeft, SecsLeft == 1 ? "sec" : "secs");
 			}
 		}
-		if(Server()->Tick() >= when)
-			ready.push_back(cid);
+		if(Server()->Tick() >= When)
+			Ready.push_back(Cid);
 	}
 
-	for(int cid : ready)
+	for(int Cid : Ready)
 	{
-		m_RespawnAtTick.erase(cid);
-		m_LastRespawnSeconds.erase(cid);
+		m_RespawnAtTick.erase(Cid);
+		m_LastRespawnSeconds.erase(Cid);
 		// respawn the player at a chosen spawn position
-		if(IsParticipant(cid))
+		if(IsParticipant(Cid))
 		{
-			if(CPlayer *p = GameServer()->Bw().GetPlayer(cid))
+			if(CPlayer *p = GameServer()->Bw().GetPlayer(Cid))
 			{
 				// reinforce event team and force-spawn at chosen spot if available
-				GameServer()->m_pController->Teams().SetForceCharacterTeam(cid, m_DDRaceTeam);
-				if(auto pos = ChooseSpawnFor(cid))
+				GameServer()->m_pController->Teams().SetForceCharacterTeam(Cid, m_DDRaceTeam);
+				if(auto Pos = ChooseSpawnFor(Cid))
 				{
-					m_SkipTeleportOnSpawn[cid] = true; // avoid duplicate teleportation in OnCharacterSpawn
+					m_SkipTeleportOnSpawn[Cid] = true; // avoid duplicate teleportation in OnCharacterSpawn
 					// A forced event spawn must not re-enter the event components.
 					GameServer()->Bw().m_SuppressSpawnEvent = true;
-					p->ForceSpawn(*pos);
+					p->ForceSpawn(*Pos);
 					GameServer()->Bw().m_SuppressSpawnEvent = false;
 				}
 				else
 				{
-					m_SkipTeleportOnSpawn[cid] = true; // still skip freeze path in OnCharacterSpawn
+					m_SkipTeleportOnSpawn[Cid] = true; // still skip freeze path in OnCharacterSpawn
 					p->Respawn(false);
 				}
-				GameServer()->Bw().SendBroadcast(" ", cid, false); // clear countdown
+				GameServer()->Bw().SendBroadcast(" ", Cid, false); // clear countdown
 			}
 		}
 	}
@@ -407,31 +407,31 @@ void CTeamDeathmatchEvent::UpdateSetSpectators()
 {
 	if(m_SetSpecAtTick.empty())
 		return;
-	std::vector<int> done;
-	done.reserve(m_SetSpecAtTick.size());
-	for(const auto &kv : m_SetSpecAtTick)
+	std::vector<int> Done;
+	Done.reserve(m_SetSpecAtTick.size());
+	for(const auto &Kv : m_SetSpecAtTick)
 	{
-		int cid = kv.first;
-		int when = kv.second;
-		if(Server()->Tick() < when)
+		int Cid = Kv.first;
+		int When = Kv.second;
+		if(Server()->Tick() < When)
 			continue;
-		CPlayer *p = GameServer()->Bw().GetPlayer(cid);
+		CPlayer *p = GameServer()->Bw().GetPlayer(Cid);
 		if(!p)
 		{
-			done.push_back(cid);
+			Done.push_back(Cid);
 			continue;
 		}
 		if(!p->GetCharacter())
 		{
 			p->SetTeam(TEAM_SPECTATORS, false);
 			// clear stale input so held keys don't carry over on respawn
-			mem_zero(&GameServer()->m_aLastPlayerInput[cid], sizeof(GameServer()->m_aLastPlayerInput[cid]));
-			GameServer()->m_aPlayerHasInput[cid] = false;
-			done.push_back(cid);
+			mem_zero(&GameServer()->m_aLastPlayerInput[Cid], sizeof(GameServer()->m_aLastPlayerInput[Cid]));
+			GameServer()->m_aPlayerHasInput[Cid] = false;
+			Done.push_back(Cid);
 		}
 	}
-	for(int cid : done)
-		m_SetSpecAtTick.erase(cid);
+	for(int Cid : Done)
+		m_SetSpecAtTick.erase(Cid);
 }
 
 void CTeamDeathmatchEvent::AssignUniqueStartSpawns()
@@ -442,23 +442,23 @@ void CTeamDeathmatchEvent::AssignUniqueStartSpawns()
 		return;
 
 	// Greedy: assign each participant a unique spawn if enough positions exist
-	std::vector<int> indices(m_EventStartPositions.size());
-	for(size_t i = 0; i < indices.size(); ++i)
-		indices[i] = (int)i;
-	std::shuffle(indices.begin(), indices.end(), m_Rng);
+	std::vector<int> Indices(m_EventStartPositions.size());
+	for(size_t i = 0; i < Indices.size(); ++i)
+		Indices[i] = (int)i;
+	std::shuffle(Indices.begin(), Indices.end(), m_Rng);
 
-	const int uniqueCount = std::min((int)m_Participants.size(), (int)indices.size());
-	for(int i = 0; i < uniqueCount; ++i)
-		m_AssignedSpawnIndex[m_Participants[(size_t)i]] = indices[(size_t)i];
+	const int UniqueCount = std::min((int)m_Participants.size(), (int)Indices.size());
+	for(int i = 0; i < UniqueCount; ++i)
+		m_AssignedSpawnIndex[m_Participants[(size_t)i]] = Indices[(size_t)i];
 }
 
 std::optional<int> CTeamDeathmatchEvent::GetTeamIndexFor(int ClientId) const
 {
-	auto it = m_ClientTeam.find(ClientId);
-	if(it == m_ClientTeam.end())
+	auto It = m_ClientTeam.find(ClientId);
+	if(It == m_ClientTeam.end())
 		return std::nullopt;
 	// internal mapping is 0=blue,1=red; caller will translate to TEAM_BLUE/TEAM_RED
-	return it->second;
+	return It->second;
 }
 
 // ===== Event lifecycle =====
@@ -487,18 +487,18 @@ void CTeamDeathmatchEvent::OnTick()
 				continue;
 
 			char aTimeLeft[32];
-			FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), (int)((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()));
+			FormatTimeLeft(aTimeLeft, sizeof(aTimeLeft), ((m_RegistrationEndTick - Server()->Tick()) / Server()->TickSpeed()));
 			pPlayer->Bw().SendBroadcastAlignedLeft("%s is about to start!\nRegister with /join\nTime left: %s\n\nParticipants: %zd",
 				GetEventName(), aTimeLeft, Candidates().size());
 		}
 	}
 	else if(GetState() == CEventComponent::EEventState::Active)
 	{
-		for(int id : Participants())
+		for(int Id : Participants())
 		{
 			// keep cosmetics disabled and apply ground hook penalty
-			ApplyGroundHookPenalty(id);
-			if(auto *p = GameServer()->Bw().GetPlayer(id))
+			ApplyGroundHookPenalty(Id);
+			if(auto *p = GameServer()->Bw().GetPlayer(Id))
 			{
 				p->Bw().m_HideInfo = true;
 				p->Bw().m_HideInfoInScoreboard = true;
@@ -546,9 +546,9 @@ void CTeamDeathmatchEvent::OnCharacterSpawn(int ClientId, vec2 /*SpawnPos*/)
 
 	GameServer()->m_pController->Teams().SetForceCharacterTeam(ClientId, m_DDRaceTeam);
 
-	if(auto it = m_SkipTeleportOnSpawn.find(ClientId); it != m_SkipTeleportOnSpawn.end() && it->second)
+	if(auto It = m_SkipTeleportOnSpawn.find(ClientId); It != m_SkipTeleportOnSpawn.end() && It->second)
 	{
-		m_SkipTeleportOnSpawn.erase(it);
+		m_SkipTeleportOnSpawn.erase(It);
 		return;
 	}
 	TeleportToSpawn(ClientId);
@@ -612,16 +612,16 @@ void CTeamDeathmatchEvent::StartEvent()
 	// create isolated DDNet team for the event
 	auto &Teams = GameServer()->m_pController->Teams();
 	// choose an empty team that is not currently used by another event
-	int chosenTeam = -1;
+	int ChosenTeam = -1;
 	for(int t = 1; t < NUM_DDRACE_TEAMS; ++t)
 	{
 		if(Teams.GetTeamState(t) == ETeamState::EMPTY && !Teams.IsTeamEvent(t))
 		{
-			chosenTeam = t;
+			ChosenTeam = t;
 			break;
 		}
 	}
-	m_DDRaceTeam = chosenTeam;
+	m_DDRaceTeam = ChosenTeam;
 	if(m_DDRaceTeam == -1)
 	{
 		EmergencyShutdown("No free team was found");
@@ -648,10 +648,10 @@ void CTeamDeathmatchEvent::StartEvent()
 	}
 
 	// adaptive target score based on the larger team size
-	int countBlue = 0, countRed = 0;
-	for(const auto &kv : m_ClientTeam)
-		(kv.second == 0 ? countBlue : countRed)++;
-	m_TargetScore = std::max(countBlue, countRed) * 10;
+	int CountBlue = 0, CountRed = 0;
+	for(const auto &Kv : m_ClientTeam)
+		(Kv.second == 0 ? CountBlue : CountRed)++;
+	m_TargetScore = std::max(CountBlue, CountRed) * 10;
 
 	SetState(CEventComponent::EEventState::Active);
 }
@@ -663,51 +663,50 @@ void CTeamDeathmatchEvent::OnCharacterDeath(int KillerId, int ClientId, int /*We
 
 	// prevent duplicate processing in the same tick for the same victim
 	{
-		int now = Server()->Tick();
-		int &last = m_LastDeathHandledTick[ClientId];
-		if(last == now)
+		int Now = Server()->Tick();
+		int &Last = m_LastDeathHandledTick[ClientId];
+		if(Last == Now)
 			return;
-		last = now;
+		Last = Now;
 	}
 
 	// update temporary player stats (does not affect account K/D)
-	const bool victimIsParticipant = IsParticipant(ClientId);
-	if(victimIsParticipant)
-		m_PlayerStats[ClientId].Deaths++;
+	const bool VictimIsParticipant = IsParticipant(ClientId);
+	if(VictimIsParticipant)
+		m_PlayerStats[ClientId].m_Deaths++;
 
 	int vSide = GetSideOf(ClientId);
-	bool killCredited = false;
+	bool KillCredited = false;
 	if(vSide != -1)
 	{
 		// primary: credit the actual killer if it's a valid opposing participant
 		if(KillerId >= 0 && KillerId != ClientId && IsParticipant(KillerId))
 		{
-			int kSide = GetSideOf(KillerId);
-			if(kSide != -1 && kSide != vSide)
+			int KSide = GetSideOf(KillerId);
+			if(KSide != -1 && KSide != vSide)
 			{
-				m_PlayerStats[KillerId].Kills++;
-				killCredited = true;
+				m_PlayerStats[KillerId].m_Kills++;
+				KillCredited = true;
 			}
 		}
 
-		if(!killCredited)
+		if(!KillCredited)
 		{
-			auto itA = m_LastImpactByVictim.find(ClientId);
-			auto itT = m_LastImpactTick.find(ClientId);
-			if(itA != m_LastImpactByVictim.end() && itT != m_LastImpactTick.end())
+			auto ItA = m_LastImpactByVictim.find(ClientId);
+			auto ItT = m_LastImpactTick.find(ClientId);
+			if(ItA != m_LastImpactByVictim.end() && ItT != m_LastImpactTick.end())
 			{
-				const int attacker = itA->second;
-				const int impactTick = itT->second;
-				const int windowTicks = 10 * Server()->TickSpeed(); // 10s window for last-impact attribution
-				if(attacker >= 0 && attacker != ClientId && Server()->Tick() - impactTick <= windowTicks)
+				const int Attacker = ItA->second;
+				const int ImpactTick = ItT->second;
+				const int WindowTicks = 10 * Server()->TickSpeed(); // 10s window for last-impact attribution
+				if(Attacker >= 0 && Attacker != ClientId && Server()->Tick() - ImpactTick <= WindowTicks)
 				{
-					if(IsParticipant(attacker))
+					if(IsParticipant(Attacker))
 					{
-						int aSide = GetSideOf(attacker);
+						int aSide = GetSideOf(Attacker);
 						if(aSide != -1 && aSide != vSide)
 						{
-							m_PlayerStats[attacker].Kills++;
-							killCredited = true;
+							m_PlayerStats[Attacker].m_Kills++;
 						}
 					}
 				}
@@ -715,11 +714,11 @@ void CTeamDeathmatchEvent::OnCharacterDeath(int KillerId, int ClientId, int /*We
 		}
 	}
 
-	auto itV = m_ClientTeam.find(ClientId);
-	if(itV != m_ClientTeam.end())
+	auto ItV = m_ClientTeam.find(ClientId);
+	if(ItV != m_ClientTeam.end())
 	{
-		const int victimSide = itV->second;
-		m_ScoreTeam[Opposite(victimSide)] += m_PointsPerKill;
+		const int VictimSide = ItV->second;
+		m_ScoreTeam[Opposite(VictimSide)] += m_PointsPerKill;
 	}
 
 	// keep event team enforced
@@ -775,11 +774,11 @@ bool CTeamDeathmatchEvent::AllowKillCommandFor(int ClientId) const
 		return false;
 	if(pChr->m_FreezeTime <= 0)
 		return false;
-	int since = GetFrozenSince(ClientId);
-	if(since == 0)
+	int Since = GetFrozenSince(ClientId);
+	if(Since == 0)
 		return false;
-	const int required = 2 * Server()->TickSpeed(); // 2 seconds
-	return Server()->Tick() - since >= required;
+	const int Required = 2 * Server()->TickSpeed(); // 2 seconds
+	return Server()->Tick() - Since >= Required;
 }
 void CTeamDeathmatchEvent::FinishEvent()
 {
@@ -796,65 +795,65 @@ void CTeamDeathmatchEvent::FinishEvent()
 	else
 		GameServer()->Bw().SendBroadcast(-1, "TDM ended in a tie %d - %d", m_ScoreTeam[0], m_ScoreTeam[1]);
 
-	struct Ranked
+	struct SRanked
 	{
-		int ClientId;
-		int Kills;
+		int m_ClientId;
+		int m_Kills;
 	};
-	std::vector<Ranked> blue, red;
-	for(int pid : m_Participants)
+	std::vector<SRanked> Blue, Red;
+	for(int Pid : m_Participants)
 	{
-		int side = GetSideOf(pid);
-		int kills = 0;
-		auto it = m_PlayerStats.find(pid);
-		if(it != m_PlayerStats.end())
-			kills = it->second.Kills;
-		Ranked r{pid, kills};
-		if(side == 0)
-			blue.push_back(r);
-		else if(side == 1)
-			red.push_back(r);
+		int Side = GetSideOf(Pid);
+		int Kills = 0;
+		auto It = m_PlayerStats.find(Pid);
+		if(It != m_PlayerStats.end())
+			Kills = It->second.m_Kills;
+		SRanked r{Pid, Kills};
+		if(Side == 0)
+			Blue.push_back(r);
+		else if(Side == 1)
+			Red.push_back(r);
 	}
-	auto cmp = [](const Ranked &a, const Ranked &b) { return a.Kills > b.Kills; };
-	std::sort(blue.begin(), blue.end(), cmp);
-	std::sort(red.begin(), red.end(), cmp);
+	auto Cmp = [](const SRanked &a, const SRanked &b) { return a.m_Kills > b.m_Kills; };
+	std::sort(Blue.begin(), Blue.end(), Cmp);
+	std::sort(Red.begin(), Red.end(), Cmp);
 
-	int winBP[3] = {Config()->m_SvTDMWinBP1, Config()->m_SvTDMWinBP2, Config()->m_SvTDMWinBP3};
-	int loseBP[3] = {Config()->m_SvTDMLoseBP1, Config()->m_SvTDMLoseBP2, Config()->m_SvTDMLoseBP3};
-	bool blueWin = m_ScoreTeam[0] > m_ScoreTeam[1];
-	bool redWin = m_ScoreTeam[1] > m_ScoreTeam[0];
+	int WinBp[3] = {Config()->m_SvTDMWinBP1, Config()->m_SvTDMWinBP2, Config()->m_SvTDMWinBP3};
+	int LoseBp[3] = {Config()->m_SvTDMLoseBP1, Config()->m_SvTDMLoseBP2, Config()->m_SvTDMLoseBP3};
+	bool BlueWin = m_ScoreTeam[0] > m_ScoreTeam[1];
+	bool RedWin = m_ScoreTeam[1] > m_ScoreTeam[0];
 
-	auto award = [&](const std::vector<Ranked> &team, bool isWinner) {
-		for(int i = 0; i < 3 && i < (int)team.size(); ++i)
+	auto Award = [&](const std::vector<SRanked> &Team, bool IsWinner) {
+		for(int i = 0; i < 3 && i < (int)Team.size(); ++i)
 		{
-			int bp = isWinner ? winBP[i] : loseBP[i];
-			if(bp > 0)
+			int Bp = IsWinner ? WinBp[i] : LoseBp[i];
+			if(Bp > 0)
 			{
-				if(auto *pPlayer = GameServer()->Bw().GetPlayer(team[i].ClientId))
+				if(auto *pPlayer = GameServer()->Bw().GetPlayer(Team[i].m_ClientId))
 				{
 					if(!pPlayer->Bw().IsLoggedIn())
 					{
-						GameServer()->Bw().SendChatTarget(team[i].ClientId, "You must be logged in to receive rewards.");
+						GameServer()->Bw().SendChatTarget(Team[i].m_ClientId, "You must be logged in to receive rewards.");
 						continue;
 					}
-					pPlayer->Bw().SetPlayerBlockpoints(pPlayer->Bw().GetPlayerBlockpoints() + bp);
-					GameServer()->Bw().Accounts()->Save(team[i].ClientId, &pPlayer->Bw().m_Account);
+					pPlayer->Bw().SetPlayerBlockpoints(pPlayer->Bw().GetPlayerBlockpoints() + Bp);
+					GameServer()->Bw().Accounts()->Save(Team[i].m_ClientId, &pPlayer->Bw().m_Account);
 					char aBuf[128];
-					str_format(aBuf, sizeof(aBuf), "You received %d BP for your performance in TDM.", bp);
-					GameServer()->Bw().SendChatTarget(team[i].ClientId, aBuf);
+					str_format(aBuf, sizeof(aBuf), "You received %d BP for your performance in TDM.", Bp);
+					GameServer()->Bw().SendChatTarget(Team[i].m_ClientId, aBuf);
 				}
 			}
 		}
 	};
-	if(blueWin)
+	if(BlueWin)
 	{
-		award(blue, true);
-		award(red, false);
+		Award(Blue, true);
+		Award(Red, false);
 	}
-	else if(redWin)
+	else if(RedWin)
 	{
-		award(red, true);
-		award(blue, false);
+		Award(Red, true);
+		Award(Blue, false);
 	}
 
 	// announce per-team best players and summary stats in chat
@@ -881,43 +880,43 @@ void CTeamDeathmatchEvent::ResetStats()
 
 void CTeamDeathmatchEvent::AnnounceResults()
 {
-	struct Ranked
+	struct SRanked
 	{
-		int ClientId;
-		int K;
-		int D;
-		float KD;
-		int Side;
+		int m_ClientId;
+		int m_K;
+		int m_D;
+		float m_Kd;
+		int m_Side;
 	};
-	std::vector<Ranked> blue, red;
-	blue.reserve(m_Participants.size());
-	red.reserve(m_Participants.size());
-	for(int pid : m_Participants)
+	std::vector<SRanked> Blue, Red;
+	Blue.reserve(m_Participants.size());
+	Red.reserve(m_Participants.size());
+	for(int Pid : m_Participants)
 	{
-		const auto it = m_PlayerStats.find(pid);
+		const auto It = m_PlayerStats.find(Pid);
 		int k = 0, d = 0;
-		if(it != m_PlayerStats.end())
+		if(It != m_PlayerStats.end())
 		{
-			k = it->second.Kills;
-			d = it->second.Deaths;
+			k = It->second.m_Kills;
+			d = It->second.m_Deaths;
 		}
-		float kd = d > 0 ? (float)k / (float)d : (k > 0 ? (float)k : 0.0f);
-		int side = GetSideOf(pid);
-		Ranked r{pid, k, d, kd, side};
-		if(side == 0)
-			blue.push_back(r);
-		else if(side == 1)
-			red.push_back(r);
+		float Kd = d > 0 ? (float)k / (float)d : (k > 0 ? (float)k : 0.0f);
+		int Side = GetSideOf(Pid);
+		SRanked r{Pid, k, d, Kd, Side};
+		if(Side == 0)
+			Blue.push_back(r);
+		else if(Side == 1)
+			Red.push_back(r);
 	}
-	auto cmp = [](const Ranked &a, const Ranked &b) {
-		if(a.K != b.K)
-			return a.K > b.K; // more kills first
-		if(a.KD != b.KD)
-			return a.KD > b.KD; // better KD
-		return a.ClientId < b.ClientId; // stable
+	auto Cmp = [](const SRanked &a, const SRanked &b) {
+		if(a.m_K != b.m_K)
+			return a.m_K > b.m_K; // more kills first
+		if(a.m_Kd != b.m_Kd)
+			return a.m_Kd > b.m_Kd; // better KD
+		return a.m_ClientId < b.m_ClientId; // stable
 	};
-	std::sort(blue.begin(), blue.end(), cmp);
-	std::sort(red.begin(), red.end(), cmp);
+	std::sort(Blue.begin(), Blue.end(), Cmp);
+	std::sort(Red.begin(), Red.end(), Cmp);
 
 	char aBuf[256];
 	// overall summary
@@ -925,16 +924,16 @@ void CTeamDeathmatchEvent::AnnounceResults()
 	GameServer()->Bw().SendChatTarget(-1, aBuf);
 
 	// show the top3 best players of each team
-	auto announceTop = [&](const char *pTeamName, const std::vector<Ranked> &v) {
+	auto AnnounceTop = [&](const char *pTeamName, const std::vector<SRanked> &v) {
 		for(int i = 0; i < 3; ++i)
 		{
 			if(i < (int)v.size())
 			{
 				const auto &r = v[i];
-				const char *pName = GameServer()->Server()->ClientName(r.ClientId);
-				int kd_int = (int)(r.KD * 100.0f + 0.5f);
+				const char *pName = GameServer()->Server()->ClientName(r.m_ClientId);
+				int KdInt = (int)(r.m_Kd * 100.0f + 0.5f);
 				str_format(aBuf, sizeof(aBuf), "%s #%d: %s - K %d / D %d (K/D %d.%02d)",
-					pTeamName, i + 1, pName, r.K, r.D, kd_int / 100, kd_int % 100);
+					pTeamName, i + 1, pName, r.m_K, r.m_D, KdInt / 100, KdInt % 100);
 			}
 			else
 			{
@@ -944,8 +943,8 @@ void CTeamDeathmatchEvent::AnnounceResults()
 		}
 	};
 
-	announceTop("Blue", blue);
-	announceTop("Red", red);
+	AnnounceTop("Blue", Blue);
+	AnnounceTop("Red", Red);
 
 	// discord webhook: post TDM result with teams, scores and top-3 per side
 	{
@@ -965,14 +964,14 @@ void CTeamDeathmatchEvent::AnnounceResults()
 						pDst[0] = '\0';
 					return;
 				}
-				int out = 0;
-				for(int i = 0; pSrc[i] && out < DstSize - 1; ++i)
+				int Out = 0;
+				for(int i = 0; pSrc[i] && Out < DstSize - 1; ++i)
 				{
 					unsigned char c = (unsigned char)pSrc[i];
 					if(c >= 0x20 && c <= 0x7E) // printable ASCII only
-						pDst[out++] = pSrc[i];
+						pDst[Out++] = pSrc[i];
 				}
-				pDst[out] = '\0';
+				pDst[Out] = '\0';
 			};
 
 			char aDiscord[2000];
@@ -1000,14 +999,14 @@ void CTeamDeathmatchEvent::AnnounceResults()
 			str_append(aDiscord, "Team Blue           K    D    K/D\n");
 			for(int i = 0; i < 3; ++i)
 			{
-				if(i < (int)blue.size())
+				if(i < (int)Blue.size())
 				{
-					const char *pName = Server()->ClientName(blue[i].ClientId);
+					const char *pName = Server()->ClientName(Blue[i].m_ClientId);
 					char aSafeName[17];
 					SanitizeName(pName ? pName : "?", aSafeName, sizeof(aSafeName));
-					int kdi = (int)(blue[i].KD * 100.0f + 0.5f);
+					int Kdi = (int)(Blue[i].m_Kd * 100.0f + 0.5f);
 					str_format(aTmp, sizeof(aTmp), "#%d  %-16.16s %3d  %3d  %d.%02d\n",
-						i + 1, aSafeName, blue[i].K, blue[i].D, kdi / 100, kdi % 100);
+						i + 1, aSafeName, Blue[i].m_K, Blue[i].m_D, Kdi / 100, Kdi % 100);
 				}
 				else
 					str_format(aTmp, sizeof(aTmp), "#%d  -\n", i + 1);
@@ -1017,14 +1016,14 @@ void CTeamDeathmatchEvent::AnnounceResults()
 			str_append(aDiscord, "\nTeam Red            K    D    K/D\n");
 			for(int i = 0; i < 3; ++i)
 			{
-				if(i < (int)red.size())
+				if(i < (int)Red.size())
 				{
-					const char *pName = Server()->ClientName(red[i].ClientId);
+					const char *pName = Server()->ClientName(Red[i].m_ClientId);
 					char aSafeName[17];
 					SanitizeName(pName ? pName : "?", aSafeName, sizeof(aSafeName));
-					int kdi = (int)(red[i].KD * 100.0f + 0.5f);
+					int Kdi = (int)(Red[i].m_Kd * 100.0f + 0.5f);
 					str_format(aTmp, sizeof(aTmp), "#%d  %-16.16s %3d  %3d  %d.%02d\n",
-						i + 1, aSafeName, red[i].K, red[i].D, kdi / 100, kdi % 100);
+						i + 1, aSafeName, Red[i].m_K, Red[i].m_D, Kdi / 100, Kdi % 100);
 				}
 				else
 					str_format(aTmp, sizeof(aTmp), "#%d  -\n", i + 1);
@@ -1106,13 +1105,13 @@ bool CTeamDeathmatchEvent::DeRegister(int ClientId)
 		GameServer()->Bw().SendChatTarget(ClientId, "Registration phase is over!");
 		return false;
 	}
-	auto it = std::find(Candidates().begin(), Candidates().end(), ClientId);
-	if(it == Candidates().end())
+	auto It = std::find(Candidates().begin(), Candidates().end(), ClientId);
+	if(It == Candidates().end())
 	{
 		GameServer()->Bw().SendChatTarget(ClientId, "You aren't registered to participate.");
 		return false;
 	}
-	m_Candidates.erase(it);
+	m_Candidates.erase(It);
 	GameServer()->Bw().SendChatTarget(ClientId, "You successfully left %s.", GetEventName());
 	return true;
 }
@@ -1136,25 +1135,25 @@ bool CTeamDeathmatchEvent::Join(int ClientId)
 
 bool CTeamDeathmatchEvent::Leave(int ClientId)
 {
-	auto itIn = std::find(Participants().begin(), Participants().end(), ClientId);
-	if(itIn == Participants().end())
+	auto ItIn = std::find(Participants().begin(), Participants().end(), ClientId);
+	if(ItIn == Participants().end())
 		return false;
-	m_Participants.erase(itIn);
+	m_Participants.erase(ItIn);
 
 	if(GetState() == CEventComponent::EEventState::Active)
 	{
-		int penalty = Config()->m_SvTDMLeavePenaltyBP;
-		if(penalty > 0)
+		int Penalty = Config()->m_SvTDMLeavePenaltyBP;
+		if(Penalty > 0)
 		{
 			if(auto *pPlayer = GameServer()->Bw().GetPlayer(ClientId))
 			{
 				if(pPlayer->Bw().IsLoggedIn())
 				{
-					int bp = pPlayer->Bw().GetPlayerBlockpoints();
-					pPlayer->Bw().SetPlayerBlockpoints(std::max(0, bp - penalty));
+					int Bp = pPlayer->Bw().GetPlayerBlockpoints();
+					pPlayer->Bw().SetPlayerBlockpoints(std::max(0, Bp - Penalty));
 					GameServer()->Bw().Accounts()->Save(ClientId, &pPlayer->Bw().m_Account);
 					char aBuf[128];
-					str_format(aBuf, sizeof(aBuf), "You lost %d BP for leaving TDM early.", penalty);
+					str_format(aBuf, sizeof(aBuf), "You lost %d BP for leaving TDM early.", Penalty);
 					GameServer()->Bw().SendChatTarget(ClientId, aBuf);
 				}
 			}
@@ -1168,15 +1167,15 @@ bool CTeamDeathmatchEvent::Leave(int ClientId)
 	RestoreCosmetics(ClientId);
 
 	// restore solo/collision for this player
-	if(auto itSolo = m_PrevSoloState.find(ClientId); itSolo != m_PrevSoloState.end())
+	if(auto ItSolo = m_PrevSoloState.find(ClientId); ItSolo != m_PrevSoloState.end())
 	{
 		if(auto *pChar = GameServer()->GetPlayerChar(ClientId))
 		{
-			if(itSolo->second.solo)
+			if(ItSolo->second.m_Solo)
 				pChar->SetSolo(true);
-			pChar->Bw().Core().m_CollisionDisabled = itSolo->second.collision;
+			pChar->Bw().Core().m_CollisionDisabled = ItSolo->second.m_Collision;
 		}
-		m_PrevSoloState.erase(itSolo);
+		m_PrevSoloState.erase(ItSolo);
 	}
 
 	// return immediately
@@ -1187,16 +1186,16 @@ bool CTeamDeathmatchEvent::Leave(int ClientId)
 	// if one side becomes empty or overall < 2, end event
 	if(GetState() == CEventComponent::EEventState::Active)
 	{
-		int team0 = 0, team1 = 0;
-		for(int pid : m_Participants)
+		int Team0 = 0, Team1 = 0;
+		for(int Pid : m_Participants)
 		{
-			int side = GetSideOf(pid);
-			if(side == 0)
-				++team0;
-			else if(side == 1)
-				++team1;
+			int Side = GetSideOf(Pid);
+			if(Side == 0)
+				++Team0;
+			else if(Side == 1)
+				++Team1;
 		}
-		if(team0 == 0 || team1 == 0 || (int)m_Participants.size() < 2)
+		if(Team0 == 0 || Team1 == 0 || (int)m_Participants.size() < 2)
 		{
 			GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "events",
 				"TDM: ending event because a team became empty or too few participants");

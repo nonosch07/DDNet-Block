@@ -45,8 +45,8 @@ bool CBlockTracker::Blocked(int ClientID, int BlockerID)
 
 	int64_t NowTick = m_pGameContext->Server()->Tick();
 
-	int activePlayers = GetActiveNonAfkPlayers();
-	if(g_Config.m_SvMinActivePlayersForExp > 0 && activePlayers < g_Config.m_SvMinActivePlayersForExp)
+	int ActivePlayers = GetActiveNonAfkPlayers();
+	if(g_Config.m_SvMinActivePlayersForExp > 0 && ActivePlayers < g_Config.m_SvMinActivePlayersForExp)
 	{
 		DebugMsg(BlockerID, "No EXP: not enough active players");
 		return false;
@@ -112,39 +112,39 @@ bool CBlockTracker::Blocked(int ClientID, int BlockerID)
 		DebugMsg(BlockerID, "No EXP: same IP restricted");
 		return false;
 	}
-	if(auto events = g_ComponentRegistry.Get<CEvents>())
+	if(auto Events = g_ComponentRegistry.Get<CEvents>())
 	{
-		for(auto &sub : events->GetSubComponents())
+		for(auto &Sub : Events->GetSubComponents())
 		{
-			CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
+			CEventComponent *pEv = dynamic_cast<CEventComponent *>(Sub.operator->());
 			if(!pEv)
 				continue;
 			if(pEv->GetName() && str_comp(pEv->GetName(), "tdm") == 0)
 				continue;
-			const auto &parts = pEv->Participants();
-			if(std::find(parts.begin(), parts.end(), ClientID) != parts.end() || std::find(parts.begin(), parts.end(), BlockerID) != parts.end())
+			const auto &Parts = pEv->Participants();
+			if(std::find(Parts.begin(), Parts.end(), ClientID) != Parts.end() || std::find(Parts.begin(), Parts.end(), BlockerID) != Parts.end())
 			{
 				DebugMsg(BlockerID, "No EXP: event participant exclusion");
 				return false;
 			}
 		}
 
-		if(auto p1on1 = g_ComponentRegistry.Get<COneOnOneManager>())
+		if(auto P1on1 = g_ComponentRegistry.Get<COneOnOneManager>())
 		{
-			if(p1on1->GetMatchForPlayer(ClientID) || p1on1->GetMatchForPlayer(BlockerID))
+			if(P1on1->GetMatchForPlayer(ClientID) || P1on1->GetMatchForPlayer(BlockerID))
 			{
 				DebugMsg(BlockerID, "No EXP: 1on1 participant exclusion");
 				return false;
 			}
 		}
 
-		auto active = events->GetActiveEvent();
-		if(active)
+		auto Active = Events->GetActiveEvent();
+		if(Active)
 		{
-			const char *pEvName = active->GetName();
+			const char *pEvName = Active->GetName();
 			if(pEvName && (str_comp(pEvName, "LMB") == 0 || str_comp(pEvName, "tdm") == 0) &&
-				(std::find(active->Participants().begin(), active->Participants().end(), ClientID) != active->Participants().end() ||
-					std::find(active->Participants().begin(), active->Participants().end(), BlockerID) != active->Participants().end()))
+				(std::find(Active->Participants().begin(), Active->Participants().end(), ClientID) != Active->Participants().end() ||
+					std::find(Active->Participants().begin(), Active->Participants().end(), BlockerID) != Active->Participants().end()))
 			{
 				return false;
 			}
@@ -319,17 +319,17 @@ bool CBlockTracker::PassedSameVictimLimit(int VictimID, int KillerID, int64_t No
 	SKillerRecent &KS = m_aKillerStats[KillerID];
 	int TickSpeed = m_pGameContext->Server()->TickSpeed();
 	int Window = g_Config.m_SvExpSameVictimWindowSec * TickSpeed;
-	auto &map = KS.m_Victims;
-	auto it = map.find(VictimID);
-	if(it == map.end())
+	auto &Map = KS.m_Victims;
+	auto It = Map.find(VictimID);
+	if(It == Map.end())
 		return true;
 	// prune window
-	if(NowTick - it->second.FirstTick > Window)
+	if(NowTick - It->second.m_FirstTick > Window)
 	{
-		map.erase(it);
+		Map.erase(It);
 		return true;
 	}
-	if(it->second.Count >= g_Config.m_SvExpMaxSameVictim)
+	if(It->second.m_Count >= g_Config.m_SvExpMaxSameVictim)
 		return false;
 	return true;
 }
@@ -338,39 +338,39 @@ float CBlockTracker::PopulationScale() const
 {
 	if(g_Config.m_SvExpTargetFullPlayers <= 0)
 		return 1.0f;
-	int active = GetActiveNonAfkPlayers();
-	int minReq = g_Config.m_SvMinActivePlayersForExp;
-	if(active <= minReq)
+	int Active = GetActiveNonAfkPlayers();
+	int MinReq = g_Config.m_SvMinActivePlayersForExp;
+	if(Active <= MinReq)
 		return 0.0f;
-	float span = (float)(g_Config.m_SvExpTargetFullPlayers - minReq);
-	if(span <= 0.0f)
+	float Span = (float)(g_Config.m_SvExpTargetFullPlayers - MinReq);
+	if(Span <= 0.0f)
 		return 1.0f;
-	float scale = (active - minReq) / span;
-	if(scale > 1.0f)
-		scale = 1.0f;
-	if(scale < 0.0f)
-		scale = 0.0f;
-	return scale;
+	float Scale = (Active - MinReq) / Span;
+	if(Scale > 1.0f)
+		Scale = 1.0f;
+	if(Scale < 0.0f)
+		Scale = 0.0f;
+	return Scale;
 }
 
 float CBlockTracker::UniqueVictimRatio(int KillerID) const
 {
 	const SKillerRecent &KS = m_aKillerStats[KillerID];
-	int total = 0;
-	int unique = 0;
+	int Total = 0;
+	int Unique = 0;
 	int64_t NowTick = m_pGameContext->Server()->Tick();
 	int TickSpeed = m_pGameContext->Server()->TickSpeed();
 	int Window = g_Config.m_SvExpSameVictimWindowSec * TickSpeed; // reuse window
-	for(const auto &pr : KS.m_Victims)
+	for(const auto &Pr : KS.m_Victims)
 	{
-		if(NowTick - pr.second.LastTick > Window)
+		if(NowTick - Pr.second.m_LastTick > Window)
 			continue; // ignore stale
-		unique++;
-		total += pr.second.Count;
+		Unique++;
+		Total += Pr.second.m_Count;
 	}
-	if(total == 0)
+	if(Total == 0)
 		return 1.0f; // neutral when no data
-	return (float)unique / (float)total;
+	return (float)Unique / (float)Total;
 }
 
 bool CBlockTracker::DetectLoopPattern(int KillerID, int VictimID, int64_t NowTick)
@@ -381,30 +381,30 @@ bool CBlockTracker::DetectLoopPattern(int KillerID, int VictimID, int64_t NowTic
 	int TickSpeed = m_pGameContext->Server()->TickSpeed();
 	int Window = g_Config.m_SvExpLoopDetectionWindowSec * TickSpeed;
 	// examine global buffer for pattern A-B-A-B
-	int alternations = 0;
-	int lastK = -1, lastV = -1;
-	for(auto it = m_GlobalKillBuffer.rbegin(); it != m_GlobalKillBuffer.rend(); ++it)
+	int Alternations = 0;
+	int LastK = -1, LastV = -1;
+	for(auto It = m_GlobalKillBuffer.rbegin(); It != m_GlobalKillBuffer.rend(); ++It)
 	{
-		if(NowTick - it->m_Tick > Window)
+		if(NowTick - It->m_Tick > Window)
 			break;
-		if(lastK == -1)
+		if(LastK == -1)
 		{
-			lastK = it->m_Killer;
-			lastV = it->m_Victim;
+			LastK = It->m_Killer;
+			LastV = It->m_Victim;
 			continue;
 		}
 		// check alternating pair with current attempted pair
-		if((it->m_Killer == KillerID && it->m_Victim == VictimID) || (it->m_Killer == VictimID && it->m_Victim == KillerID))
+		if((It->m_Killer == KillerID && It->m_Victim == VictimID) || (It->m_Killer == VictimID && It->m_Victim == KillerID))
 		{
-			if(it->m_Killer != lastK && it->m_Victim != lastV)
+			if(It->m_Killer != LastK && It->m_Victim != LastV)
 			{
-				alternations++;
-				lastK = it->m_Killer;
-				lastV = it->m_Victim;
+				Alternations++;
+				LastK = It->m_Killer;
+				LastV = It->m_Victim;
 			}
 		}
 	}
-	if(alternations >= g_Config.m_SvExpLoopMinAlternations)
+	if(Alternations >= g_Config.m_SvExpLoopMinAlternations)
 	{
 		KS.m_LoopSuppressedUntilTick = NowTick + Window; // suppress for one windows
 		DebugMsg(KillerID, "EXP suppressed: loop pattern detected");
@@ -423,30 +423,30 @@ float CBlockTracker::LevelDiffScale(int KillerID, int VictimID) const
 		return 1.0f;
 	if(!pKiller->Bw().IsLoggedIn() || !pVictim->Bw().IsLoggedIn())
 		return 1.0f;
-	int kLevel = pKiller->Bw().GetPlayerLevel();
+	int KLevel = pKiller->Bw().GetPlayerLevel();
 	int vLevel = pVictim->Bw().GetPlayerLevel();
-	int diff = kLevel - vLevel;
-	if(diff <= g_Config.m_SvExpLevelDiffSoftCap)
+	int Diff = KLevel - vLevel;
+	if(Diff <= g_Config.m_SvExpLevelDiffSoftCap)
 		return 1.0f;
 	float K = g_Config.m_SvExpLevelDiffDecayKPercent / 100.0f;
 	if(K <= 0.0f)
 		K = 4.0f;
-	float scale = expf(-(diff - g_Config.m_SvExpLevelDiffSoftCap) / K);
-	if(scale < 0.05f)
-		scale = 0.05f; // keep a small reward
-	return scale;
+	float Scale = expf(-(Diff - g_Config.m_SvExpLevelDiffSoftCap) / K);
+	if(Scale < 0.05f)
+		Scale = 0.05f; // keep a small reward
+	return Scale;
 }
 
 float CBlockTracker::DailySoftCapScale(int KillerID)
 {
 	SKillerRecent &KS = m_aKillerStats[KillerID];
 	time_t t = time(nullptr);
-	struct tm tmres;
-	time_localtime_safe(&t, &tmres);
-	int yyyymmdd = (tmres.tm_year + 1900) * 10000 + (tmres.tm_mon + 1) * 100 + tmres.tm_mday;
-	if(KS.m_TodayDate != yyyymmdd)
+	struct tm Tmres;
+	time_localtime_safe(&t, &Tmres);
+	int Yyyymmdd = (Tmres.tm_year + 1900) * 10000 + (Tmres.tm_mon + 1) * 100 + Tmres.tm_mday;
+	if(KS.m_TodayDate != Yyyymmdd)
 	{
-		KS.m_TodayDate = yyyymmdd;
+		KS.m_TodayDate = Yyyymmdd;
 		KS.m_TodayExp = 0;
 	}
 	if(g_Config.m_SvExpDailySoftCap <= 0)
@@ -465,23 +465,23 @@ float CBlockTracker::DailySoftCapScale(int KillerID)
 float CBlockTracker::AfkVictimRatio(int KillerID) const
 {
 	const SKillerRecent &KS = m_aKillerStats[KillerID];
-	int afk = 0;
-	int total = 0;
+	int Afk = 0;
+	int Total = 0;
 	int64_t NowTick = m_pGameContext->Server()->Tick();
 	int TickSpeed = m_pGameContext->Server()->TickSpeed();
 	int Window = g_Config.m_SvExpSameVictimWindowSec * TickSpeed;
-	for(const auto &kv : KS.m_Victims)
+	for(const auto &Kv : KS.m_Victims)
 	{
-		if(NowTick - kv.second.LastTick > Window)
+		if(NowTick - Kv.second.m_LastTick > Window)
 			continue;
-		total += kv.second.Count;
+		Total += Kv.second.m_Count;
 		// approximate: if last was afk treat proportionally
-		if(kv.second.LastWasAfk)
-			afk += 1; // coarse but cheap
+		if(Kv.second.m_LastWasAfk)
+			Afk += 1; // coarse but cheap
 	}
-	if(total == 0)
+	if(Total == 0)
 		return 0.0f;
-	return (float)afk / (float)total;
+	return (float)Afk / (float)Total;
 }
 
 void CBlockTracker::RecordKill(int KillerID, int VictimID, bool VictimWasAfk, int64_t NowTick)
@@ -493,21 +493,21 @@ void CBlockTracker::RecordKill(int KillerID, int VictimID, bool VictimWasAfk, in
 	int TickSpeed = m_pGameContext->Server()->TickSpeed();
 	int Window = g_Config.m_SvExpSameVictimWindowSec * TickSpeed;
 	// prune stale victim stats
-	for(auto it = KS.m_Victims.begin(); it != KS.m_Victims.end();)
+	for(auto It = KS.m_Victims.begin(); It != KS.m_Victims.end();)
 	{
-		if(NowTick - it->second.LastTick > Window)
-			it = KS.m_Victims.erase(it);
+		if(NowTick - It->second.m_LastTick > Window)
+			It = KS.m_Victims.erase(It);
 		else
-			++it;
+			++It;
 	}
-	auto &vs = KS.m_Victims[VictimID];
-	if(vs.Count == 0)
+	auto &Vs = KS.m_Victims[VictimID];
+	if(Vs.m_Count == 0)
 	{
-		vs.FirstTick = NowTick;
+		Vs.m_FirstTick = NowTick;
 	}
-	vs.Count++;
-	vs.LastTick = NowTick;
-	vs.LastWasAfk = VictimWasAfk;
+	Vs.m_Count++;
+	Vs.m_LastTick = NowTick;
+	Vs.m_LastWasAfk = VictimWasAfk;
 
 	// global buffer
 	m_GlobalKillBuffer.push_back({KillerID, VictimID, NowTick});
@@ -661,29 +661,29 @@ void CBlockTracker::OnPlayerImpacted(int ClientID, int InitiatorID)
 	if(ClientID == InitiatorID)
 		return;
 
-	if(auto events = g_ComponentRegistry.Get<CEvents>())
+	if(auto Events = g_ComponentRegistry.Get<CEvents>())
 	{
-		auto subs = events->GetSubComponents();
-		for(auto &sub : subs)
+		auto Subs = Events->GetSubComponents();
+		for(auto &Sub : Subs)
 		{
-			CEventComponent *pEv = dynamic_cast<CEventComponent *>(sub.operator->());
+			CEventComponent *pEv = dynamic_cast<CEventComponent *>(Sub.operator->());
 			if(!pEv)
 				continue;
 			// TDM and zCatch handle their own kill/catch detection; don't suppress impact tracking for them
 			if(pEv->GetName() && (str_comp(pEv->GetName(), "tdm") == 0 || str_comp(pEv->GetName(), "zcatch") == 0))
 				continue;
-			const auto &parts = pEv->Participants();
-			if(std::find(parts.begin(), parts.end(), ClientID) != parts.end() || std::find(parts.begin(), parts.end(), InitiatorID) != parts.end())
+			const auto &Parts = pEv->Participants();
+			if(std::find(Parts.begin(), Parts.end(), ClientID) != Parts.end() || std::find(Parts.begin(), Parts.end(), InitiatorID) != Parts.end())
 				return;
 		}
 
-		auto active = events->GetActiveEvent();
-		if(active)
+		auto Active = Events->GetActiveEvent();
+		if(Active)
 		{
-			const char *pEvName = active->GetName();
+			const char *pEvName = Active->GetName();
 			if(pEvName && (str_comp(pEvName, "LMB") == 0 || str_comp(pEvName, "tdm") == 0) &&
-				(std::find(active->Participants().begin(), active->Participants().end(), ClientID) != active->Participants().end() ||
-					std::find(active->Participants().begin(), active->Participants().end(), InitiatorID) != active->Participants().end()))
+				(std::find(Active->Participants().begin(), Active->Participants().end(), ClientID) != Active->Participants().end() ||
+					std::find(Active->Participants().begin(), Active->Participants().end(), InitiatorID) != Active->Participants().end()))
 			{
 				return;
 			}
@@ -691,9 +691,9 @@ void CBlockTracker::OnPlayerImpacted(int ClientID, int InitiatorID)
 	}
 
 	// exclude 1on1 participants
-	if(auto p1on1 = g_ComponentRegistry.Get<COneOnOneManager>())
+	if(auto P1on1 = g_ComponentRegistry.Get<COneOnOneManager>())
 	{
-		if(p1on1->GetMatchForPlayer(ClientID) || p1on1->GetMatchForPlayer(InitiatorID))
+		if(P1on1->GetMatchForPlayer(ClientID) || P1on1->GetMatchForPlayer(InitiatorID))
 			return;
 	}
 
@@ -726,10 +726,10 @@ bool CBlockTracker::OnPlayerKill(int ClientID)
 	m_aHourlyStats[ClientID].m_Active = true;
 
 	// notify active event of the block kill (e.g. used by zCatch)
-	if(auto events = g_ComponentRegistry.Get<CEvents>())
+	if(auto Events = g_ComponentRegistry.Get<CEvents>())
 	{
-		if(auto active = events->GetActiveEvent())
-			active->OnBlockedKill(ClientID, KillerID);
+		if(auto Active = Events->GetActiveEvent())
+			Active->OnBlockedKill(ClientID, KillerID);
 	}
 
 	const bool ExpKillMsgSent = Blocked(ClientID, Player.m_ImpactedClientID);
@@ -769,8 +769,8 @@ void CBlockTracker::ResetHourlyStats(int ClientID)
 
 void CBlockTracker::ResetAllHourlyStats()
 {
-	for(int i = 0; i < MAX_CLIENTS; ++i)
-		m_aHourlyStats[i] = {};
+	for(auto &HourlyStat : m_aHourlyStats)
+		HourlyStat = {};
 }
 
 void CBlockTracker::OnPlayerDeath(int ClientID)

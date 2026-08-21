@@ -33,23 +33,23 @@ const SPromise *CPromises::AddPromise(int ExecuteTick, std::weak_ptr<void> pUser
 
 void CPromises::OnTick()
 {
-	for(auto it = m_Promises.begin(); it != m_Promises.end();)
+	for(auto It = m_Promises.begin(); It != m_Promises.end();)
 	{
-		if(Server()->Tick() < it->m_ExecuteTick)
+		if(Server()->Tick() < It->m_ExecuteTick)
 		{
-			it++;
+			It++;
 			continue;
 		}
 
-		if(auto pLockedUserData = it->m_pUserData.lock())
+		if(auto pLockedUserData = It->m_pUserData.lock())
 		{
-			LogDebug("Promise Finished. Callback: %" PRIzu, GetCallbackHash(it->m_Callback));
-			it->m_Callback(pLockedUserData);
+			LogDebug("Promise Finished. Callback: %" PRIzu, GetCallbackHash(It->m_Callback));
+			It->m_Callback(pLockedUserData);
 		}
 		else
-			LogDebug("Promise Discarded. Owner is dead. Callback: %" PRIzu, GetCallbackHash(it->m_Callback));
+			LogDebug("Promise Discarded. Owner is dead. Callback: %" PRIzu, GetCallbackHash(It->m_Callback));
 
-		it = m_Promises.erase(it);
+		It = m_Promises.erase(It);
 	}
 }
 
@@ -64,21 +64,21 @@ void CPromises::OnTick()
 // Keep in mind, that OnShutdown is called both on real shutdown and on gameserver restart, like map reload or map change
 void CPromises::OnShutdown()
 {
-	auto it = m_Promises.begin();
-	for(; it != m_Promises.end();)
+	auto It = m_Promises.begin();
+	for(; It != m_Promises.end();)
 	{
-		auto &Promise = *it;
+		auto &Promise = *It;
 		LogDebug("Promise Forcefully Discarded. Callback: %" PRIzu, GetCallbackHash(Promise.m_Callback));
-		m_Promises.erase(it);
+		m_Promises.erase(It);
 	}
 }
 void CPromises::OnDisable()
 {
-	auto it = m_Promises.begin();
-	for(; it != m_Promises.end();)
+	auto It = m_Promises.begin();
+	for(; It != m_Promises.end();)
 	{
-		auto &Promise = *it;
+		auto &Promise = *It;
 		LogDebug("Promise Forcefully Discarded. Callback: %" PRIzu, GetCallbackHash(Promise.m_Callback));
-		m_Promises.erase(it);
+		m_Promises.erase(It);
 	}
 }
