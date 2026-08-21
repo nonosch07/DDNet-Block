@@ -1,0 +1,56 @@
+Blockworlds Copyright (C) 2024-2026 Nouaa
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+This work is a modification of Teeworlds/DDRace/DDNet, originally
+distributed under the zlib license reproduced in full at the end of
+this file. That license permits modification and redistribution
+under additional terms, provided the original notice is preserved.
+The following ADDITIONAL TERMS apply to this repository (Blockworlds)
+as a whole, including all code contributed by nouaa and contributors,
+and take precedence over the zlib license below wherever the two
+conflict.
+
+## Additional Terms
+
+1. Source must stay available
+   The complete, human-readable source code of this software, and of
+   any modified, forked, or derivative version of it, must always be
+   published and freely accessible to anyone who uses it — including
+   anyone interacting with a server or service running it. Distributing
+   or operating a compiled, minified, obfuscated, or otherwise
+   source-hidden version, without also publishing the matching source,
+   is not permitted.
+
+2. Copyleft — derivatives must stay under these same terms
+   Any modification, fork, or derivative work must be released under
+   this exact same license, including this clause. You may not
+   relicense this code, or any derivative of it, under different or
+   more permissive terms.
+
+3. No commercial use
+   Neither this software nor any derivative of it may be sold,
+   sublicensed, or used, in whole or in part, to generate revenue or
+   any other commercial advantage. This includes, without limitation:
+   selling access to a server running this software, selling modified
+   versions, requiring payment for features or content built on this
+   code, or bundling it with a paid product or service. Voluntary,
+   no-strings-attached donations that grant no product, service, or
+   advantage in return are permitted.
+
+4. No misrepresentation of origin
+   You must not claim you wrote the original software. Altered
+   versions must be plainly marked as such and must not be
+   misrepresented as the original.
+
+5. Notice preservation
+   This entire license — these additional terms together with the
+   original notice below — must be included, unaltered, with every
+   copy or distribution of this software or any derivative of it.
+
+Any use that does not comply with all of the above terms is not
+authorized by this license.
+
+

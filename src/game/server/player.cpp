@@ -2,6 +2,10 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "player.h"
 
+// --- BW BEGIN ---
+#include <blockworlds/bw_context.h>
+// --- BW END ---
+
 #include "entities/character.h"
 #include "gamecontext.h"
 #include "gamecontroller.h"
@@ -29,6 +33,9 @@ IServer *CPlayer::Server() const { return m_pGameServer->Server(); }
 CPlayer::CPlayer(CGameContext *pGameServer, uint32_t UniqueClientId, int ClientId, int Team) :
 	m_UniqueClientId(UniqueClientId)
 {
+	// --- BW BEGIN ---
+	m_Bw.Init(this);
+	// --- BW END ---
 	m_pGameServer = pGameServer;
 	m_ClientId = ClientId;
 	dbg_assert(GameServer()->m_pController->IsValidTeam(Team), "Invalid Team: %d", Team);
@@ -152,6 +159,10 @@ void CPlayer::Reset()
 	UpdateNetworkClipRadius();
 	std::fill(std::begin(m_aStrongWeakId), std::end(m_aStrongWeakId), 0);
 	InvalidateClientInfo();
+
+	// --- BW BEGIN ---
+	m_Bw.Reset();
+	// --- BW END ---
 }
 
 void CPlayer::SetTeeInfos(const CTeeInfo &TeeInfos)
@@ -184,6 +195,10 @@ static int PlayerFlags_SixToSeven(int Flags)
 
 void CPlayer::Tick()
 {
+	// --- BW BEGIN ---
+	m_Bw.Tick();
+	// --- BW END ---
+
 	if(m_ScoreQueryResult != nullptr && m_ScoreQueryResult->m_Completed && m_SentSnaps >= 3)
 	{
 		ProcessScoreResult(*m_ScoreQueryResult);
@@ -348,7 +363,12 @@ void CPlayer::Snap(int SnappingClient)
 		m_ClientInfo.m_ColorBody = m_TeeInfos.m_ColorBody;
 		m_ClientInfo.m_ColorFeet = m_TeeInfos.m_ColorFeet;
 	}
-	Server()->SnapNewItem(TranslatedId, m_ClientInfo);
+	// --- BW BEGIN: cosmetics depend on the viewer and on the tick, so they go
+	// onto a copy instead of upstream's cached client info ---
+	CNetObj_ClientInfo BwClientInfo = m_ClientInfo;
+	GameServer()->Bw().OnSnapClientInfo(m_ClientId, SnappingClient, &BwClientInfo);
+	Server()->SnapNewItem(TranslatedId, BwClientInfo);
+	// --- BW END ---
 
 	int SnappingClientVersion = GameServer()->GetClientVersion(SnappingClient);
 	int Latency = SnappingClient == SERVER_DEMO_CLIENT ? m_Latency.m_Min : GameServer()->m_apPlayers[SnappingClient]->m_aCurLatency[m_ClientId];
@@ -367,6 +387,9 @@ void CPlayer::Snap(int SnappingClient)
 			// In older versions the SPECTATORS TEAM was also used if the own player is in PAUSE_PAUSED or if any player is in PAUSE_SPEC.
 			PlayerInfo.m_Team = (m_Paused != PAUSE_PAUSED || m_ClientId != SnappingClient) && m_Paused < PAUSE_SPEC ? m_Team : TEAM_SPECTATORS;
 		}
+		// --- BW BEGIN ---
+		GameServer()->Bw().OnSnapPlayerInfo(m_ClientId, SnappingClient, &PlayerInfo);
+		// --- BW END ---
 		Server()->SnapNewItem(TranslatedId, PlayerInfo);
 	}
 	else
@@ -474,6 +497,9 @@ void CPlayer::Snap(int SnappingClient)
 	IGameController::CFinishTime PlayerTime = GameServer()->m_pController->SnapPlayerTime(SnappingClient, this);
 	DDNetPlayer.m_FinishTimeSeconds = PlayerTime.m_Seconds;
 	DDNetPlayer.m_FinishTimeMillis = PlayerTime.m_Milliseconds;
+	// --- BW BEGIN ---
+	GameServer()->Bw().OnSnapDDNetPlayer(m_ClientId, &DDNetPlayer);
+	// --- BW END ---
 	Server()->SnapNewItem(TranslatedId, DDNetPlayer);
 
 	if(Server()->IsSixup(SnappingClient) && m_pCharacter && m_pCharacter->m_DDRaceState == ERaceState::STARTED &&
@@ -596,6 +622,9 @@ void CPlayer::SendDisconnect(int FakeId)
 
 void CPlayer::OnDisconnect()
 {
+	// --- BW BEGIN ---
+	m_Bw.OnDisconnect();
+	// --- BW END ---
 	KillCharacter();
 
 	m_Moderating = false;
@@ -647,6 +676,11 @@ void CPlayer::OnDirectInput(const CNetObj_PlayerInput *pNewInput)
 
 void CPlayer::OnPredictedEarlyInput(const CNetObj_PlayerInput *pNewInput)
 {
+	// --- BW BEGIN: opening the menu resends the Blockworlds vote pages ---
+	if((pNewInput->m_PlayerFlags & PLAYERFLAG_IN_MENU) && !(m_PlayerFlags & PLAYERFLAG_IN_MENU))
+		GameServer()->Bw().OnPlayerEnterMenu(m_ClientId);
+	// --- BW END ---
+
 	m_PlayerFlags = pNewInput->m_PlayerFlags;
 
 	if(!m_pCharacter && m_Team != TEAM_SPECTATORS && (pNewInput->m_Fire & 1))
@@ -702,6 +736,16 @@ void CPlayer::Respawn(bool WeakHook)
 CCharacter *CPlayer::ForceSpawn(vec2 Pos)
 {
 	m_Spawning = false;
+	// --- BW BEGIN: events force-spawn players who are already alive ---
+	// Upstream only calls this while loading a savegame, where the player has no
+	// character. BW moves live players into a duel or an event arena, and
+	// overwriting m_pCharacter would leak the old one into the world.
+	if(m_pCharacter)
+	{
+		delete m_pCharacter;
+		m_pCharacter = nullptr;
+	}
+	// --- BW END ---
 	m_pCharacter = new(m_ClientId) CCharacter(&GameServer()->m_World, GameServer()->GetLastPlayerInput(m_ClientId));
 	m_pCharacter->Spawn(this, Pos);
 	m_Team = TEAM_GAME;
@@ -787,8 +831,11 @@ void CPlayer::TryRespawn()
 {
 	vec2 SpawnPos;
 
-	if(!GameServer()->m_pController->CanSpawn(m_Team, &SpawnPos, m_ClientId))
-		return;
+	// --- BW BEGIN: a duel or event decides where its participants come back ---
+	if(!GameServer()->Bw().OverrideSpawnPos(m_ClientId, &SpawnPos))
+		// --- BW END ---
+		if(!GameServer()->m_pController->CanSpawn(m_Team, &SpawnPos, m_ClientId))
+			return;
 
 	m_WeakHookSpawn = false;
 	m_Spawning = false;

@@ -82,6 +82,24 @@ void IHttpRequest::PostJson(const char *pJson)
 	mem_copy(m_pBody, pJson, m_BodyLength);
 }
 
+// --- BW BEGIN ---
+void IHttpRequest::Put(const unsigned char *pData, size_t DataLength)
+{
+	m_Type = REQUEST::PUT;
+	m_BodyLength = DataLength;
+	m_pBody = (unsigned char *)malloc(std::max((size_t)1, DataLength));
+	mem_copy(m_pBody, pData, DataLength);
+}
+
+void IHttpRequest::PutJson(const char *pJson)
+{
+	m_Type = REQUEST::PUT_JSON;
+	m_BodyLength = str_length(pJson);
+	m_pBody = (unsigned char *)malloc(m_BodyLength);
+	mem_copy(m_pBody, pJson, m_BodyLength);
+}
+// --- BW END ---
+
 void IHttpRequest::HeaderString(const char *pName, const char *pValue)
 {
 	char aHeader[256];
@@ -222,6 +240,11 @@ const char *IHttpRequest::GetRequestType(REQUEST Type)
 	case REQUEST::POST:
 	case REQUEST::POST_JSON:
 		return "POST";
+	// --- BW BEGIN ---
+	case REQUEST::PUT:
+	case REQUEST::PUT_JSON:
+		return "PUT";
+	// --- BW END ---
 	default:
 		dbg_assert_failed("Invalid Type: %d", (int)Type);
 	}

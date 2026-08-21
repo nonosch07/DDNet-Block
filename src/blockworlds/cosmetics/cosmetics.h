@@ -1,0 +1,137 @@
+#ifndef BLOCKWORLDS_COSMETICS_COSMETICS_H
+#define BLOCKWORLDS_COSMETICS_COSMETICS_H
+
+#include "base/vmath.h"
+#include <engine/server.h>
+
+class CGameContext;
+
+class CCosmeticsHandler
+{
+	CGameContext *m_pGameServer;
+	IServer *m_pServer;
+
+	CGameContext *GameServer() const { return m_pGameServer; }
+	IServer *Server() const { return m_pServer; }
+
+public:
+	enum
+	{
+		KNOCKOUT_EXPLOSION = 0,
+		KNOCKOUT_HAMMERHIT,
+		KNOCKOUT_KOSTARS,
+		KNOCKOUT_STARRING,
+		KNOCKOUT_STAREXPLOSION,
+		KNOCKOUT_THUNDERSTORM,
+		KNOCKOUT_KORIP,
+		KNOCKOUT_LOVE,
+		KNOCKOUT_KOEZ,
+		KNOCKOUT_KONOOB,
+		KNOCKOUT_PRO,
+		KNOCKOUT_GG,
+		// ---
+		KNOCKOUT_SORRY,
+		KNOCKOUT_VIP_SPLASH,
+		NUM_KNOCKOUTS,
+
+		GUNDESIGN_CLOCKWISE = 0,
+		GUNDESIGN_COUNTERCLOCK,
+		GUNDESIGN_TWOCLOCK,
+		GUNDESIGN_BLINKING,
+		GUNDESIGN_STARX,
+		GUNDESIGN_REVERSE,
+		GUNDESIGN_ARMOR,
+		GUNDESIGN_HEART,
+		GUNDESIGN_PEW,
+		GUNDESIGN_SHURIKEN,
+		GUNDESIGN_SPARKLER,
+		// ---
+		GUNDESIGN_1337,
+		GUNDESIGN_VIP_STARGUN,
+		NUM_GUNDESIGNS,
+
+		SKINMANI_FEET_FIRE = 0,
+		SKINMANI_FEET_WATER,
+		SKINMANI_FEET_POISON,
+		SKINMANI_FEET_BLACKWHITE,
+		SKINMANI_FEET_RGB,
+		SKINMANI_FEET_CMY,
+		SKINMANI_BODY_FIRE,
+		SKINMANI_BODY_WATER,
+		SKINMANI_BODY_POISON,
+		SKINMANI_DUAL_FIRE,
+		SKINMANI_DUAL_WATER,
+		SKINMANI_DUAL_POISON,
+		SKINMANI_DUAL_BLACKWHITE,
+		SKINMANI_SUNSET_FADE,
+		SKINMANI_OCEAN_DRIFT,
+		SKINMANI_AURORA,
+		// ---
+		SKINMANI_NIGHTBLUE,
+		SKINMANI_VIP_RAINBOW,
+		SKINMANI_VIP_RAINBOW_EPI,
+		SKINMANI_VIP_HOOK_RAINBOW,
+		SKINMANI_VIP_ELECTRIC,
+		NUM_SKINMANIS,
+	};
+
+	// utility shop items (not cosmetics but exposed here for shop info)
+	enum
+	{
+		UTILITY_WEAPONKIT = 0,
+		UTILITY_DEATHNOTE_PAGE,
+		UTILITY_PASSIVE_REMOVER,
+		NUM_UTILITY_ITEMS,
+	};
+
+	static const char *ms_KnockoutNames[NUM_KNOCKOUTS];
+	static const char *ms_GundesignNames[NUM_GUNDESIGNS];
+	static const char *ms_SkinmaniNames[NUM_SKINMANIS];
+
+	// special items
+	enum
+	{
+		SPECIAL_BALL = 0,
+		SPECIAL_CROWN,
+		SPECIAL_EPICCIRCLE,
+		SPECIAL_HALO,
+		NUM_SPECIALS,
+	};
+
+	void Init(CGameContext *pGameServer);
+
+	int FindKnockoutEffect(const char *pName);
+	bool HasKnockoutEffect(int ClientID, int Index);
+	bool DoKnockoutEffect(int ClientID, vec2 Pos);
+	void DoKnockoutEffectRaw(vec2 Pos, int Effect);
+	bool ToggleKnockout(int ClientID, const char *pName);
+
+	int FindGundesign(const char *pName);
+	bool HasGundesign(int ClientID, int Index);
+	bool DoGundesign(int ClientID, vec2 Pos, vec2 Direction);
+	bool DoGundesignRaw(vec2 Pos, int Effect, vec2 Direction);
+	bool ToggleGundesign(int ClientID, const char *pName);
+
+	bool SnapGundesign(int ClientID, vec2 Pos, vec2 Dir, int EntityID, int SnappingClient);
+	bool SnapGundesignRaw(vec2 Pos, vec2 Dir, int Effect, int EntityID, int SnappingClient);
+
+	int FindSkinmani(const char *pName);
+	bool HasSkinmani(int ClientID, int Index);
+	bool ToggleSkinmani(int ClientID, const char *pName);
+	void SnapSkinmani(int ClientID, int64_t Tick, CNetObj_ClientInfo *pClientInfo);
+	void SnapSkinmaniRaw(int64_t Tick, CNetObj_ClientInfo *pClientInfo, int Effect, int ClientID = -1);
+
+	bool ShopInfoSkinmani(int Index, int &Price, int &Level, vec2 &PreviewPos);
+	bool ShopInfoKnockout(int Index, int &Price, int &Level, vec2 &PreviewPos);
+	bool ShopInfoGundesign(int Index, int &Price, int &Level, vec2 &PreviewPos);
+
+	// utility shop info (weaponkits, deathnote pages)
+	bool ShopInfoUtility(int Index, int &Price, int &Level, vec2 &PreviewPos);
+
+	// specials
+	bool ToggleSpecial(int ClientID, const char *pName);
+	bool HasSpecial(int ClientID, int Index);
+	const char *GetPlayerSpecials();
+};
+
+#endif // BLOCKWORLDS_COSMETICS_COSMETICS_H

@@ -11,6 +11,10 @@
 
 #include <array>
 #include <optional>
+// --- BW BEGIN: the per-IP whitelist ---
+#include <set>
+#include <string>
+// --- BW END ---
 
 class CHuffman;
 class CNetBan;
@@ -441,6 +445,11 @@ class CNetServer
 	CSlot m_aSlots[NET_MAX_CLIENTS];
 	int m_MaxClients = NET_MAX_CLIENTS;
 	int m_MaxClientsPerIp;
+	// --- BW BEGIN: addresses exempt from sv_max_clients_per_ip ---
+	// A shared connection (a school, a café, a family) should not lock everyone
+	// but the first player out.
+	std::set<std::string> m_IpWhitelist;
+	// --- BW END ---
 
 	bool m_FlushBatch = false;
 	bool m_aFlushPending[NET_MAX_CLIENTS] = {};
@@ -519,6 +528,11 @@ public:
 
 	//
 	void SetMaxClientsPerIp(int Max);
+	// --- BW BEGIN ---
+	void AddWhitelistedIp(const char *pIp);
+	void RemoveWhitelistedIp(const char *pIp);
+	const std::set<std::string> &GetWhitelistedIps() const { return m_IpWhitelist; }
+	// --- BW END ---
 	bool HasErrored(int ClientId);
 	void ResumeOldConnection(int ClientId, int OrigId);
 	void IgnoreTimeouts(int ClientId);

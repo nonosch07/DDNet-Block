@@ -1,0 +1,30 @@
+FROM debian:stable-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config \
+    clang \
+    ccache \
+    cmake \
+    ninja-build \
+    libmariadb-dev \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    zlib1g-dev \
+    libsqlite3-dev \
+    sqlite3 \
+    libpng-dev \
+    valgrind \
+    ca-certificates \
+    curl \
+    python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Force l'utilisation de ccache pour clang
+RUN ln -s /usr/bin/ccache /usr/local/bin/clang && \
+    ln -s /usr/bin/ccache /usr/local/bin/clang++

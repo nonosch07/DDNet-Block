@@ -435,19 +435,26 @@ void IGameController::OnPlayerConnect(CPlayer *pPlayer)
 void IGameController::OnPlayerDisconnect(class CPlayer *pPlayer, const char *pReason)
 {
 	pPlayer->OnDisconnect();
-	int ClientId = pPlayer->GetCid();
-	if(Server()->ClientIngame(ClientId))
-	{
-		char aBuf[512];
-		if(pReason && *pReason)
-			str_format(aBuf, sizeof(aBuf), "'%s' has left the game (%s)", Server()->ClientName(ClientId), pReason);
-		else
-			str_format(aBuf, sizeof(aBuf), "'%s' has left the game", Server()->ClientName(ClientId));
-		GameServer()->SendChat(-1, TEAM_ALL, aBuf, -1);
+	// --- BW BEGIN: gamemodes can replace the leave broadcast ---
+	SendLeaveMessage(pPlayer, pReason);
+	// --- BW END ---
+}
 
-		str_format(aBuf, sizeof(aBuf), "leave player='%d:%s'", ClientId, Server()->ClientName(ClientId));
-		GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "game", aBuf);
-	}
+void IGameController::SendLeaveMessage(class CPlayer *pPlayer, const char *pReason)
+{
+	int ClientId = pPlayer->GetCid();
+	if(!Server()->ClientIngame(ClientId))
+		return;
+
+	char aBuf[512];
+	if(pReason && *pReason)
+		str_format(aBuf, sizeof(aBuf), "'%s' has left the game (%s)", Server()->ClientName(ClientId), pReason);
+	else
+		str_format(aBuf, sizeof(aBuf), "'%s' has left the game", Server()->ClientName(ClientId));
+	GameServer()->SendChat(-1, TEAM_ALL, aBuf, -1);
+
+	str_format(aBuf, sizeof(aBuf), "leave player='%d:%s'", ClientId, Server()->ClientName(ClientId));
+	GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "game", aBuf);
 }
 
 void IGameController::EndRound()
@@ -633,6 +640,9 @@ void IGameController::Snap(int SnappingClient)
 			GameInfo.m_GameStateFlags |= GAMESTATEFLAG_RACETIME;
 		}
 	}
+	// --- BW BEGIN: gamemodes can adjust the game info before it is sent ---
+	OnSnapGameInfo(SnappingClient, &GameInfo);
+	// --- BW END ---
 	Server()->SnapNewItem(0, GameInfo);
 
 	CNetObj_GameInfoEx GameInfoEx = {};
@@ -661,6 +671,9 @@ void IGameController::Snap(int SnappingClient)
 	if(g_Config.m_SvNoWeakHook)
 		GameInfoEx.m_Flags2 |= GAMEINFOFLAG2_NO_WEAK_HOOK;
 	GameInfoEx.m_Version = GAMEINFO_CURVERSION;
+	// --- BW BEGIN: gamemodes can adjust the extended game info before it is sent ---
+	OnSnapGameInfoEx(SnappingClient, &GameInfoEx);
+	// --- BW END ---
 	Server()->SnapNewItem(0, GameInfoEx);
 
 	if(Server()->IsSixup(SnappingClient))

@@ -7,6 +7,10 @@
 
 #include <engine/shared/config.h>
 
+// --- BW BEGIN ---
+#include <blockworlds/bw_context.h>
+// --- BW END ---
+
 static NETADDR KeyAddress(NETADDR Addr)
 {
 	if(Addr.type == NETTYPE_WEBSOCKET_IPV4)
@@ -255,6 +259,12 @@ void CGameContext::ConMuteId(IConsole::IResult *pResult, void *pUserData)
 
 	const char *pReason = pResult->NumArguments() > 2 ? pResult->GetString(2) : "";
 	pSelf->MuteWithMessage(pSelf->Server()->ClientAddr(Victim), pResult->GetInteger(1), pReason, pSelf->Server()->ClientName(Victim));
+
+	// --- BW BEGIN: moderation goes to the Discord rcon log ---
+	pSelf->Bw().LogModeration(pResult->m_ClientId, "**[MUTE]** **%s** muted **%s** for %d sec \xE2\x80\x94 Reason: %s",
+		pSelf->Server()->ClientName(pResult->m_ClientId), pSelf->Server()->ClientName(Victim),
+		pResult->GetInteger(1), pReason[0] ? pReason : "No reason given");
+	// --- BW END ---
 }
 
 void CGameContext::ConMuteIp(IConsole::IResult *pResult, void *pUserData)
@@ -271,6 +281,12 @@ void CGameContext::ConMuteIp(IConsole::IResult *pResult, void *pUserData)
 	const char *pReason = pResult->NumArguments() > 2 ? pResult->GetString(2) : "";
 
 	pSelf->m_Mutes.Mute(&Addr, pResult->GetInteger(1), pReason, nullptr, false);
+
+	// --- BW BEGIN ---
+	pSelf->Bw().LogModeration(pResult->m_ClientId, "**[MUTE]** **%s** muted IP **%s** for %d sec \xE2\x80\x94 Reason: %s",
+		pSelf->Server()->ClientName(pResult->m_ClientId), pResult->GetString(0),
+		pResult->GetInteger(1), pReason[0] ? pReason : "No reason given");
+	// --- BW END ---
 }
 
 void CGameContext::ConUnmute(IConsole::IResult *pResult, void *pUserData)
@@ -278,6 +294,11 @@ void CGameContext::ConUnmute(IConsole::IResult *pResult, void *pUserData)
 	CGameContext *pSelf = (CGameContext *)pUserData;
 
 	pSelf->m_Mutes.UnmuteIndex(pResult->GetInteger(0));
+
+	// --- BW BEGIN ---
+	pSelf->Bw().LogModeration(pResult->m_ClientId, "**[UNMUTE]** **%s** unmuted mute #%d",
+		pSelf->Server()->ClientName(pResult->m_ClientId), pResult->GetInteger(0));
+	// --- BW END ---
 }
 
 void CGameContext::ConUnmuteId(IConsole::IResult *pResult, void *pUserData)
@@ -292,6 +313,11 @@ void CGameContext::ConUnmuteId(IConsole::IResult *pResult, void *pUserData)
 	}
 
 	pSelf->m_Mutes.UnmuteAddr(pSelf->Server()->ClientAddr(Victim));
+
+	// --- BW BEGIN ---
+	pSelf->Bw().LogModeration(pResult->m_ClientId, "**[UNMUTE]** **%s** unmuted player **%s**",
+		pSelf->Server()->ClientName(pResult->m_ClientId), pSelf->Server()->ClientName(Victim));
+	// --- BW END ---
 }
 
 void CGameContext::ConUnmuteIp(IConsole::IResult *pResult, void *pUserData)

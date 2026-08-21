@@ -11,6 +11,12 @@
 #include <engine/kernel.h>
 #include <engine/server.h>
 
+// --- BW BEGIN ---
+#include <blockworlds/bw_context.h>
+#include <blockworlds/discord/webhook.h>
+#include <game/server/gamecontext.h>
+// --- BW END ---
+
 class IEngineAntibot;
 
 #ifdef CONF_ANTIBOT
@@ -41,6 +47,35 @@ void CAntibot::Report(int ClientId, const char *pMessage, void *pUser)
 	char aBuf[256];
 	str_format(aBuf, sizeof(aBuf), "%d: %s", ClientId, pMessage);
 	Log(aBuf, pUser);
+
+	// --- BW BEGIN: reports reach the moderators online and the Discord log ---
+	// "hookbot (2" fires constantly on a block server and is pure noise.
+	if(str_find(pMessage, "hookbot (2"))
+		return;
+
+	CAntibot *pAntibot = (CAntibot *)pUser;
+	CGameContext *pGameContext = static_cast<CGameContext *>(pAntibot->GameServer());
+	if(!pGameContext)
+		return;
+
+	for(int i = 0; i < pAntibot->Server()->MaxClients(); i++)
+	{
+		if(pAntibot->Server()->GetAuthedState(i) >= AUTHED_MOD)
+			pGameContext->Bw().SendChatTarget(i, "[ANTIBOT] %s", pMessage);
+	}
+
+	const char *pAntibotUrl = g_Config.m_SvDiscordWebhookUrlAntibot[0] ? g_Config.m_SvDiscordWebhookUrlAntibot : nullptr;
+	if(pAntibotUrl)
+	{
+		CDiscordWebhook Discord(pGameContext->Engine(), pGameContext->Bw().Http());
+		CDiscordWebhook::SSendOptions Options;
+		Options.m_pWebhookUrl = pAntibotUrl;
+		Options.m_pUsername = "Antibot";
+		char aContent[512];
+		str_format(aContent, sizeof(aContent), "```%s```", pMessage);
+		Discord.Send(aContent, Options);
+	}
+	// --- BW END ---
 }
 void CAntibot::Send(int ClientId, const void *pData, int Size, int Flags, void *pUser)
 {

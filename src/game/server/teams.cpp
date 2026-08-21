@@ -21,6 +21,10 @@
 
 #include <bitset>
 
+// --- BW BEGIN ---
+#include <blockworlds/bw_context.h>
+// --- BW END ---
+
 CGameTeams::CGameTeams(CGameContext *pGameContext) :
 	m_pGameContext(pGameContext)
 {
@@ -42,6 +46,10 @@ void CGameTeams::Reset()
 	for(int i = 0; i < NUM_DDRACE_TEAMS; ++i)
 	{
 		m_aTeamState[i] = ETeamState::EMPTY;
+		// --- BW BEGIN ---
+		m_aTeamInvitesOpen[i] = true;
+		m_aTeamEvent[i] = false;
+		// --- BW END ---
 		m_aTeamLocked[i] = false;
 		m_aTeamFlock[i] = false;
 		m_apSaveTeamResult[i] = nullptr;
@@ -527,6 +535,15 @@ void CGameTeams::ChangeTeamState(int Team, ETeamState State)
 
 void CGameTeams::KillTeam(int Team, int NewStrongId, int ExceptId)
 {
+	// --- BW BEGIN: teams reserved by an event are never killed as a unit ---
+	if(IsTeamEvent(Team))
+	{
+		if(ExceptId >= 0 && GameServer()->m_apPlayers[ExceptId])
+			GameServer()->m_apPlayers[ExceptId]->Respawn(true);
+		return;
+	}
+	// --- BW END ---
+
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		if(m_Core.Team(i) == Team && GameServer()->m_apPlayers[i])
@@ -804,6 +821,10 @@ void CGameTeams::OnFinish(CPlayer *pPlayer, int TimeTicks, const char *pTimestam
 {
 	if(!pPlayer || !pPlayer->IsPlaying())
 		return;
+
+	// --- BW BEGIN: finishing pays EXP ---
+	GameServer()->Bw().OnRaceFinish(pPlayer);
+	// --- BW END ---
 
 	float Time = TimeTicks / (float)Server()->TickSpeed();
 
@@ -1288,6 +1309,13 @@ void CGameTeams::OnCharacterDeath(int ClientId, int Weapon)
 	{
 		SetForceCharacterTeam(ClientId, Team);
 
+		// --- BW BEGIN: an event owns its team and handles its own deaths ---
+		// Leaving the usual "team killed" handling to run would broadcast chat
+		// and unlock the team out from under the event.
+		if(m_aTeamEvent[Team])
+			return;
+		// --- BW END ---
+
 		if(GetTeamState(Team) != ETeamState::OPEN && !m_aTeamFlock[m_Core.Team(ClientId)])
 		{
 			ChangeTeamState(Team, ETeamState::OPEN);
@@ -1364,15 +1392,21 @@ void CGameTeams::ResetInvited(int Team)
 	m_aInvited[Team].reset();
 }
 
-void CGameTeams::SetClientInvited(int Team, int ClientId, bool Invited)
+bool CGameTeams::SetClientInvited(int Team, int ClientId, bool Invited)
 {
 	if(Team != TEAM_FLOCK && IsValidTeamNumber(Team))
 	{
+		// --- BW BEGIN: an event owns its team and nobody may be invited in ---
+		if(!m_aTeamInvitesOpen[Team])
+			return false;
+		// --- BW END ---
 		if(Invited)
 			m_aInvited[Team].set(ClientId);
 		else
 			m_aInvited[Team].reset(ClientId);
+		return true;
 	}
+	return false;
 }
 
 void CGameTeams::KillCharacterOrTeam(int ClientId, int Team)
@@ -1514,3 +1548,27 @@ bool CGameTeams::IsValidTeamNumber(int Team) const
 {
 	return Team >= TEAM_FLOCK && Team < NUM_DDRACE_TEAMS - 1; // no TEAM_SUPER
 }
+
+// --- BW BEGIN: Blockworlds team state ---
+void CGameTeams::SetTeamInvitesOpen(int Team, bool Open)
+{
+	if(Team >= 0 && Team < NUM_DDRACE_TEAMS)
+		m_aTeamInvitesOpen[Team] = Open;
+}
+
+bool CGameTeams::AreTeamInvitesOpen(int Team) const
+{
+	return Team >= 0 && Team < NUM_DDRACE_TEAMS ? m_aTeamInvitesOpen[Team] : true;
+}
+
+void CGameTeams::SetTeamEvent(int Team, bool IsEvent)
+{
+	if(Team >= 0 && Team < NUM_DDRACE_TEAMS)
+		m_aTeamEvent[Team] = IsEvent;
+}
+
+bool CGameTeams::IsTeamEvent(int Team) const
+{
+	return Team >= 0 && Team < NUM_DDRACE_TEAMS ? m_aTeamEvent[Team] : false;
+}
+// --- BW END ---

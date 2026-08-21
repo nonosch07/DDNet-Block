@@ -31,6 +31,11 @@ struct ISqlData
 	virtual ~ISqlData() = default;
 
 	mutable std::shared_ptr<ISqlResult> m_pResult;
+
+	// --- BW BEGIN: a critical query is still run during shutdown and fail mode,
+	// and always goes to the primary write connection (account/clan saves) ---
+	bool m_Critical = false;
+	// --- BW END ---
 };
 
 enum Write

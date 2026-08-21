@@ -2,6 +2,12 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "gamecontext.h"
 
+// --- BW BEGIN ---
+#include <blockworlds/bw_context.h>
+#include <blockworlds/bw_gamecontroller.h>
+#include <blockworlds/bw_player.h>
+// --- BW END ---
+
 #include "entities/character.h"
 #include "gamemodes/ddnet.h"
 #include "gamemodes/mod.h"
@@ -145,6 +151,11 @@ CGameContext::CGameContext(bool Resetting) :
 
 	m_aDeleteTempfile[0] = 0;
 	m_TeeHistorianActive = false;
+
+	// --- BW BEGIN ---
+	m_pBw = new CBlockworlds(this);
+	m_pBw->OnConstruct(!Resetting);
+	// --- BW END ---
 }
 
 CGameContext::~CGameContext()
@@ -168,6 +179,12 @@ CGameContext::~CGameContext()
 
 	delete m_pScore;
 	m_pScore = nullptr;
+
+	// --- BW BEGIN ---
+	m_pBw->OnDestruct();
+	delete m_pBw;
+	m_pBw = nullptr;
+	// --- BW END ---
 }
 
 void CGameContext::Clear()
@@ -410,6 +427,11 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon, bool NoDamag
 		if(!(int)Dmg)
 			continue;
 
+		// --- BW BEGIN: passive/protected tees are not touched by explosions ---
+		if(m_pBw->ExplosionSkipsTarget(Owner, pChr))
+			continue;
+		// --- BW END ---
+
 		if((GetPlayerChar(Owner) ? !GetPlayerChar(Owner)->GrenadeHitDisabled() : g_Config.m_SvHit) || NoDamage || Owner == pChr->GetPlayer()->GetCid())
 		{
 			if(Owner != -1 && pChr->IsAlive() && !pChr->CanCollide(Owner))
@@ -427,6 +449,10 @@ void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon, bool NoDamag
 					continue;
 				TeamMask.reset(PlayerTeam);
 			}
+
+			// --- BW BEGIN ---
+			m_pBw->BlockTracker().OnPlayerImpacted(pChr->GetPlayer()->GetCid(), Owner);
+			// --- BW END ---
 
 			pChr->TakeDamage(ForceDir * Dmg * 2, (int)Dmg, Owner, Weapon);
 		}
@@ -648,6 +674,12 @@ void CGameContext::CallVote(int ClientId, const char *pDesc, const char *pCmd, c
 	if(!pPlayer)
 		return;
 
+	// --- BW BEGIN: weaponkit and event votes share a server-wide cooldown ---
+	// Checked before the announcement, so a refused vote says nothing publicly.
+	if(m_pBw->VoteOnCooldown(ClientId, pCmd))
+		return;
+	// --- BW END ---
+
 	SendChat(-1, TEAM_ALL, pChatmsg, -1, FLAG_SIX);
 	if(!pSixupDesc)
 		pSixupDesc = pDesc;
@@ -739,7 +771,9 @@ void CGameContext::SendChat(int ChatterClientId, int Team, const char *pText, in
 			bool Send = (Server()->IsSixup(i) && (VersionFlags & FLAG_SIXUP)) ||
 				    (!Server()->IsSixup(i) && (VersionFlags & FLAG_SIX));
 
-			if(!m_apPlayers[i]->m_DND && Send)
+			// --- BW BEGIN: LMB and TDM participants play in silence ---
+			if(!m_apPlayers[i]->m_DND && Send && !m_pBw->IsChatBlocked(i))
+				// --- BW END ---
 				Server()->SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, i);
 		}
 
@@ -1045,6 +1079,10 @@ void CGameContext::SendVoteSet(int ClientId)
 		{
 			if(!m_apPlayers[i])
 				continue;
+			// --- BW BEGIN: a duel being configured owns the vote overlay ---
+			if(m_pBw->OwnsVoteUi(i))
+				continue;
+			// --- BW END ---
 			if(!Server()->IsSixup(i))
 			{
 				Server()->SendPackMsg(&Msg6, MSGFLAG_VITAL, i);
@@ -1077,7 +1115,9 @@ void CGameContext::SendVoteStatus(int ClientId, int Total, int Yes, int No)
 	if(ClientId == -1)
 	{
 		for(int i = 0; i < MAX_CLIENTS; ++i)
-			if(Server()->ClientIngame(i))
+			// --- BW BEGIN: same for the tally ---
+			if(Server()->ClientIngame(i) && !m_pBw->OwnsVoteUi(i))
+				// --- BW END ---
 				SendVoteStatus(i, Total, Yes, No);
 		return;
 	}
@@ -1200,6 +1240,10 @@ void CGameContext::OnPreTickTeehistorian()
 
 void CGameContext::OnTick()
 {
+	// --- BW BEGIN ---
+	m_pBw->OnTickEarly();
+	// --- BW END ---
+
 	if(m_TeeHistorianActive)
 	{
 		int Error = aio_error(m_pTeeHistorianFile);
@@ -1225,6 +1269,10 @@ void CGameContext::OnTick()
 
 	m_pController->Tick();
 
+	// --- BW BEGIN ---
+	m_pBw->OnTickAfterController();
+	// --- BW END ---
+
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		if(m_apPlayers[i])
@@ -1244,6 +1292,10 @@ void CGameContext::OnTick()
 
 			m_apPlayers[i]->Tick();
 			m_apPlayers[i]->PostTick();
+
+			// --- BW BEGIN ---
+			m_pBw->OnPlayerTick(i);
+			// --- BW END ---
 		}
 	}
 
@@ -1309,6 +1361,11 @@ void CGameContext::OnTick()
 				{
 					if(!m_apPlayers[i] || aVoteChecked[i])
 						continue;
+
+					// --- BW BEGIN ---
+					if(m_pBw->SkipVoteParticipant(i))
+						continue;
+					// --- BW END ---
 
 					if((IsKickVote() || IsSpecVote()) && (m_apPlayers[i]->GetTeam() == TEAM_SPECTATORS ||
 										     (GetPlayerChar(m_VoteCreator) && GetPlayerChar(i) &&
@@ -1523,6 +1580,9 @@ void CGameContext::OnTick()
 		m_TeeHistorian.BeginInputs();
 	}
 	// Warning: do not put code in this function directly above or below this comment
+	// --- BW BEGIN ---
+	m_pBw->OnPostTick();
+	// --- BW END ---
 }
 
 void CGameContext::PreInputClients(int ClientId, bool *pClients)
@@ -1646,7 +1706,7 @@ const CVoteOptionServer *CGameContext::GetVoteOption(int Index) const
 	return pCurrent;
 }
 
-void CGameContext::ProgressVoteOptions(int ClientId)
+void CGameContext::ProgressVoteOptions(int ClientId, bool FlushAll)
 {
 	CPlayer *pPl = m_apPlayers[ClientId];
 
@@ -1656,8 +1716,15 @@ void CGameContext::ProgressVoteOptions(int ClientId)
 	if(pPl->m_SendVoteIndex > m_NumVoteOptions)
 		return; // shouldn't happen / fail silently
 
+	// --- BW BEGIN: the vote menu owns the list while a player browses a subpage ---
+	if(!m_pBw->AllowServerVoteStreaming(ClientId))
+		return;
+	// --- BW END ---
+
 	int VotesLeft = m_NumVoteOptions - pPl->m_SendVoteIndex;
-	int NumVotesToSend = std::min(g_Config.m_SvSendVotesPerTick, VotesLeft);
+	// --- BW BEGIN: the vote menu rebuilds the whole list and needs it in one go ---
+	int NumVotesToSend = FlushAll ? VotesLeft : std::min(g_Config.m_SvSendVotesPerTick, VotesLeft);
+	// --- BW END ---
 
 	if(!VotesLeft)
 	{
@@ -1716,6 +1783,9 @@ void CGameContext::ProgressVoteOptions(int ClientId)
 	// send msg
 	if(pPl->m_SendVoteIndex == 0)
 	{
+		// --- BW BEGIN: header above the server vote list ---
+		m_pBw->SendVoteListHeader(ClientId);
+		// --- BW END ---
 		CNetMsg_Sv_VoteOptionGroupStart StartMsg;
 		Server()->SendPackMsg(&StartMsg, MSGFLAG_VITAL, ClientId);
 	}
@@ -1835,6 +1905,10 @@ void CGameContext::OnClientEnter(int ClientId)
 	}
 
 	LogEvent("Connect", ClientId);
+
+	// --- BW BEGIN ---
+	m_pBw->OnClientEnter(ClientId);
+	// --- BW END ---
 }
 
 bool CGameContext::OnClientDataPersist(int ClientId, void *pData)
@@ -1908,6 +1982,10 @@ void CGameContext::OnClientInfoChange(int ClientId)
 
 void CGameContext::OnClientDrop(int ClientId, const char *pReason)
 {
+	// --- BW BEGIN ---
+	m_pBw->OnClientDrop(ClientId, pReason);
+	// --- BW END ---
+
 	LogEvent("Disconnect", ClientId);
 
 	AbortVoteKickOnDisconnect(ClientId);
@@ -2358,6 +2436,14 @@ void CGameContext::OnSayNetMessage(const CNetMsg_Cl_Say *pMsg, int ClientId, con
 	if(Length == 0 || (pMsg->m_pMessage[0] != '/' && (g_Config.m_SvSpamprotection && pPlayer->m_LastChat && pPlayer->m_LastChat + Server()->TickSpeed() * ((31 + Length) / 32) > Server()->Tick())))
 		return;
 
+	// --- BW BEGIN: team chat is clan chat ---
+	if(Team && pMsg->m_pMessage[0] != '/')
+	{
+		if(m_pBw->OnTeamChat(ClientId, pMsg->m_pMessage))
+			return;
+	}
+	// --- BW END ---
+
 	int GameTeam = GetDDRaceTeam(pPlayer->GetCid());
 	if(Team)
 		Team = ((pPlayer->GetTeam() == TEAM_SPECTATORS) ? TEAM_SPECTATORS : GameTeam);
@@ -2409,15 +2495,31 @@ void CGameContext::OnSayNetMessage(const CNetMsg_Cl_Say *pMsg, int ClientId, con
 	}
 	else
 	{
+		// --- BW BEGIN: event silence and the chat filter ---
+		if(m_pBw->OnPublicChat(ClientId, pMsg->m_pMessage))
+			return;
+		// --- BW END ---
+
 		pPlayer->UpdatePlaytime();
 		char aCensoredMessage[256];
 		CensorMessage(aCensoredMessage, pMsg->m_pMessage, sizeof(aCensoredMessage));
 		SendChat(ClientId, Team, aCensoredMessage, ClientId);
+
+		// --- BW BEGIN: relay public chat to Discord ---
+		m_pBw->OnPublicChatSent(ClientId, aCensoredMessage, pMsg->m_pMessage);
+		// --- BW END ---
 	}
 }
 
 void CGameContext::OnCallVoteNetMessage(const CNetMsg_Cl_CallVote *pMsg, int ClientId)
 {
+	// --- BW BEGIN: the vote menu owns its own entries ---
+	// Navigating a menu page is not a vote, so it must be handled before the
+	// rate limiter and before the option is looked up in the server vote list.
+	if(m_pBw->OnCallVote(pMsg, ClientId))
+		return;
+	// --- BW END ---
+
 	if(RateLimitPlayerVote(ClientId) || m_VoteCloseTime)
 		return;
 
@@ -2701,6 +2803,11 @@ void CGameContext::OnCallVoteNetMessage(const CNetMsg_Cl_CallVote *pMsg, int Cli
 
 void CGameContext::OnVoteNetMessage(const CNetMsg_Cl_Vote *pMsg, int ClientId)
 {
+	// --- BW BEGIN: F3/F4 during a 1on1 config phase is the duel's own vote ---
+	if(m_pBw->OnVote(pMsg, ClientId))
+		return;
+	// --- BW END ---
+
 	if(!m_VoteCloseTime)
 		return;
 
@@ -2739,6 +2846,12 @@ void CGameContext::OnSetTeamNetMessage(const CNetMsg_Cl_SetTeam *pMsg, int Clien
 
 	if(pPlayer->GetTeam() == pMsg->m_Team)
 		return;
+
+	// --- BW BEGIN: going to spec leaves the event or duel instead ---
+	if(pMsg->m_Team == TEAM_SPECTATORS && m_pBw->OnJoinSpectators(ClientId))
+		return;
+	// --- BW END ---
+
 	if(g_Config.m_SvSpamprotection && pPlayer->m_LastSetTeam && pPlayer->m_LastSetTeam + Server()->TickSpeed() * g_Config.m_SvTeamChangeDelay > Server()->Tick())
 		return;
 
@@ -2856,6 +2969,11 @@ void CGameContext::OnChangeInfoNetMessage(const CNetMsg_Cl_ChangeInfo *pMsg, int
 	CPlayer *pPlayer = m_apPlayers[ClientId];
 	if(g_Config.m_SvSpamprotection && pPlayer->m_LastChangeInfo && pPlayer->m_LastChangeInfo + Server()->TickSpeed() * g_Config.m_SvInfoChangeDelay > Server()->Tick())
 		return;
+
+	// --- BW BEGIN: no changing who you are in the middle of an event ---
+	if(Server()->GetAuthedState(ClientId) == AUTHED_NO && m_pBw->isInEvent(ClientId))
+		return;
+	// --- BW END ---
 
 	bool SixupNeedsUpdate = false;
 
@@ -3006,6 +3124,11 @@ void CGameContext::OnKillNetMessage(const CNetMsg_Cl_Kill *pMsg, int ClientId)
 		SendChatTarget(ClientId, "You are running a vote please try again after the vote is done!");
 		return;
 	}
+	// --- BW BEGIN: the event decides whether you may kill yourself ---
+	if(m_pBw->BlocksSelfKill(ClientId))
+		return;
+	// --- BW END ---
+
 	CPlayer *pPlayer = m_apPlayers[ClientId];
 	if(pPlayer->m_LastKill && pPlayer->m_LastKill + Server()->TickSpeed() * g_Config.m_SvKillDelay > Server()->Tick())
 		return;
@@ -3044,6 +3167,11 @@ void CGameContext::OnStartInfoNetMessage(const CNetMsg_Cl_StartInfo *pMsg, int C
 
 	if(pPlayer->m_IsReady)
 		return;
+
+	// --- BW BEGIN: no changing who you are in the middle of an event ---
+	if(Server()->GetAuthedState(ClientId) == AUTHED_NO && m_pBw->isInEvent(ClientId))
+		return;
+	// --- BW END ---
 
 	pPlayer->m_LastChangeInfo = Server()->Tick();
 
@@ -3473,10 +3601,20 @@ void CGameContext::ConSetTeamAll(IConsole::IResult *pResult, void *pUserData)
 void CGameContext::ConHotReload(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
+
+	// --- BW BEGIN: rebuild the shop NPCs rather than carry stale ones over ---
+	if(g_Config.m_SvShopServer)
+		pSelf->Bw().ShopPreview()->Init(pSelf);
+	// --- BW END ---
+
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		if(!pSelf->GetPlayerChar(i))
 			continue;
+		// --- BW BEGIN: an NPC is recreated from scratch, so it needs no savegame ---
+		if(pSelf->m_apPlayers[i] && pSelf->m_apPlayers[i]->Bw().m_IsNpc)
+			continue;
+		// --- BW END ---
 
 		CCharacter *pChar = pSelf->GetPlayerChar(i);
 
@@ -3705,6 +3843,14 @@ void CGameContext::ConForceVote(IConsole::IResult *pResult, void *pUserData)
 		str_format(aBuf, sizeof(aBuf), "set_team %d -1 %d", SpectateId, g_Config.m_SvVoteSpectateRejoindelay);
 		pSelf->Console()->ExecuteLine(aBuf, IConsole::CLIENT_ID_UNSPECIFIED, false);
 	}
+	// --- BW BEGIN: force_vote lmb starts the event without a poll ---
+	else if(str_comp_nocase(pType, "lmb") == 0)
+	{
+		str_format(aBuf, sizeof(aBuf), "authorized player forced LMB event start (%s)", pReason);
+		pSelf->SendChatTarget(-1, aBuf, FLAG_SIX);
+		pSelf->Console()->ExecuteLine("events_start lmb", IConsole::CLIENT_ID_UNSPECIFIED, false);
+	}
+	// --- BW END ---
 }
 
 void CGameContext::ConClearVotes(IConsole::IResult *pResult, void *pUserData)
@@ -3962,6 +4108,10 @@ void CGameContext::OnConsoleInit()
 
 	RegisterDDRaceCommands();
 	RegisterChatCommands();
+
+	// --- BW BEGIN ---
+	m_pBw->OnConsoleInit();
+	// --- BW END ---
 }
 
 void CGameContext::RegisterDDRaceCommands()
@@ -4263,8 +4413,10 @@ void CGameContext::OnInit(const void *pPersistentData)
 
 	if(!str_comp(Config()->m_SvGametype, "mod"))
 		m_pController = new CGameControllerMod(this);
+	// --- BW BEGIN: Blockworlds is the default gamemode in this fork ---
 	else
-		m_pController = new CGameControllerDDNet(this);
+		m_pController = new CGameControllerBW(this);
+	// --- BW END ---
 
 	for(const char *pReservedGameType : {"DM", "TDM", "CTF", "LMS", "LTS"})
 	{
@@ -4351,6 +4503,10 @@ void CGameContext::OnInit(const void *pPersistentData)
 	CreateAllEntities(true);
 
 	m_pAntibot->RoundStart(this);
+
+	// --- BW BEGIN ---
+	m_pBw->OnInit();
+	// --- BW END ---
 }
 
 void CGameContext::CreateAllEntities(bool Initial)
@@ -4452,6 +4608,10 @@ CPlayer *CGameContext::CreatePlayer(int ClientId, int StartTeam, bool Afk, int L
 	if(m_apPlayers[ClientId])
 		delete m_apPlayers[ClientId];
 	m_apPlayers[ClientId] = new(ClientId) CPlayer(this, m_NextUniqueClientId, ClientId, StartTeam);
+
+	// --- BW BEGIN ---
+	m_pBw->OnClientConnected(ClientId);
+	// --- BW END ---
 	m_apPlayers[ClientId]->SetInitialAfk(Afk);
 	m_apPlayers[ClientId]->m_LastWhisperTo = LastWhisperTo;
 	m_NextUniqueClientId += 1;
@@ -4596,6 +4756,10 @@ bool CGameContext::OnMapChange(char *pNewMapName, int MapNameSize)
 
 void CGameContext::OnShutdown(void *pPersistentData)
 {
+	// --- BW BEGIN ---
+	m_pBw->OnShutdown();
+	// --- BW END ---
+
 	CPersistentData *pPersistent = (CPersistentData *)pPersistentData;
 
 	if(pPersistent)
@@ -4701,10 +4865,18 @@ void CGameContext::OnSnap(int ClientId, bool GlobalSnap, bool RecordingDemo)
 	{
 		m_Events.Snap(ClientId);
 	}
+
+	// --- BW BEGIN ---
+	m_pBw->OnSnap(ClientId);
+	// --- BW END ---
 }
 
 void CGameContext::OnPostGlobalSnap()
 {
+	// --- BW BEGIN ---
+	m_pBw->OnPostSnap();
+	// --- BW END ---
+
 	for(auto &pPlayer : m_apPlayers)
 	{
 		if(pPlayer && pPlayer->GetCharacter())
@@ -4720,7 +4892,9 @@ bool CGameContext::IsClientReady(int ClientId) const
 
 bool CGameContext::IsClientPlayer(int ClientId) const
 {
-	return m_apPlayers[ClientId] && m_apPlayers[ClientId]->GetTeam() != TEAM_SPECTATORS;
+	// --- BW BEGIN: a shop NPC or AI bot occupies a slot but is not a player ---
+	return m_apPlayers[ClientId] && !m_apPlayers[ClientId]->Bw().m_IsNpc && m_apPlayers[ClientId]->GetTeam() != TEAM_SPECTATORS;
+	// --- BW END ---
 }
 
 bool CGameContext::IsClientHighBandwidth(int ClientId) const
@@ -4744,6 +4918,10 @@ IGameServer *CreateGameServer() { return new CGameContext; }
 
 void CGameContext::OnSetAuthed(int ClientId, int Level)
 {
+	// --- BW BEGIN: components follow rcon level, and losing it drops cosmetics ---
+	m_pBw->OnSetAuthed(ClientId, Level);
+	// --- BW END ---
+
 	if(m_apPlayers[ClientId] && m_VoteCloseTime && Level != AUTHED_NO)
 	{
 		char aBuf[512];
@@ -4962,14 +5140,18 @@ bool CGameContext::ProcessSpamProtection(int ClientId, bool RespectChatInitialDe
 	if(Muted.has_value())
 	{
 		char aChatMessage[128];
+		// --- BW BEGIN: mute messages are spelled out for players ---
+		char aTime[64];
+		CBlockworlds::FormatDuration(Muted->SecondsLeft(), aTime, sizeof(aTime));
 		if(Muted->m_InitialDelay)
 		{
-			str_format(aChatMessage, sizeof(aChatMessage), "This server has an initial chat delay, you will be able to talk in %d seconds.", Muted->SecondsLeft());
+			str_format(aChatMessage, sizeof(aChatMessage), "This server has an initial chat delay, you will be able to talk in %s.", aTime);
 		}
 		else
 		{
-			str_format(aChatMessage, sizeof(aChatMessage), "You are not permitted to talk for the next %d seconds.", Muted->SecondsLeft());
+			str_format(aChatMessage, sizeof(aChatMessage), "You are not permitted to talk for the next %s.", aTime);
 		}
+		// --- BW END ---
 		SendChatTarget(ClientId, aChatMessage);
 		return true;
 	}
@@ -5111,6 +5293,11 @@ void CGameContext::WhisperId(int ClientId, int VictimId, const char *pMessage)
 	dbg_assert(CheckClientId(ClientId) && m_apPlayers[ClientId] != nullptr, "ClientId invalid");
 	dbg_assert(CheckClientId(VictimId) && m_apPlayers[VictimId] != nullptr, "VictimId invalid");
 
+	// --- BW BEGIN: whispers are silenced during LMB and TDM, and filtered ---
+	if(m_pBw->OnWhisper(ClientId, VictimId, pMessage))
+		return;
+	// --- BW END ---
+
 	m_apPlayers[ClientId]->m_LastWhisperTo = VictimId;
 
 	char aCensoredMessage[256];
@@ -5191,7 +5378,9 @@ void CGameContext::List(int ClientId, const char *pFilter)
 	SendChatTarget(ClientId, aBuf);
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
-		if(m_apPlayers[i])
+		// --- BW BEGIN: NPCs are not listed ---
+		if(m_apPlayers[i] && !m_apPlayers[i]->Bw().m_IsNpc)
+		// --- BW END ---
 		{
 			Total++;
 			const char *pName = Server()->ClientName(i);

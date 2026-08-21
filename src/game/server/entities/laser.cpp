@@ -14,6 +14,10 @@
 #include <game/server/gamemodes/ddnet.h>
 #include <game/server/player.h>
 
+// --- BW BEGIN: passive/protected laser pass-through and block tracking ---
+#include <blockworlds/bw_context.h>
+// --- BW END ---
+
 CLaser::CLaser(CGameWorld *pGameWorld, vec2 Pos, vec2 Direction, float StartEnergy, int Owner, int Type) :
 	CEntity(pGameWorld, CGameWorld::ENTTYPE_LASER, true)
 {
@@ -52,7 +56,9 @@ bool CLaser::HitCharacter(vec2 From, vec2 To)
 	bool pDontHitSelf = g_Config.m_SvOldLaser || (m_Bounces == 0 && !m_WasTele);
 
 	if(pOwnerChar ? (!pOwnerChar->LaserHitDisabled() && m_Type == WEAPON_LASER) || (!pOwnerChar->ShotgunHitDisabled() && m_Type == WEAPON_SHOTGUN) : g_Config.m_SvHit)
-		pHit = GameWorld()->IntersectCharacter(m_Pos, To, 0.f, At, pDontHitSelf ? pOwnerChar : nullptr, m_Owner);
+		// --- BW BEGIN: the laser passes through passive and protected players ---
+		pHit = GameServer()->Bw().IntersectLaserTarget(m_Pos, To, At, pOwnerChar, m_Owner, pDontHitSelf);
+	// --- BW END ---
 	else
 		pHit = GameWorld()->IntersectCharacter(m_Pos, To, 0.f, At, pDontHitSelf ? pOwnerChar : nullptr, m_Owner, pOwnerChar);
 
@@ -98,6 +104,9 @@ bool CLaser::HitCharacter(vec2 From, vec2 To)
 		pHit->Unfreeze();
 	}
 	pHit->TakeDamage(vec2(0, 0), 0, m_Owner, m_Type);
+	// --- BW BEGIN: a laser hit counts towards the block ---
+	GameServer()->Bw().OnLaserHit(m_Owner, pHit);
+	// --- BW END ---
 	return true;
 }
 

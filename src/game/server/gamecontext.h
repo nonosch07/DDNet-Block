@@ -110,8 +110,24 @@ private:
 	std::map<NETADDR, CMute> m_Mutes;
 };
 
+// --- BW BEGIN: Blockworlds facade ---
+class CBlockworlds;
+// --- BW END ---
+
 class CGameContext : public IGameServer
 {
+	// --- BW BEGIN: CBlockworlds holds code that used to live inside CGameContext,
+	// and every Blockworlds subsystem hangs off this one object ---
+	friend class CBlockworlds;
+
+public:
+	CBlockworlds &Bw() { return *m_pBw; }
+	const CBlockworlds &Bw() const { return *m_pBw; }
+
+private:
+	CBlockworlds *m_pBw = nullptr;
+	// --- BW END ---
+
 	IServer *m_pServer;
 	IConfigManager *m_pConfigManager;
 	CConfig *m_pConfig;
@@ -340,7 +356,9 @@ public:
 	void SendTuningParams(int ClientId, int Zone = 0);
 
 	const CVoteOptionServer *GetVoteOption(int Index) const;
-	void ProgressVoteOptions(int ClientId);
+	// --- BW BEGIN: FlushAll sends the whole list at once (vote menu) ---
+	void ProgressVoteOptions(int ClientId, bool FlushAll = false);
+	// --- BW END ---
 
 	//
 	void LoadMapSettings();

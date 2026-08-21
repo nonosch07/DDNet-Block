@@ -52,6 +52,9 @@ public:
 
 	int BanAddr(const NETADDR *pAddr, int Seconds, const char *pReason, bool VerbatimReason) override;
 	int BanRange(const CNetRange *pRange, int Seconds, const char *pReason) override;
+	// --- BW BEGIN ---
+	void BwOnUnban(int ExecutorId, const char *pWhat) override;
+	// --- BW END ---
 
 	static void ConBanExt(class IConsole::IResult *pResult, void *pUser);
 	static void ConBanRegion(class IConsole::IResult *pResult, void *pUser);
@@ -95,6 +98,14 @@ public:
 	class IEngineAntibot *Antibot() { return m_pAntibot; }
 	class CDbConnectionPool *DbPool() { return m_pConnectionPool; }
 	IEngine *Engine() { return m_pEngine; }
+
+	// --- BW BEGIN: engine-side Blockworlds helpers ---
+	// The http instance, so Discord relays can be sent from the engine layer.
+	class IEngineHttp *Http() { return m_pHttp; }
+	// Name to attribute an rcon command to: the player's name, or "Console"
+	// when it came from econ, a config file or the terminal.
+	const char *BwExecutorName(int ExecutorId) const;
+	// --- BW END ---
 
 	enum
 	{
@@ -264,6 +275,37 @@ public:
 	unsigned m_aCurrentMapCrc[NUM_MAP_TYPES];
 	unsigned char *m_apCurrentMapData[NUM_MAP_TYPES];
 	unsigned int m_aCurrentMapSize[NUM_MAP_TYPES];
+
+	// --- BW BEGIN: the public map ---
+	// When maps/<name>_pub.map exists, the server plays on the real map but
+	// hands clients the stripped variant: they download and see the public map
+	// while every game rule still runs against the full one. All of the map
+	// data the client is told about -- size, crc, sha256, the bytes themselves
+	// -- comes from here instead when m_BwHasPubMap is set.
+	bool m_BwHasPubMap = false;
+	char m_aBwPubMap[IO_MAX_PATH_LENGTH] = {0};
+	SHA256_DIGEST m_aBwPubMapSha256[NUM_MAP_TYPES];
+	unsigned m_aBwPubMapCrc[NUM_MAP_TYPES] = {0};
+	unsigned char *m_apBwPubMapData[NUM_MAP_TYPES] = {nullptr};
+	unsigned int m_aBwPubMapSize[NUM_MAP_TYPES] = {0};
+
+	void BwLoadPubMap(const char *pMapName);
+	bool BwHasPubMap() const { return m_BwHasPubMap; }
+	const SHA256_DIGEST &BwMapSha256(int MapType) const { return m_BwHasPubMap ? m_aBwPubMapSha256[MapType] : m_aCurrentMapSha256[MapType]; }
+	unsigned BwMapCrc(int MapType) const { return m_BwHasPubMap ? m_aBwPubMapCrc[MapType] : m_aCurrentMapCrc[MapType]; }
+	unsigned int BwMapSize(int MapType) const { return m_BwHasPubMap ? m_aBwPubMapSize[MapType] : m_aCurrentMapSize[MapType]; }
+	const unsigned char *BwMapData(int MapType) const { return m_BwHasPubMap ? m_apBwPubMapData[MapType] : m_apCurrentMapData[MapType]; }
+
+	// Queues the account and clan writes while the players are still connected.
+	// Safe to call more than once; the game context only runs it once.
+	void BwPreShutdownFlush(const char *pWhen);
+	// True when a Blockworlds component refuses this client (VPN, port proxy).
+	bool BwComponentsRejectJoin(int ClientId);
+	// Server-browser overrides: the Blockworlds clan and the account level.
+	// Return the plain values when the game context is not a CGameContext.
+	const char *BwServerInfoClan(int ClientId);
+	int BwServerInfoScore(int ClientId, int Fallback);
+	// --- BW END ---
 	char m_aMapDownloadUrl[256];
 
 	CDemoRecorder m_aDemoRecorder[NUM_RECORDERS];
@@ -458,6 +500,14 @@ public:
 
 	static void ConReloadAnnouncement(IConsole::IResult *pResult, void *pUserData);
 	static void ConReloadMaplist(IConsole::IResult *pResult, void *pUserData);
+
+	// --- BW BEGIN: per-IP whitelist ---
+	static void ConIpWhitelistAdd(IConsole::IResult *pResult, void *pUserData);
+	static void ConIpWhitelistRemove(IConsole::IResult *pResult, void *pUserData);
+	static void ConIpWhitelistList(IConsole::IResult *pResult, void *pUserData);
+	void SaveIpWhitelist();
+	void LoadIpWhitelist();
+	// --- BW END ---
 
 	static void ConchainSpecialInfoupdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
 	static void ConchainMaxclientsperipUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);

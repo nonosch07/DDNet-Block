@@ -256,6 +256,17 @@ public:
 	bool m_Solo;
 	bool m_Jetpack;
 	bool m_CollisionDisabled;
+
+	// --- BW BEGIN: Blockworlds passive protection ---
+	// A passive/protected tee neither collides with, nor can be hooked by, other
+	// tees, and takes no damage from them. Upstream's m_Solo / m_CollisionDisabled
+	// / m_HookHitDisabled each cover only part of that and carry other meaning
+	// (solo mode is shown to clients), so BW keeps its own two flags.
+	// Mutable so BW can set them through upstream's const Core() accessor.
+	mutable bool m_Protected;
+	mutable bool m_Passive;
+	bool BwNoContact() const { return m_Protected || m_Passive; }
+	// --- BW END ---
 	bool m_EndlessHook;
 	bool m_EndlessJump;
 	bool m_HammerHitDisabled;

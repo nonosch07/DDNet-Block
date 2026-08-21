@@ -24,13 +24,27 @@ enum
 	FAKETUNE_NOHAMMER = 1 << 6,
 };
 
+// --- BW BEGIN: Blockworlds per-character state ---
+#include <blockworlds/bw_character.h>
+// --- BW END ---
+
 class CCharacter : public CEntity
 {
+	// --- BW BEGIN: CBwCharacter holds code that used to live inside CCharacter ---
+	friend class CBwCharacter;
+	// --- BW END ---
 	MACRO_ALLOC_POOL_ID()
 
 	// need to use core
 	friend class CSaveTee;
 	friend class CSaveHotReloadTee;
+
+public:
+	// --- BW BEGIN: all Blockworlds per-character state lives in CBwCharacter ---
+	CBwCharacter m_Bw;
+	CBwCharacter &Bw() { return m_Bw; }
+	const CBwCharacter &Bw() const { return m_Bw; }
+	// --- BW END ---
 
 public:
 	CCharacter(CGameWorld *pWorld, CNetObj_PlayerInput LastInput);

@@ -12,6 +12,10 @@
 #include <game/server/gamecontext.h>
 #include <game/server/gamemodes/ddnet.h>
 
+// --- BW BEGIN: gundesign cosmetics and the passive/protected hit filter ---
+#include <blockworlds/bw_context.h>
+// --- BW END ---
+
 CProjectile::CProjectile(
 	CGameWorld *pGameWorld,
 	int Type,
@@ -103,6 +107,10 @@ void CProjectile::Tick()
 
 	if(pOwnerChar ? !pOwnerChar->GrenadeHitDisabled() : g_Config.m_SvHit)
 		pTargetChr = GameServer()->m_World.IntersectCharacter(PrevPos, ColPos, m_Freeze ? 1.0f : 6.0f, ColPos, pOwnerChar, m_Owner);
+
+	// --- BW BEGIN: passive and protected players are not hit ---
+	pTargetChr = GameServer()->Bw().FilterHitTarget(pOwnerChar, pTargetChr);
+	// --- BW END ---
 
 	if(m_LifeSpan > -1)
 		m_LifeSpan--;
@@ -214,7 +222,10 @@ void CProjectile::Tick()
 		}
 		else if(m_Type == WEAPON_GUN)
 		{
-			GameServer()->CreateDamageInd(CurPos, -std::atan2(m_Direction.x, m_Direction.y), 10, m_TeamMask);
+			// --- BW BEGIN: the gundesign's impact replaces the damage indicator ---
+			if(!GameServer()->Bw().OnProjectileGunImpact(m_Owner, CurPos, m_Direction, pTargetChr))
+				// --- BW END ---
+				GameServer()->CreateDamageInd(CurPos, -std::atan2(m_Direction.x, m_Direction.y), 10, m_TeamMask);
 			m_MarkedForDestroy = true;
 			return;
 		}
@@ -378,6 +389,11 @@ void CProjectile::Snap(int SnappingClient)
 		if(pSnapChar && pSnapChar->IsAlive() && (m_Layer == LAYER_SWITCH && m_Number > 0 && !Switchers()[m_Number].m_aStatus[pSnapChar->Team()] && (!Tick)))
 			return;
 	}
+
+	// --- BW BEGIN: a gundesign is drawn instead of the bullet ---
+	if(GameServer()->Bw().OnSnapProjectile(m_Type, m_Owner, GetPos(Ct), m_Direction, GetId().value(), SnappingClient))
+		return;
+	// --- BW END ---
 
 	if(SnappingClient != SERVER_DEMO_CLIENT && !m_TeamMask.test(SnappingClient))
 		return;

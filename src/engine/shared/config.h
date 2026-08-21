@@ -96,6 +96,10 @@ enum
 	CFGFLAG_COLALPHA = 1 << 12,
 	CFGFLAG_INSENSITIVE = 1 << 13,
 	CMDFLAG_PRACTICE = 1 << 14,
+	// --- BW BEGIN: print a line when a command is registered or removed,
+	// used by the Blockworlds component_plug/unplug commands ---
+	CFGFLAG_ANNOUNCE = 1 << 16,
+	// --- BW END ---
 };
 
 #ifdef CONF_DEBUG

@@ -78,6 +78,10 @@ public:
 	void Head();
 	void Post(const unsigned char *pData, size_t DataLength);
 	void PostJson(const char *pJson);
+	// --- BW BEGIN: PUT support (used by the Agones integration) ---
+	void Put(const unsigned char *pData, size_t DataLength);
+	void PutJson(const char *pJson);
+	// --- BW END ---
 
 	virtual void Header(const char *pNameColonValue) = 0;
 	void HeaderString(const char *pName, const char *pValue);
@@ -136,6 +140,10 @@ protected:
 		HEAD,
 		POST,
 		POST_JSON,
+		// --- BW BEGIN ---
+		PUT,
+		PUT_JSON,
+		// --- BW END ---
 	};
 	static const char *GetRequestType(REQUEST Type);
 
@@ -272,5 +280,23 @@ public:
 };
 
 IEngineHttp *CreateEngineHttp();
+
+// --- BW BEGIN: PUT helpers, mirroring HttpPost/HttpPostJson ---
+inline std::unique_ptr<IHttpRequest> HttpPut(const char *pUrl, const unsigned char *pData, size_t DataLength)
+{
+	std::unique_ptr<IHttpRequest> pResult = CreateHttpRequest(pUrl);
+	pResult->Put(pData, DataLength);
+	pResult->Timeout(CTimeout{4000, 15000, 500, 5});
+	return pResult;
+}
+
+inline std::unique_ptr<IHttpRequest> HttpPutJson(const char *pUrl, const char *pJson)
+{
+	std::unique_ptr<IHttpRequest> pResult = CreateHttpRequest(pUrl);
+	pResult->PutJson(pJson);
+	pResult->Timeout(CTimeout{4000, 15000, 500, 5});
+	return pResult;
+}
+// --- BW END ---
 
 #endif

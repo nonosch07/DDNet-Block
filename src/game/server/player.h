@@ -17,6 +17,10 @@
 #include <memory>
 #include <optional>
 
+// --- BW BEGIN: Blockworlds per-player state ---
+#include <blockworlds/bw_player.h>
+// --- BW END ---
+
 class CCharacter;
 class CGameContext;
 class IServer;
@@ -26,6 +30,10 @@ struct CScorePlayerResult;
 // player object
 class CPlayer
 {
+	// --- BW BEGIN: these hold code that used to live inside CPlayer ---
+	friend class CBwPlayer;
+	friend class CBlockworlds;
+	// --- BW END ---
 	MACRO_ALLOC_POOL_ID()
 
 public:
@@ -42,6 +50,12 @@ public:
 	void SetTeam(int Team, bool DoChatMsg = true);
 	int GetTeam() const { return m_Team; }
 	int GetCid() const { return m_ClientId; }
+
+	// --- BW BEGIN: all Blockworlds per-player state lives in CBwPlayer ---
+	CBwPlayer m_Bw;
+	CBwPlayer &Bw() { return m_Bw; }
+	const CBwPlayer &Bw() const { return m_Bw; }
+	// --- BW END ---
 	uint32_t GetUniqueCid() const { return m_UniqueClientId; }
 	int GetClientVersion() const;
 	bool SetTimerType(int TimerType);

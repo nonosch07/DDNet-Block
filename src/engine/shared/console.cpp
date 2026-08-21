@@ -998,6 +998,15 @@ void CConsole::Register(const char *pName, const char *pParams,
 
 	if(pCommand->m_Flags & CFGFLAG_CHAT)
 		pCommand->SetAccessLevel(EAccessLevel::USER);
+
+	// --- BW BEGIN: component_plug announces the commands it brings ---
+	if(pCommand->m_Flags & CFGFLAG_ANNOUNCE)
+	{
+		char aBuf[CMDLINE_LENGTH];
+		str_format(aBuf, sizeof(aBuf), "Command registered: %s", pCommand->m_pName);
+		Print(OUTPUT_LEVEL_STANDARD, "console", aBuf);
+	}
+	// --- BW END ---
 }
 
 void CConsole::RegisterTemp(const char *pName, const char *pParams, int Flags, const char *pHelp)
@@ -1033,6 +1042,86 @@ void CConsole::RegisterTemp(const char *pName, const char *pParams, int Flags, c
 
 	AddCommandSorted(pCommand);
 }
+
+// --- BW BEGIN: runtime command removal for component_plug/unplug ---
+void CConsole::Deregister(const char *pName)
+{
+	if(!m_pFirstCommand)
+		return;
+
+	CCommand *pRemoved = nullptr;
+
+	// remove entry from command list
+	if(str_comp(m_pFirstCommand->m_pName, pName) == 0)
+	{
+		pRemoved = m_pFirstCommand;
+		m_pFirstCommand = m_pFirstCommand->Next();
+	}
+	else
+	{
+		for(CCommand *pCommand = m_pFirstCommand; pCommand->Next(); pCommand = pCommand->Next())
+		{
+			if(str_comp(pCommand->Next()->m_pName, pName) == 0)
+			{
+				pRemoved = pCommand->Next();
+				pCommand->SetNext(pCommand->Next()->Next());
+				break;
+			}
+		}
+	}
+
+	// add to recycle list
+	if(pRemoved)
+	{
+		if(pRemoved->m_Flags & CFGFLAG_ANNOUNCE)
+		{
+			char aBuf[CMDLINE_LENGTH];
+			str_format(aBuf, sizeof(aBuf), "Command removed: %s", pRemoved->m_pName);
+			Print(OUTPUT_LEVEL_STANDARD, "console", aBuf);
+		}
+
+		pRemoved->SetNext(m_pRecycleList);
+		m_pRecycleList = pRemoved;
+	}
+}
+
+void CConsole::UnChain(const char *pName, FChainCommandCallback pfnChainFunc)
+{
+	CCommand *pCommand = FindCommand(pName, m_FlagMask);
+
+	if(!pCommand || pCommand->m_pfnCallback != Con_Chain)
+		return;
+
+	CChain *pPrev = nullptr;
+	CChain *pCurrent = (CChain *)pCommand->m_pUserData;
+
+	while(pCurrent)
+	{
+		if(pCurrent->m_pfnChainCallback == pfnChainFunc)
+		{
+			if(pPrev)
+			{
+				pPrev->m_pfnCallback = pCurrent->m_pfnCallback;
+				pPrev->m_pCallbackUserData = pCurrent->m_pCallbackUserData;
+			}
+			else
+			{
+				pCommand->m_pfnCallback = pCurrent->m_pfnCallback;
+				pCommand->m_pUserData = pCurrent->m_pCallbackUserData;
+			}
+
+			delete pCurrent;
+			return;
+		}
+
+		if(pCurrent->m_pfnCallback != Con_Chain)
+			break;
+
+		pPrev = pCurrent;
+		pCurrent = (CChain *)pCurrent->m_pCallbackUserData;
+	}
+}
+// --- BW END ---
 
 void CConsole::DeregisterTemp(const char *pName)
 {

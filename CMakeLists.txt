@@ -1958,6 +1958,9 @@ set(EXPECTED_DATA
   # tidy-alphabetical-end
 )
 
+# --- BW BEGIN: Blockworlds ships its own maps and data files ---
+include(cmake/blockworlds_data.cmake)
+# --- BW END ---
 set_glob(DATA GLOB_RECURSE "cfg;frag;json;map;otf;png;rules;ttc;ttf;txt;vert;wv" data ${EXPECTED_DATA})
 
 ########################################################################
@@ -3065,6 +3068,9 @@ if(SERVER)
     # tidy-alphabetical-end
   )
   set(SERVER_SRC ${ENGINE_SERVER_WITHOUT_MAIN} ${GAME_SERVER} ${GAME_GENERATED_SERVER})
+  # --- BW BEGIN: pull in src/blockworlds/ (see cmake/blockworlds.cmake) ---
+  include(cmake/blockworlds.cmake)
+  # --- BW END ---
   if(TARGET_OS STREQUAL "windows")
     set(VERSION_EXECUTABLE "${SERVER_EXECUTABLE}")
     set(VERSION_COMPANY "${CLIENT_EXECUTABLE} Team")
@@ -3348,6 +3354,10 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
     src/game/client/components/censor.h
     # tidy-alphabetical-end
   )
+
+  # --- BW BEGIN: Blockworlds unit tests ---
+  include(cmake/blockworlds_tests.cmake)
+  # --- BW END ---
 
   set(TARGET_TESTRUNNER testrunner)
   add_executable(${TARGET_TESTRUNNER} EXCLUDE_FROM_ALL
