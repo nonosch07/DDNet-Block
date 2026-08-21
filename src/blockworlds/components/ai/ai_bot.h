@@ -1,5 +1,5 @@
-#ifndef BLOCKWORLDS_COMPONENTS_AI_BOT_H
-#define BLOCKWORLDS_COMPONENTS_AI_BOT_H
+#ifndef BLOCKWORLDS_COMPONENTS_AI_AI_BOT_H
+#define BLOCKWORLDS_COMPONENTS_AI_AI_BOT_H
 
 #include <engine/console.h>
 #include <engine/shared/protocol.h>

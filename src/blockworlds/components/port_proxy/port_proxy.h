@@ -1,4 +1,5 @@
-#pragma once
+#ifndef BLOCKWORLDS_COMPONENTS_PORT_PROXY_PORT_PROXY_H
+#define BLOCKWORLDS_COMPONENTS_PORT_PROXY_PORT_PROXY_H
 
 #include <engine/shared/protocol.h>
 
@@ -38,3 +39,5 @@ protected:
 	void OnPlayerConnected(int ClientId) override;
 	void OnPlayerDropping(int ClientId) override;
 };
+
+#endif // BLOCKWORLDS_COMPONENTS_PORT_PROXY_PORT_PROXY_H

@@ -1,7 +1,7 @@
 #ifndef BLOCKWORLDS_COSMETICS_COSMETICS_H
 #define BLOCKWORLDS_COSMETICS_COSMETICS_H
 
-#include "base/vmath.h"
+#include <base/vmath.h>
 
 #include <engine/server.h>
 

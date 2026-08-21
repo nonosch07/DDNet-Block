@@ -1,7 +1,7 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
-#ifndef GAME_SERVER_BLOCKWORLDS_ENTITIES_CROWN_H
-#define GAME_SERVER_BLOCKWORLDS_ENTITIES_CROWN_H
+#ifndef BLOCKWORLDS_COSMETICS_SPECIALS_CROWN_H
+#define BLOCKWORLDS_COSMETICS_SPECIALS_CROWN_H
 
 #include <game/server/entity.h>
 
@@ -18,4 +18,4 @@ private:
 	int m_Owner;
 };
 
-#endif // GAME_SERVER_BLOCKWORLDS_ENTITIES_CROWN_H
+#endif // BLOCKWORLDS_COSMETICS_SPECIALS_CROWN_H

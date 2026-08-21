@@ -12,6 +12,9 @@
 #include <engine/server.h>
 
 // --- BW BEGIN ---
+// for g_Config when antibot flag is off
+#include <engine/shared/config.h>
+
 #include <game/server/gamecontext.h>
 
 #include <blockworlds/bw_context.h>

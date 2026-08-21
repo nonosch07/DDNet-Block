@@ -1,9 +1,9 @@
 #include "clans.h"
 
-#include "engine/shared/config.h"
 #include "sql_prefix.h"
 
 #include <engine/server/databases/connection.h>
+#include <engine/shared/config.h>
 
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>

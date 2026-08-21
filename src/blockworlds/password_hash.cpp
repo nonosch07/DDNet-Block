@@ -7,8 +7,9 @@
 
 #include <blockworlds/bw_base.h>
 #include <fcntl.h>
-#include <stdlib.h>
-#include <string.h>
+
+#include <cstdlib>
+#include <cstring>
 #if defined(CONF_FAMILY_WINDOWS)
 #include <Windows.h>
 #include <io.h>

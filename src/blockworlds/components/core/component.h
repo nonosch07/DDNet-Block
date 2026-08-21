@@ -1,4 +1,5 @@
-#pragma once
+#ifndef BLOCKWORLDS_COMPONENTS_CORE_COMPONENT_H
+#define BLOCKWORLDS_COMPONENTS_CORE_COMPONENT_H
 
 #include <base/vmath.h>
 
@@ -141,3 +142,5 @@ public:
 	// called when TakeDamage is invoked on a character by a real attacker (From >= 0)
 	virtual void OnCharacterTakeDamage(vec2 Force, int Dmg, int From, int ClientId, int Weapon) {}
 };
+
+#endif // BLOCKWORLDS_COMPONENTS_CORE_COMPONENT_H

@@ -1,5 +1,5 @@
-#ifndef BLOCKWORLDS_CLAN_AUTH_LEVEL_ENUM
-#define BLOCKWORLDS_CLAN_AUTH_LEVEL_ENUM
+#ifndef BLOCKWORLDS_ACCOUNTS_H
+#define BLOCKWORLDS_ACCOUNTS_H
 
 enum class ClanAuthLevel : int
 {
@@ -8,9 +8,6 @@ enum class ClanAuthLevel : int
 	COLEADER = 2,
 	LEADER = 3
 };
-#endif
-#ifndef BLOCKWORLDS_ACCOUNTS_H
-#define BLOCKWORLDS_ACCOUNTS_H
 
 #include "clans.h"
 #include "common.h"

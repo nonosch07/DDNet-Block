@@ -1,6 +1,6 @@
 // Halo special - lasers positioned above the player's head
-#ifndef BLOCKWORLDS_COSMETICS_HALO_H
-#define BLOCKWORLDS_COSMETICS_HALO_H
+#ifndef BLOCKWORLDS_COSMETICS_SPECIALS_HALO_H
+#define BLOCKWORLDS_COSMETICS_SPECIALS_HALO_H
 
 #include <game/server/entity.h>
 
@@ -17,4 +17,4 @@ private:
 	int m_aIds[6];
 };
 
-#endif // BLOCKWORLDS_COSMETICS_HALO_H
+#endif // BLOCKWORLDS_COSMETICS_SPECIALS_HALO_H

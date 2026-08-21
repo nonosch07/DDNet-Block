@@ -1,4 +1,5 @@
-#pragma once
+#ifndef BLOCKWORLDS_COMPONENTS_AGONES_AGONES_H
+#define BLOCKWORLDS_COMPONENTS_AGONES_AGONES_H
 
 #include <engine/http.h>
 #include <engine/shared/protocol.h>
@@ -47,3 +48,5 @@ private:
 	void SendPlayerConnect(int ClientId);
 	void SendPlayerDisconnect(int ClientId);
 };
+
+#endif // BLOCKWORLDS_COMPONENTS_AGONES_AGONES_H

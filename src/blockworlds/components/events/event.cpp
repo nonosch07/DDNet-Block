@@ -1,13 +1,12 @@
 #include "event.h"
 
-#include "game/teamscore.h"
-
 #include <engine/server/server.h>
 #include <engine/shared/config.h>
 
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
+#include <game/teamscore.h>
 
 #include <blockworlds/bw_context.h>
 

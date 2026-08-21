@@ -1,7 +1,7 @@
 #ifndef BLOCKWORLDS_PASSWORD_HASH_H
 #define BLOCKWORLDS_PASSWORD_HASH_H
 
-#include <stddef.h>
+#include <cstddef>
 
 // Public API for password hashing (PBKDF2-HMAC-SHA256)
 // Format: PBKDF2$<iterations>$<salt_hex>$<dk_hex>

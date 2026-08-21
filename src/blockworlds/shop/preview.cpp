@@ -1,13 +1,14 @@
 #include "preview.h"
 
-#include "engine/server.h"
-#include "game/server/entities/character.h"
-#include "game/server/entities/pickup.h"
-#include "game/server/entity.h"
-#include "game/server/player.h"
 #include "npcmanager.h"
 
+#include <engine/server.h>
+
+#include <game/server/entities/character.h>
+#include <game/server/entities/pickup.h>
+#include <game/server/entity.h>
 #include <game/server/gamecontext.h>
+#include <game/server/player.h>
 
 #include <blockworlds/bw_context.h>
 

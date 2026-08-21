@@ -1,5 +1,5 @@
-#ifndef BLOCKWORLDS_COMPONENTS_JSON_HELPERS_H
-#define BLOCKWORLDS_COMPONENTS_JSON_HELPERS_H
+#ifndef BLOCKWORLDS_COMPONENTS_VPNDETECTION_SERVICES_JSON_HELPERS_H
+#define BLOCKWORLDS_COMPONENTS_VPNDETECTION_SERVICES_JSON_HELPERS_H
 
 /**
  * JSON parsing helper functions for VPN service implementations
@@ -62,4 +62,4 @@ namespace JsonHelpers
 	bool ParseFloat(const char *pJson, const char *pKey, float &Out);
 } // namespace JsonHelpers
 
-#endif // BLOCKWORLDS_COMPONENTS_JSON_HELPERS_H
+#endif // BLOCKWORLDS_COMPONENTS_VPNDETECTION_SERVICES_JSON_HELPERS_H

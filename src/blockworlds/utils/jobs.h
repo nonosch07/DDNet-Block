@@ -1,4 +1,5 @@
-#pragma once
+#ifndef BLOCKWORLDS_UTILS_JOBS_H
+#define BLOCKWORLDS_UTILS_JOBS_H
 
 #include <blockworlds/bw_base.h>
 
@@ -287,3 +288,5 @@ inline std::unique_ptr<CModernJobPool> CreateJobPool(size_t NumThreads = std::th
 {
 	return std::make_unique<CModernJobPool>(NumThreads);
 }
+
+#endif // BLOCKWORLDS_UTILS_JOBS_H

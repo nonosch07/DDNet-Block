@@ -1,5 +1,5 @@
-#ifndef BLOCKWORLDS_COMPONENTS_VPN_TIME_PARSER_H
-#define BLOCKWORLDS_COMPONENTS_VPN_TIME_PARSER_H
+#ifndef BLOCKWORLDS_COMPONENTS_VPNDETECTION_TIME_PARSER_H
+#define BLOCKWORLDS_COMPONENTS_VPNDETECTION_TIME_PARSER_H
 
 /**
  * Parses human-readable time strings into seconds or minutes.
@@ -23,4 +23,4 @@ enum ETimeUnit
 bool ParseTimeString(const char *pTimeStr, int *pOutSeconds);
 bool ParseTimeStringMinutes(const char *pTimeStr, int *pOutMinutes);
 
-#endif // BLOCKWORLDS_COMPONENTS_VPN_TIME_PARSER_H
+#endif // BLOCKWORLDS_COMPONENTS_VPNDETECTION_TIME_PARSER_H

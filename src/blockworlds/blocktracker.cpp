@@ -251,6 +251,7 @@ bool CBlockTracker::Blocked(int ClientID, int BlockerID)
 		Msg.m_Killer = BlockerID;
 		Msg.m_Victim = ClientID;
 		Msg.m_Weapon = WEAPON_GAME;
+		Msg.m_ModeSpecial = 0;
 		m_pGameContext->Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, -1);
 	}
 

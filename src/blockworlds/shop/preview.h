@@ -1,7 +1,7 @@
 #ifndef BLOCKWORLDS_SHOP_PREVIEW_H
 #define BLOCKWORLDS_SHOP_PREVIEW_H
 
-#include "base/vmath.h"
+#include <base/vmath.h>
 
 #include <vector>
 class CGameContext;

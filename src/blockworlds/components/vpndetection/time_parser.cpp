@@ -1,7 +1,8 @@
 #include "time_parser.h"
 
 #include <blockworlds/bw_base.h>
-#include <ctype.h>
+
+#include <cctype>
 
 namespace
 {

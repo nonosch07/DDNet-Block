@@ -1,4 +1,5 @@
-#pragma once
+#ifndef BLOCKWORLDS_COMPONENTS_CORE_COMPONENT_REGISTRY_H
+#define BLOCKWORLDS_COMPONENTS_CORE_COMPONENT_REGISTRY_H
 
 #include <blockworlds/bw_base.h>
 #include <blockworlds/components/core/component.h>
@@ -93,3 +94,5 @@ public:
 };
 
 extern CComponentRegistry g_ComponentRegistry;
+
+#endif // BLOCKWORLDS_COMPONENTS_CORE_COMPONENT_REGISTRY_H

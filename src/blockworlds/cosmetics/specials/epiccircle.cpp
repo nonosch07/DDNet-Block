@@ -16,7 +16,8 @@
 #include <game/server/player.h>
 
 #include <blockworlds/bw_context.h>
-#include <math.h>
+
+#include <cmath>
 
 CEpicCircle::CEpicCircle(CGameWorld *pGameWorld, vec2 Pos, int Owner) :
 	CEntity(pGameWorld, CGameWorld::ENTTYPE_PROJECTILE, true)
