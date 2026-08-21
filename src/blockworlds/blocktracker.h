@@ -2,9 +2,11 @@
 #define BLOCKWORLDS_BLOCKTRACKER_H
 
 #include <base/vmath.h>
+
+#include <engine/shared/protocol.h>
+
 #include <cstdint>
 #include <deque>
-#include <engine/shared/protocol.h>
 #include <string>
 #include <unordered_map>
 class CGameContext;

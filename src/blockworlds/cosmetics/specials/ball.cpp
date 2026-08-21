@@ -1,11 +1,14 @@
+#include "ball.h"
+
 #include <engine/server.h>
 #include <engine/shared/config.h>
+
 #include <generated/protocol.h>
+
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
-#include "ball.h"
 #include <blockworlds/bw_context.h>
 
 CBall::CBall(CGameWorld *pGameWorld, vec2 Pos, int Owner) :

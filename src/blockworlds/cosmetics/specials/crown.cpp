@@ -1,13 +1,16 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
+#include "crown.h"
+
 #include <engine/server.h>
 #include <engine/shared/config.h>
+
 #include <generated/protocol.h>
+
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
-#include "crown.h"
 #include <blockworlds/bw_context.h>
 
 CCrown::CCrown(CGameWorld *pGameWorld, int Owner) :

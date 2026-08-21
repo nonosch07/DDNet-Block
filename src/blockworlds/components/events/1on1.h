@@ -2,16 +2,17 @@
 #ifndef BLOCKWORLDS_COMPONENTS_EVENTS_1ON1_H
 #define BLOCKWORLDS_COMPONENTS_EVENTS_1ON1_H
 
-#include <base/vmath.h>
-#include <game/server/gamecontext.h>
-#include <vector>
-
 #include "1on1_utils.h"
-
 #include "event.h"
+
+#include <base/vmath.h>
+
+#include <game/server/gamecontext.h>
+
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <vector>
 
 // match configuration set during the Preparation (config) phase
 struct SMatchConfig

@@ -1,15 +1,19 @@
 #include "whois.h"
 
-#include <blockworlds/bw_base.h>
+#include "sql_prefix.h"
+
 #include <engine/server.h>
 #include <engine/server/databases/connection.h>
 #include <engine/server/databases/connection_pool.h>
 #include <engine/shared/config.h>
 #include <engine/storage.h>
+
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
-#include "sql_prefix.h"
+#include <blockworlds/bw_base.h>
+#include <blockworlds/bw_util.h>
+
 #include <algorithm>
 #include <atomic>
 #include <condition_variable>
@@ -17,7 +21,6 @@
 #include <mutex>
 #include <queue>
 #include <thread>
-#include <blockworlds/bw_util.h>
 
 static const char *TAG = "whois";
 
@@ -257,7 +260,6 @@ CWhoIs::CWhoIs(CGameContext *pGameServer, CDbConnectionPool *pPool) :
 }
 
 CWhoIs::~CWhoIs() = default;
-
 
 IServer *CWhoIs::Server() const { return GameServer()->Server(); }
 

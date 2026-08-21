@@ -6,13 +6,13 @@
 
 #include <game/server/gamecontext.h>
 
-#include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/bw_context.h>
+#include <blockworlds/components/core/component_registry.h>
 
 CGameContext *CComponent::GameServer() const { return m_pGameServer; }
 CConfig *CComponent::Config() const { return m_pGameServer->Config(); }
-CServer *CComponent::Server() const { return (CServer*)m_pGameServer->Server(); }
-CConsole *CComponent::Console() const { return (CConsole*)m_pGameServer->Console(); }
+CServer *CComponent::Server() const { return (CServer *)m_pGameServer->Server(); }
+CConsole *CComponent::Console() const { return (CConsole *)m_pGameServer->Console(); }
 CComponentRegistry *CComponent::Registry() const { return &g_ComponentRegistry; }
 
 CComponent::CComponent(CGameContext *pGameServer)
@@ -52,7 +52,8 @@ void CComponent::OnConsoleInit()
 	GameServer()->Bw().SendChatCmdGroupEnd(-1);
 	pServer->SendRconCmdGroupEnd(-1);
 
-	for (auto ChainCmd : m_ChainCommands) {
+	for(auto ChainCmd : m_ChainCommands)
+	{
 		Console()->Chain(ChainCmd.m_pName, ChainCmd.m_pfnCallback, ChainCmd.m_pUserData);
 		Log("Successfully chained '%s'", ChainCmd.m_pName);
 	}
@@ -72,7 +73,8 @@ void CComponent::OnConsoleTerminate()
 		Console()->Deregister(Cmd.m_pName);
 	}
 
-	for (auto ChainCmd : m_ChainCommands) {
+	for(auto ChainCmd : m_ChainCommands)
+	{
 		Console()->UnChain(ChainCmd.m_pName, ChainCmd.m_pfnCallback);
 		Log("Successfully unchained '%s'", ChainCmd.m_pName);
 	}

@@ -1,22 +1,22 @@
 #include "zcatch_grenade.h"
 
-#include <algorithm>
+#include "event_helpers.h"
 
 #include <engine/server/server.h>
 #include <engine/shared/config.h>
 
-#include "event_helpers.h"
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/gamecontroller.h>
 #include <game/server/player.h>
 #include <game/teamscore.h>
 
-#include <blockworlds/components/core/component_registry.h>
-#include <blockworlds/discord/webhook.h>
 #include <blockworlds/bw_context.h>
 #include <blockworlds/bw_util.h>
+#include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/discord/webhook.h>
 
+#include <algorithm>
 
 CZCatchGrenadeEvent::CZCatchGrenadeEvent(CGameContext *pGameServer) :
 	CEventComponent(pGameServer)
@@ -573,10 +573,10 @@ void CZCatchGrenadeEvent::OnTick()
 				continue;
 
 			pPlayer->Bw().SendBroadcastAlignedLeft("zCatch Grenade is about to start!\n"
-							  "Register with /join\n"
-							  "Time left: %s\n\n"
-							  "Participants: %" PRIzu "\n"
-							  "%s",
+							       "Register with /join\n"
+							       "Time left: %s\n\n"
+							       "Participants: %" PRIzu "\n"
+							       "%s",
 				aTimeLeft,
 				m_Candidates.size(),
 				(int)m_Candidates.size() < Config()->m_SvZCatchMinimumCandidates ? "Not enough participants!\n" : "");
@@ -610,7 +610,7 @@ void CZCatchGrenadeEvent::OnTick()
 				continue;
 
 			pPlayer->Bw().SendBroadcastAlignedLeft("%d / %d\n"
-							  "Currently caught: %d / %d\n",
+							       "Currently caught: %d / %d\n",
 				leadScore, Config()->m_SvZCatchGrenadeKillsToWin,
 				caughtCount, (int)m_Participants.size() - 1);
 
@@ -646,7 +646,6 @@ void CZCatchGrenadeEvent::HandleCamping(int ClientId)
 	CCharacter *pChar = pPlayer->GetCharacter();
 	if(!pChar)
 		return;
-
 
 	if(pPlayer->GetTeam() == TEAM_SPECTATORS || pChar->m_FreezeTime)
 	{

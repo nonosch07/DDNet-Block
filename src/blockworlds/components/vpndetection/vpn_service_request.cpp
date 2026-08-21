@@ -1,12 +1,14 @@
 #include "vpn_service_request.h"
+
 #include "services/vpn_service_interface.h"
 #include "vpn_detection.h"
 
+#include <engine/http.h>
+
+#include <game/server/gamecontext.h>
+
 #include <blockworlds/bw_base.h>
 #include <blockworlds/bw_context.h>
-
-#include <engine/http.h>
-#include <game/server/gamecontext.h>
 
 #include <algorithm>
 #include <cctype>

@@ -1,11 +1,10 @@
 #include "zcatch.h"
 
-#include <algorithm>
+#include "event_helpers.h"
 
 #include <engine/server/server.h>
 #include <engine/shared/config.h>
 
-#include "event_helpers.h"
 #include <game/mapitems.h>
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
@@ -13,11 +12,12 @@
 #include <game/server/player.h>
 #include <game/teamscore.h>
 
-#include <blockworlds/components/core/component_registry.h>
-#include <blockworlds/discord/webhook.h>
 #include <blockworlds/bw_context.h>
 #include <blockworlds/bw_util.h>
+#include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/discord/webhook.h>
 
+#include <algorithm>
 
 CZCatchEvent::CZCatchEvent(CGameContext *pGameServer) :
 	CEventComponent(pGameServer)
@@ -572,10 +572,10 @@ void CZCatchEvent::OnTick()
 				continue;
 
 			pPlayer->Bw().SendBroadcastAlignedLeft("zCatch is about to start!\n"
-							  "Register with /join\n"
-							  "Time left: %s\n\n"
-							  "Participants: %" PRIzu "\n"
-							  "%s",
+							       "Register with /join\n"
+							       "Time left: %s\n\n"
+							       "Participants: %" PRIzu "\n"
+							       "%s",
 				aTimeLeft,
 				m_Candidates.size(),
 				(int)m_Candidates.size() < Config()->m_SvZCatchMinimumCandidates ? "Not enough participants!\n" : "");
@@ -670,7 +670,7 @@ void CZCatchEvent::OnTick()
 				continue;
 
 			pPlayer->Bw().SendBroadcastAlignedLeft("%d / %d\n"
-							  "Currently caught: %d / %d\n",
+							       "Currently caught: %d / %d\n",
 				leadScore, Config()->m_SvZCatchKillsToWin,
 				caughtCount, (int)m_Participants.size() - 1);
 		}

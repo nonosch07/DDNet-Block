@@ -1,22 +1,25 @@
 #include "blocktracker.h"
-#include <blockworlds/accounts.h>
-#include <blockworlds/entities/experience.h>
+
 #include <engine/shared/config.h>
+
 #include <game/server/entities/character.h>
 #include <game/server/entity.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
-#include <algorithm>
+#include <blockworlds/accounts.h>
+#include <blockworlds/bw_context.h>
+#include <blockworlds/bw_util.h>
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
 #include <blockworlds/components/events/event.h>
 #include <blockworlds/components/oneonone_manager.h>
+#include <blockworlds/entities/experience.h>
+
+#include <algorithm>
 #include <ctime>
 #include <deque>
 #include <unordered_map>
-#include <blockworlds/bw_context.h>
-#include <blockworlds/bw_util.h>
 
 CBlockTracker::CBlockTracker(CGameContext *pGameServer) :
 	m_pGameContext(pGameServer)

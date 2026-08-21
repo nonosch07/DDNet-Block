@@ -1,18 +1,22 @@
 #include "requests.h"
-#include <algorithm>
-#include <ctime>
-#include <blockworlds/bw_base.h>
-#include <blockworlds/components/events.h>
-#include <blockworlds/components/oneonone_manager.h>
-#include <blockworlds/components/core/component_registry.h>
-#include <blockworlds/discord/webhook.h>
+
 #include <engine/server/server.h>
 #include <engine/shared/config.h>
+
 #include <game/mapitems.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
+
+#include <blockworlds/bw_base.h>
 #include <blockworlds/bw_context.h>
 #include <blockworlds/bw_util.h>
+#include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/components/events.h>
+#include <blockworlds/components/oneonone_manager.h>
+#include <blockworlds/discord/webhook.h>
+
+#include <algorithm>
+#include <ctime>
 
 CRequests::CRequests(CGameContext *pGameServer) :
 	CComponent(pGameServer) {}
@@ -34,9 +38,7 @@ static const char *SafeClientName(CGameContext *pGameServer, int ClientId)
 static int CurrentUtcYyyymmdd()
 {
 	time_t now = time(nullptr);
-	struct tm utc
-	{
-	};
+	struct tm utc{};
 #if defined(__unix__) || defined(__APPLE__)
 	gmtime_r(&now, &utc);
 #else
@@ -1323,10 +1325,14 @@ int CRequests::CancelRequestsInvolving(int ClientId, std::optional<SRequest::ETy
 		{
 			char aBuf[256];
 			if(pReason)
-				str_format(aBuf, sizeof(aBuf), "A pending %s request was cancelled: %s", it->m_Type == SRequest::EType::BlockpointTransfer ? "blockpoint transfer" : it->m_Type == SRequest::EType::OneOnOne ? "1on1" : it->m_Type == SRequest::EType::Clan ? "clan" : "request",
+				str_format(aBuf, sizeof(aBuf), "A pending %s request was cancelled: %s", it->m_Type == SRequest::EType::BlockpointTransfer ? "blockpoint transfer" : it->m_Type == SRequest::EType::OneOnOne ? "1on1" :
+																					     it->m_Type == SRequest::EType::Clan             ? "clan" :
+																											       "request",
 					pReason);
 			else
-				str_format(aBuf, sizeof(aBuf), "A pending %s request was cancelled.", it->m_Type == SRequest::EType::BlockpointTransfer ? "blockpoint transfer" : it->m_Type == SRequest::EType::OneOnOne ? "1on1" : it->m_Type == SRequest::EType::Clan ? "clan" : "request");
+				str_format(aBuf, sizeof(aBuf), "A pending %s request was cancelled.", it->m_Type == SRequest::EType::BlockpointTransfer ? "blockpoint transfer" : it->m_Type == SRequest::EType::OneOnOne ? "1on1" :
+																					  it->m_Type == SRequest::EType::Clan             ? "clan" :
+																											    "request");
 			GameServer()->Bw().SendChatTarget(other, aBuf);
 		}
 		m_Requests.erase(it);

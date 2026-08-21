@@ -1,84 +1,86 @@
 /* (c) Blockworlds contributors. See licence.txt in the root of the distribution for more information. */
 
 #include "webhook.h"
+
 #include "webhook_queue.h"
-
-#include <engine/http.h>
-#include <engine/shared/jobs.h>
-#include <engine/shared/jsonwriter.h>
-
-#include <engine/shared/config.h>
 
 #include <base/log.h>
 #include <base/math.h>
+
+#include <engine/http.h>
+#include <engine/shared/config.h>
+#include <engine/shared/jobs.h>
+#include <engine/shared/jsonwriter.h>
+
 #include <blockworlds/bw_base.h>
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
-#include <algorithm>
 
-namespace {
-constexpr int DISCORD_MAX_CONTENT = 2000;
-
-[[maybe_unused]] static std::vector<std::string> ChunkMessage(const char *pMsg)
+namespace
 {
-	std::vector<std::string> v;
-	if(!pMsg || !pMsg[0])
+	constexpr int DISCORD_MAX_CONTENT = 2000;
+
+	[[maybe_unused]] static std::vector<std::string> ChunkMessage(const char *pMsg)
 	{
-		v.emplace_back("");
+		std::vector<std::string> v;
+		if(!pMsg || !pMsg[0])
+		{
+			v.emplace_back("");
+			return v;
+		}
+		const int Len = str_length(pMsg);
+		for(int pos = 0; pos < Len;)
+		{
+			int take = std::min(DISCORD_MAX_CONTENT, Len - pos);
+			v.emplace_back(std::string(pMsg + pos, pMsg + pos + take));
+			pos += take;
+		}
 		return v;
 	}
-	const int Len = str_length(pMsg);
-	for(int pos = 0; pos < Len;)
-	{
-		int take = std::min(DISCORD_MAX_CONTENT, Len - pos);
-		v.emplace_back(std::string(pMsg + pos, pMsg + pos + take));
-		pos += take;
-	}
-	return v;
-}
 
-static std::string SanitizeMentions(const char *pMsg)
-{
-	if(!pMsg)
-		return std::string();
-	std::string s(pMsg);
-	const std::string ZWSP = "\xE2\x80\x8B"; // zero width space
-	auto replace_all = [](std::string &str, const char *needle, const std::string &replacement) {
-		if(!needle || !needle[0])
-			return;
-		size_t pos = 0;
-		size_t nlen = strlen(needle);
-		while((pos = str.find(needle, pos)) != std::string::npos)
-		{
-			str.replace(pos, nlen, replacement);
-			pos += replacement.size();
-		}
-	};
-	replace_all(s, "@everyone", std::string("@") + ZWSP + "everyone");
-	replace_all(s, "@here", std::string("@") + ZWSP + "here");
-	for(size_t i = 0; i < s.size(); ++i)
+	static std::string SanitizeMentions(const char *pMsg)
 	{
-		if(s[i] == '<' && i + 2 < s.size() && s[i + 1] == '@')
-		{
-			if(s.compare(i + 2, ZWSP.size(), ZWSP) != 0)
+		if(!pMsg)
+			return std::string();
+		std::string s(pMsg);
+		const std::string ZWSP = "\xE2\x80\x8B"; // zero width space
+		auto replace_all = [](std::string &str, const char *needle, const std::string &replacement) {
+			if(!needle || !needle[0])
+				return;
+			size_t pos = 0;
+			size_t nlen = strlen(needle);
+			while((pos = str.find(needle, pos)) != std::string::npos)
 			{
-				s.insert(i + 2, ZWSP);
-				i += ZWSP.size() + 2;
+				str.replace(pos, nlen, replacement);
+				pos += replacement.size();
+			}
+		};
+		replace_all(s, "@everyone", std::string("@") + ZWSP + "everyone");
+		replace_all(s, "@here", std::string("@") + ZWSP + "here");
+		for(size_t i = 0; i < s.size(); ++i)
+		{
+			if(s[i] == '<' && i + 2 < s.size() && s[i + 1] == '@')
+			{
+				if(s.compare(i + 2, ZWSP.size(), ZWSP) != 0)
+				{
+					s.insert(i + 2, ZWSP);
+					i += ZWSP.size() + 2;
+				}
+			}
+			else if(s[i] == '@')
+			{
+				if(i + 1 < s.size() && (isalnum((unsigned char)s[i + 1]) || s[i + 1] == '&' || s[i + 1] == '!'))
+				{
+					s.insert(i + 1, ZWSP);
+					i += ZWSP.size() + 1;
+				}
 			}
 		}
-		else if(s[i] == '@')
-		{
-			if(i + 1 < s.size() && (isalnum((unsigned char)s[i + 1]) || s[i + 1] == '&' || s[i + 1] == '!'))
-			{
-				s.insert(i + 1, ZWSP);
-				i += ZWSP.size() + 1;
-			}
-		}
+		return s;
 	}
-	return s;
-}
 } // namespace
 
 class CDiscordWebhook::CSendJob : public IJob

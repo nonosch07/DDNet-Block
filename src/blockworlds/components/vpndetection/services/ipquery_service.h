@@ -5,7 +5,7 @@
 
 /**
  * IPQuery.io VPN detection service implementation
- * 
+ *
  * API: https://api.ipquery.io/{IP}
  * Also allows for batch operations in a comma separated list. /1.1.1.1,2.2.2.2,3.3.3.3
  */

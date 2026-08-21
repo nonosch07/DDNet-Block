@@ -1,14 +1,17 @@
 
-#include <cstddef>
+#include <base/hash_ctxt.h>
+
 #include <engine/server/databases/connection.h>
 #include <engine/shared/config.h>
 #include <engine/shared/protocol.h>
+
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
-#include <mutex>
 
-#include <base/hash_ctxt.h>
 #include <blockworlds/bw_base.h>
+
+#include <cstddef>
+#include <mutex>
 #include <unordered_map>
 #include <vector>
 
@@ -20,6 +23,7 @@
 #include "cosmetics/cosmetics.h"
 #include "password_hash.h"
 #include "sql_prefix.h"
+
 #include <blockworlds/bw_context.h>
 
 // just to be safe when making new cosmetics

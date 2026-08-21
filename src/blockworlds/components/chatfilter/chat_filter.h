@@ -1,8 +1,9 @@
 #ifndef BLOCKWORLDS_COMPONENTS_CHATFILTER_CHAT_FILTER_H
 #define BLOCKWORLDS_COMPONENTS_CHATFILTER_CHAT_FILTER_H
 
-#include <blockworlds/components/core/component.h>
 #include <engine/console.h>
+
+#include <blockworlds/components/core/component.h>
 
 #include <mutex>
 #include <regex>

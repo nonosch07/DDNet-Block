@@ -1,9 +1,10 @@
 #ifndef BLOCKWORLDS_WHOIS_H
 #define BLOCKWORLDS_WHOIS_H
 
-#include <blockworlds/bw_base.h>
 #include <engine/server/databases/connection_pool.h>
 #include <engine/shared/protocol.h>
+
+#include <blockworlds/bw_base.h>
 
 #include <atomic>
 #include <memory>

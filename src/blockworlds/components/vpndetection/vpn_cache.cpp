@@ -1,44 +1,46 @@
 #include "vpn_cache.h"
 
-#include <blockworlds/bw_base.h>
 #include <engine/external/json-parser/json.h>
+
+#include <blockworlds/bw_base.h>
 
 #include <fstream>
 #include <sstream>
 
-namespace {
-constexpr int64_t MIN_VALID_UNIX_TIMESTAMP = 1600000000; // Reject old time_get() tick values in legacy cache files.
-
-// Escapes a string for safe embedding inside a JSON double-quoted value.
-// Handles ", \, and control characters so a corrupt ISP/ASN name can never
-// produce malformed JSON that fails to reload on the next server start.
-std::string JsonEscapeString(const std::string &Str)
+namespace
 {
-	std::string Result;
-	Result.reserve(Str.size());
-	for(unsigned char c : Str)
+	constexpr int64_t MIN_VALID_UNIX_TIMESTAMP = 1600000000; // Reject old time_get() tick values in legacy cache files.
+
+	// Escapes a string for safe embedding inside a JSON double-quoted value.
+	// Handles ", \, and control characters so a corrupt ISP/ASN name can never
+	// produce malformed JSON that fails to reload on the next server start.
+	std::string JsonEscapeString(const std::string &Str)
 	{
-		switch(c)
+		std::string Result;
+		Result.reserve(Str.size());
+		for(unsigned char c : Str)
 		{
-		case '"': Result += "\\\""; break;
-		case '\\': Result += "\\\\"; break;
-		case '\n': Result += "\\n"; break;
-		case '\r': Result += "\\r"; break;
-		case '\t': Result += "\\t"; break;
-		default:
-			if(c < 0x20)
+			switch(c)
 			{
-				char aBuf[8];
-				str_format(aBuf, sizeof(aBuf), "\\u%04x", (unsigned int)c);
-				Result += aBuf;
+			case '"': Result += "\\\""; break;
+			case '\\': Result += "\\\\"; break;
+			case '\n': Result += "\\n"; break;
+			case '\r': Result += "\\r"; break;
+			case '\t': Result += "\\t"; break;
+			default:
+				if(c < 0x20)
+				{
+					char aBuf[8];
+					str_format(aBuf, sizeof(aBuf), "\\u%04x", (unsigned int)c);
+					Result += aBuf;
+				}
+				else
+					Result += (char)c;
+				break;
 			}
-			else
-				Result += (char)c;
-			break;
 		}
+		return Result;
 	}
-	return Result;
-}
 } // namespace
 
 std::string CVpnCache::MakeCacheKey(const char *pIpAddress, const char *pServiceName)

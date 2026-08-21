@@ -73,7 +73,8 @@ private:
 	void OnEventStateChange(CEventComponent::EEventState OldState, CEventComponent::EEventState NewState);
 
 	template<typename TEvent>
-	void RegisterEvent(std::string_view Name, const EEventCategory Visibility) {
+	void RegisterEvent(std::string_view Name, const EEventCategory Visibility)
+	{
 		m_EventsFactory.emplace(Name, SFactoryRec{Visibility, [](CGameContext *pGS) { return std::make_shared<TEvent>(pGS); }});
 	}
 };

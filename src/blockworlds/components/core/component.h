@@ -1,10 +1,10 @@
 #pragma once
 
-#include <blockworlds/bw_base.h>
 #include <base/vmath.h>
 
 #include <engine/console.h>
 
+#include <blockworlds/bw_base.h>
 #include <blockworlds/utils/memory.h>
 
 #include <utility>
@@ -18,14 +18,13 @@
 #pragma GCC diagnostic ignored "-Wformat-security"
 #endif
 
-
 #define DECLARE_COMPONENT(ClassName, Name) \
 public: \
 	explicit ClassName(CGameContext *pGameServer); \
 	static const char *GetNameStatic() { return Name; } \
 	const char *GetName() const override { return GetNameStatic(); } \
 	using ThisComponent = ClassName; \
-	\
+\
 	template<typename... TArgs> \
 	static void Log(const char *pFmt, TArgs &&...Args) \
 	{ \
@@ -91,16 +90,16 @@ public:
 	virtual bool IsDebug() const;
 	virtual bool IsRequired() const { return false; }
 
-	[[nodiscard]] virtual std::vector<CComponentAccessor<CComponent>> GetSubComponents() const { return {}; }; // basically, it's set of components that are not registered, but require ticking, like events
+	[[nodiscard]] virtual std::vector<CComponentAccessor<CComponent>> GetSubComponents() const { return {}; } // basically, it's set of components that are not registered, but require ticking, like events
 
 	template<typename... TArgs>
-	void Log(const char *pFmt, TArgs &&... Args) const
+	void Log(const char *pFmt, TArgs &&...Args) const
 	{
 		dbg_msg(GetName(), pFmt, std::forward<TArgs>(Args)...);
 	}
 
 	template<typename... TArgs>
-	void LogDebug(const char *pFmt, TArgs &&... Args) const
+	void LogDebug(const char *pFmt, TArgs &&...Args) const
 	{
 		if(IsDebug())
 		{

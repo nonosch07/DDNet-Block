@@ -1,8 +1,9 @@
 #include "bw_config.h"
 
+#include <engine/shared/config.h>
+
 #include <blockworlds/bw_base.h>
 
-#include <engine/shared/config.h>
 #include <algorithm>
 
 CBwConfig g_BwConfig;

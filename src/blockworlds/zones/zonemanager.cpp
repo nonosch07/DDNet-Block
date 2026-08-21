@@ -1,10 +1,4 @@
-#include <blockworlds/bw_base.h>
-
-#include <engine/map.h>
-
-#include <game/gamecore.h>
-#include <game/mapitems.h>
-#include <game/server/gamecontext.h>
+#include "zonemanager.h"
 
 #include "1on1arenazone.h"
 #include "1on1prepzone.h"
@@ -16,12 +10,19 @@
 #include "shoppointzone.h"
 #include "shopzone.h"
 #include "spawnzone.h"
+#include "zone.h"
+
+#include <engine/map.h>
+
+#include <game/gamecore.h>
+#include <game/mapitems.h>
+#include <game/server/gamecontext.h>
+
+#include <blockworlds/bw_base.h>
+#include <blockworlds/bw_context.h>
 #include <blockworlds/shop/storemanager.h>
 
-#include "zone.h"
-#include "zonemanager.h"
 #include <array>
-#include <blockworlds/bw_context.h>
 
 inline void IntsToStr(const int *pInts, int Num, char *pStr)
 {

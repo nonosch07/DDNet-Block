@@ -1,20 +1,22 @@
 #include "experience.h"
-#include <algorithm>
+
+#include <base/vmath.h>
+
+#include <generated/protocol.h>
+
+#include <game/server/entities/character.h>
+#include <game/server/entity.h>
+#include <game/server/gamecontext.h>
+#include <game/server/gameworld.h>
+#include <game/server/player.h>
+#include <game/server/teams.h>
+
 #include <blockworlds/accounts.h>
+#include <blockworlds/bw_context.h>
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
 
-#include <generated/protocol.h>
-#include <game/server/gamecontext.h>
-#include <game/server/gameworld.h>
-#include <game/server/teams.h>
-
-#include <base/vmath.h>
-#include <game/server/entities/character.h>
-#include <game/server/entity.h>
-
-#include <game/server/player.h>
-#include <blockworlds/bw_context.h>
+#include <algorithm>
 
 CExperience::CExperience(CGameWorld *pGameWorld, vec2 Pos, int Amount, int TargetID) :
 	CEntity(pGameWorld, CGameWorld::ENTTYPE_PROJECTILE, true)

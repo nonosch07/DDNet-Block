@@ -3,6 +3,7 @@
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
+
 #include <blockworlds/bw_context.h>
 
 CRedirectZone::CRedirectZone(CGameContext *pGameServer, int Port) :

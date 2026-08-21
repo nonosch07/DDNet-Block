@@ -1,9 +1,11 @@
 #include "password_hash.h"
 
 #include <base/hash_ctxt.h>
-#include <blockworlds/bw_base.h>
+
 #include <engine/shared/config.h>
 #include <engine/shared/protocol.h>
+
+#include <blockworlds/bw_base.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,6 +15,7 @@
 #include <wincrypt.h>
 #else
 #include <unistd.h>
+
 #include <algorithm>
 #endif
 
@@ -78,7 +81,7 @@ static void pbkdf2_hmac_sha256(const char *password, const unsigned char *salt, 
 		salt_block[salt_len + 0] = (b >> 24) & 0xff;
 		salt_block[salt_len + 1] = (b >> 16) & 0xff;
 		salt_block[salt_len + 2] = (b >> 8) & 0xff;
-		salt_block[salt_len + 3] = (b)&0xff;
+		salt_block[salt_len + 3] = (b) & 0xff;
 		PHmacCtx h;
 		hmac_init(h, (const unsigned char *)password, str_length(password));
 		hmac_update(h, salt_block, salt_len + 4);

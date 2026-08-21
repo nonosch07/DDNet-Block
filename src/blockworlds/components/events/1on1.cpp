@@ -1,8 +1,10 @@
 #include "1on1.h"
+
 #include "1on1_utils.h"
-#include <blockworlds/bw_base.h>
+
 #include <engine/server/server.h>
 #include <engine/shared/config.h>
+
 #include <game/mapitems.h>
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
@@ -10,24 +12,25 @@
 #include <game/server/player.h>
 #include <game/server/teams.h>
 
-#include <blockworlds/discord/webhook.h>
-
-#include <blockworlds/votes/votemanager.h>
+#include <blockworlds/bw_base.h>
 #include <blockworlds/bw_context.h>
+#include <blockworlds/discord/webhook.h>
+#include <blockworlds/votes/votemanager.h>
+
 #include <algorithm>
 
 namespace
 {
-void ForcePlayerIntoEvent(CPlayer *pPlayer)
-{
-	if(!pPlayer)
-		return;
+	void ForcePlayerIntoEvent(CPlayer *pPlayer)
+	{
+		if(!pPlayer)
+			return;
 
-	if(pPlayer->IsPaused() != CPlayer::PAUSE_NONE)
-		pPlayer->Pause(CPlayer::PAUSE_NONE, true);
-	if(pPlayer->GetTeam() == TEAM_SPECTATORS)
-		pPlayer->SetTeam(TEAM_FLOCK, false);
-}
+		if(pPlayer->IsPaused() != CPlayer::PAUSE_NONE)
+			pPlayer->Pause(CPlayer::PAUSE_NONE, true);
+		if(pPlayer->GetTeam() == TEAM_SPECTATORS)
+			pPlayer->SetTeam(TEAM_FLOCK, false);
+	}
 }
 
 COneOnOneEvent::COneOnOneEvent(CGameContext *pGameServer) :

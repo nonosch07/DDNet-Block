@@ -1,19 +1,21 @@
 #ifndef BLOCKWORLDS_COMPONENTS_EVENTS_EVENT_HELPERS_H
 #define BLOCKWORLDS_COMPONENTS_EVENTS_EVENT_HELPERS_H
 
+#include <engine/shared/protocol.h>
+
+#include <game/server/entities/character.h>
+#include <game/server/gamecontext.h>
+#include <game/server/player.h>
+#include <game/teamscore.h>
+
+#include <blockworlds/bw_base.h>
+#include <blockworlds/bw_context.h>
+
 #include <algorithm>
 #include <array>
 #include <map>
 #include <set>
 #include <vector>
-
-#include <blockworlds/bw_base.h>
-#include <engine/shared/protocol.h>
-#include <game/server/entities/character.h>
-#include <game/server/gamecontext.h>
-#include <game/server/player.h>
-#include <game/teamscore.h>
-#include <blockworlds/bw_context.h>
 
 inline void SavePositionHelper(CGameContext *pGameServer, std::map<int, std::unique_ptr<class CSaveTee>> &m_pSavedPlayers, int ClientId)
 {

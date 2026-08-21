@@ -1,11 +1,7 @@
 #include "chat_filter.h"
 
-#include <algorithm>
-#include <regex>
-
 #include <base/logger.h>
 #include <base/math.h>
-#include <blockworlds/bw_base.h>
 
 #include <engine/console.h>
 #include <engine/shared/config.h>
@@ -13,11 +9,15 @@
 #include <engine/shared/linereader.h>
 #include <engine/storage.h>
 
-#include <blockworlds/discord/webhook.h>
 #include <game/server/gamecontext.h>
+
+#include <blockworlds/bw_base.h>
 #include <blockworlds/bw_context.h>
 #include <blockworlds/bw_util.h>
+#include <blockworlds/discord/webhook.h>
 
+#include <algorithm>
+#include <regex>
 
 static const char *DEFAULT_CHATFILTER_FILENAME = "data/chatfilter_words.txt";
 
@@ -27,10 +27,10 @@ CChatFilterComponent::CChatFilterComponent(CGameContext *pGameServer) :
 {
 	Load();
 
-	CONSOLE_COMMAND("chatfilter_add", "r[word]", ConChatFilterAdd, "Add a word to the chat filter and persist") \
-	CONSOLE_COMMAND("chatfilter_remove", "r[word]", ConChatFilterRemove, "Remove a word from the chat filter and persist") \
-	CONSOLE_COMMAND("chatfilter_list", "", ConChatFilterList, "List filtered words") \
-	CONSOLE_COMMAND("chatfilter_reload", "", ConChatFilterReload, "Reload chat filter words from disk") \
+	CONSOLE_COMMAND("chatfilter_add", "r[word]", ConChatFilterAdd, "Add a word to the chat filter and persist")
+	CONSOLE_COMMAND("chatfilter_remove", "r[word]", ConChatFilterRemove, "Remove a word from the chat filter and persist")
+	CONSOLE_COMMAND("chatfilter_list", "", ConChatFilterList, "List filtered words")
+	CONSOLE_COMMAND("chatfilter_reload", "", ConChatFilterReload, "Reload chat filter words from disk")
 	CONSOLE_COMMAND("chatfilter_save", "", ConChatFilterSave, "Force-save chat filter words to disk")
 }
 

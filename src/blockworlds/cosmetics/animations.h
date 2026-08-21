@@ -1,10 +1,11 @@
 #ifndef BLOCKWORLDS_COSMETICS_ANIMATIONS_H
 #define BLOCKWORLDS_COSMETICS_ANIMATIONS_H
 
-#include <vector>
+#include <base/vmath.h>
 
 #include <blockworlds/bw_base.h>
-#include <base/vmath.h>
+
+#include <vector>
 
 class CGameContext;
 class IServer;
@@ -62,7 +63,7 @@ public:
 		ANIMATION_STARS_TOC,
 	};
 
-	CGameContext *GameServer() const { return m_pGameServer; };
+	CGameContext *GameServer() const { return m_pGameServer; }
 	IServer *Server() const { return m_pServer; }
 };
 

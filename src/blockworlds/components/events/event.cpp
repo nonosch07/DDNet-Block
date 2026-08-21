@@ -1,13 +1,17 @@
 #include "event.h"
+
 #include "game/teamscore.h"
 
-#include <algorithm>
 #include <engine/server/server.h>
 #include <engine/shared/config.h>
+
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
+
 #include <blockworlds/bw_context.h>
+
+#include <algorithm>
 
 CEventComponent::CEventComponent(CGameContext *pGameServer) :
 	CComponent(pGameServer)
@@ -133,7 +137,7 @@ void CEventComponent::LoadWeapons(int ClientId)
 
 void CEventComponent::OnTick()
 {
-	#ifdef CONF_DEBUG
+#ifdef CONF_DEBUG
 	if(g_Config.m_SvEventsTestMode && m_State == EEventState::Registration)
 	{
 #ifdef CONF_DEBUG
@@ -151,7 +155,7 @@ void CEventComponent::OnTick()
 		}
 #endif
 	}
-	#endif
+#endif
 	// process both queues independently and requeue items that could not be completed yet
 	// this makes restoration robust when a player has no character this tick (e.g., in spec, paused, timing issues)
 

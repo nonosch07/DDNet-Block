@@ -1,15 +1,19 @@
-#include <algorithm>
-#include <cctype>
-#include <engine/server/databases/connection.h>
-#include <game/server/gamecontext.h>
-#include <game/server/player.h>
-#include <mutex>
-#include <unordered_map>
-
 #include "clans.h"
+
 #include "engine/shared/config.h"
 #include "sql_prefix.h"
+
+#include <engine/server/databases/connection.h>
+
+#include <game/server/gamecontext.h>
+#include <game/server/player.h>
+
 #include <blockworlds/bw_context.h>
+
+#include <algorithm>
+#include <cctype>
+#include <mutex>
+#include <unordered_map>
 
 void ToLowercase(char *str)
 {

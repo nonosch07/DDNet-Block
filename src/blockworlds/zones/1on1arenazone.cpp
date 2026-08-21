@@ -1,6 +1,7 @@
 #include "1on1arenazone.h"
 
 #include <blockworlds/bw_base.h>
+
 #include <cctype>
 
 static std::string BuildDisplayName(const char *pLayerName)

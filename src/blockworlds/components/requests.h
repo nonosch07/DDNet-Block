@@ -1,14 +1,15 @@
 #ifndef BLOCKWORLDS_COMPONENTS_REQUESTS_H
 #define BLOCKWORLDS_COMPONENTS_REQUESTS_H
 
+#include "core/component.h"
+
+#include <blockworlds/common.h>
+
 #include <memory>
 #include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include "core/component.h"
-#include <blockworlds/common.h>
 
 class CRequests : public CComponent
 {

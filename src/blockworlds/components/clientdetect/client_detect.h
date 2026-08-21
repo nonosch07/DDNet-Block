@@ -1,8 +1,9 @@
 #ifndef BLOCKWORLDS_COMPONENTS_CLIENTDETECT_CLIENT_DETECT_H
 #define BLOCKWORLDS_COMPONENTS_CLIENTDETECT_CLIENT_DETECT_H
 
-#include <blockworlds/components/core/component.h>
 #include <engine/console.h>
+
+#include <blockworlds/components/core/component.h>
 
 class CClientDetectComponent final : public CComponent
 {

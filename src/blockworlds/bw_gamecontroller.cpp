@@ -1,13 +1,5 @@
 #include "bw_gamecontroller.h"
 
-#include <blockworlds/bw_base.h>
-#include <blockworlds/bw_context.h>
-#include <blockworlds/bw_player.h>
-#include <blockworlds/bw_version.h>
-#include <blockworlds/components/core/component_registry.h>
-#include <blockworlds/components/events.h>
-#include <blockworlds/components/oneonone_manager.h>
-
 #include <engine/server.h>
 #include <engine/shared/config.h>
 
@@ -15,8 +7,16 @@
 #include <game/server/player.h>
 #include <game/server/score.h>
 
-#include <algorithm>
+#include <blockworlds/bw_base.h>
+#include <blockworlds/bw_context.h>
+#include <blockworlds/bw_player.h>
 #include <blockworlds/bw_util.h>
+#include <blockworlds/bw_version.h>
+#include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/components/events.h>
+#include <blockworlds/components/oneonone_manager.h>
+
+#include <algorithm>
 
 #define BW_GAME_TYPE_NAME "BW"
 #define BW_TEST_TYPE_NAME "TestBW"

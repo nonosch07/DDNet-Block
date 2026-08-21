@@ -3,6 +3,7 @@
 
 #include <blockworlds/components/core/component.h>
 #include <blockworlds/components/events/1on1.h>
+
 #include <memory>
 #include <mutex>
 #include <vector>

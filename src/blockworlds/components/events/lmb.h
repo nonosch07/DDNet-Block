@@ -80,7 +80,7 @@ private:
 	{
 		m_FinishingReason = Reason;
 		FinishEvent();
-	};
+	}
 };
 
 #endif // BLOCKWORLDS_COMPONENTS_EVENTS_LMB_H

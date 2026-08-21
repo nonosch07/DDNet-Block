@@ -1,4 +1,5 @@
 #include "vpn_detection.h"
+
 #include "services/getipintel_service.h"
 #include "services/iphub_service.h"
 #include "services/iplocate_service.h"
@@ -13,72 +14,75 @@
 #include <engine/shared/config.h>
 #include <engine/shared/console.h>
 #include <engine/shared/linereader.h>
+
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
-#include <algorithm>
-#include <cctype>
 #include <blockworlds/bw_config.h>
 #include <blockworlds/bw_context.h>
 #include <blockworlds/bw_util.h>
 
-namespace {
-constexpr int MAX_CONCURRENT_VPN_REQUESTS = 8;
-constexpr int MAX_PENDING_VPN_REQUESTS_PER_SERVICE = MAX_CLIENTS;
-// A withheld join message is broadcast as soon as the services answered. This is only
-// the escape hatch for a request that never comes back at all.
-constexpr int JOIN_MSG_MAX_HOLD_SECONDS = 10;
+#include <algorithm>
+#include <cctype>
 
-bool IsServiceListSeparator(char c)
+namespace
 {
-	return c == ',' || c == ';' || c == '"' || c == '\'' || std::isspace((unsigned char)c);
-}
+	constexpr int MAX_CONCURRENT_VPN_REQUESTS = 8;
+	constexpr int MAX_PENDING_VPN_REQUESTS_PER_SERVICE = MAX_CLIENTS;
+	// A withheld join message is broadcast as soon as the services answered. This is only
+	// the escape hatch for a request that never comes back at all.
+	constexpr int JOIN_MSG_MAX_HOLD_SECONDS = 10;
 
-std::vector<std::string> ParseServiceList(const char *pServices)
-{
-	std::vector<std::string> Services;
-	std::string Current;
-
-	auto Flush = [&]() {
-		if(Current.empty())
-			return;
-		if(std::find(Services.begin(), Services.end(), Current) == Services.end())
-			Services.push_back(Current);
-		Current.clear();
-	};
-
-	if(!pServices)
-		return Services;
-
-	for(const char *p = pServices; *p; ++p)
+	bool IsServiceListSeparator(char c)
 	{
-		if(IsServiceListSeparator(*p))
+		return c == ',' || c == ';' || c == '"' || c == '\'' || std::isspace((unsigned char)c);
+	}
+
+	std::vector<std::string> ParseServiceList(const char *pServices)
+	{
+		std::vector<std::string> Services;
+		std::string Current;
+
+		auto Flush = [&]() {
+			if(Current.empty())
+				return;
+			if(std::find(Services.begin(), Services.end(), Current) == Services.end())
+				Services.push_back(Current);
+			Current.clear();
+		};
+
+		if(!pServices)
+			return Services;
+
+		for(const char *p = pServices; *p; ++p)
 		{
-			Flush();
-			continue;
+			if(IsServiceListSeparator(*p))
+			{
+				Flush();
+				continue;
+			}
+			Current.push_back((char)std::tolower((unsigned char)*p));
 		}
-		Current.push_back((char)std::tolower((unsigned char)*p));
+		Flush();
+		return Services;
 	}
-	Flush();
-	return Services;
-}
 
-std::string JoinServiceList(const std::vector<std::string> &Services)
-{
-	std::string Result;
-	for(const auto &Service : Services)
+	std::string JoinServiceList(const std::vector<std::string> &Services)
 	{
-		if(!Result.empty())
-			Result += ", ";
-		Result += Service;
+		std::string Result;
+		for(const auto &Service : Services)
+		{
+			if(!Result.empty())
+				Result += ", ";
+			Result += Service;
+		}
+		return Result.empty() ? "(none)" : Result;
 	}
-	return Result.empty() ? "(none)" : Result;
-}
 
-bool IsAllServicesToken(const std::string &Token)
-{
-	return Token == "*" || Token == "all";
-}
+	bool IsAllServicesToken(const std::string &Token)
+	{
+		return Token == "*" || Token == "all";
+	}
 } // namespace
 
 bool CVpnDetectionComponent::IsDebug() const
@@ -157,8 +161,8 @@ CVpnDetectionComponent::CVpnDetectionComponent(CGameContext *pGameServer) :
 
 	CHAIN_COMMAND("sv_vpn_enabled", [](IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData) {
 		pfnCallback(pResult, pCallbackUserData);
-		auto *pSelf = (ThisComponent*)pUserData;
-		if (pResult->NumArguments() < 1)
+		auto *pSelf = (ThisComponent *)pUserData;
+		if(pResult->NumArguments() < 1)
 			return;
 
 		bool Enable = pResult->GetInteger(0);
@@ -174,7 +178,7 @@ CVpnDetectionComponent::CVpnDetectionComponent(CGameContext *pGameServer) :
 	});
 	CHAIN_COMMAND("sv_vpn_services_enabled", [](IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData) {
 		pfnCallback(pResult, pCallbackUserData);
-		auto *pSelf = (ThisComponent*)pUserData;
+		auto *pSelf = (ThisComponent *)pUserData;
 
 		const auto ActiveServices = pSelf->GetActiveServiceNames();
 		const std::string ActiveServiceList = JoinServiceList(ActiveServices);
@@ -193,8 +197,9 @@ CVpnDetectionComponent::CVpnDetectionComponent(CGameContext *pGameServer) :
 			pSelf->CheckAllClientsActiveServices();
 	});
 	CHAIN_COMMAND("sv_vpn_ban_time", [](IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData) {
-		auto *pSelf = (ThisComponent*)pUserData;
-		if (pResult->NumArguments() < 1) {
+		auto *pSelf = (ThisComponent *)pUserData;
+		if(pResult->NumArguments() < 1)
+		{
 			Log("VPN ban time: %d minutes", pSelf->m_BanTimeMinutes);
 			return;
 		}
@@ -216,8 +221,8 @@ CVpnDetectionComponent::CVpnDetectionComponent(CGameContext *pGameServer) :
 	});
 	CHAIN_COMMAND("sv_vpn_ratelimit_ipquery", [](IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData) {
 		pfnCallback(pResult, pCallbackUserData);
-		auto *pSelf = (ThisComponent*)pUserData;
-		if (pResult->NumArguments() < 1)
+		auto *pSelf = (ThisComponent *)pUserData;
+		if(pResult->NumArguments() < 1)
 			return;
 
 		int Value = pResult->GetInteger(0);
@@ -225,8 +230,8 @@ CVpnDetectionComponent::CVpnDetectionComponent(CGameContext *pGameServer) :
 	});
 	CHAIN_COMMAND("sv_vpn_ratelimit_getipintel", [](IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData) {
 		pfnCallback(pResult, pCallbackUserData);
-		auto *pSelf = (ThisComponent*)pUserData;
-		if (pResult->NumArguments() < 1)
+		auto *pSelf = (ThisComponent *)pUserData;
+		if(pResult->NumArguments() < 1)
 			return;
 
 		int Value = pResult->GetInteger(0);
@@ -234,8 +239,8 @@ CVpnDetectionComponent::CVpnDetectionComponent(CGameContext *pGameServer) :
 	});
 	CHAIN_COMMAND("sv_vpn_service_getipintel_contact", [](IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData) {
 		pfnCallback(pResult, pCallbackUserData);
-		auto *pSelf = (ThisComponent*)pUserData;
-		if (pResult->NumArguments() < 1)
+		auto *pSelf = (ThisComponent *)pUserData;
+		if(pResult->NumArguments() < 1)
 			return;
 
 		const char *pEmail = pResult->GetString(0);
@@ -245,8 +250,8 @@ CVpnDetectionComponent::CVpnDetectionComponent(CGameContext *pGameServer) :
 	});
 	CHAIN_COMMAND("sv_vpn_service_getipintel_threshold", [](IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData) {
 		pfnCallback(pResult, pCallbackUserData);
-		auto *pSelf = (ThisComponent*)pUserData;
-		if (pResult->NumArguments() < 1)
+		auto *pSelf = (ThisComponent *)pUserData;
+		if(pResult->NumArguments() < 1)
 			return;
 
 		float Threshold = pResult->GetFloat(0);
@@ -256,8 +261,8 @@ CVpnDetectionComponent::CVpnDetectionComponent(CGameContext *pGameServer) :
 	});
 	CHAIN_COMMAND("sv_vpn_ratelimit_iphub", [](IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData) {
 		pfnCallback(pResult, pCallbackUserData);
-		auto *pSelf = (ThisComponent*)pUserData;
-		if (pResult->NumArguments() < 1)
+		auto *pSelf = (ThisComponent *)pUserData;
+		if(pResult->NumArguments() < 1)
 			return;
 
 		int Value = pResult->GetInteger(0);
@@ -265,29 +270,29 @@ CVpnDetectionComponent::CVpnDetectionComponent(CGameContext *pGameServer) :
 	});
 	CHAIN_COMMAND("sv_vpn_ratelimit_iplocate", [](IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData) {
 		pfnCallback(pResult, pCallbackUserData);
-		auto *pSelf = (ThisComponent*)pUserData;
-		if (pResult->NumArguments() < 1)
+		auto *pSelf = (ThisComponent *)pUserData;
+		if(pResult->NumArguments() < 1)
 			return;
 		pSelf->SetServiceRateLimit("iplocate", pResult->GetInteger(0));
 	});
 	CHAIN_COMMAND("sv_vpn_ratelimit_proxycheck", [](IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData) {
 		pfnCallback(pResult, pCallbackUserData);
-		auto *pSelf = (ThisComponent*)pUserData;
-		if (pResult->NumArguments() < 1)
+		auto *pSelf = (ThisComponent *)pUserData;
+		if(pResult->NumArguments() < 1)
 			return;
 		pSelf->SetServiceRateLimit("proxycheck", pResult->GetInteger(0));
 	});
 	CHAIN_COMMAND("sv_vpn_ratelimit_vpnapi", [](IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData) {
 		pfnCallback(pResult, pCallbackUserData);
-		auto *pSelf = (ThisComponent*)pUserData;
-		if (pResult->NumArguments() < 1)
+		auto *pSelf = (ThisComponent *)pUserData;
+		if(pResult->NumArguments() < 1)
 			return;
 		pSelf->SetServiceRateLimit("vpnapi", pResult->GetInteger(0));
 	});
 	CHAIN_COMMAND("sv_vpn_cache_ttl_days", [](IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData) {
 		pfnCallback(pResult, pCallbackUserData);
-		auto *pSelf = (ThisComponent*)pUserData;
-		if (pResult->NumArguments() < 1)
+		auto *pSelf = (ThisComponent *)pUserData;
+		if(pResult->NumArguments() < 1)
 			return;
 		pSelf->GetCache()->SetTtlDays(pResult->GetInteger(0));
 	});

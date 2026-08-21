@@ -2,7 +2,9 @@
 #define BLOCKWORLDS_COMPONENTS_EVENTS_TDM_H
 
 #include "event.h"
+
 #include <base/vmath.h>
+
 #include <map>
 #include <random>
 #include <unordered_map>

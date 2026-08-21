@@ -2,12 +2,14 @@
 #include "flag.h"
 
 #include <generated/protocol.h>
+
 #include <game/server/entities/character.h>
 #include <game/server/entity.h>
 #include <game/server/gamecontext.h>
 #include <game/server/gameworld.h>
 #include <game/server/player.h>
 #include <game/server/teams.h>
+
 #include <blockworlds/bw_context.h>
 
 CFlag::CFlag(CGameWorld *pGameWorld, int Owner, int Team) :

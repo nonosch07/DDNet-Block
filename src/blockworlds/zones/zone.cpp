@@ -1,11 +1,11 @@
-#include <algorithm>
+#include "zone.h"
 
 #include <engine/map.h>
 
 #include <game/mapitems.h>
 #include <game/server/gamecontext.h>
 
-#include "zone.h"
+#include <algorithm>
 
 // can be moved to base/vmath.h
 template<typename T>

@@ -1,36 +1,34 @@
-#include <blockworlds/bw_base.h>
-#include <game/server/gamecontext.h>
-
 #include <engine/antibot.h>
 #include <engine/shared/config.h>
 
 #include <game/mapitems.h>
 #include <game/server/entities/character.h>
+#include <game/server/gamecontext.h>
 #include <game/server/gamemodes/ddnet.h>
 #include <game/server/player.h>
 #include <game/server/save.h>
 #include <game/server/teams.h>
 
 #include <blockworlds/accounts.h>
+#include <blockworlds/bw_base.h>
 #include <blockworlds/bw_context.h>
+#include <blockworlds/bw_util.h>
 #include <blockworlds/clans.h>
 #include <blockworlds/common.h>
-#include <blockworlds/components/requests.h>
-
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
 #include <blockworlds/components/events/1on1.h>
 #include <blockworlds/components/oneonone_manager.h>
+#include <blockworlds/components/requests.h>
+#include <blockworlds/shop/storemanager.h>
 #include <blockworlds/votes/votemanager.h>
-
-#include <algorithm>
 #include <blockworlds/whois.h>
 #include <blockworlds/zones/zone.h>
+
+#include <algorithm>
 #include <set>
 #include <string>
 #include <unordered_map>
-#include <blockworlds/bw_util.h>
-#include <blockworlds/shop/storemanager.h>
 
 extern std::mutex g_ClansDataMutex;
 extern std::unordered_map<int, CClansData> g_ClanIdMap;
@@ -1484,7 +1482,7 @@ void CBlockworlds::ConPassiveRemover(IConsole::IResult *pResult, void *pUserData
 
 	if(!g_Config.m_SvAccountsystem)
 		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Account system is currently disabled.");
-	if (!g_Config.m_SvPassiveRemoverEnabled)
+	if(!g_Config.m_SvPassiveRemoverEnabled)
 		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Passive Remover feature is currently disabled.");
 
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];

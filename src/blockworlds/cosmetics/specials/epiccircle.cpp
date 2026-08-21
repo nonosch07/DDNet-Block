@@ -1,18 +1,22 @@
 /*
  *	by Rei
-*/
+ */
 
 #include "epiccircle.h"
+
+#include <base/vmath.h>
+
 #include <engine/server.h>
 #include <engine/shared/config.h>
+
 #include <generated/protocol.h>
+
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
-#include <base/vmath.h>
-#include <math.h>
 #include <blockworlds/bw_context.h>
+#include <math.h>
 
 CEpicCircle::CEpicCircle(CGameWorld *pGameWorld, vec2 Pos, int Owner) :
 	CEntity(pGameWorld, CGameWorld::ENTTYPE_PROJECTILE, true)

@@ -1,19 +1,21 @@
 #include "oneonone_manager.h"
-#include <blockworlds/bw_base.h>
+
 #include <engine/server.h>
 #include <engine/server/server.h>
 #include <engine/shared/config.h>
+
 #include <generated/protocol.h>
+
 #include <game/server/player.h>
 #include <game/server/save.h>
 
+#include <blockworlds/bw_base.h>
+#include <blockworlds/bw_context.h>
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
 #include <blockworlds/votes/votemanager.h>
 
 #include <algorithm>
-#include <blockworlds/bw_context.h>
-
 
 COneOnOneManager::COneOnOneManager(CGameContext *pGameServer) :
 	CComponent(pGameServer)

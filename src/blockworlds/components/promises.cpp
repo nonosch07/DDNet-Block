@@ -1,8 +1,9 @@
 #include "promises.h"
 
-#include <blockworlds/bw_base.h>
 #include <engine/server.h>
 #include <engine/server/server.h>
+
+#include <blockworlds/bw_base.h>
 
 CPromises::CPromises(CGameContext *pGameServer) :
 	CComponent(pGameServer) {}

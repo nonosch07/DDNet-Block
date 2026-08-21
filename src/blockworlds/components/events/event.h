@@ -86,9 +86,9 @@ public:
 	{
 		str_copy(m_EmergencyMessage, pMsg);
 		m_EmergencyShutdown = true;
-	};
-	const char *GetEmergencyMessage() const { return m_EmergencyMessage; };
-	bool EmergencyShutdown() const { return m_EmergencyShutdown; };
+	}
+	const char *GetEmergencyMessage() const { return m_EmergencyMessage; }
+	bool EmergencyShutdown() const { return m_EmergencyShutdown; }
 
 	[[nodiscard]] const std::vector<int> &Participants() const { return m_Participants; }
 	[[nodiscard]] const std::vector<int> &Candidates() const { return m_Candidates; }

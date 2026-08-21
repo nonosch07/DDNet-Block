@@ -2,10 +2,11 @@
 #ifndef BLOCKWORLDS_DISCORD_WEBHOOK_QUEUE_H
 #define BLOCKWORLDS_DISCORD_WEBHOOK_QUEUE_H
 
+#include <engine/http.h>
+
 #include <blockworlds/bw_base.h>
 
 #include <deque>
-#include <engine/http.h>
 #include <memory>
 #include <mutex>
 #include <string>

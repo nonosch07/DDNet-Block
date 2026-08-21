@@ -1127,7 +1127,6 @@ bool CCharacter::TakeDamage(vec2 Force, int Dmg, int From, int Weapon)
 	vec2 Temp = m_Core.m_Vel + Force;
 	m_Core.m_Vel = ClampVel(m_MoveRestrictions, Temp);
 
-
 	// --- BW BEGIN ---
 	GameServer()->Bw().OnCharacterTakeDamage(this, Force, Dmg, From, Weapon);
 	// --- BW END ---

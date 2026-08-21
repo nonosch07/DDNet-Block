@@ -3,7 +3,7 @@
 
 /**
  * Parses human-readable time strings into seconds or minutes.
- * 
+ *
  * Supported formats:
  *   - Plain numbers: "60" (interpreted as minutes)
  *   - Single units: "1d", "5h", "30m", "45s"

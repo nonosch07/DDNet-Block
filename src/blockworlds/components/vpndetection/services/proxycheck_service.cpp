@@ -1,8 +1,10 @@
 #include "proxycheck_service.h"
+
 #include "json_helpers.h"
 
-#include <blockworlds/bw_base.h>
 #include <engine/external/json-parser/json.h>
+
+#include <blockworlds/bw_base.h>
 
 std::string CProxyCheckService::GetEndpoint(const char *pIpAddress) const
 {
@@ -113,9 +115,9 @@ std::shared_ptr<IVpnServiceResult> CProxyCheckService::ParseResponse(
 	const bool IsTor = GetBool(pIpObject, "tor");
 	const char *pType = GetString(pIpObject, "type");
 	const bool TypeIsBad = str_comp_nocase(pType, "VPN") == 0 ||
-	                       str_comp_nocase(pType, "TOR") == 0 ||
-	                       str_comp_nocase(pType, "Proxy") == 0 ||
-	                       str_comp_nocase(pType, "Hosting") == 0;
+			       str_comp_nocase(pType, "TOR") == 0 ||
+			       str_comp_nocase(pType, "Proxy") == 0 ||
+			       str_comp_nocase(pType, "Hosting") == 0;
 
 	const char *pAsn = GetString(pIpObject, "asn");
 	if(pAsn[0])

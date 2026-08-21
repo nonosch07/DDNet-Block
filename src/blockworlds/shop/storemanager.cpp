@@ -1,8 +1,10 @@
 #include "storemanager.h"
-#include <blockworlds/accounts.h>
+
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
+
+#include <blockworlds/accounts.h>
 #include <blockworlds/bw_context.h>
 
 CShop::CShop(CGameContext *pGameContext, CPlayer *pOwner, int pCategory, int pCosmetics, int ExpireInS) :

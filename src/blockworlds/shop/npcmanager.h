@@ -2,6 +2,7 @@
 #define BLOCKWORLDS_SHOP_NPCMANAGER_H
 
 #include "base/vmath.h"
+
 #include <vector>
 class CGameContext;
 

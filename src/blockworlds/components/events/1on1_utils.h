@@ -2,7 +2,9 @@
 #define BLOCKWORLDS_COMPONENTS_EVENTS_1ON1_UTILS_H
 
 #include <base/vmath.h>
+
 #include <game/server/gamecontext.h>
+
 #include <vector>
 
 struct S1on1SpawnReservation

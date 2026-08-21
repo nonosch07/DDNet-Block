@@ -2,6 +2,7 @@
 #define BLOCKWORLDS_ZONES_REDIRECTZONE_H
 
 #include "zone.h"
+
 #include <engine/shared/protocol.h>
 
 class CRedirectZone final : public IZone

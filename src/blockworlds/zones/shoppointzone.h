@@ -2,6 +2,7 @@
 #define BLOCKWORLDS_ZONES_SHOPPOINTZONE_H
 
 #include "zone.h"
+
 #include <engine/shared/protocol.h>
 
 class CShopPointZone final : public IZone

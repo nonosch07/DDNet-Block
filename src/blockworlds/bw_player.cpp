@@ -1,7 +1,16 @@
 #include "bw_player.h"
 
+#include <engine/server.h>
+#include <engine/shared/config.h>
+
+#include <game/server/entities/character.h>
+#include <game/server/gamecontext.h>
+#include <game/server/player.h>
+
 #include <blockworlds/accounts.h>
 #include <blockworlds/bw_base.h>
+#include <blockworlds/bw_context.h>
+#include <blockworlds/bw_util.h>
 #include <blockworlds/clans.h>
 #include <blockworlds/common.h>
 #include <blockworlds/components/core/component_registry.h>
@@ -12,18 +21,10 @@
 #include <blockworlds/cosmetics/specials/epiccircle.h>
 #include <blockworlds/cosmetics/specials/flag.h>
 #include <blockworlds/cosmetics/specials/halo.h>
+#include <blockworlds/discord/webhook.h>
 #include <blockworlds/whois.h>
 
-#include <engine/server.h>
-#include <engine/shared/config.h>
-
-#include <game/server/entities/character.h>
-#include <game/server/gamecontext.h>
-#include <game/server/player.h>
-#include <blockworlds/bw_context.h>
-#include <blockworlds/bw_util.h>
 #include <algorithm>
-#include <blockworlds/discord/webhook.h>
 
 // Forwarders: the moved code reads exactly as it did when it lived in CPlayer.
 CGameContext *CBwPlayer::GameServer() const { return m_pPlayer->GameServer(); }
@@ -1139,7 +1140,6 @@ void CBwPlayer::CalculateExpMultiplier()
 	}
 }
 
-
 void CBwPlayer::SendBroadcastImp(const char *pMessage)
 {
 	// Only send Broadcast if message is different or timed out
@@ -1151,7 +1151,6 @@ void CBwPlayer::SendBroadcastImp(const char *pMessage)
 
 	GameServer()->Bw().SendBroadcast(pMessage, GetCid());
 }
-
 
 void CBwPlayer::Tick()
 {
@@ -1245,7 +1244,6 @@ void CBwPlayer::Tick()
 		m_TelekinesisTarget = -1;
 	}
 
-
 	if(m_ClanSaveCooldown + Server()->TickSpeed() * g_Config.m_SvClanSaveInterval < Server()->Tick())
 	{
 		if(IsLoggedIn() && GetClanId() > 0)
@@ -1294,7 +1292,6 @@ void CBwPlayer::Tick()
 			CalculateExpMultiplier();
 	}
 }
-
 
 void CBwPlayer::Reset()
 {

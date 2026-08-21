@@ -23,42 +23,43 @@
 struct _json_value;
 typedef struct _json_value json_value;
 
-namespace JsonHelpers {
-const json_value *GetObjectItem(const json_value *pObject, const char *pKey);
-const json_value *GetPath(const json_value *pRoot, const char *pPath);
+namespace JsonHelpers
+{
+	const json_value *GetObjectItem(const json_value *pObject, const char *pKey);
+	const json_value *GetPath(const json_value *pRoot, const char *pPath);
 
-/**
- * Extracts a string value from a pre-parsed JSON tree.
- * @param pRoot  Pre-parsed root (from json_parse); must not be null.
- * @param pKey   Dot-separated path (e.g. "isp.asn").
- * @param pOut   Output buffer.
- * @param OutSize Size of output buffer.
- * @return true if the key was found and the value extracted.
- */
-bool ParseString(const json_value *pRoot, const char *pKey, char *pOut, int OutSize);
+	/**
+	 * Extracts a string value from a pre-parsed JSON tree.
+	 * @param pRoot  Pre-parsed root (from json_parse); must not be null.
+	 * @param pKey   Dot-separated path (e.g. "isp.asn").
+	 * @param pOut   Output buffer.
+	 * @param OutSize Size of output buffer.
+	 * @return true if the key was found and the value extracted.
+	 */
+	bool ParseString(const json_value *pRoot, const char *pKey, char *pOut, int OutSize);
 
-/**
- * Extracts a boolean value from a pre-parsed JSON tree.
- */
-bool ParseBool(const json_value *pRoot, const char *pKey, bool &Out);
+	/**
+	 * Extracts a boolean value from a pre-parsed JSON tree.
+	 */
+	bool ParseBool(const json_value *pRoot, const char *pKey, bool &Out);
 
-/**
- * Extracts an integer value from a pre-parsed JSON tree.
- */
-bool ParseInt(const json_value *pRoot, const char *pKey, int &Out);
+	/**
+	 * Extracts an integer value from a pre-parsed JSON tree.
+	 */
+	bool ParseInt(const json_value *pRoot, const char *pKey, int &Out);
 
-/**
- * Extracts a float value from a pre-parsed JSON tree.
- */
-bool ParseFloat(const json_value *pRoot, const char *pKey, float &Out);
+	/**
+	 * Extracts a float value from a pre-parsed JSON tree.
+	 */
+	bool ParseFloat(const json_value *pRoot, const char *pKey, float &Out);
 
-// String-based convenience overloads (parse-on-every-call)
-// Prefer the root-based overloads when reading multiple fields.
+	// String-based convenience overloads (parse-on-every-call)
+	// Prefer the root-based overloads when reading multiple fields.
 
-bool ParseString(const char *pJson, const char *pKey, char *pOut, int OutSize);
-bool ParseBool(const char *pJson, const char *pKey, bool &Out);
-bool ParseInt(const char *pJson, const char *pKey, int &Out);
-bool ParseFloat(const char *pJson, const char *pKey, float &Out);
+	bool ParseString(const char *pJson, const char *pKey, char *pOut, int OutSize);
+	bool ParseBool(const char *pJson, const char *pKey, bool &Out);
+	bool ParseInt(const char *pJson, const char *pKey, int &Out);
+	bool ParseFloat(const char *pJson, const char *pKey, float &Out);
 } // namespace JsonHelpers
 
 #endif // BLOCKWORLDS_COMPONENTS_JSON_HELPERS_H

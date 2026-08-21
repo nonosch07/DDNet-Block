@@ -1,8 +1,10 @@
 #include "getipintel_service.h"
+
 #include "json_helpers.h"
 
-#include <blockworlds/bw_base.h>
 #include <engine/external/json-parser/json.h>
+
+#include <blockworlds/bw_base.h>
 
 CGetIPIntelService::CGetIPIntelService() :
 	m_ContactEmail(""),

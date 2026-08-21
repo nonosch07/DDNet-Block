@@ -159,7 +159,6 @@ MACRO_CONFIG_INT(SvZCatchGrenadeAnticamperTime, sv_zcatch_grenade_anticamper_tim
 MACRO_CONFIG_INT(SvZCatchGrenadeAnticamperRange, sv_zcatch_grenade_anticamper_range, 200, 0, 1000, CFGFLAG_SERVER, "Distance how far away the player must move to escape anticamper")
 MACRO_CONFIG_INT(SvZCatchGrenadeAnticamperFreezeTime, sv_zcatch_grenade_anticamper_freeze_time, 7, 0, 15, CFGFLAG_SERVER, "Seconds to freeze the player when camping")
 
-
 // BombTag
 MACRO_CONFIG_INT(SvBombTagRegistrationTime, sv_bombtag_registration_time, 120, 0, 1000, CFGFLAG_SERVER, "Duration of BombTag registration phase (seconds)")
 MACRO_CONFIG_INT(SvBombTagMinimumCandidates, sv_bombtag_minimum_candidates, 6, 2, MAX_CLIENTS, CFGFLAG_SERVER, "Minimum candidates to start BombTag")
@@ -169,7 +168,6 @@ MACRO_CONFIG_INT(SvBombTagInitialFreezeTime, sv_bombtag_initial_freeze_time, 3, 
 MACRO_CONFIG_INT(SvBombTagWinnerExpMultiplier, sv_bombtag_winner_exp_multiplier, 200, 100, 10000, CFGFLAG_SERVER, "Exp multiplier for the winner (percents)")
 MACRO_CONFIG_INT(SvBombTagWinnerExpDuration, sv_bombtag_winner_exp_duration, 5, 1, 60, CFGFLAG_SERVER, "Duration of the BomTag winner exp bonus (minutes)")
 MACRO_CONFIG_INT(SvBombTagBombDuration, sv_bombtag_bomb_duration, 15, 1, 60, CFGFLAG_SERVER, "Duration of the BomTag bomb until it explodes (seconds)")
-
 
 // 1on1 draw detection settings
 MACRO_CONFIG_INT(Sv1on1DrawFreezeGrace, sv_1on1_draw_freeze_grace, 3, 0, 120, CFGFLAG_SERVER, "1on1: Grace period after round start before counting simultaneous freeze (seconds)")

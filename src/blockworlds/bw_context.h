@@ -1,11 +1,10 @@
 #ifndef BLOCKWORLDS_BW_CONTEXT_H
 #define BLOCKWORLDS_BW_CONTEXT_H
 
-#include <memory>
-#include <queue>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include <engine/console.h>
+#include <engine/shared/protocol.h>
+
+#include <generated/protocol.h>
 
 #include <blockworlds/blocktracker.h>
 #include <blockworlds/bw_base.h>
@@ -14,11 +13,11 @@
 #include <blockworlds/shop/preview.h>
 #include <blockworlds/zones/zonemanager.h>
 
-#include <engine/console.h>
-#include <engine/shared/protocol.h>
-
-#include <generated/protocol.h>
-
+#include <memory>
+#include <queue>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 class CAccounts;
 class CClanManager;
@@ -76,11 +75,11 @@ public:
 	bool IsSilentDrop(int ClientId) const;
 
 	// --- per-tick hooks, each called from the matching spot in CGameContext ---
-	void OnTickEarly();          // component OnTick fan-out
+	void OnTickEarly(); // component OnTick fan-out
 	void OnTickAfterController(); // BW world ticks: events, animations, zones, shop
-	void BW_OnTick();            // BW event bookkeeping
+	void BW_OnTick(); // BW event bookkeeping
 	void OnPlayerTick(int ClientId); // per-second account/passive/cosmetic upkeep
-	void OnPostTick();           // component OnPostTick fan-out + whois maintenance
+	void OnPostTick(); // component OnPostTick fan-out + whois maintenance
 	bool SkipVoteParticipant(int ClientId) const; // 1on1 prep players do not vote
 
 	// --- per-viewer snap hooks ---
@@ -189,28 +188,28 @@ public:
 	void SendChatTeam(int Team, const char *pText) const;
 
 	template<typename... TArgs>
-	void SendChatTarget(int To, const char *pFmt, TArgs &&... Args) const
+	void SendChatTarget(int To, const char *pFmt, TArgs &&...Args) const
 	{
 		char aBuf[1024];
 		str_format(aBuf, sizeof(aBuf), pFmt, std::forward<TArgs>(Args)...);
 		SendChatTarget(To, aBuf);
 	}
 	template<typename... TArgs>
-	void SendChatTargetAccount(int To, const char *pFmt, TArgs &&... Args) const
+	void SendChatTargetAccount(int To, const char *pFmt, TArgs &&...Args) const
 	{
 		char aBuf[1024];
 		str_format(aBuf, sizeof(aBuf), pFmt, std::forward<TArgs>(Args)...);
 		SendChatAccount(To, aBuf);
 	}
 	template<typename... TArgs>
-	void SendChatClan(int ClanId, const char *pFmt, TArgs &&... Args) const
+	void SendChatClan(int ClanId, const char *pFmt, TArgs &&...Args) const
 	{
 		char aBuf[1024];
 		str_format(aBuf, sizeof(aBuf), pFmt, std::forward<TArgs>(Args)...);
 		SendChatClan(ClanId, aBuf);
 	}
 	template<typename... TArgs>
-	void SendChatTeam(int Team, const char *pFmt, TArgs &&... Args) const
+	void SendChatTeam(int Team, const char *pFmt, TArgs &&...Args) const
 	{
 		char aBuf[1024];
 		str_format(aBuf, sizeof(aBuf), pFmt, std::forward<TArgs>(Args)...);
@@ -242,7 +241,7 @@ public:
 	void SendBroadcast(const char *pText, int ClientId, bool IsImportant = true) const;
 	void SendBroadcast(int To, const char *pText) const;
 	template<typename... TArgs>
-	void SendBroadcast(int To, const char *pFmt, TArgs &&... Args) const
+	void SendBroadcast(int To, const char *pFmt, TArgs &&...Args) const
 	{
 		char aBuf[1024];
 		str_format(aBuf, sizeof(aBuf), pFmt, std::forward<TArgs>(Args)...);

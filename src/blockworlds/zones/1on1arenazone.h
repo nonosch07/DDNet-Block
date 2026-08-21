@@ -2,7 +2,9 @@
 #define BLOCKWORLDS_ZONES_1ON1ARENAZONE_H
 
 #include "zone.h"
+
 #include <base/vmath.h>
+
 #include <string>
 #include <vector>
 

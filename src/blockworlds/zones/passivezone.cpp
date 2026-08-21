@@ -1,9 +1,11 @@
+#include "passivezone.h"
+
+#include "zonemanager.h"
+
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
-#include "passivezone.h"
-#include "zonemanager.h"
 #include <cmath>
 
 CPassiveZone::CPassiveZone(CGameContext *pGameServer) :

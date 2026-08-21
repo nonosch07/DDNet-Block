@@ -1,6 +1,7 @@
 #include "tdm.h"
 
 #include "event_helpers.h"
+
 #include <engine/server/server.h>
 #include <engine/shared/config.h>
 #include <engine/shared/protocol.h>
@@ -11,12 +12,13 @@
 #include <game/server/gamecontroller.h>
 #include <game/server/player.h>
 
-#include <algorithm>
-#include <blockworlds/components/core/component_registry.h>
-#include <blockworlds/discord/webhook.h>
-#include <random>
 #include <blockworlds/bw_context.h>
 #include <blockworlds/bw_util.h>
+#include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/discord/webhook.h>
+
+#include <algorithm>
+#include <random>
 
 CTeamDeathmatchEvent::CTeamDeathmatchEvent(CGameContext *pGameContext) :
 	CEventComponent(pGameContext), m_Rng((unsigned)std::random_device{}() ^ (unsigned)pGameContext->Server()->Tick())
@@ -196,25 +198,25 @@ void CTeamDeathmatchEvent::BroadcastStatus()
 		if(side == 0)
 		{
 			pPlayer->Bw().SendBroadcastAlignedLeft("Team Blue\n"
-							  "Blue %d / %d\n"
-							  "Red %d / %d\n"
-							  "Time left: %s",
+							       "Blue %d / %d\n"
+							       "Red %d / %d\n"
+							       "Time left: %s",
 				m_ScoreTeam[0], m_TargetScore, m_ScoreTeam[1], m_TargetScore, aTimeLeft);
 		}
 		else if(side == 1)
 		{
 			pPlayer->Bw().SendBroadcastAlignedLeft("Team Red\n"
-							  "Red %d / %d\n"
-							  "Blue %d / %d\n"
-							  "Time left: %s",
+							       "Red %d / %d\n"
+							       "Blue %d / %d\n"
+							       "Time left: %s",
 				m_ScoreTeam[1], m_TargetScore, m_ScoreTeam[0], m_TargetScore, aTimeLeft);
 		}
 		else
 		{
 			pPlayer->Bw().SendBroadcastAlignedLeft("%s\n"
-							  "Blue %d / %d\n"
-							  "Red %d / %d\n"
-							  "Time left: %s",
+							       "Blue %d / %d\n"
+							       "Red %d / %d\n"
+							       "Time left: %s",
 				GetEventName(), m_ScoreTeam[0], m_TargetScore, m_ScoreTeam[1], m_TargetScore, aTimeLeft);
 		}
 	}

@@ -3,7 +3,10 @@
 
 #include "zone.h"
 
+#include <engine/shared/protocol.h> // MAX_CLIENTS
+
 class CCharacter;
+class CPlayer;
 
 class CPassiveZone final : public IZone
 {

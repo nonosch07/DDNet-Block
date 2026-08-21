@@ -1,9 +1,10 @@
+#include "nocollisionzone.h"
+
+#include "zonemanager.h"
+
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
-
-#include "nocollisionzone.h"
-#include "zonemanager.h"
 
 CNoCollisionZone::CNoCollisionZone(CGameContext *pGameServer) :
 	IZone(pGameServer, ZONE_NOCOLL)

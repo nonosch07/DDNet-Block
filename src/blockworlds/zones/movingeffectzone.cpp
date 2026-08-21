@@ -1,16 +1,19 @@
 #include "movingeffectzone.h"
 
 #include <base/math.h>
+
 #include <engine/map.h>
 #include <engine/shared/map.h>
+
 #include <game/server/entities/character.h>
 #include <game/server/entities/projectile.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
+#include <blockworlds/bw_context.h>
+
 #include <algorithm>
 #include <cmath>
-#include <blockworlds/bw_context.h>
 
 // reuse point_in_polygon from zone.cpp
 template<typename T>

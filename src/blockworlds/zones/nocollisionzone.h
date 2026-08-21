@@ -3,6 +3,8 @@
 
 #include "zone.h"
 
+#include <engine/shared/protocol.h> // MAX_CLIENTS
+
 class CCharacter;
 
 class CNoCollisionZone final : public IZone

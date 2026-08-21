@@ -1,5 +1,3 @@
-#include <gtest/gtest.h>
-
 #include <blockworlds/bw_base.h>
 #include <blockworlds/components/vpndetection/services/getipintel_service.h>
 #include <blockworlds/components/vpndetection/services/iphub_service.h>
@@ -9,48 +7,50 @@
 #include <blockworlds/components/vpndetection/services/vpnapi_service.h>
 #include <blockworlds/components/vpndetection/vpn_cache.h>
 #include <blockworlds/components/vpndetection/vpn_service_queue.h>
+#include <gtest/gtest.h>
 
 #include <cstdio>
 #include <memory>
 #include <string>
 #include <vector>
 
-namespace {
-std::shared_ptr<CVpnServiceResult> MakeResult(const char *pIp, const char *pService, int64_t Timestamp, bool Bad = false)
+namespace
 {
-	auto pResult = std::make_shared<CVpnServiceResult>();
-	pResult->m_IpAddress = pIp;
-	pResult->m_ServiceName = pService;
-	pResult->m_Timestamp = Timestamp;
-	pResult->m_IsValid = true;
-	pResult->m_IsBadIP = Bad;
-	pResult->m_RiskScore = Bad ? 100 : 0;
-	return pResult;
-}
-
-struct CTestVpnRequest : IVpnServiceRequest
-{
-	std::string m_ServiceName;
-	std::string m_IpAddress;
-	int m_ClientId;
-
-	CTestVpnRequest(const char *pServiceName, const char *pIpAddress, int ClientId) :
-		m_ServiceName(pServiceName),
-		m_IpAddress(pIpAddress),
-		m_ClientId(ClientId)
+	std::shared_ptr<CVpnServiceResult> MakeResult(const char *pIp, const char *pService, int64_t Timestamp, bool Bad = false)
 	{
+		auto pResult = std::make_shared<CVpnServiceResult>();
+		pResult->m_IpAddress = pIp;
+		pResult->m_ServiceName = pService;
+		pResult->m_Timestamp = Timestamp;
+		pResult->m_IsValid = true;
+		pResult->m_IsBadIP = Bad;
+		pResult->m_RiskScore = Bad ? 100 : 0;
+		return pResult;
 	}
 
-	const char *GetServiceName() const override { return m_ServiceName.c_str(); }
-	const char *GetIpAddress() const override { return m_IpAddress.c_str(); }
-	int GetClientId() const override { return m_ClientId; }
-	std::shared_ptr<IVpnServiceResult> Execute() override { return nullptr; }
-};
+	struct CTestVpnRequest : IVpnServiceRequest
+	{
+		std::string m_ServiceName;
+		std::string m_IpAddress;
+		int m_ClientId;
 
-std::shared_ptr<CTestVpnRequest> MakeRequest(const char *pIp, int ClientId)
-{
-	return std::make_shared<CTestVpnRequest>("ipquery", pIp, ClientId);
-}
+		CTestVpnRequest(const char *pServiceName, const char *pIpAddress, int ClientId) :
+			m_ServiceName(pServiceName),
+			m_IpAddress(pIpAddress),
+			m_ClientId(ClientId)
+		{
+		}
+
+		const char *GetServiceName() const override { return m_ServiceName.c_str(); }
+		const char *GetIpAddress() const override { return m_IpAddress.c_str(); }
+		int GetClientId() const override { return m_ClientId; }
+		std::shared_ptr<IVpnServiceResult> Execute() override { return nullptr; }
+	};
+
+	std::shared_ptr<CTestVpnRequest> MakeRequest(const char *pIp, int ClientId)
+	{
+		return std::make_shared<CTestVpnRequest>("ipquery", pIp, ClientId);
+	}
 } // namespace
 
 TEST(VpnCache, TtlRejectsExpiredAndLegacyTickTimestamps)

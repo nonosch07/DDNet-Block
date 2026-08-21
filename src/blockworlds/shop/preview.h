@@ -2,6 +2,7 @@
 #define BLOCKWORLDS_SHOP_PREVIEW_H
 
 #include "base/vmath.h"
+
 #include <vector>
 class CGameContext;
 class CCosmeticsHandler;

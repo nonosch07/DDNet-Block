@@ -1,10 +1,10 @@
 #ifndef BLOCKWORLDS_ZONES_ZONE_H
 #define BLOCKWORLDS_ZONES_ZONE_H
 
+#include <base/vmath.h>
+
 #include <array>
 #include <vector>
-
-#include <base/vmath.h>
 
 class CGameContext;
 class CMapItemLayerQuads;

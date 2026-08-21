@@ -6,17 +6,19 @@
 
 #include <map>
 
-class CPortProxy : public CComponent {
+class CPortProxy : public CComponent
+{
 	DECLARE_COMPONENT(CPortProxy, "portproxy")
 
 	[[nodiscard]] int ClientPort(int ClientId) const;
 
 private:
-	struct SPort {
+	struct SPort
+	{
 		int m_Port = 0;
 
 		std::optional<int> m_ClientId;
-		NETADDR m_ClientAddr {};
+		NETADDR m_ClientAddr{};
 		const char *m_pClientAddrStr = nullptr;
 
 		bool m_Waiting = false;

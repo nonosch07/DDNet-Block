@@ -1,21 +1,23 @@
 // page-based, safe voting manager implementation - Nouaa
 #include "votemanager.h"
 
+#include <engine/shared/config.h>
+
+#include <game/server/player.h>
+
+#include <blockworlds/bw_context.h>
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events/1on1.h>
 #include <blockworlds/components/oneonone_manager.h>
 #include <blockworlds/cosmetics/cosmetics.h>
 #include <blockworlds/shop/storemanager.h>
 #include <blockworlds/zones/zonemanager.h>
-#include <engine/shared/config.h>
-#include <game/server/player.h>
 
 #include <algorithm>
 #include <cctype>
 #include <cstring>
 #include <string>
 #include <unordered_set>
-#include <blockworlds/bw_context.h>
 
 CVoteManager g_VoteManager;
 

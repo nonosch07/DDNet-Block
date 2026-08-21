@@ -184,7 +184,7 @@ bool CHttpRequestCurl::ConfigureHandle(CURL *pHandle)
 		curl_easy_setopt(pHandle, CURLOPT_POSTFIELDS, m_pBody);
 		curl_easy_setopt(pHandle, CURLOPT_POSTFIELDSIZE, m_BodyLength);
 		break;
-	// --- BW END ---
+		// --- BW END ---
 	}
 
 	curl_easy_setopt(pHandle, CURLOPT_HTTPHEADER, m_pRequestHeaders);

@@ -1,9 +1,11 @@
 #ifndef BLOCKWORLDS_COMPONENTS_AI_BOT_H
 #define BLOCKWORLDS_COMPONENTS_AI_BOT_H
 
-#include <blockworlds/components/core/component.h>
 #include <engine/console.h>
 #include <engine/shared/protocol.h>
+
+#include <blockworlds/components/core/component.h>
+
 #include <cstdint>
 #include <string>
 #include <unordered_map>

@@ -51,11 +51,12 @@
 #include <vector>
 
 // --- BW BEGIN ---
-#include <blockworlds/discord/webhook.h>
+#include <game/server/gamecontext.h>
+
 #include <blockworlds/bw_context.h>
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/port_proxy/port_proxy.h>
-#include <game/server/gamecontext.h>
+#include <blockworlds/discord/webhook.h>
 // --- BW END ---
 
 using namespace std::chrono_literals;

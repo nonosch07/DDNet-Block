@@ -1,28 +1,25 @@
 #include "bw_character.h"
 
-#include <blockworlds/bw_base.h>
-#include <blockworlds/bw_context.h>
+#include <base/secure.h>
 
 #include <engine/server.h>
+#include <engine/shared/config.h>
 
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
+#include <blockworlds/bw_base.h>
+#include <blockworlds/bw_context.h>
 #include <blockworlds/bw_player.h>
 #include <blockworlds/common.h>
-#include <blockworlds/cosmetics/cosmetics.h>
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
 #include <blockworlds/components/events/bombtag.h>
+#include <blockworlds/cosmetics/cosmetics.h>
 #include <blockworlds/shop/storemanager.h>
 
-#include <engine/shared/config.h>
-
 #include <algorithm>
-
-#include <base/secure.h>
-
 #include <cmath>
 
 CGameContext *CBwCharacter::GameServer() const { return m_pCharacter->GameServer(); }

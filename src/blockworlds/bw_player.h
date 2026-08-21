@@ -1,18 +1,18 @@
 #ifndef BLOCKWORLDS_BW_PLAYER_H
 #define BLOCKWORLDS_BW_PLAYER_H
 
-#include <cstdarg>
-#include <optional>
-#include <map>
-#include <memory>
-#include <queue>
+#include <game/server/teeinfo.h>
 
 #include <blockworlds/accounts.h>
 #include <blockworlds/bw_base.h>
 #include <blockworlds/clans.h>
 #include <blockworlds/cosmetics/cosmetics.h>
 
-#include <game/server/teeinfo.h>
+#include <cstdarg>
+#include <map>
+#include <memory>
+#include <optional>
+#include <queue>
 
 class CCharacter;
 class CEntity;
@@ -518,7 +518,6 @@ public:
 		str_append(aBuf, BROADCAST_PADDING, sizeof(aBuf));
 		SendBroadcastImp(aBuf);
 	}
-
 };
 
 #endif // BLOCKWORLDS_BW_PLAYER_H

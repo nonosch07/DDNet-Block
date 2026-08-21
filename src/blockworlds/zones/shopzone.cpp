@@ -1,9 +1,10 @@
 #include "shopzone.h"
 
-#include <blockworlds/shop/storemanager.h>
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
+
+#include <blockworlds/shop/storemanager.h>
 
 CShopZone::CShopZone(CGameContext *pGameServer, int Category, int Item) :
 	IZone(pGameServer, -1), m_Category(Category), m_Item(Item)

@@ -4,9 +4,10 @@
 #include <engine/server/server.h>
 #include <engine/shared/config.h>
 #include <engine/shared/console.h>
-#include <game/server/gamecontext.h>
-#include <blockworlds/bw_util.h>
 
+#include <game/server/gamecontext.h>
+
+#include <blockworlds/bw_util.h>
 
 CClientDetectComponent::CClientDetectComponent(CGameContext *pGameServer) :
 	CComponent(pGameServer)
@@ -20,7 +21,8 @@ void CClientDetectComponent::ConStatusClient(IConsole::IResult *pResult, void *p
 	const char *pName = pResult->NumArguments() == 1 ? pResult->GetString(0) : "";
 
 	const int RequesterAuth = pResult->m_ClientId >= 0 && pResult->m_ClientId < MAX_CLIENTS ?
-		pSelf->Server()->GetAuthedState(pResult->m_ClientId) : AUTHED_ADMIN;
+					  pSelf->Server()->GetAuthedState(pResult->m_ClientId) :
+					  AUTHED_ADMIN;
 
 	char aBuf[512];
 	char aAddrStr[NETADDR_MAXSTRSIZE];
@@ -56,4 +58,3 @@ void CClientDetectComponent::ConStatusClient(IConsole::IResult *pResult, void *p
 		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
 	}
 }
-

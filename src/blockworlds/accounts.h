@@ -12,22 +12,22 @@ enum class ClanAuthLevel : int
 #ifndef BLOCKWORLDS_ACCOUNTS_H
 #define BLOCKWORLDS_ACCOUNTS_H
 
+#include "clans.h"
+#include "common.h"
+
+#include <engine/map.h>
+#include <engine/server/databases/connection_pool.h>
+
+#include <game/prng.h>
+#include <game/server/gamecontext.h>
+#include <game/server/save.h>
+#include <game/voting.h>
+
 #include <array>
 #include <cstdint>
 #include <cstring>
 #include <memory>
 #include <utility>
-
-#include <engine/map.h>
-#include <engine/server/databases/connection_pool.h>
-#include <game/prng.h>
-#include <game/server/save.h>
-#include <game/voting.h>
-
-#include <game/server/gamecontext.h>
-
-#include "clans.h"
-#include "common.h"
 
 struct ISqlData;
 class IDbConnection;

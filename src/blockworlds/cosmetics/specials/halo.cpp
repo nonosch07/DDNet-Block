@@ -1,10 +1,13 @@
 #include "halo.h"
 
 #include <engine/server.h>
+
 #include <generated/protocol.h>
+
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
+
 #include <blockworlds/bw_context.h>
 
 CHalo::CHalo(CGameWorld *pGameWorld, int Owner) :

@@ -1,9 +1,29 @@
 #include "bw_context.h"
 
+#include <base/bytes.h>
+
+#include <engine/console.h>
+#include <engine/engine.h>
+#include <engine/server.h>
+#include <engine/server/server.h>
+#include <engine/shared/config.h>
+
+#include <generated/protocol7.h>
+
+#include <game/mapitems.h>
+#include <game/server/entities/character.h>
+#include <game/server/gamecontext.h>
+#include <game/server/gamecontroller.h>
+#include <game/server/gamemodes/ddnet.h>
+#include <game/server/player.h>
+#include <game/server/teams.h>
+#include <game/version.h>
+
 #include <blockworlds/accounts.h>
 #include <blockworlds/bw_config.h>
 #include <blockworlds/bw_gamecontroller.h>
 #include <blockworlds/bw_player.h>
+#include <blockworlds/bw_util.h>
 #include <blockworlds/clans.h>
 #include <blockworlds/common.h>
 #include <blockworlds/components/agones/agones.h>
@@ -12,8 +32,8 @@
 #include <blockworlds/components/clientdetect/client_detect.h>
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
-#include <blockworlds/components/events/tdm.h>
 #include <blockworlds/components/events/1on1.h>
+#include <blockworlds/components/events/tdm.h>
 #include <blockworlds/components/oneonone_manager.h>
 #include <blockworlds/components/port_proxy/port_proxy.h>
 #include <blockworlds/components/promises.h>
@@ -24,25 +44,7 @@
 #include <blockworlds/whois.h>
 #include <blockworlds/zones/passivezone.h>
 
-#include <base/bytes.h>
-#include <game/version.h>
-#include <engine/console.h>
-#include <engine/engine.h>
-#include <engine/server.h>
-#include <engine/server/server.h>
-#include <engine/shared/config.h>
-
-#include <game/server/entities/character.h>
-#include <generated/protocol7.h>
-#include <game/mapitems.h>
-#include <game/server/gamecontext.h>
-#include <game/server/gamecontroller.h>
-#include <game/server/gamemodes/ddnet.h>
-#include <game/server/player.h>
-#include <game/server/teams.h>
-
 #include <algorithm>
-#include <blockworlds/bw_util.h>
 
 CBlockworlds::CBlockworlds(CGameContext *pGameServer) :
 	m_pGameServer(pGameServer),
@@ -82,7 +84,6 @@ void SetVoteDescriptionAtIndex(int *pIndex, const char *pStr, CNetMsg_Sv_VoteOpt
 }
 
 extern CVoteManager g_VoteManager;
-
 
 void CBlockworlds::BW_OnTick()
 {
@@ -695,7 +696,8 @@ void CBlockworlds::PreShutdownFlush()
 	}
 }
 
-void CBlockworlds::ProcessComponentsQueue() {
+void CBlockworlds::ProcessComponentsQueue()
+{
 	while(!m_ComponentsQueue.empty())
 	{
 		auto ComponentName = m_ComponentsQueue.front();
@@ -1051,7 +1053,6 @@ int CBlockworlds::GetNextClientID()
 
 	return ClientID;
 }
-
 
 // ---------------------------------------------------------------------------
 // Hooks called from upstream code. Each corresponds to one marked call site.
@@ -1740,7 +1741,6 @@ void CBlockworlds::SnapLaserObject(const CSnapContext &Context, int SnapId, cons
 	}
 }
 
-
 void CBlockworlds::OnCharacterSpawn(CCharacter *pChr)
 {
 	CPlayer *pPlayer = pChr->GetPlayer();
@@ -1932,7 +1932,6 @@ void CBlockworlds::OnSnapGameInfoEx(int SnappingClient, CNetObj_GameInfoEx *pGam
 		pGameInfoEx->m_Flags &= ~GAMEINFOFLAG_ALLOW_ZOOM;
 }
 
-
 void CBlockworlds::AddIpMuteSilent(const NETADDR *pAddr, int Secs, const char *pReason)
 {
 	if(Secs <= 0)
@@ -1960,7 +1959,6 @@ void CBlockworlds::SendBroadcast(int To, const char *pText) const
 {
 	GameServer()->Bw().SendBroadcast(pText, To);
 }
-
 
 void CBlockworlds::SendChatCmdGroupStart(int ClientId) const
 {
@@ -2010,7 +2008,6 @@ void CBlockworlds::SendChatCmdRem(const IConsole::ICommandInfo *pCommandInfo, in
 	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_NORECORD, ClientId);
 }
 
-
 bool CBlockworlds::AllowServerVoteStreaming(int ClientId) const
 {
 	// Only stream real server votes when the Blockworlds menu is at its root
@@ -2042,7 +2039,6 @@ void CBlockworlds::SendVoteListHeader(int ClientId)
 	HeaderMsg.m_NumOptions = Index;
 	Server()->SendPackMsg(&HeaderMsg, MSGFLAG_VITAL, ClientId);
 }
-
 
 void CBlockworlds::BotJoin(int BotId, const char *pName)
 {
@@ -2095,7 +2091,6 @@ void CBlockworlds::BotLeave(int BotId, bool Silent)
 	CServer::DelClientCallback(BotId, Silent ? "" : "Bot left", pServer);
 }
 
-
 void CBlockworlds::RedirectClient(int ClientId, int Port, bool Force)
 {
 	if(ClientId < 0 || ClientId >= MAX_CLIENTS)
@@ -2118,7 +2113,6 @@ void CBlockworlds::RedirectClient(int ClientId, int Port, bool Force)
 	pServer->SendMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_FLUSH, ClientId);
 	// deliberately no STATE_REDIRECTED and no drop timer: the proxy keeps the slot
 }
-
 
 // ---------------------------------------------------------------------------
 // Lifecycle
@@ -2408,7 +2402,6 @@ void CBlockworlds::SendBroadcast(const char *pText, int ClientId, bool IsImporta
 {
 	GameServer()->SendBroadcast(pText, ClientId, IsImportant);
 }
-
 
 void CBlockworlds::ConChangeName(IConsole::IResult *pResult, void *pUserData)
 {

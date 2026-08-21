@@ -1,12 +1,13 @@
 
-#include <engine/server.h>
-#include <game/server/gamecontext.h>
-#include <game/server/player.h>
+#include "animations.h"
 
 #include "content.h"
 #include "letters.h"
 
-#include "animations.h"
+#include <engine/server.h>
+
+#include <game/server/gamecontext.h>
+#include <game/server/player.h>
 
 static bool gs_LetterBits[256][5 * 7] = {};
 

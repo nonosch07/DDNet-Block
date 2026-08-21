@@ -1,9 +1,10 @@
 #include "shoppointzone.h"
 
-#include <blockworlds/shop/storemanager.h>
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
+
+#include <blockworlds/shop/storemanager.h>
 
 CShopPointZone::CShopPointZone(CGameContext *pGameServer, const vec2 &Pos, float Radius, int Category, int Item) :
 	IZone(pGameServer, -1), m_Pos(Pos), m_Radius(Radius), m_Category(Category), m_Item(Item)

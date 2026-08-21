@@ -1,9 +1,10 @@
 #ifndef BLOCKWORLDS_COSMETICS_LETTERS_H
 #define BLOCKWORLDS_COSMETICS_LETTERS_H
 
+#include "animations.h"
+
 #include <engine/server.h>
 
-#include "animations.h"
 #include <blockworlds/bw_context.h>
 
 class CAnimLetter : public CMapAnimation
@@ -48,7 +49,7 @@ public:
 		delete[] m_aIds;
 	}
 
-	void Tick() override{};
+	void Tick() override {}
 	void Snap(int SnappingClient) override
 	{
 		int IdIndex = 0;
@@ -73,13 +74,13 @@ public:
 				else
 				{
 					CNetObj_Projectile Proj = {};
-						vec2 Pos = GetPos() + vec2(x * m_Size, y * m_Size);
-						Proj.m_X = (int)Pos.x;
-						Proj.m_Y = (int)Pos.y;
-						Proj.m_VelX = 0;
-						Proj.m_VelY = 0;
-						Proj.m_StartTick = Server()->Tick() - 2;
-						Proj.m_Type = WEAPON_SHOTGUN;
+					vec2 Pos = GetPos() + vec2(x * m_Size, y * m_Size);
+					Proj.m_X = (int)Pos.x;
+					Proj.m_Y = (int)Pos.y;
+					Proj.m_VelX = 0;
+					Proj.m_VelY = 0;
+					Proj.m_StartTick = Server()->Tick() - 2;
+					Proj.m_Type = WEAPON_SHOTGUN;
 					Server()->SnapNewItem(m_aIds[IdIndex], Proj);
 				}
 

@@ -4,7 +4,7 @@
 // which is the only way to tell "the cosmetic is applied" from "the cosmetic is
 // stored but never sent". The fixture mirrors src/test/gameworld_test.cpp.
 
-#include <gtest/gtest.h>
+#include "../../test/test.h"
 
 #include <base/logger.h>
 
@@ -27,8 +27,7 @@
 #include <blockworlds/bw_context.h>
 #include <blockworlds/bw_player.h>
 #include <blockworlds/cosmetics/cosmetics.h>
-
-#include "../../test/test.h"
+#include <gtest/gtest.h>
 
 #include <memory>
 

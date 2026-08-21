@@ -1,11 +1,10 @@
 #include "lmb.h"
 
-#include <algorithm>
+#include "event_helpers.h"
 
 #include <engine/server/server.h>
 #include <engine/shared/config.h>
 
-#include "event_helpers.h"
 #include <game/mapitems.h>
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
@@ -13,11 +12,13 @@
 #include <game/server/player.h>
 #include <game/teamscore.h>
 
+#include <blockworlds/bw_context.h>
+#include <blockworlds/bw_util.h>
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/oneonone_manager.h>
 #include <blockworlds/discord/webhook.h>
-#include <blockworlds/bw_context.h>
-#include <blockworlds/bw_util.h>
+
+#include <algorithm>
 
 CLastManBlockingEvent::CLastManBlockingEvent(CGameContext *pGameContext) :
 	CEventComponent(pGameContext), m_DDRaceTeam(-1), m_Winner(-1), m_FinishingReason(NATURAL)
@@ -66,10 +67,10 @@ void CLastManBlockingEvent::OnTick()
 				continue; // don't send LMB registration broadcasts to 1on1 participants
 
 			pPlayer->Bw().SendBroadcastAlignedLeft("%s is about to start!\n"
-							  "Register with /join\n"
-							  "Time left: %s\n\n"
-							  "Participants: %" PRIzu "\n"
-							  "%s",
+							       "Register with /join\n"
+							       "Time left: %s\n\n"
+							       "Participants: %" PRIzu "\n"
+							       "%s",
 				GetEventName(),
 				aTimeLeft,
 				Candidates().size(),
@@ -90,7 +91,7 @@ void CLastManBlockingEvent::OnTick()
 			if(p1on1 && p1on1->GetMatchForPlayer(ClientId))
 				continue; // skip sending to players that are in a 1on1 match
 			pPlayer->Bw().SendBroadcastAlignedLeft("Participants left: %" PRIzu "\n"
-							  "Time left: %s",
+							       "Time left: %s",
 				Participants().size(),
 				aTimeLeft);
 		}

@@ -2,8 +2,11 @@
 #define BLOCKWORLDS_ZONES_MOVINGEFFECTZONE_H
 
 #include "zone.h"
+
 #include <engine/shared/protocol.h>
+
 #include <game/mapitems.h>
+
 #include <vector>
 
 enum

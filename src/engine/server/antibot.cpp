@@ -12,9 +12,10 @@
 #include <engine/server.h>
 
 // --- BW BEGIN ---
+#include <game/server/gamecontext.h>
+
 #include <blockworlds/bw_context.h>
 #include <blockworlds/discord/webhook.h>
-#include <game/server/gamecontext.h>
 // --- BW END ---
 
 class IEngineAntibot;

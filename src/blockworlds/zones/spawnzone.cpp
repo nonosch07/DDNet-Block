@@ -1,9 +1,10 @@
+#include "spawnzone.h"
+
+#include "zonemanager.h"
+
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
-
-#include "spawnzone.h"
-#include "zonemanager.h"
 
 CSpawnZone::CSpawnZone(CGameContext *pGameServer) :
 	IZone(pGameServer, ZONE_SPAWN)

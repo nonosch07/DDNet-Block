@@ -1,13 +1,15 @@
 #include "npcmanager.h"
+
 #include "game/server/entities/character.h"
 #include "game/server/gamecontext.h"
 #include "game/server/player.h"
+
 #include <engine/server.h>
 
+#include <blockworlds/bw_context.h>
 #include <blockworlds/cosmetics/cosmetics.h>
 
 #include <cmath>
-#include <blockworlds/bw_context.h>
 
 CNpcManager::CNpcManager()
 {

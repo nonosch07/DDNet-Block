@@ -8,9 +8,10 @@
 #include "vpn_service_request.h"
 #include "vpn_service_result.h"
 
-#include <blockworlds/components/core/component.h>
 #include <engine/console.h>
 #include <engine/shared/config.h>
+
+#include <blockworlds/components/core/component.h>
 
 #include <atomic>
 #include <memory>
@@ -28,7 +29,7 @@ constexpr int VPN_BAN_TIME_STRING_MAX = 64;
 
 /**
  * VPN Detection Component
- * 
+ *
  * Detects VPN, proxy, and datacenter connections using external API services.
  * Features:
  * - Multi-service support with rate limiting

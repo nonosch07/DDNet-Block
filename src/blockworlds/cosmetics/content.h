@@ -1,11 +1,13 @@
 #ifndef BLOCKWORLDS_COSMETICS_CONTENT_H
 #define BLOCKWORLDS_COSMETICS_CONTENT_H
 
+#include "animations.h"
+
 #include <engine/server.h>
+
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
-#include "animations.h"
 #include <blockworlds/bw_context.h>
 
 class CAnimLove : public CMapAnimation

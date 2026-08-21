@@ -11,7 +11,7 @@
 
 /**
  * Thread-safe cache for VPN detection results
- * 
+ *
  * Stores results keyed by "IP:ServiceName" for fast lookup.
  * Supports persistence to/from JSON files.
  */

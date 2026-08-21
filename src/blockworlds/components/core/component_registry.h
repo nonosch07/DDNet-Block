@@ -1,15 +1,14 @@
 #pragma once
 
-#include <functional>
-#include <set>
-#include <memory>
-#include <string>
-#include <typeindex>
-
 #include <blockworlds/bw_base.h>
-
 #include <blockworlds/components/core/component.h>
 #include <blockworlds/utils/memory.h>
+
+#include <functional>
+#include <memory>
+#include <set>
+#include <string>
+#include <typeindex>
 
 class CComponentRegistry final
 {
@@ -49,7 +48,7 @@ public:
 	std::vector<CComponentAccessor<CComponent>> CreateRequired(class CGameContext *pGameServer)
 	{
 		std::vector<CComponentAccessor<CComponent>> vCreated;
-		for (auto TComponent : m_RequiredComponents)
+		for(auto TComponent : m_RequiredComponents)
 			vCreated.emplace_back(Create(TComponent, pGameServer, false));
 		return vCreated;
 	}

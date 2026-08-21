@@ -1,20 +1,20 @@
-#include <blockworlds/bw_base.h>
+#include "cosmetics.h"
 
 #include <engine/server.h>
 #include <engine/shared/config.h>
 
 #include <generated/protocol.h>
+
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
+#include <blockworlds/bw_base.h>
+#include <blockworlds/bw_context.h>
 #include <blockworlds/components/core/component_registry.h>
 #include <blockworlds/components/events.h>
-
 #include <blockworlds/cosmetics/animations.h>
 
-#include "cosmetics.h"
-#include <blockworlds/bw_context.h>
 #include <algorithm>
 
 // TODO: move it all to db instead, add lua support

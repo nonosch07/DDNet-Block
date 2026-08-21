@@ -10,27 +10,28 @@
 
 class CVpnDetectionComponent;
 
-namespace VpnServiceConfig {
-inline std::string Trim(const char *pValue)
+namespace VpnServiceConfig
 {
-	if(!pValue)
-		return "";
+	inline std::string Trim(const char *pValue)
+	{
+		if(!pValue)
+			return "";
 
-	const char *pStart = pValue;
-	while(*pStart && std::isspace((unsigned char)*pStart))
-		pStart++;
+		const char *pStart = pValue;
+		while(*pStart && std::isspace((unsigned char)*pStart))
+			pStart++;
 
-	const char *pEnd = pStart + std::char_traits<char>::length(pStart);
-	while(pEnd > pStart && std::isspace((unsigned char)*(pEnd - 1)))
-		pEnd--;
+		const char *pEnd = pStart + std::char_traits<char>::length(pStart);
+		while(pEnd > pStart && std::isspace((unsigned char)*(pEnd - 1)))
+			pEnd--;
 
-	return std::string(pStart, pEnd);
-}
+		return std::string(pStart, pEnd);
+	}
 
-inline bool HasValue(const char *pValue)
-{
-	return !Trim(pValue).empty();
-}
+	inline bool HasValue(const char *pValue)
+	{
+		return !Trim(pValue).empty();
+	}
 } // namespace VpnServiceConfig
 
 /**

@@ -1,22 +1,23 @@
 #include "bombtag.h"
 
-#include <algorithm>
+#include "event_helpers.h"
 
 #include <engine/server/server.h>
 #include <engine/shared/config.h>
 
-#include "event_helpers.h"
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/gamecontroller.h>
 #include <game/server/player.h>
 #include <game/teamscore.h>
 
-#include <blockworlds/components/core/component_registry.h>
-#include <blockworlds/discord/webhook.h>
 #include <blockworlds/bw_config.h>
 #include <blockworlds/bw_context.h>
 #include <blockworlds/bw_util.h>
+#include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/discord/webhook.h>
+
+#include <algorithm>
 
 CBombTagEvent::CBombTagEvent(CGameContext *pGameServer) :
 	CEventComponent(pGameServer)
@@ -464,10 +465,10 @@ void CBombTagEvent::OnTick()
 				continue;
 
 			pPlayer->Bw().SendBroadcastAlignedLeft("BombTag is about to start!\n"
-							  "Register with /join\n"
-							  "Time left: %s\n\n"
-							  "Participants: %" PRIzu "\n"
-							  "%s",
+							       "Register with /join\n"
+							       "Time left: %s\n\n"
+							       "Participants: %" PRIzu "\n"
+							       "%s",
 				aTimeLeft,
 				m_Candidates.size(),
 				(int)m_Candidates.size() < Config()->m_SvBombTagMinimumCandidates ? "Not enough participants!\n" : "");

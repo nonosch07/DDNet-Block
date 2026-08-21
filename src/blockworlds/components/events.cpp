@@ -5,9 +5,9 @@
 
 #include <game/server/gamecontext.h>
 
-#include <blockworlds/utils/memory.h>
-
+#include <blockworlds/bw_context.h>
 #include <blockworlds/components/core/component_registry.h>
+#include <blockworlds/components/events/bombtag.h>
 #include <blockworlds/components/events/clanwar.h>
 #include <blockworlds/components/events/colorsoldiers.h>
 #include <blockworlds/components/events/event.h>
@@ -16,12 +16,11 @@
 #include <blockworlds/components/events/tdm.h>
 #include <blockworlds/components/events/zcatch.h>
 #include <blockworlds/components/events/zcatch_grenade.h>
-#include <blockworlds/components/events/bombtag.h>
 #include <blockworlds/components/oneonone_manager.h>
+#include <blockworlds/utils/memory.h>
 #include <blockworlds/votes/votemanager.h>
 
 #include <algorithm>
-#include <blockworlds/bw_context.h>
 
 CEvents::CEvents(CGameContext *pGameServer) :
 	CComponent(pGameServer), m_pActiveEvent(nullptr), m_pEventToDelete(nullptr)
@@ -78,7 +77,6 @@ void CEvents::OnDisable()
 		m_pActiveEvent.reset();
 	}
 }
-
 
 std::shared_ptr<CEventComponent> CEvents::CreateEventByName(const char *pName)
 {

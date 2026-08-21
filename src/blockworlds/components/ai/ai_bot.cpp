@@ -2,11 +2,14 @@
 
 #include "ai_bot.h"
 
+#include <base/vmath.h>
+
 #include <engine/console.h>
 #include <engine/server/server.h>
 #include <engine/shared/config.h>
 #include <engine/shared/console.h>
 #include <engine/storage.h>
+
 #include <game/collision.h>
 #include <game/mapitems.h>
 #include <game/server/entities/character.h>
@@ -14,12 +17,11 @@
 #include <game/server/player.h>
 
 #include <blockworlds/bw_base.h>
-#include <base/vmath.h>
-#include <cmath>
-#include <cstdio>
-#include <algorithm>
 #include <blockworlds/bw_context.h>
 
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
 
 void CAiBotComponent::SActionStats::Decay(float f)
 {
@@ -45,13 +47,13 @@ CAiBotComponent::CAiBotComponent(CGameContext *pGameServer) :
 		m_MapAllowed = true;
 	LoadModel();
 
-	CONSOLE_COMMAND("ai_enable", "i[0|1]", ConAiEnable, "") \
-	CONSOLE_COMMAND("ai_stats", "", ConAiStats, "") \
-	CONSOLE_COMMAND("ai_spawn", "", ConAiSpawn, "") \
-	CONSOLE_COMMAND("ai_despawn", "", ConAiDespawn, "") \
-	CONSOLE_COMMAND("ai_reset", "", ConAiReset, "") \
-	CONSOLE_COMMAND("ai_set_min_samples", "i[value]", ConAiSetMinSamples, "") \
-	CONSOLE_COMMAND("ai_save", "", ConAiSave, "") \
+	CONSOLE_COMMAND("ai_enable", "i[0|1]", ConAiEnable, "")
+	CONSOLE_COMMAND("ai_stats", "", ConAiStats, "")
+	CONSOLE_COMMAND("ai_spawn", "", ConAiSpawn, "")
+	CONSOLE_COMMAND("ai_despawn", "", ConAiDespawn, "")
+	CONSOLE_COMMAND("ai_reset", "", ConAiReset, "")
+	CONSOLE_COMMAND("ai_set_min_samples", "i[value]", ConAiSetMinSamples, "")
+	CONSOLE_COMMAND("ai_save", "", ConAiSave, "")
 	CONSOLE_COMMAND("ai_learn_all", "i[0|1]", ConAiLearnAll, "")
 }
 
@@ -264,7 +266,9 @@ uint64_t CAiBotComponent::BuildFeatureKey(const CCharacter *pChr, const CCharact
 		vec2 d = pEnemy->m_Pos - pChr->m_Pos;
 		relq = (d.x >= 0 ? 1 : 0) | (d.y >= 0 ? 2 : 0); // 2 bits
 		float d2 = length(d);
-		distBucket = d2 < 200 ? 0 : d2 < 400 ? 1 : d2 < 800 ? 2 : 3;
+		distBucket = d2 < 200 ? 0 : d2 < 400 ? 1 :
+				    d2 < 800         ? 2 :
+						       3;
 	}
 	uint64_t key = 0;
 	auto pack = [&](uint64_t v, int bits) { key = (key << bits) | (v & ((1ULL << bits) - 1)); };
