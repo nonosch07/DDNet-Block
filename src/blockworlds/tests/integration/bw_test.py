@@ -465,6 +465,33 @@ def moderation(env):
     expect(s.alive(), "server died unmuting")
 
 
+@test
+def vpn_http_path(env):
+    """A VPN lookup actually goes out over the engine's HTTP layer.
+
+    This used to call curl_easy_perform directly, which is not in the stub
+    libcurl DDNet ships, so it only ever linked on a machine with a full system
+    curl. Asserts the request is issued and resolves either way -- a network
+    failure is a pass, a hang or a crash is not.
+    """
+    s = env.server(extra_config=["sv_vpn_enabled 1", "sv_vpn_debug 1"])
+    s.rcon("component_plug vpndetection")
+
+    start = s.mark()
+    s.rcon("vpn_check_force 8.8.8.8", settle=15)
+    lines = s.snapshot()[start:]
+
+    expect(
+        any("HTTP request initiated" in l for l in lines),
+        f"the VPN lookup never issued a request: {lines[-8:]}",
+    )
+    expect(
+        any("HTTP request completed" in l or "HTTP request failed" in l for l in lines),
+        f"the VPN request neither completed nor failed, it hung: {lines[-8:]}",
+    )
+    expect(s.alive(), "the server died performing a VPN lookup")
+
+
 # ---------------------------------------------------------------------------
 # chat and commands
 # ---------------------------------------------------------------------------

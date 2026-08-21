@@ -23,7 +23,7 @@
 class CAccounts;
 class CClanManager;
 class CGameContext;
-class CSnapContext;
+struct CSnapContext; // struct, not class: MSVC mangles the tag into the symbol
 class CPlayer;
 class CWhoIs;
 struct CWhoIsResult;

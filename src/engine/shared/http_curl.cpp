@@ -208,6 +208,9 @@ size_t CHttpRequestCurl::OnHeader(char *pHeader, size_t HeaderSize)
 		m_ResponseHeadersEnded = false;
 		m_ResultDate = {};
 		m_ResultLastModified = {};
+		// --- BW BEGIN ---
+		m_ResponseHeaders.clear();
+		// --- BW END ---
 	}
 
 	static const char DATE[] = "Date: ";
@@ -234,6 +237,11 @@ size_t CHttpRequestCurl::OnHeader(char *pHeader, size_t HeaderSize)
 			m_ResultLastModified = Value;
 		}
 	}
+
+	// --- BW BEGIN ---
+	if(m_CaptureResponseHeaders)
+		m_ResponseHeaders.append(pHeader, HeaderSize);
+	// --- BW END ---
 
 	return HeaderSize;
 }

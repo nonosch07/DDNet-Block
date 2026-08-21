@@ -17,8 +17,8 @@ public:
 	[[nodiscard]] int GetMinCandidates() const override;
 
 	void OnTick() override;
-	void OnSnapClientInfo(int ClientId, int SnappingClient, class CNetObj_ClientInfo *pClientInfo) override;
-	void OnSnapPlayerInfo(int ClientId, int SnappingClient, class CNetObj_PlayerInfo *pPlayerInfo) override;
+	void OnSnapClientInfo(int ClientId, int SnappingClient, struct CNetObj_ClientInfo *pClientInfo) override;
+	void OnSnapPlayerInfo(int ClientId, int SnappingClient, struct CNetObj_PlayerInfo *pPlayerInfo) override;
 
 	void OnCharacterSpawn(int ClientId, vec2 SpawnPos) override;
 	void OnEventPlayerDropping(int ClientId) override;

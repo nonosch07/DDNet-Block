@@ -410,12 +410,12 @@ void CBlockworlds::ConChangePassword(IConsole::IResult *pResult, void *pUserData
 	const char *pNewPassword = pResult->GetString(1);
 
 	int OldLength = str_length(pOldPassword);
-	int NewLenght = str_length(pNewPassword);
+	int NewLength = str_length(pNewPassword);
 
 	if(OldLength < 5)
 		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Old password incorrect (must be at least 5 chars long).");
 
-	if(NewLenght < 5)
+	if(NewLength < 5)
 		return pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Your password must be at least 5 characters long!");
 
 	if(str_comp(pOldPassword, pNewPassword) == 0)
@@ -1380,10 +1380,10 @@ void CBlockworlds::ConWeaponKit(IConsole::IResult *pResult, void *pUserData)
 	char aBuf[128];
 
 	if(pPlayer->Bw().GetPlayerVip())
-		str_copy(aBuf, "You have successfuly used a weaponkit!", sizeof(aBuf));
+		str_copy(aBuf, "You have successfully used a weaponkit!", sizeof(aBuf));
 	else
 	{
-		str_format(aBuf, sizeof(aBuf), "You have successfuly used a weaponkit! %d kits left.", pPlayer->Bw().GetPlayerWeaponkits());
+		str_format(aBuf, sizeof(aBuf), "You have successfully used a weaponkit! %d kits left.", pPlayer->Bw().GetPlayerWeaponkits());
 		pPlayer->Bw().SetPlayerWeaponkits(pPlayer->Bw().GetPlayerWeaponkits() - 1);
 	}
 	return pSelf->Bw().SendChatTarget(pResult->m_ClientId, aBuf);
@@ -2530,7 +2530,7 @@ void CBlockworlds::ConCredits(IConsole::IResult *pResult, void *pUserData)
 	CGameContext *pSelf = (CGameContext *)pUserData;
 	if(!CheckClientId(pResult->m_ClientId))
 		return;
-	pSelf->Bw().SendChatTarget(pResult->m_ClientId, "This server has been developped by Nouaa.");
+	pSelf->Bw().SendChatTarget(pResult->m_ClientId, "This server has been developed by Nouaa.");
 	pSelf->Bw().SendChatTarget(pResult->m_ClientId, "Thanks to /contributors.");
 }
 

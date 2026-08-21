@@ -26,7 +26,7 @@ public:
 	void OnCharacterDeath(int KillerId, int ClientId, int Weapon) override;
 	void OnCharacterTakeDamage(vec2 Force, int Dmg, int From, int ClientId, int Weapon) override;
 	void OnEventPlayerDropping(int ClientId) override;
-	void OnSnapPlayerInfo(int ClientId, int SnappingClient, class CNetObj_PlayerInfo *pPlayerInfo) override;
+	void OnSnapPlayerInfo(int ClientId, int SnappingClient, struct CNetObj_PlayerInfo *pPlayerInfo) override;
 
 	void OpenRegistration() override;
 	void CloseRegistration() override;

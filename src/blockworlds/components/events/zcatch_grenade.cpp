@@ -665,8 +665,10 @@ void CZCatchGrenadeEvent::HandleCamping(int ClientId)
 	}
 
 	// Check if the player is moving
-	if((abs(m_CampPos[ClientId].x - pChar->GetPos().x) >= (float)AnticamperRange) ||
-		(abs(m_CampPos[ClientId].y - pChar->GetPos().y) >= (float)AnticamperRange))
+	// absolute(), not abs(): these are float distances and the integer abs()
+	// truncated them, so any movement below one unit read as no movement at all
+	if((absolute(m_CampPos[ClientId].x - pChar->GetPos().x) >= (float)AnticamperRange) ||
+		(absolute(m_CampPos[ClientId].y - pChar->GetPos().y) >= (float)AnticamperRange))
 	{
 		m_CampTick[ClientId] = -1;
 	}

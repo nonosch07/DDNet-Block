@@ -156,7 +156,7 @@ public:
 	int m_LastAwardedTick = -1;
 	bool m_DrawRestartInProgress = false; // guard to skip scoring during forced deaths
 	bool m_DrawRestartPending = false; // (future use if we defer restarts)
-	int m_RoundStartTick = -1; // tick when curent round (initial or after draw) started
+	int m_RoundStartTick = -1; // tick when current round (initial or after draw) started
 	int m_BothFrozenSinceTick = -1; // tick when both players became frozen simultanoeusly
 	void RestartRoundAfterDraw();
 

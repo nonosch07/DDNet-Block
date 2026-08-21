@@ -185,29 +185,29 @@ ALTER TABLE `Blockworlds_clans`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
--- Contraintes pour les tables déchargées
+-- Constraints for dumped tables
 --
 
 --
--- Contraintes pour la table `Blockworlds_accounts_busy`
+-- Constraints for table `Blockworlds_accounts_busy`
 --
 ALTER TABLE `Blockworlds_accounts_busy`
   ADD CONSTRAINT `fk_busy_core` FOREIGN KEY (`account_id`) REFERENCES `Blockworlds_accounts_core` (`id`) ON DELETE CASCADE;
 
 --
--- Contraintes pour la table `Blockworlds_accounts_inventory`
+-- Constraints for table `Blockworlds_accounts_inventory`
 --
 ALTER TABLE `Blockworlds_accounts_inventory`
   ADD CONSTRAINT `fk_acc_inv_core` FOREIGN KEY (`account_id`) REFERENCES `Blockworlds_accounts_core` (`id`) ON DELETE CASCADE;
 
 --
--- Contraintes pour la table `Blockworlds_accounts_progress`
+-- Constraints for table `Blockworlds_accounts_progress`
 --
 ALTER TABLE `Blockworlds_accounts_progress`
   ADD CONSTRAINT `fk_acc_prog_core` FOREIGN KEY (`account_id`) REFERENCES `Blockworlds_accounts_core` (`id`) ON DELETE CASCADE;
 
 --
--- Contraintes pour la table `Blockworlds_accounts_ranked`
+-- Constraints for table `Blockworlds_accounts_ranked`
 --
 ALTER TABLE `Blockworlds_accounts_ranked`
   ADD CONSTRAINT `fk_acc_ranked_core` FOREIGN KEY (`account_id`) REFERENCES `Blockworlds_accounts_core` (`id`) ON DELETE CASCADE;

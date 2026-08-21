@@ -185,7 +185,7 @@ reason — upstream renamed the function (`UnFreeze` → `Unfreeze`), moved it
 Build: from scratch, **zero warnings**.
 
 * **382 unit tests** (`./build-verify/testrunner`) — 370 upstream plus 12 BW.
-* **21 integration tests** (`src/blockworlds/tests/integration/bw_test.py --all`),
+* **22 integration tests** (`src/blockworlds/tests/integration/bw_test.py --all`),
   each driving a real `DDNet-Server` and real headless `DDNet` clients over a
   FIFO and econ, against a throwaway `bw_itest` MySQL database.
 * **`missing_hooks.py` exits 0.**
@@ -213,6 +213,7 @@ anywhere to spawn.
 | `moderation` | the mute announcement, the spelled-out refusal, and that a muted message does not reach chat |
 | `clan_chat` | team chat refuses without a clan and does **not** fall through to public chat |
 | `info_and_credits` | `/info`, `/credits`, `/contributors` |
+| `vpn_http_path` | a VPN lookup goes out over the engine's HTTP layer and resolves rather than hanging |
 
 Four snapshot-level unit tests (`BwSnap`) build a real server and map, put two
 players ingame, snap one as the other sees them and read the

@@ -7,8 +7,8 @@
 #include <base/vmath.h>
 
 class CGameContext;
-struct CMapItemLayerQuads;
-struct CQuad;
+class CMapItemLayerQuads;
+class CQuad;
 
 class IZone
 {

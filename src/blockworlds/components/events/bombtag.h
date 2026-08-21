@@ -22,8 +22,8 @@ public:
 	[[nodiscard]] const char *GetEventName() const override { return "BombTag"; }
 
 	void OnTick() override;
-	void OnSnapClientInfo(int ClientId, int SnappingClient, class CNetObj_ClientInfo *pClientInfo) override;
-	void OnSnapPlayerInfo(int ClientId, int SnappingClient, class CNetObj_PlayerInfo *pPlayerInfo) override;
+	void OnSnapClientInfo(int ClientId, int SnappingClient, struct CNetObj_ClientInfo *pClientInfo) override;
+	void OnSnapPlayerInfo(int ClientId, int SnappingClient, struct CNetObj_PlayerInfo *pPlayerInfo) override;
 
 	void OnCharacterTakeDamage(vec2 Force, int Dmg, int From, int ClientId, int Weapon) override;
 	void OnCharacterSpawn(int ClientId, vec2 SpawnPos) override;

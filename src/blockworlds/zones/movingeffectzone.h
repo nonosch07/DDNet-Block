@@ -55,7 +55,7 @@ class CMovingEffectZone final : public IZone
 public:
 	CMovingEffectZone(class CGameContext *pGameServer, int Effect);
 
-	void InitMoving(struct CMapItemLayerQuads *pQuadsLayer);
+	void InitMoving(class CMapItemLayerQuads *pQuadsLayer);
 
 	void Tick() override;
 	void Snap(int ClientID) override { (void)ClientID; }

@@ -64,7 +64,12 @@ void CAgonesComponent::SendHttp(std::string_view Path, std::string Data, EHttpTy
         BaseUrlView.remove_suffix(BaseUrlView.ends_with("/"));
         PathView.remove_prefix(PathStr.starts_with("/"));
 
-        const std::string Url = std::format("{}:{}/{}", BaseUrlView, Port, PathView);
+        // not std::format: libstdc++ only got it in GCC 13 and CI builds on 22.04
+        char aUrl[512];
+        str_format(aUrl, sizeof(aUrl), "%.*s:%d/%.*s",
+            (int)BaseUrlView.length(), BaseUrlView.data(), Port,
+            (int)PathView.length(), PathView.data());
+        const std::string Url = aUrl;
 
         std::unique_ptr<IHttpRequest> Request;
         switch (Type) {
@@ -101,7 +106,9 @@ void CAgonesComponent::SendPlayerCapacity(int Capacity) {
 void CAgonesComponent::SendPlayerConnect(int ClientId) {
     char aBase64NameBuf[128];
     str_base64(aBase64NameBuf, sizeof(aBase64NameBuf), m_CachedNames[ClientId].c_str(), m_CachedNames[ClientId].length());
-    std::string CombinedName = std::format("{}_{}", ClientId, aBase64NameBuf);
+    char aCombinedName[160];
+    str_format(aCombinedName, sizeof(aCombinedName), "%d_%s", ClientId, aBase64NameBuf);
+    std::string CombinedName = aCombinedName;
 
     nlohmann::json Payload;
     Payload["playerID"] = CombinedName;
@@ -112,7 +119,9 @@ void CAgonesComponent::SendPlayerConnect(int ClientId) {
 void CAgonesComponent::SendPlayerDisconnect(int ClientId) {
     char aBase64NameBuf[128];
     str_base64(aBase64NameBuf, sizeof(aBase64NameBuf), m_CachedNames[ClientId].c_str(), m_CachedNames[ClientId].length());
-    std::string CombinedName = std::format("{}_{}", ClientId, aBase64NameBuf);
+    char aCombinedName[160];
+    str_format(aCombinedName, sizeof(aCombinedName), "%d_%s", ClientId, aBase64NameBuf);
+    std::string CombinedName = aCombinedName;
 
     nlohmann::json Payload;
     Payload["playerID"] = CombinedName;

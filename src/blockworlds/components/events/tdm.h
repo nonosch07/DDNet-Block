@@ -17,7 +17,7 @@ public:
 	[[nodiscard]] const char *GetEventName() const override { return "Team Deathmatch"; }
 
 	void OnTick() override;
-	void OnSnapClientInfo(int ClientId, int SnappingClient, class CNetObj_ClientInfo *pClientInfo) override;
+	void OnSnapClientInfo(int ClientId, int SnappingClient, struct CNetObj_ClientInfo *pClientInfo) override;
 	void OnCharacterSpawn(int ClientId, vec2 SpawnPos) override;
 	void OnEventPlayerDropping(int ClientId) override;
 

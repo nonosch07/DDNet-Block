@@ -131,6 +131,12 @@ public:
 	int StatusCode() const;
 	std::optional<int64_t> ResultAgeSeconds() const;
 	std::optional<int64_t> ResultLastModified() const;
+	// --- BW BEGIN: opt-in raw response headers ---
+	// Off by default: only a caller that needs to read a header the engine does
+	// not already parse (rate-limit backoff, in BW's case) pays for it.
+	void CaptureResponseHeaders(bool Capture) { m_CaptureResponseHeaders = Capture; }
+	const std::string &ResponseHeaders() const { return m_ResponseHeaders; }
+	// --- BW END ---
 
 protected:
 	static const char *const USER_AGENT_STRING;
@@ -171,6 +177,10 @@ protected:
 	int m_StatusCode = 0;
 	std::optional<int64_t> m_ResultDate = std::nullopt;
 	std::optional<int64_t> m_ResultLastModified = std::nullopt;
+	// --- BW BEGIN ---
+	bool m_CaptureResponseHeaders = false;
+	std::string m_ResponseHeaders;
+	// --- BW END ---
 
 	bool m_WriteToMemory = true;
 	bool m_WriteToFile = false;

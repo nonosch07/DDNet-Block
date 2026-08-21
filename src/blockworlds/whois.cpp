@@ -151,7 +151,7 @@ static bool ExecRaw(IDbConnection *pSql, const char *pStmt, char *pError, int Er
 
 static bool EnsureWhoisSchema(IDbConnection *pSql, char *pError, int ErrorSize)
 {
-	// olny create whois schema on the dedicated SQLite fuckery
+	// only create whois schema on the dedicated SQLite fuckery
 	if(!IsSqliteConnection(pSql))
 	{
 		str_copy(pError, "skip non-sqlite backend for whois", ErrorSize);
@@ -969,7 +969,7 @@ void CWhoIs::SnapshotTick()
 				if(!pSql)
 				{
 					char aLine[192];
-					str_copy(aLine, "whois purge failed: database unavialable", sizeof(aLine));
+					str_copy(aLine, "whois purge failed: database unavailable", sizeof(aLine));
 					pRes->m_vLines.emplace_back(aLine);
 					pRes->m_Success = false;
 					pRes->m_Completed.store(true, std::memory_order_release);
@@ -1157,13 +1157,13 @@ void CWhoIs::PurgeNow(int RetentionMonths, bool Silent)
 	int Months = RetentionMonths;
 	if(pRes)
 		m_vInternalResults.push_back(pRes);
-	m_pWorker->Enqueue([this, pRes, Months](IDbConnection *pSql) {
+	m_pWorker->Enqueue([pRes, Months](IDbConnection *pSql) {
 		if(!pSql)
 		{
 			if(pRes)
 			{
 				char aLine[192];
-				str_copy(aLine, "whois purge failed: database unavalable", sizeof(aLine));
+				str_copy(aLine, "whois purge failed: database unavailable", sizeof(aLine));
 				pRes->m_vLines.emplace_back(aLine);
 				pRes->m_Success = false;
 				pRes->m_Completed.store(true, std::memory_order_release);

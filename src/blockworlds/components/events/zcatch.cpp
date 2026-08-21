@@ -483,7 +483,7 @@ void CZCatchEvent::OnBlockedKill(int VictimID, int KillerID)
 	ReleaseCaptives(VictimID);
 
 	// register the catch.
-	// LockToSpectator is intentionally NOT callled here. this function may be
+	// LockToSpectator is intentionally NOT called here. this function may be
 	// invoked from within CCharacter::Die() (via OnPlayerKill), and calling
 	// SetTeam(TEAM_SPECTATORS) -> KillCharacter() -> Die() from inside Die()
 	// would be re-entrant (we dont want dat). instead, the spectate lock is applied in

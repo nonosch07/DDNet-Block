@@ -317,7 +317,7 @@ void CVpnDetectionComponent::OnTick()
 		m_PendingMessages.clear();
 	}
 
-	// process results queued by async threads (must run on main thread cuz ProcessResult cahnges m_aClientInfo and may ban ppl)
+	// process results queued by async threads (must run on main thread cuz ProcessResult changes m_aClientInfo and may ban ppl)
 	{
 		std::vector<SPendingResult> Results;
 		{

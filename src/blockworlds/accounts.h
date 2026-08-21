@@ -150,7 +150,8 @@ inline CAccountData::CAccountData() :
 
 inline CAccountCore CAccountData::ToCore() const
 {
-	CAccountCore c{m_Id, {0}, {0}, {0}, {0}, {0}, {0}, {0}};
+	CAccountCore c{};
+	c.m_Id = m_Id;
 	str_copy(c.m_aName, m_aName, sizeof(c.m_aName));
 	str_copy(c.m_aAddress, m_aAddress, sizeof(c.m_aAddress));
 	str_copy(c.m_RegisterDate, m_RegisterDate, sizeof(c.m_RegisterDate));

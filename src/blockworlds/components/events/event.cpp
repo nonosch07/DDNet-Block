@@ -153,7 +153,7 @@ void CEventComponent::OnTick()
 	}
 	#endif
 	// process both queues independently and requeue items that could not be completed yet
-	// this makes restoration robust whenn a player has no character this tick (e.g., in spec, paused, timing issues)
+	// this makes restoration robust when a player has no character this tick (e.g., in spec, paused, timing issues)
 
 	if(!m_DeferredLoadQueue.empty())
 	{
@@ -162,7 +162,7 @@ void CEventComponent::OnTick()
 
 		for(int ClientId : Queue)
 		{
-			// first atttempt
+			// first attempt
 			LoadPositionHelper(GameServer(), m_pSavedPlayers, ClientId);
 
 			// if the saved entry still exists after attempting to load, it means we couldn't apply it yet (no character spawned)

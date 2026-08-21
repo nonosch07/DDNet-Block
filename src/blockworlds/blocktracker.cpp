@@ -389,7 +389,7 @@ bool CBlockTracker::DetectLoopPattern(int KillerID, int VictimID, int64_t NowTic
 			lastV = it->m_Victim;
 			continue;
 		}
-		// check alternating pair with current atempted pair
+		// check alternating pair with current attempted pair
 		if((it->m_Killer == KillerID && it->m_Victim == VictimID) || (it->m_Killer == VictimID && it->m_Victim == KillerID))
 		{
 			if(it->m_Killer != lastK && it->m_Victim != lastV)

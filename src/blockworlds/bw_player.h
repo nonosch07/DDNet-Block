@@ -499,7 +499,7 @@ public:
 	} m_BroadcastData;
 
 	void SendBroadcastImp(const char *pMessage);
-	void SendBroadcast(const char *pFmt, ...)
+	[[gnu::format(printf, 2, 3)]] void SendBroadcast(const char *pFmt, ...)
 	{
 		char aBuf[1024];
 		va_list args;
@@ -508,7 +508,7 @@ public:
 		va_end(args);
 		SendBroadcastImp(aBuf);
 	}
-	void SendBroadcastAlignedLeft(const char *pFmt, ...)
+	[[gnu::format(printf, 2, 3)]] void SendBroadcastAlignedLeft(const char *pFmt, ...)
 	{
 		char aBuf[1024];
 		va_list args;

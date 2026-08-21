@@ -117,8 +117,8 @@ public:
 	virtual void OnConsoleTerminate();
 	virtual void OnShutdown() {}
 
-	virtual void OnSnapClientInfo(int ClientId, int SnappingClient, class CNetObj_ClientInfo *pClientInfo) {}
-	virtual void OnSnapPlayerInfo(int ClientId, int SnappingClient, class CNetObj_PlayerInfo *pPlayerInfo) {}
+	virtual void OnSnapClientInfo(int ClientId, int SnappingClient, struct CNetObj_ClientInfo *pClientInfo) {}
+	virtual void OnSnapPlayerInfo(int ClientId, int SnappingClient, struct CNetObj_PlayerInfo *pPlayerInfo) {}
 
 	virtual void OnPlayerConnected(int ClientId) {}
 

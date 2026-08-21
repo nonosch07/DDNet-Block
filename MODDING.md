@@ -84,7 +84,7 @@ BW code reaches everything through `Bw()`:
 | `src/engine/shared/console.cpp/.h`, `src/engine/console.h` | +98 | `Deregister()` and `UnChain()` — runtime command removal, needed by `component_plug`/`component_unplug`. Plus printing on `CFGFLAG_ANNOUNCE`. |
 | `src/engine/shared/config.h` | +4 | `CFGFLAG_ANNOUNCE`. |
 | `src/engine/shared/config_variables.h` | +4 | Includes BW's cvar list — at the "add config variables for mods below this comment" line upstream provides. |
-| `src/engine/http.h/.cpp`, `src/engine/shared/http_curl.cpp` | +65 | `PUT` / `PUT_JSON`, mirroring `POST`. The Agones integration needs it. |
+| `src/engine/http.h/.cpp`, `src/engine/shared/http_curl.cpp` | +83 | `PUT` / `PUT_JSON`, mirroring `POST` (Agones needs it), and opt-in `CaptureResponseHeaders()` so the VPN component can read `Retry-After` / `X-TTL` / `X-RateLimit-Reset` and back off a rate-limited API. Off by default, so upstream's own requests pay nothing. |
 | `src/engine/server/databases/connection_pool.h/.cpp` | +15 | `ISqlData::m_Critical`: a critical query is not dismissed during shutdown or fail mode and always goes to the primary write connection, so account and clan saves survive a restart. |
 | `src/engine/server/server.cpp/.h` | +393 | The public map, the per-IP whitelist, the Discord rcon log, faster rcon command delivery, the component join veto, the browser clan/score override, `status` hiding admin addresses, and the shutdown flush. See §4b. |
 | `src/engine/shared/network.h`, `network_server.cpp` | +37 | The per-IP whitelist store and the `sv_max_clients_per_ip` exemption. |
@@ -254,7 +254,7 @@ A clean build is **zero warnings**; the suite is **382 tests**. Then the
 integration suite, which drives a real server and real headless clients:
 
 ```bash
-python3 src/blockworlds/tests/integration/bw_test.py --all   # 21 tests
+python3 src/blockworlds/tests/integration/bw_test.py --all   # 22 tests
 python3 src/blockworlds/tests/missing_hooks.py               # must exit 0
 ```
 
@@ -267,6 +267,17 @@ python3 src/blockworlds/tests/missing_hooks.py               # must exit 0
   the server starting fine and then reporting "… failed on all databases".
 * **`MAX_CLIENTS`.** BW once `#define`d it to 64 in a header; when upstream went
   to 128 that became a heap overflow. Never shadow it.
+* **`class` vs `struct` in forward declarations.** MSVC mangles the tag into the
+  symbol name, so declaring `class CSnapContext;` for something upstream defines
+  as a `struct` links fine on gcc and fails on Windows with an unresolved
+  external. Clang catches it with `-Wmismatched-tags`, which the macOS job
+  builds with — if that job errors, fix the tag rather than silencing it.
+* **libcurl is a stub.** `ddnet-libs/curl` exports only the symbols the engine
+  itself uses. Anything calling curl directly links locally against a full
+  system curl and then fails in CI — `curl_easy_perform` is the one that bites.
+  Use `IHttp` / `CreateHttpRequest`; BW owns no direct curl dependency.
+* **`std::format`.** libstdc++ only shipped it in GCC 13 and CI still builds on
+  Ubuntu 22.04. Use `str_format`.
 * **Console userdata.** BW commands are registered with `GameServer()` — a
   `CGameContext *` — and their callbacks unwrap it as one, reaching BW through
   `pSelf->Bw()`. This is not cosmetic: `CGameContext::Clear()` destroys and

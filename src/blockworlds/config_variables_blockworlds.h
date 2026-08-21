@@ -246,7 +246,7 @@ MACRO_CONFIG_INT(SvBanhammerDuration, sv_banhammer_duration, 60, 1, 86400, CFGFL
 MACRO_CONFIG_INT(SvDualSkinmaniSpeed, sv_dual_skinmani_speed, 5, 1, 50, CFGFLAG_SERVER, "Speed divisor for dual skinmani effects (lower = faster, default 30)")
 
 // VPN detection
-MACRO_CONFIG_STR(SvVpnIphubApiKey, sv_vpn_iphub_api_key, 128, "", CFGFLAG_SERVER, "API key for IPHub.info VPN detetion service")
+MACRO_CONFIG_STR(SvVpnIphubApiKey, sv_vpn_iphub_api_key, 128, "", CFGFLAG_SERVER, "API key for IPHub.info VPN detection service")
 MACRO_CONFIG_STR(SvVpnIplocateApiKey, sv_vpn_iplocate_api_key, 128, "", CFGFLAG_SERVER, "Optional API key for IPLocate.io VPN detection service (free key increases quota)")
 MACRO_CONFIG_STR(SvVpnProxycheckApiKey, sv_vpn_proxycheck_api_key, 128, "", CFGFLAG_SERVER, "Optional API key for proxycheck.io VPN detection service (free key increases quota)")
 MACRO_CONFIG_STR(SvVpnVpnapiApiKey, sv_vpn_vpnapi_api_key, 128, "", CFGFLAG_SERVER, "API key for VPNAPI.io VPN detection service")
@@ -277,4 +277,4 @@ MACRO_CONFIG_INT(SvAgonesDebug, sv_agones_debug, 0, 0, 1, CFGFLAG_SERVER, "Verbo
 MACRO_CONFIG_INT(SvAgonesThreads, sv_agones_threads, 2, 0, 64, CFGFLAG_SERVER, "Amount of threads dedicated to agones requests")
 MACRO_CONFIG_INT(SvAgonesHealthFrequency, sv_agones_health_requency, 50, 1, 99999999, CFGFLAG_SERVER, "Once in how many ticks health message should be sent")
 MACRO_CONFIG_STR(SvAgonesBaseUrl, sv_agones_base_url, 128, "http://localhost", CFGFLAG_SERVER, "Base part of url")
-MACRO_CONFIG_INT(SvAgonesPort, sv_agones_port, 0, 0, 65535, CFGFLAG_SERVER, "Agones port, 0 = try to retrieve from enviroment variable 'AGONES_SDK_HTTP_PORT'")
+MACRO_CONFIG_INT(SvAgonesPort, sv_agones_port, 0, 0, 65535, CFGFLAG_SERVER, "Agones port, 0 = try to retrieve from environment variable 'AGONES_SDK_HTTP_PORT'")

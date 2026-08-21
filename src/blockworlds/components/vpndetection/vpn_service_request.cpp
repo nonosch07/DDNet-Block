@@ -3,7 +3,10 @@
 #include "vpn_detection.h"
 
 #include <blockworlds/bw_base.h>
-#include <curl/curl.h>
+#include <blockworlds/bw_context.h>
+
+#include <engine/http.h>
+#include <game/server/gamecontext.h>
 
 #include <algorithm>
 #include <cctype>
@@ -20,22 +23,6 @@ CVpnServiceRequest::CVpnServiceRequest(
 	m_pComponent(pComponent),
 	m_pService(pService)
 {
-}
-
-static size_t WriteCallback(void *pContents, size_t Size, size_t NumMembers, void *pUserData)
-{
-	std::string *pStr = (std::string *)pUserData;
-	size_t TotalSize = Size * NumMembers;
-	pStr->append((char *)pContents, TotalSize);
-	return TotalSize;
-}
-
-static size_t HeaderCallback(char *pBuffer, size_t Size, size_t NumMembers, void *pUserData)
-{
-	std::string *pStr = (std::string *)pUserData;
-	size_t TotalSize = Size * NumMembers;
-	pStr->append(pBuffer, TotalSize);
-	return TotalSize;
 }
 
 static std::string ToLower(std::string Value)
@@ -86,109 +73,72 @@ bool CVpnServiceRequest::PerformHttpRequest(const char *pUrl, std::string &Respo
 	ResponseHeaders.clear();
 	ResponseCode = 0;
 
-	CURL *pCurl = curl_easy_init();
-	if(!pCurl)
+	// This used to call curl_easy_perform directly. DDNet ships a stub libcurl
+	// that only exports the symbols the engine itself uses -- the easy-perform
+	// interface is not among them, so linking failed everywhere but a machine
+	// with a full system curl. The engine's own HTTP layer is the supported
+	// route and gets connection reuse and the shared thread pool for free.
+	if(!m_pComponent || !m_pComponent->GameServer())
+		return false;
+	IHttp *pHttp = m_pComponent->GameServer()->Bw().Http();
+	if(!pHttp)
 	{
-		if(m_pComponent)
-			m_pComponent->Log("ERROR: cURL initialization failed");
+		m_pComponent->Log("ERROR: HTTP subsystem unavailable");
 		return false;
 	}
 
-	curl_easy_setopt(pCurl, CURLOPT_URL, pUrl);
-	curl_easy_setopt(pCurl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
-	curl_easy_setopt(pCurl, CURLOPT_TIMEOUT, 10L);
-	curl_easy_setopt(pCurl, CURLOPT_CONNECTTIMEOUT, 5L);
-	curl_easy_setopt(pCurl, CURLOPT_USERAGENT, "curl/8.0");
-	curl_easy_setopt(pCurl, CURLOPT_FOLLOWLOCATION, 1L);
-	curl_easy_setopt(pCurl, CURLOPT_MAXREDIRS, 3L);
-	curl_easy_setopt(pCurl, CURLOPT_SSL_VERIFYPEER, 1L);
-	curl_easy_setopt(pCurl, CURLOPT_SSL_VERIFYHOST, 2L);
-	curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, WriteCallback);
-	curl_easy_setopt(pCurl, CURLOPT_WRITEDATA, &ResponseBody);
-	curl_easy_setopt(pCurl, CURLOPT_HEADERFUNCTION, HeaderCallback);
-	curl_easy_setopt(pCurl, CURLOPT_HEADERDATA, &ResponseHeaders);
+	std::shared_ptr<IHttpRequest> pRequest = CreateHttpRequest(pUrl);
+	pRequest->WriteToMemory();
+	// 5s to connect, 10s overall, matching what the old curl options asked for
+	pRequest->Timeout(CTimeout{5000, 10000, 0, 0});
+	// a 429 still has to be read, that is where the rate-limit headers live
+	pRequest->FailOnErrorStatus(false);
+	pRequest->CaptureResponseHeaders(true);
+	pRequest->LogProgress(HTTPLOG::NONE);
 
-	curl_slist *pHeaders = nullptr;
 	if(m_pService && m_pService->RequiresAuth())
 	{
-		std::string AuthHeader = m_pService->GetAuthHeader();
+		const std::string AuthHeader = m_pService->GetAuthHeader();
 		if(!AuthHeader.empty())
-		{
-			pHeaders = curl_slist_append(pHeaders, AuthHeader.c_str());
-			curl_easy_setopt(pCurl, CURLOPT_HTTPHEADER, pHeaders);
-		}
+			pRequest->Header(AuthHeader.c_str());
 	}
 
 	const std::string SafeUrl = RedactSensitiveUrl(pUrl ? pUrl : "");
+	m_pComponent->LogDebug("HTTP request initiated | URL: %s", SafeUrl.c_str());
 
-	if(m_pComponent)
-		m_pComponent->LogDebug("HTTP request initiated | URL: %s", SafeUrl.c_str());
+	const int64_t Start = time_get();
+	pHttp->Run(pRequest);
+	// this runs on the VPN worker thread, never on the game thread
+	pRequest->Wait();
+	const float Elapsed = (float)(time_get() - Start) / (float)time_freq();
 
-	CURLcode Res = curl_easy_perform(pCurl);
+	const bool Failed = pRequest->State() != EHttpState::DONE;
+	ResponseCode = pRequest->StatusCode();
+	ResponseHeaders = pRequest->ResponseHeaders();
 
-	long HttpCode = 0;
-	curl_easy_getinfo(pCurl, CURLINFO_RESPONSE_CODE, &HttpCode);
-	ResponseCode = (int)HttpCode;
+	unsigned char *pBody = nullptr;
+	size_t BodyLength = 0;
+	pRequest->Result(&pBody, &BodyLength);
+	if(pBody && BodyLength)
+		ResponseBody.assign((const char *)pBody, BodyLength);
 
-	double TotalTime = 0;
-	curl_easy_getinfo(pCurl, CURLINFO_TOTAL_TIME, &TotalTime);
+	m_pComponent->LogDebug("HTTP request completed | State: %d | HTTP code: %d | Time: %.2fs | Body size: %d bytes",
+		(int)pRequest->State(), ResponseCode, Elapsed, (int)ResponseBody.size());
 
-	if(m_pComponent)
+	if(Failed)
 	{
-		m_pComponent->LogDebug("HTTP request completed | Result: %d | HTTP code: %d | Time: %.2fs | Body size: %d bytes",
-			Res, ResponseCode, TotalTime, (int)ResponseBody.size());
-	}
-
-	if(pHeaders)
-		curl_slist_free_all(pHeaders);
-	curl_easy_cleanup(pCurl);
-
-	if(Res != CURLE_OK)
-	{
-		if(m_pComponent)
-		{
-			const char *pErrorType = "Unknown";
-			switch(Res)
-			{
-			case CURLE_COULDNT_RESOLVE_HOST:
-				pErrorType = "DNS resolution failed";
-				break;
-			case CURLE_COULDNT_CONNECT:
-				pErrorType = "Connection failed";
-				break;
-			case CURLE_OPERATION_TIMEDOUT:
-				pErrorType = "Request timed out";
-				break;
-			case CURLE_SSL_CONNECT_ERROR:
-				pErrorType = "SSL connection error";
-				break;
-			case CURLE_RECV_ERROR:
-				pErrorType = "Failed to receive data";
-				break;
-			case CURLE_SEND_ERROR:
-				pErrorType = "Failed to send data";
-				break;
-			default:
-				break;
-			}
-			m_pComponent->Log("ERROR: HTTP request failed | URL: %s | Error: %s | cURL code: %d",
-				SafeUrl.c_str(), pErrorType, Res);
-			m_pComponent->LogDebug("cURL error details: %s", curl_easy_strerror(Res));
-		}
+		m_pComponent->Log("ERROR: HTTP request failed | URL: %s | HTTP code: %d", SafeUrl.c_str(), ResponseCode);
 		return false;
 	}
 
 	if(ResponseCode != 200)
 	{
-		if(m_pComponent)
-		{
-			m_pComponent->LogDebug("Non-200 HTTP response | Code: %d | URL: %s | Body preview: %.200s",
-				ResponseCode, SafeUrl.c_str(), ResponseBody.c_str());
-		}
+		m_pComponent->LogDebug("Non-200 HTTP response | Code: %d | URL: %s | Body preview: %.200s",
+			ResponseCode, SafeUrl.c_str(), ResponseBody.c_str());
 	}
 
-	// Return true whenever curl succeeded - let ParseResponse handle
-	// non-200 codes (401, 403, 429, etc.) with service-specific messages
+	// Return true whenever the transfer itself succeeded - let ParseResponse
+	// handle non-200 codes (401, 403, 429, etc.) with service-specific messages
 	return true;
 }
 
