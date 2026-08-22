@@ -1675,6 +1675,7 @@ set(EXPECTED_DATA
   menuimages/local_server.png
   menuimages/play_game.png
   menuimages/settings.png
+  myServerconfig.cfg
   particles.png
   race_flag.png
   shader/pipeline.frag
