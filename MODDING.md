@@ -278,6 +278,19 @@ python3 src/blockworlds/tests/missing_hooks.py               # must exit 0
   Use `IHttp` / `CreateHttpRequest`; BW owns no direct curl dependency.
 * **`std::format`.** libstdc++ only shipped it in GCC 13 and CI still builds on
   Ubuntu 22.04. Use `str_format`.
+* **clang-tidy.** `check-clang-tidy` wires clang-tidy in as the compiler wrapper,
+  so any finding fails the build. `scripts/fix_clang_tidy.py` reproduces that
+  job locally and can apply the fixes:
+
+  ```bash
+  scripts/fix_clang_tidy.py --check   # report only, what CI does
+  scripts/fix_clang_tidy.py           # apply fixes to src/blockworlds
+  ```
+
+  Review what it changes. Its renames can collide a local with the parameter it
+  shadows, and `modernize-avoid-bind` cannot handle parameter packs — the script
+  rebuilds afterwards so that breakage surfaces at once, but it cannot judge
+  whether a rename reads well.
 * **Console userdata.** BW commands are registered with `GameServer()` — a
   `CGameContext *` — and their callbacks unwrap it as one, reaching BW through
   `pSelf->Bw()`. This is not cosmetic: `CGameContext::Clear()` destroys and

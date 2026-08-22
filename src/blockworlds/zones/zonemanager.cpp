@@ -56,8 +56,16 @@ CZoneManager::CZoneManager()
 
 CZoneManager::~CZoneManager()
 {
-	for(auto *z : m_vExtraZones)
-		delete z;
+	for(auto *pZone : m_vExtraZones)
+		delete pZone;
+	m_vExtraZones.clear();
+
+	for(auto *&pZone : m_aZones)
+	{
+		delete pZone;
+		pZone = nullptr;
+	}
+	m_V1on1Arenas.clear(); // borrowed pointers into m_vExtraZones
 }
 
 void CZoneManager::Init(CGameContext *pGameServer)

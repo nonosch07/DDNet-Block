@@ -216,7 +216,12 @@ class Server(Process):
         with open(self.cfg_path, "w") as f:
             f.write("\n".join(cfg) + "\n")
 
-        super().__init__("server", [SERVER_BIN, "-f", self.cfg_path], cwd=os.path.dirname(SERVER_BIN))
+        with open(os.path.join(env.tmp, "storage.cfg"), "w") as f:
+            f.write(f"add_path $CURRENTDIR\nadd_path {os.path.join(REPO, 'data')}\n")
+        with open(os.path.join(env.tmp, "autoexec_server.cfg"), "w") as f:
+            f.write("# intentionally empty: the integration tests are hermetic\n")
+
+        super().__init__("server", [SERVER_BIN, "-f", self.cfg_path], cwd=env.tmp)
         self.wait_for(r"server name is", timeout=25)
         self._econ = None
 

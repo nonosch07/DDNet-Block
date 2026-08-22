@@ -48,7 +48,10 @@ jobs:
       if: matrix.language == 'cpp'
       run: |
        sudo apt-get update -y
-       sudo apt-get install pkg-config cmake ninja-build libfreetype6-dev libnotify-dev libsdl2-dev libsqlite3-dev libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev libx264-dev libmariadb-dev libwebsockets-dev libvulkan-dev glslang-tools spirv-tools libglew-dev -y
+       # --- BW BEGIN: server-only. Dropped the client deps (SDL, GLEW, freetype,
+       # notify), the video recorder's ffmpeg/x264 and the vulkan/shader tooling. ---
+       sudo apt-get install pkg-config cmake ninja-build libpng-dev libsqlite3-dev libmariadb-dev libwebsockets-dev -y
+       # --- BW END ---
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
@@ -78,7 +81,7 @@ jobs:
       run: |
        mkdir release
        cd release
-       cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DANTIBOT=ON -DMYSQL=ON -DWEBSOCKETS=ON ..
+       cmake -G Ninja -DCLIENT=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DANTIBOT=ON -DMYSQL=ON -DWEBSOCKETS=ON ..
        cmake --build . --config RelWithDebInfo --target everything
 
     - name: Perform CodeQL Analysis

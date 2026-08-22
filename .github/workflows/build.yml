@@ -40,26 +40,16 @@ jobs:
         sudo apt-get update -y
         # mount: /var/lib/grub/esp: special device /dev/disk/by-id/scsi-... does not exist.
         # sudo apt-get upgrade -y
+        # --- BW BEGIN: server side libs only ---
         packages=(
           # tidy-alphabetical-start
-          gcovr
-          libavcodec-dev
-          libavformat-dev
-          libavutil-dev
-          libfreetype6-dev
-          libglew-dev
-          libnotify-dev
           libpng-dev
-          libsdl2-dev
           libsqlite3-dev
-          libswresample-dev
-          libswscale-dev
-          libx264-dev
           ninja-build
           pkg-config
-          valgrind
           # tidy-alphabetical-end
         )
+        # --- BW END ---
         sudo apt-get install -y "${packages[@]}"
 
     - name: Prepare Linux (fancy)
