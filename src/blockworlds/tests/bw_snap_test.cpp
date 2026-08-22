@@ -316,3 +316,34 @@ TEST_F(BwHit, BulletsSkipPassiveAndProtected)
 	EXPECT_EQ(GameServer()->Bw().FilterHitTarget(pOwner, pTarget), nullptr)
 		<< "a protected shooter must not damage anyone";
 }
+
+TEST_F(BwHit, PassivePlayersCanStillFire)
+{
+	CCharacter *pShooter = AddCharacter(0, vec2(0, 0));
+
+	EXPECT_FALSE(pShooter->Bw().BlocksFire(false)) << "a normal player could not fire";
+
+	pShooter->Core()->m_Passive = true;
+	EXPECT_FALSE(pShooter->Bw().BlocksFire(false))
+		<< "a passive player was stopped from firing; passive governs hits, not weapons";
+
+	pShooter->Core()->m_Passive = false;
+	pShooter->Core()->m_Protected = true;
+	EXPECT_FALSE(pShooter->Bw().BlocksFire(false))
+		<< "a protected player was stopped from firing";
+}
+
+TEST_F(BwHit, PassiveHammerHitsNobodyInEitherDirection)
+{
+	CCharacter *pShooter = AddCharacter(0, vec2(0, 0));
+	CCharacter *pTarget = AddCharacter(1, vec2(10, 0));
+
+	// a passive shooter's hammer must not land
+	pShooter->Core()->m_Passive = true;
+	EXPECT_FALSE(pShooter->Bw().OnHammerHit(pTarget)) << "a passive player's hammer still hit";
+
+	// and a passive target must not be hammered
+	pShooter->Core()->m_Passive = false;
+	pTarget->Core()->m_Passive = true;
+	EXPECT_FALSE(pShooter->Bw().OnHammerHit(pTarget)) << "a passive player was still hammered";
+}

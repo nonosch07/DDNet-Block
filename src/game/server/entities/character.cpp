@@ -506,7 +506,7 @@ void CCharacter::FireWeapon()
 	if(FullAuto && (m_LatestInput.m_Fire & 1) && m_Core.m_ActiveWeapon >= 0 && m_Core.m_aWeapons[m_Core.m_ActiveWeapon].m_Ammo)
 		WillFire = true;
 
-	// --- BW BEGIN: no instant hammer out of freeze, and passives do not fire ---
+	// --- BW BEGIN: no instant hammer on the tick you leave freeze ---
 	if(Bw().BlocksFire(m_FrozenLastTick))
 		WillFire = false;
 	// --- BW END ---

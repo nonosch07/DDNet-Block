@@ -157,9 +157,6 @@ void CBwCharacter::OnHandleTiles(int TileIndex, int TileFIndex)
 
 bool CBwCharacter::BlocksFire(bool FrozenLastTick) const
 {
-	// a passive or protected tee is out of the fight in both directions
-	if(Core().BwNoContact())
-		return true;
 	// hammering on the very tick you unfreeze is how you spam somebody who just
 	// got out; the delay costs a legitimate player nothing
 	return g_Config.m_SvNoHammerOnUnfreeze && FrozenLastTick &&
@@ -168,7 +165,9 @@ bool CBwCharacter::BlocksFire(bool FrozenLastTick) const
 
 bool CBwCharacter::OnHammerHit(CCharacter *pTarget)
 {
-	if(pTarget->Core()->BwNoContact())
+	// no interaction in either direction: a passive tee neither hammers others
+	// nor gets hammered
+	if(Core().BwNoContact() || pTarget->Core()->BwNoContact())
 		return false;
 
 	CPlayer *pPlayer = m_pCharacter->GetPlayer();
