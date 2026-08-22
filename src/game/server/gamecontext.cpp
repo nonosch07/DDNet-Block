@@ -3657,6 +3657,11 @@ void CGameContext::AddVote(const char *pDescription, const char *pCommand)
 	// check for valid option
 	if(!Console()->LineIsValid(pCommand) || str_length(pCommand) >= VOTE_CMD_LENGTH)
 	{
+		// --- BW BEGIN: a component plugged from the config registers its
+		// commands after the config has run, so hold the vote until then ---
+		if(str_length(pCommand) < VOTE_CMD_LENGTH && m_pBw->DeferVote(pDescription, pCommand))
+			return;
+		// --- BW END ---
 		char aBuf[256];
 		str_format(aBuf, sizeof(aBuf), "skipped invalid command '%s'", pCommand);
 		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);

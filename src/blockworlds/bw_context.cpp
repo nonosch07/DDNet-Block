@@ -694,6 +694,14 @@ void CBlockworlds::PreShutdownFlush()
 	}
 }
 
+bool CBlockworlds::DeferVote(const char *pDescription, const char *pCommand)
+{
+	if(m_ComponentsQueue.empty())
+		return false;
+	m_vDeferredVotes.emplace_back(pDescription, pCommand);
+	return true;
+}
+
 void CBlockworlds::ProcessComponentsQueue()
 {
 	while(!m_ComponentsQueue.empty())
@@ -709,6 +717,15 @@ void CBlockworlds::ProcessComponentsQueue()
 		}
 		dbg_msg("Components", "Component created: %s (%p)", pComponent->GetName(), &*pComponent);
 	}
+
+	// The components have registered their commands now, so the votes that were
+	// waiting on them can be validated. Take the list first: the queue is empty
+	// at this point, so anything still invalid reports its error normally
+	// instead of being held again.
+	std::vector<std::pair<std::string, std::string>> vVotes;
+	vVotes.swap(m_vDeferredVotes);
+	for(const auto &[Description, Command] : vVotes)
+		GameServer()->AddVote(Description.c_str(), Command.c_str());
 }
 
 void CBlockworlds::RegisterBlockworldsChatCommands() const

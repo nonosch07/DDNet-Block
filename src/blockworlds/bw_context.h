@@ -17,6 +17,7 @@
 #include <queue>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 class CAccounts;
@@ -292,6 +293,8 @@ public:
 	void Teleport(class CCharacter *pChr, vec2 Pos);
 	void RegisterBlockworldsChatCommands() const;
 	void ProcessComponentsQueue();
+	// for components
+	bool DeferVote(const char *pDescription, const char *pCommand);
 
 	bool m_WeaponkitsAllowed = false;
 	int64_t m_LastGlobalWeaponkitsVoteCall = 0;
@@ -305,6 +308,7 @@ public:
 	std::vector<std::shared_ptr<CWhoIsResult>> m_vWhoisResults;
 	int64_t m_aWhoisCooldown[MAX_CLIENTS]{};
 	std::queue<std::string> m_ComponentsQueue;
+	std::vector<std::pair<std::string, std::string>> m_vDeferredVotes;
 
 	// --- console commands ---
 	static void Con1on1(IConsole::IResult *pResult, void *pUserData);
