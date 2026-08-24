@@ -34,6 +34,7 @@ TESTS = []
 MENU_RULES = "│ ʀᴜʟᴇꜱ ›"
 MENU_LEADERBOARDS = "│ ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅꜱ ›"
 MENU_COSMETICS = "│ ᴄᴏꜱᴍᴇᴛɪᴄꜱ ›"
+MENU_SERVER_VOTES = "│ ꜱᴇʀᴠᴇʀ ᴠᴏᴛᴇꜱ ›"
 MENU_BACK = "│ « ʙᴀᴄᴋ"
 
 
@@ -381,6 +382,40 @@ def oneonone_cancel(env):
         any("cancel" in l.lower() or "abort" in l.lower() for l in lines),
         f"the duel was not aborted after both players pressed F4: {lines}",
     )
+
+
+@test
+def server_votes_page(env):
+    """Real server votes live on their own menu page instead of being streamed
+    underneath it, which is what made them show up half-sent or interleaved."""
+    reset_database()
+    s = env.server(extra_config=['add_vote "ZZ Test Vote" "info"'])
+    c = env.client("bwtester", s)
+    login_fresh(env, s, c)
+    time.sleep(1.5)
+
+    # open the new page from the root menu
+    cstart = c.mark()
+    sstart = s.mark()
+    c.callvote_option(MENU_SERVER_VOTES, settle=1.5)
+    chat = c.chat(cstart)
+    expect(
+        not any("isn't an option on this server" in l for l in chat),
+        f"the Server Votes entry is missing from the root menu: {chat}",
+    )
+    s.assert_absent(r"No such command", start=sstart)
+    expect(s.alive(), "server died opening the Server Votes page")
+
+    # the page lists the real votes verbatim, so clicking one runs the actual
+    # vote through the engine rather than being swallowed by the menu
+    cstart = c.mark()
+    c.callvote_option("ZZ Test Vote", settle=1.5)
+    chat = c.chat(cstart)
+    expect(
+        not any("isn't an option on this server" in l for l in chat),
+        f"a real server vote on the page was not accepted: {chat}",
+    )
+    expect(s.alive(), "server died calling a real vote from the page")
 
 
 # ---------------------------------------------------------------------------

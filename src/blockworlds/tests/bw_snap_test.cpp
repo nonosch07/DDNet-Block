@@ -347,3 +347,57 @@ TEST_F(BwHit, PassiveHammerHitsNobodyInEitherDirection)
 	pTarget->Core()->m_Passive = true;
 	EXPECT_FALSE(pShooter->Bw().OnHammerHit(pTarget)) << "a passive player was still hammered";
 }
+
+// --- scoreboard: the account level, never a race time ---
+//
+// Blockworlds has no race, but CGameControllerDDNet answers SnapPlayerTime with
+// a finish time (NotFinished is still a *set* value) and a client that gets one
+// renders the time column and ignores the score. That is why the scoreboard
+// showed a race timer on newer clients while older ones, which have no such
+// field, correctly showed the level.
+
+/// Reads the CNetObj_PlayerInfo the given viewer receives for pPlayer.
+static CNetObj_PlayerInfo SnapPlayerInfoFor(CServer *pServer, CPlayer *pPlayer, int SnappingClient)
+{
+	pServer->m_SnapshotBuilder.Init();
+	pPlayer->Snap(SnappingClient);
+	const int Key = (NETOBJTYPE_PLAYERINFO << 16) | pPlayer->GetCid();
+	std::optional<int> Index = pServer->m_SnapshotBuilder.FindItemIndexByKey(Key);
+	EXPECT_TRUE(Index.has_value()) << "no CNetObj_PlayerInfo was snapped";
+	CNetObj_PlayerInfo Info = {};
+	if(Index.has_value())
+		mem_copy(&Info, pServer->m_SnapshotBuilder.GetItemData(Index.value()), sizeof(Info));
+	CSnapshotBuffer Scratch;
+	pServer->m_SnapshotBuilder.Finish(&Scratch);
+	return Info;
+}
+
+TEST_F(BwSnap, ScoreboardSendsNoRaceTimeSoTheScoreIsUsed)
+{
+	CPlayer *pPlayer = AddPlayer(0, "one");
+	AddPlayer(1, "two");
+	IGameController *pController = GameServer()->m_pController;
+
+	EXPECT_EQ(pController->SnapPlayerTime(1, pPlayer).m_Seconds, (int)FinishTime::UNSET)
+		<< "a finish time was sent, so the client shows the race timer instead of the level";
+	EXPECT_EQ(pController->SnapMapBestTime(1).m_Seconds, (int)FinishTime::UNSET)
+		<< "a map best time was sent, so the client shows a record row";
+}
+
+TEST_F(BwSnap, ScoreIsZeroWhenNotLoggedInAndTheLevelWhenLoggedIn)
+{
+	CPlayer *pPlayer = AddPlayer(0, "one");
+	CPlayer *pViewer = AddPlayer(1, "two");
+
+	// a guest scores 0, not -9999 (which the client hides) and not a time
+	EXPECT_FALSE(pPlayer->Bw().IsLoggedIn());
+	EXPECT_EQ(SnapPlayerInfoFor(m_pServer, pPlayer, 1).m_Score, 0);
+
+	// logged in: the score is the account level, for every viewer
+	pPlayer->Bw().SetPlayerId(1234);
+	pPlayer->Bw().SetPlayerLevel(42);
+	ASSERT_TRUE(pPlayer->Bw().IsLoggedIn());
+	EXPECT_EQ(SnapPlayerInfoFor(m_pServer, pPlayer, 1).m_Score, 42) << "another player did not see the level";
+	EXPECT_EQ(SnapPlayerInfoFor(m_pServer, pPlayer, 0).m_Score, 42) << "the player did not see their own level";
+	(void)pViewer;
+}

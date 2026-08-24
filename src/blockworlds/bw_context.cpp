@@ -2026,9 +2026,8 @@ void CBlockworlds::SendChatCmdRem(const IConsole::ICommandInfo *pCommandInfo, in
 
 bool CBlockworlds::AllowServerVoteStreaming(int ClientId) const
 {
-	// Only stream real server votes when the Blockworlds menu is at its root
-	// page; while a player browses a subpage the menu owns the vote list.
-	return g_VoteManager.IsAtRoot(ClientId);
+	(void)ClientId;
+	return false;
 }
 
 void CBlockworlds::SendVoteListHeader(int ClientId)

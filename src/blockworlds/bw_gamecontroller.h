@@ -19,6 +19,10 @@ public:
 	void OnCharacterSpawn(class CCharacter *pChr) override;
 	void Tick() override;
 	int SnapPlayerScore(int SnappingClient, class CPlayer *pPlayer) override;
+	// ddnet sux
+	// read IGameController::SnapPlayerTime
+	CFinishTime SnapPlayerTime(int SnappingClient, class CPlayer *pPlayer) override { return CFinishTime::Unset(); }
+	CFinishTime SnapMapBestTime(int SnappingClient) override { return CFinishTime::Unset(); }
 	void OnSnapGameInfo(int SnappingClient, CNetObj_GameInfo *pGameInfo) override;
 	void OnSnapGameInfoEx(int SnappingClient, CNetObj_GameInfoEx *pGameInfoEx) override;
 

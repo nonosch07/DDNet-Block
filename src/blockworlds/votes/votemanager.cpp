@@ -33,6 +33,39 @@ static inline std::string Trim(const std::string &s)
 }
 
 // make it beautiful small-caps
+static const int VOTE_BOX_WIDTH = 21;
+
+static int Utf8Length(const std::string &Str)
+{
+	int Count = 0;
+	for(char c : Str)
+		if((static_cast<unsigned char>(c) & 0xC0) != 0x80)
+			++Count;
+	return Count;
+}
+
+static std::string DropLastUtf8(const std::string &Str)
+{
+	if(Str.empty())
+		return Str;
+	size_t End = Str.size() - 1;
+	while(End > 0 && (static_cast<unsigned char>(Str[End]) & 0xC0) == 0x80)
+		--End;
+	return Str.substr(0, End);
+}
+
+static std::string TruncateForVote(const std::string &Str)
+{
+	const size_t Max = VOTE_DESC_LENGTH - 1; // room for the terminator
+	if(Str.size() <= Max)
+		return Str;
+	size_t End = Max;
+	// step back off any continuation byte so the cut lands on a boundary
+	while(End > 0 && (static_cast<unsigned char>(Str[End]) & 0xC0) == 0x80)
+		--End;
+	return Str.substr(0, End);
+}
+
 static std::string SmallCaps(const std::string &s)
 {
 	static const std::unordered_map<char, const char *> MAP = {
@@ -179,6 +212,24 @@ void CVoteManager::NavigateToRoot(int ClientId)
 	Stack.push_back(SPage{SPage::ROOT, -1});
 }
 
+void CVoteManager::BuildBoxBorders(const std::string &Title, std::string &Top, std::string &Bottom)
+{
+	// the box sizes itself to the title rather than padding to a fixed width:
+	// padding forced long titles to be cut mid-word ("Shop - Skin Man"). titles
+	// that don't fit are shortened at call site instead
+	std::string Caps = SmallCaps(Title);
+	// "╭─ " + title + " ─" is title + 5 characters
+	while(Utf8Length(Caps) > VOTE_BOX_WIDTH - 5)
+		Caps = DropLastUtf8(Caps);
+
+	Top = "╭─ " + Caps + " ─";
+
+	// the footer spans the same number of characters as the header
+	Bottom = "╰";
+	for(int i = 1; i < Utf8Length(Top); ++i)
+		Bottom += "─";
+}
+
 void CVoteManager::SendOptions(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext)
 {
 	// Do NOT reset the stack on menu open preserve last page
@@ -247,6 +298,14 @@ bool CVoteManager::HandleVote(CPlayer *pPlayer, const std::string &VoteInput, in
 				pGameContext->Bw().ClearVotes(ClientId);
 				RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
 				return true;
+			case EActionKind::OpenServerVotes:
+				PushPage(ClientId, SPage::SERVER_VOTES);
+				pGameContext->Bw().ClearVotes(ClientId);
+				RenderCurrentPage(pPlayer, ClientId, pGameContext->Server(), pGameContext);
+				return true;
+			case EActionKind::ServerVote:
+				// not ours: let CGameContext::OnCallVoteNetMessage run the real vote
+				return false;
 			case EActionKind::OpenServerInfosTopic:
 				PushPage(ClientId, SPage::SERVER_INFOS_TOPIC, A.m_A); // A holds topic index
 				pGameContext->Bw().ClearVotes(ClientId);
@@ -535,6 +594,7 @@ void CVoteManager::RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pS
 	case SPage::LEADERBOARDS: BuildLeaderboards(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
 	case SPage::LEADERBOARD_DETAIL: BuildLeaderboardDetail(pPlayer, ClientID, pServer, pGameContext, Current.m_Data, Labels, Actions); break;
 	case SPage::SERVER_INFOS: BuildServerInfos(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
+	case SPage::SERVER_VOTES: BuildServerVotes(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
 	case SPage::SERVER_INFOS_TOPIC: BuildServerInfosTopic(pPlayer, ClientID, pServer, pGameContext, Current.m_Data, Labels, Actions); break;
 	case SPage::MAP_TRANSFERS: BuildMapTransfers(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
 	case SPage::COSMETICS_ROOT: BuildCosmeticsRoot(pPlayer, ClientID, pServer, pGameContext, Labels, Actions); break;
@@ -570,6 +630,7 @@ void CVoteManager::RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pS
 			break;
 		}
 		case SPage::SERVER_INFOS: Title = "Server Infos"; break;
+		case SPage::SERVER_VOTES: Title = "Server Votes"; break;
 		case SPage::SERVER_INFOS_TOPIC:
 		{
 			int Topic = Current.m_Data;
@@ -587,7 +648,7 @@ void CVoteManager::RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pS
 		{
 			int Cat = Current.m_Data;
 			if(Cat == 0)
-				Title = "Skin Manipulations";
+				Title = "Skinmanis";
 			else if(Cat == 1)
 				Title = "Gun Designs";
 			else if(Cat == 2)
@@ -603,11 +664,11 @@ void CVoteManager::RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pS
 		{
 			int Cat = Current.m_Data;
 			if(Cat == CShop::CATEGORY_SKINMANI)
-				Title = "Shop - Skin Manipulations";
+				Title = "Skinmani Shop";
 			else if(Cat == CShop::CATEGORY_GUNDESIGN)
-				Title = "Shop - Gun Designs";
+				Title = "Gundesign Shop";
 			else if(Cat == CShop::CATEGORY_KNOCKOUT)
-				Title = "Shop - Knockout Effects";
+				Title = "Knockout Shop";
 			else if(Cat == CShop::CATEGORY_UTILITY)
 				Title = "Shop - Utilities";
 			else
@@ -618,17 +679,11 @@ void CVoteManager::RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pS
 			Title = "1on1 Config";
 			break;
 		}
-		std::string Caps = SmallCaps(Title);
-		std::string Top = std::string("╭─ ") + Caps + " ─────────────────";
-		// Bottom dashes must match the runes between the header corners: "─ " + Title + " ─" => len = capsLen + 4
-		int CapsLen = str_length(Caps.c_str());
-		int DashCount = CapsLen + 4;
-		if(DashCount < 1)
-			DashCount = 1;
-		std::string Bottom = "╰";
-		for(int i = 0; i < DashCount; ++i)
-			Bottom += "─";
-		Bottom += "────────────";
+		// a vote description carries VOTE_DESC_LENGTH *bytes*, and every box rune
+		// and small-caps letter costs three of them, so the whole line is only
+		// about twenty characters wide
+		std::string Top, Bottom;
+		BuildBoxBorders(Title, Top, Bottom);
 
 		Labels.insert(Labels.begin(), Top);
 		Actions.insert(Actions.begin(), SAction{EActionKind::None, -1, -1});
@@ -638,6 +693,10 @@ void CVoteManager::RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pS
 		{
 			if(i == 0)
 				continue; // keep top border as-is
+			// A real server vote must go out with exactly the description the
+			// engine registered, otherwise the click cannot be matched back to it.
+			if(i < Actions.size() && Actions[i].m_Kind == EActionKind::ServerVote)
+				continue;
 			Labels[i] = std::string("│ ") + Labels[i];
 		}
 
@@ -645,6 +704,13 @@ void CVoteManager::RenderCurrentPage(CPlayer *pPlayer, int ClientID, IServer *pS
 		Labels.push_back(Bottom);
 		Actions.push_back(SAction{EActionKind::None, -1, -1});
 	}
+
+	// the vote description is capped at VOTE_DESC_LENGTH *bytes*, and every
+	// small-caps glyph costs 2-3 of them, so a label that looks short can still
+	// overflow. trim on a character boundary here, before the click map is built,
+	// so what the client receives and what we match on are the same string.
+	for(std::string &Label : Labels)
+		Label = TruncateForVote(Label);
 
 	// store mapping with a few safe aliases to handle client-side string differences
 	std::vector<std::pair<std::string, SAction>> Map;
@@ -765,6 +831,13 @@ void CVoteManager::BuildRoot(CPlayer *pPlayer, int ClientID, IServer *pServer, C
 		Label += " ›";
 		OutLabels.emplace_back(Label);
 		OutActions.emplace_back(SAction{EActionKind::OpenServerInfos});
+	}
+
+	{
+		std::string Label = SmallCaps("Server Votes");
+		Label += " ›";
+		OutLabels.emplace_back(Label);
+		OutActions.emplace_back(SAction{EActionKind::OpenServerVotes});
 	}
 
 	{
@@ -904,6 +977,27 @@ void CVoteManager::BuildServerInfos(CPlayer *pPlayer, int ClientID, IServer *pSe
 		Label += " ›";
 		OutLabels.emplace_back(Label);
 		OutActions.emplace_back(SAction{EActionKind::OpenServerInfosTopic, 1});
+	}
+}
+
+void CVoteManager::BuildServerVotes(CPlayer *pPlayer, int ClientID, IServer *pServer, CGameContext *pGameContext, std::vector<std::string> &OutLabels, std::vector<SAction> &OutActions)
+{
+	(void)pPlayer;
+	(void)ClientID;
+	(void)pServer;
+
+	int Count = 0;
+	for(CVoteOptionServer *pOption = pGameContext->m_pVoteOptionFirst; pOption; pOption = pOption->m_pNext)
+	{
+		OutLabels.emplace_back(pOption->m_aDescription);
+		OutActions.emplace_back(SAction{EActionKind::ServerVote});
+		++Count;
+	}
+
+	if(Count == 0)
+	{
+		OutLabels.emplace_back(SmallCaps("No server votes configured"));
+		OutActions.emplace_back(SAction{EActionKind::None});
 	}
 }
 
