@@ -1504,20 +1504,13 @@ void CVoteManager::BuildShopCategory(CPlayer *pPlayer, int ClientID, IServer *pS
 			Owned = pCos->HasGundesign(pPlayer->GetCid(), i);
 		else if(CategoryIndex == CShop::CATEGORY_KNOCKOUT)
 			Owned = pCos->HasKnockoutEffect(pPlayer->GetCid(), i);
+		else if(CategoryIndex == CShop::CATEGORY_UTILITY && i == CCosmeticsHandler::UTILITY_VIP_WEEK)
+			Owned = pPlayer->Bw().HasVip();
 
 		// get item name
 		const char *pName = nullptr;
 		if(CategoryIndex == CShop::CATEGORY_UTILITY)
-		{
-			if(i == 0)
-				pName = "Weapon Kit";
-			else if(i == 1)
-				pName = "Deathnote Page";
-			else if(i == 2)
-				pName = "Passive Remover";
-			else
-				pName = "Utility Item";
-		}
+			pName = CShop::UtilityName(i);
 		else if(ppNames)
 		{
 			pName = ppNames[i];

@@ -235,12 +235,17 @@ void CZoneManager::Init(CGameContext *pGameServer)
 								else if(str_comp_nocase(Tokens[1], "kit") == 0)
 								{
 									Category = CShop::CATEGORY_UTILITY;
-									Item = 0; // weaponkit item
+									Item = CCosmeticsHandler::UTILITY_WEAPONKIT;
 								}
 								else if(str_comp_nocase(Tokens[1], "page") == 0)
 								{
 									Category = CShop::CATEGORY_UTILITY;
-									Item = 1; // deathnote page item
+									Item = CCosmeticsHandler::UTILITY_DEATHNOTE_PAGE;
+								}
+								else if(str_comp_nocase(Tokens[1], "vip") == 0)
+								{
+									Category = CShop::CATEGORY_UTILITY;
+									Item = CCosmeticsHandler::UTILITY_VIP_WEEK;
 								}
 								else
 								{

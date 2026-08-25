@@ -28,4 +28,6 @@ enum
 static constexpr int PASSIVE_TILE_DURATION = 2 * 60 * 60;
 static constexpr int RANDOM_COSMETIC_DURATION = 10 * 60;
 
+static constexpr long long VIP_WEEK_SECONDS = 7LL * 24 * 60 * 60;
+
 #endif // BLOCKWORLDS_COMMON_H

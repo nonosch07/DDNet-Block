@@ -59,6 +59,7 @@ CREATE TABLE `Blockworlds_accounts_core` (
 CREATE TABLE `Blockworlds_accounts_inventory` (
   `account_id` int(11) NOT NULL,
   `vip` int(11) DEFAULT 0,
+  `vip_until` bigint(20) NOT NULL DEFAULT 0,
   `pages` int(11) DEFAULT 0,
   `weaponkits` int(11) DEFAULT 0,
   `passive_removers` int(11) NOT NULL DEFAULT 0,

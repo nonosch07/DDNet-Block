@@ -452,7 +452,7 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 		"r.ranked_kills, r.ranked_deaths, r.ranked_wins, p.kills, p.deaths, p.tourney_win, p.playtime, p.killstreak, "
 		"c.last_name, c.last_skin, c.last_body_color, c.last_feet_color, "
 		"COALESCE(p.weekly_day, 0), COALESCE(p.weekly_last_claim, 0), COALESCE(p.weekly_exp_boost_until, 0), "
-		"COALESCE(i.passive_removers, 0) FROM %s c "
+		"COALESCE(i.passive_removers, 0), COALESCE(i.vip_until, 0) FROM %s c "
 		"JOIN %s p ON c.id=p.account_id "
 		"JOIN %s i ON c.id=i.account_id "
 		"JOIN %s r ON c.id=r.account_id WHERE c.id = ?;",
@@ -518,6 +518,7 @@ bool CAccounts::LoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData
 	SQL_GET_INT(Index++, pResult->m_Account.m_WeeklyLastClaim);
 	SQL_GET_INT64(Index++, pResult->m_Account.m_WeeklyExpBoostUntil);
 	SQL_GET_INT(Index++, pResult->m_Account.m_PassiveRemovers);
+	SQL_GET_INT64(Index++, pResult->m_Account.m_VipUntil);
 
 	PadCosmeticString(pResult->m_Account.m_aKnockouts, CCosmeticsHandler::NUM_KNOCKOUTS);
 	PadCosmeticString(pResult->m_Account.m_aGundesign, CCosmeticsHandler::NUM_GUNDESIGNS);
@@ -926,17 +927,18 @@ bool CAccounts::SaveThread(IDbConnection *pSqlServer, const ISqlData *pGameData,
 		}
 		if(DoInv)
 		{
-			str_format(aBuf, sizeof(aBuf), "UPDATE %s SET vip=?, pages=?, weaponkits=?, passive_removers=?, knockouts=?, gundesign=?, skinmani=? WHERE account_id=?;", TBL_ACCOUNTS_INVENTORY);
+			str_format(aBuf, sizeof(aBuf), "UPDATE %s SET vip=?, vip_until=?, pages=?, weaponkits=?, passive_removers=?, knockouts=?, gundesign=?, skinmani=? WHERE account_id=?;", TBL_ACCOUNTS_INVENTORY);
 			if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 				return false;
 			pSqlServer->BindInt(1, Acc.m_Vip);
-			pSqlServer->BindInt(2, Acc.m_Pages);
-			pSqlServer->BindInt(3, Acc.m_Weaponkits);
-			pSqlServer->BindInt(4, Acc.m_PassiveRemovers);
-			pSqlServer->BindString(5, Acc.m_aKnockouts);
-			pSqlServer->BindString(6, Acc.m_aGundesign);
-			pSqlServer->BindString(7, Acc.m_aSkinmani);
-			pSqlServer->BindInt(8, Acc.m_Id);
+			pSqlServer->BindInt64(2, Acc.m_VipUntil);
+			pSqlServer->BindInt(3, Acc.m_Pages);
+			pSqlServer->BindInt(4, Acc.m_Weaponkits);
+			pSqlServer->BindInt(5, Acc.m_PassiveRemovers);
+			pSqlServer->BindString(6, Acc.m_aKnockouts);
+			pSqlServer->BindString(7, Acc.m_aGundesign);
+			pSqlServer->BindString(8, Acc.m_aSkinmani);
+			pSqlServer->BindInt(9, Acc.m_Id);
 			if(!pSqlServer->ExecuteUpdate(&Affected, pError, ErrorSize))
 				return false;
 		}

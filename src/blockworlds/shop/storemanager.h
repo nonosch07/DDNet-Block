@@ -36,6 +36,8 @@ public:
 	void Purchase();
 	void Decline();
 
+	static const char *UtilityName(int Product);
+
 	// Instant purchase: validates and buys in one call, no /yes /no.
 	// Returns true if the purchase succeeded.
 	static bool InstantPurchase(CGameContext *pGameContext, CPlayer *pOwner, int Category, int Cosmetics);

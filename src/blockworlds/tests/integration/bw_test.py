@@ -11,6 +11,7 @@ feature actually does what it is supposed to do.
 
 import argparse
 import os
+import re
 import sys
 import time
 import traceback
@@ -36,6 +37,11 @@ MENU_LEADERBOARDS = "│ ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅꜱ ›"
 MENU_COSMETICS = "│ ᴄᴏꜱᴍᴇᴛɪᴄꜱ ›"
 MENU_SERVER_VOTES = "│ ꜱᴇʀᴠᴇʀ ᴠᴏᴛᴇꜱ ›"
 MENU_BACK = "│ « ʙᴀᴄᴋ"
+MENU_SHOP = "│ ꜱʜᴏᴘ ›"
+# Shop category and item rows are not small-capped, only the "│ " bar is added.
+SHOP_UTILITIES = "│ Utilities ›"
+VIP_FOR_SALE = "│ VIP (1 week) - 1500 BP (Lvl 0)"
+VIP_OWNED = "│ VIP (1 week) - Owned"
 
 
 def test(fn):
@@ -51,6 +57,16 @@ def expect(condition, message):
 def expect_chat(lines, needle, context=""):
     if not any(needle.lower() in l.lower() for l in lines):
         raise TestFailure(f"expected chat containing {needle!r} {context}\n  got: {lines}")
+
+
+def balance(client):
+    """The player's blockpoints, as /bp reports them."""
+    lines = client.chat_command("/bp", settle=1.2)
+    for line in reversed(lines):
+        match = re.search(r"have (-?\d+) blockpoint", line)
+        if match:
+            return int(match.group(1))
+    raise TestFailure(f"/bp did not answer with a balance: {lines}")
 
 
 def login_fresh(env, server, client, user="itest1", password="itestpw123"):
@@ -421,6 +437,69 @@ def server_votes_page(env):
 # ---------------------------------------------------------------------------
 # engine-level features
 # ---------------------------------------------------------------------------
+
+
+@test
+def shop_vip_week(env):
+    """A week of VIP is bought once: it costs 1500 BP, sets an expiry a week out,
+    survives a relog, and cannot be bought again while it is running."""
+    reset_database()
+    s = env.server()
+    c = env.client("bwtester", s)
+    login_fresh(env, s, c)
+    s.rcon("give_blockpoints 0 5000")
+    time.sleep(1.5)
+
+    c.callvote_option(MENU_SHOP, settle=1.5)
+    c.callvote_option(SHOP_UTILITIES, settle=1.5)
+    # read the balance right before and after the click: a logged-in player also
+    # earns blockpoints from playing, so 5000 is not what is left to spend
+    before = balance(c)
+    cstart = c.mark()
+    bought_at = int(time.time())
+    c.callvote_option(VIP_FOR_SALE, settle=2.0)
+    chat = c.chat(cstart)
+    expect_chat(chat, "successfully bought", "after buying VIP")
+    expect_chat(chat, "you are now vip", "after buying VIP")
+    spent = before - balance(c)
+    expect(spent == 1500, f"the purchase took {spent} BP, expected 1500")
+
+    # the account only reaches the database on the flush, so log out first
+    c.chat_command("/logout", settle=3.0)
+    time.sleep(2.0)
+    rows = mysql(
+        "SELECT i.vip, i.vip_until, p.blockpoints "
+        "FROM Blockworlds_accounts_inventory i "
+        "JOIN Blockworlds_accounts_core c ON i.account_id = c.id "
+        "JOIN Blockworlds_accounts_progress p ON p.account_id = c.id "
+        "WHERE c.name = 'itest1';"
+    )
+    expect(rows, "the VIP purchase never reached the database")
+    vip, vip_until = int(rows[0][0]), int(rows[0][1])
+    expect(vip == 1, f"vip flag is {vip}, expected 1")
+    week = 7 * 24 * 60 * 60
+    drift = abs(vip_until - (bought_at + week))
+    expect(drift <= 30, f"vip_until is {drift}s off a week from the purchase")
+
+    # coming back logged in, the item is owned rather than on sale again
+    c.chat_command("/login itest1 itestpw123", settle=3.0)
+    c.callvote_option(MENU_SHOP, settle=1.5)
+    c.callvote_option(SHOP_UTILITIES, settle=1.5)
+    cstart = c.mark()
+    c.callvote_option(VIP_FOR_SALE, settle=1.5)
+    chat = c.chat(cstart)
+    expect(
+        any("isn't an option on this server" in l for l in chat),
+        f"VIP was still on sale for a player who already has it: {chat}",
+    )
+    cstart = c.mark()
+    c.callvote_option(VIP_OWNED, settle=1.5)
+    chat = c.chat(cstart)
+    expect(
+        not any("isn't an option on this server" in l for l in chat),
+        f"the shop does not show VIP as owned: {chat}",
+    )
+    expect(s.alive(), "server died during the VIP purchase flow")
 
 
 @test

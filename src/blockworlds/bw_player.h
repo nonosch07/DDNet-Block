@@ -115,6 +115,31 @@ public:
 		m_Account.m_Vip = Vip;
 		m_Account.m_DirtyInventory = true;
 	}
+	/// UNIX timestamp. 0 = never expires, which is what an admin-granted VIP keeps
+	long long GetPlayerVipUntil() const { return m_Account.m_VipUntil; }
+	void SetPlayerVipUntil(long long Until)
+	{
+		m_Account.m_VipUntil = Until;
+		m_Account.m_DirtyInventory = true;
+	}
+
+	void GrantTimedVip(long long Seconds, long long Now)
+	{
+		const long long From = m_Account.m_VipUntil > Now ? m_Account.m_VipUntil : Now;
+		SetPlayerVipUntil(From + Seconds);
+		SetPlayerVip(1);
+	}
+
+	bool HasVip() const { return m_Account.m_Vip > 0; }
+
+	bool ExpireVipIfDue(long long Now)
+	{
+		if(m_Account.m_VipUntil <= 0 || Now < m_Account.m_VipUntil)
+			return false;
+		SetPlayerVipUntil(0);
+		SetPlayerVip(0);
+		return true;
+	}
 	void SetPlayerPages(int Pages)
 	{
 		m_Account.m_Pages = Pages;

@@ -1,11 +1,71 @@
 #include "storemanager.h"
 
+#include <base/time.h>
+
 #include <game/server/entities/character.h>
 #include <game/server/gamecontext.h>
 #include <game/server/player.h>
 
 #include <blockworlds/accounts.h>
 #include <blockworlds/bw_context.h>
+#include <blockworlds/common.h>
+
+static const char *PurchaseBlockedReason(CPlayer *pOwner, int Category, int Product)
+{
+	switch(Category)
+	{
+	case CShop::CATEGORY_GUNDESIGN:
+		return pOwner->Bw().GetPlayerGundesign()[Product] == '1' ? "You already own this cosmetic." : nullptr;
+	case CShop::CATEGORY_KNOCKOUT:
+		return pOwner->Bw().GetPlayerKnockouts()[Product] == '1' ? "You already own this cosmetic." : nullptr;
+	case CShop::CATEGORY_SKINMANI:
+		return pOwner->Bw().GetPlayerSkinmani()[Product] == '1' ? "You already own this cosmetic." : nullptr;
+	case CShop::CATEGORY_UTILITY:
+		// consumables can be stacked; VIP cannot, whether it was bought or given by an admin.
+		if(Product == CCosmeticsHandler::UTILITY_VIP_WEEK && pOwner->Bw().HasVip())
+			return "You are already VIP.";
+		return nullptr;
+	default:
+		return "Invalid cosmetic category.";
+	}
+}
+
+// display name of a utility product.
+const char *CShop::UtilityName(int Product)
+{
+	switch(Product)
+	{
+	case CCosmeticsHandler::UTILITY_WEAPONKIT: return "Weapon Kit";
+	case CCosmeticsHandler::UTILITY_DEATHNOTE_PAGE: return "Deathnote Page";
+	case CCosmeticsHandler::UTILITY_PASSIVE_REMOVER: return "Passive Remover";
+	case CCosmeticsHandler::UTILITY_VIP_WEEK: return "VIP (1 week)";
+	default: return "Utility Item";
+	}
+}
+
+// hands over a utility product that has already been paid for
+static void GrantUtility(CGameContext *pGameContext, CPlayer *pOwner, int Product)
+{
+	CBwPlayer &Bw = pOwner->Bw();
+	switch(Product)
+	{
+	case CCosmeticsHandler::UTILITY_WEAPONKIT:
+		Bw.SetPlayerWeaponkits(Bw.GetPlayerWeaponkits() + 1);
+		break;
+	case CCosmeticsHandler::UTILITY_DEATHNOTE_PAGE:
+		Bw.SetPlayerPages(Bw.GetPlayerPages() + 1);
+		break;
+	case CCosmeticsHandler::UTILITY_PASSIVE_REMOVER:
+		Bw.SetPlayerPassiveRemovers(Bw.GetPlayerPassiveRemovers() + 1);
+		break;
+	case CCosmeticsHandler::UTILITY_VIP_WEEK:
+		Bw.GrantTimedVip(VIP_WEEK_SECONDS, time_timestamp());
+		pGameContext->Bw().SendChatTarget(pOwner->GetCid(), "You are now VIP for 7 days. Thanks for the support!");
+		break;
+	default:
+		break;
+	}
+}
 
 CShop::CShop(CGameContext *pGameContext, CPlayer *pOwner, int pCategory, int pCosmetics, int ExpireInS) :
 	m_pGameContext(pGameContext), m_pOwner(pOwner), m_pProduct(pCosmetics), m_pCategory(pCategory)
@@ -63,30 +123,10 @@ CShop::CShop(CGameContext *pGameContext, CPlayer *pOwner, int pCategory, int pCo
 		return;
 	}
 
-	bool HasCosmetic = false;
-	switch(pCategory)
-	{
-	case CATEGORY_GUNDESIGN:
-		HasCosmetic = (pOwner->Bw().GetPlayerGundesign()[pCosmetics] == '1');
-		break;
-	case CATEGORY_KNOCKOUT:
-		HasCosmetic = (pOwner->Bw().GetPlayerKnockouts()[pCosmetics] == '1');
-		break;
-	case CATEGORY_SKINMANI:
-		HasCosmetic = (pOwner->Bw().GetPlayerSkinmani()[pCosmetics] == '1');
-		break;
-	case CATEGORY_UTILITY:
-		break;
-	default:
-		if(m_pGameContext)
-			m_pGameContext->SendChatTarget(pOwner->GetCid(), "Invalid cosmetic category.");
-		Destroy(true);
-		return;
-	}
-	if(HasCosmetic)
+	if(const char *pBlocked = PurchaseBlockedReason(pOwner, pCategory, pCosmetics))
 	{
 		if(m_pGameContext)
-			m_pGameContext->SendChatTarget(pOwner->GetCid(), "You already own this cosmetic.");
+			m_pGameContext->SendChatTarget(pOwner->GetCid(), pBlocked);
 		Destroy(true);
 		return;
 	}
@@ -147,16 +187,7 @@ bool CShop::SetProductInfo(int Category, int Cosmetics)
 	case CATEGORY_UTILITY:
 		Success = m_pCosmeticsHandler->ShopInfoUtility(Cosmetics, m_pPrice, m_pLevel, PreviewPos);
 		if(Success)
-		{
-			if(Cosmetics == 0)
-				m_pCosmeticName = "Weapon Kit";
-			else if(Cosmetics == 1)
-				m_pCosmeticName = "Deathnote Page";
-			else if(Cosmetics == 2)
-				m_pCosmeticName = "Passive Remover";
-			else
-				m_pCosmeticName = "Utility Item";
-		}
+			m_pCosmeticName = UtilityName(Cosmetics);
 		break;
 	default:
 		return false;
@@ -265,21 +296,7 @@ void CShop::Purchase()
 		break;
 
 	case CATEGORY_UTILITY:
-		// product ids: 0 = weaponkit, 1 = deathnote page
-		if(m_pProduct == 0)
-		{
-			m_pOwner->Bw().SetPlayerWeaponkits(m_pOwner->Bw().GetPlayerWeaponkits() + 1);
-		}
-		else if(m_pProduct == 1)
-		{
-			// grant one deathnote page as an account page
-			m_pOwner->Bw().SetPlayerPages(m_pOwner->Bw().GetPlayerPages() + 1);
-		}
-		else if(m_pProduct == 2)
-		{
-			// grant one passive remover
-			m_pOwner->Bw().SetPlayerPassiveRemovers(m_pOwner->Bw().GetPlayerPassiveRemovers() + 1);
-		}
+		GrantUtility(m_pGameContext, m_pOwner, m_pProduct);
 		break;
 
 	default:
@@ -329,19 +346,9 @@ bool CShop::InstantPurchase(CGameContext *pGameContext, CPlayer *pOwner, int Cat
 		return false;
 	}
 
-	// Check already owned
-	bool HasCosmetic = false;
-	switch(Category)
+	if(const char *pBlocked = PurchaseBlockedReason(pOwner, Category, Cosmetics))
 	{
-	case CATEGORY_GUNDESIGN: HasCosmetic = (pOwner->Bw().GetPlayerGundesign()[Cosmetics] == '1'); break;
-	case CATEGORY_KNOCKOUT: HasCosmetic = (pOwner->Bw().GetPlayerKnockouts()[Cosmetics] == '1'); break;
-	case CATEGORY_SKINMANI: HasCosmetic = (pOwner->Bw().GetPlayerSkinmani()[Cosmetics] == '1'); break;
-	case CATEGORY_UTILITY: break;
-	default: break;
-	}
-	if(HasCosmetic)
-	{
-		pGameContext->SendChatTarget(ClientId, "You already own this cosmetic.");
+		pGameContext->SendChatTarget(ClientId, pBlocked);
 		return false;
 	}
 
@@ -370,16 +377,7 @@ bool CShop::InstantPurchase(CGameContext *pGameContext, CPlayer *pOwner, int Cat
 	case CATEGORY_UTILITY:
 		InfoOk = pCosmetics->ShopInfoUtility(Cosmetics, Price, Level, PreviewPos);
 		if(InfoOk)
-		{
-			if(Cosmetics == 0)
-				pName = "Weapon Kit";
-			else if(Cosmetics == 1)
-				pName = "Deathnote Page";
-			else if(Cosmetics == 2)
-				pName = "Passive Remover";
-			else
-				pName = "Utility Item";
-		}
+			pName = UtilityName(Cosmetics);
 		break;
 	default: break;
 	}
@@ -419,14 +417,7 @@ bool CShop::InstantPurchase(CGameContext *pGameContext, CPlayer *pOwner, int Cat
 	case CATEGORY_KNOCKOUT: pOwner->Bw().SetPlayerKnockouts(Cosmetics, '1'); break;
 	case CATEGORY_GUNDESIGN: pOwner->Bw().SetPlayerGundesign(Cosmetics, '1'); break;
 	case CATEGORY_SKINMANI: pOwner->Bw().SetPlayerSkinmani(Cosmetics, '1'); break;
-	case CATEGORY_UTILITY:
-		if(Cosmetics == 0)
-			pOwner->Bw().SetPlayerWeaponkits(pOwner->Bw().GetPlayerWeaponkits() + 1);
-		else if(Cosmetics == 1)
-			pOwner->Bw().SetPlayerPages(pOwner->Bw().GetPlayerPages() + 1);
-		else if(Cosmetics == 2)
-			pOwner->Bw().SetPlayerPassiveRemovers(pOwner->Bw().GetPlayerPassiveRemovers() + 1);
-		break;
+	case CATEGORY_UTILITY: GrantUtility(pGameContext, pOwner, Cosmetics); break;
 	default: break;
 	}
 

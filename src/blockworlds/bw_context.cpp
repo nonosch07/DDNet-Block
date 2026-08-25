@@ -1142,6 +1142,9 @@ void CBlockworlds::OnPlayerTick(int ClientId) const
 	{
 		Bw.SetPlayerPlaytime(Bw.GetPlayerPlaytime() + 1);
 
+		if(Bw.ExpireVipIfDue(time_timestamp()))
+			SendChatTarget(ClientId, "Your VIP has expired. You can buy another week in the shop.");
+
 		int PassiveTime = Bw.GetPlayerPassive();
 		if(PassiveTime > 0)
 		{

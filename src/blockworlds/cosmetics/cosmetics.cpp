@@ -1196,5 +1196,12 @@ bool CCosmeticsHandler::ShopInfoUtility(int Index, int &Price, int &Level, vec2 
 		PreviewPos = vec2(100.0f, 0.0f);
 		return true;
 	}
+	else if(Index == CCosmeticsHandler::UTILITY_VIP_WEEK)
+	{
+		Price = 1500;
+		Level = 0;
+		PreviewPos = vec2(0.0f, 0.0f);
+		return true;
+	}
 	return false;
 }
