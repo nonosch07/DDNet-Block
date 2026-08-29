@@ -177,7 +177,6 @@ private:
 	static void ConBroadcast(IConsole::IResult *pResult, void *pUserData);
 	static void ConSay(IConsole::IResult *pResult, void *pUserData);
 	static void ConSetTeam(IConsole::IResult *pResult, void *pUserData);
-	static void ConSetTeamAll(IConsole::IResult *pResult, void *pUserData);
 	static void ConHotReload(IConsole::IResult *pResult, void *pUserData);
 	static void ConAddVote(IConsole::IResult *pResult, void *pUserData);
 	static void ConRemoveVote(IConsole::IResult *pResult, void *pUserData);
@@ -355,7 +354,6 @@ public:
 
 	void SendTuningParams(int ClientId, int Zone = 0);
 
-	const CVoteOptionServer *GetVoteOption(int Index) const;
 	// --- BLOCK BEGIN: FlushAll sends the whole list at once (vote menu) ---
 	void ProgressVoteOptions(int ClientId, bool FlushAll = false);
 	// --- BLOCK END ---
@@ -689,7 +687,10 @@ public:
 	void SendFinish(int ClientId, float Time, std::optional<float> PreviousBestTime);
 	void SendSaveCode(int Team, int TeamSize, int State, const char *pError, const char *pSaveRequester, const char *pServerName, const char *pGeneratedCode, const char *pCode);
 	void OnSetAuthed(int ClientId, int Level) override;
-	void OnSetTimedOut(int ClientId) override;
+	void ReinitPlayerMap(int ClientId, bool Timeout) override;
+	void OnClientRejoin(int ClientId) override;
+
+	void SendStartMessages(int ClientId);
 
 	void ResetTuning();
 };

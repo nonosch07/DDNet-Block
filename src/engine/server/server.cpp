@@ -165,7 +165,9 @@ void CServerBan::ConBanExt(IConsole::IResult *pResult, void *pUser)
 	if(str_isallnum(pStr))
 	{
 		int ClientId = str_toint(pStr);
-		if(ClientId < 0 || ClientId >= MAX_CLIENTS || pThis->Server()->m_aClients[ClientId].m_State == CServer::CClient::STATE_EMPTY)
+		if(!pThis->Server()->ClientSupportsServerMaxClients(pResult->m_ClientId))
+			pThis->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "net_ban", "ban error (use a more recent DDNet client)");
+		else if(ClientId < 0 || ClientId >= MAX_CLIENTS || pThis->Server()->m_aClients[ClientId].m_State == CServer::CClient::STATE_EMPTY)
 			pThis->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "net_ban", "ban error (invalid client id)");
 		else
 			pThis->BanAddr(pThis->Server()->ClientAddr(ClientId), Minutes * 60, pReason, false);
@@ -263,6 +265,9 @@ void CServer::CClient::Reset()
 	m_SnapRate = CClient::SNAPRATE_INIT;
 	m_Score = -1;
 	m_NextMapChunk = 0;
+	m_NumMapChunks = 0;
+	m_PreInputsTick = -1;
+	m_NumPreInputs = 0;
 	m_Flags = 0;
 	m_RedirectDropTime = 0;
 
@@ -651,6 +656,7 @@ int CServer::Init()
 		Client.m_Latency = 0;
 		Client.m_Sixup = false;
 		Client.m_RedirectDropTime = 0;
+		Client.m_Rejoining = false;
 	}
 
 	m_CurrentGameTick = MIN_TICK;
@@ -1076,11 +1082,7 @@ void CServer::DoSnapshot()
 	for(int i = 0; i < MaxClients(); i++)
 	{
 		// client must be ingame to receive snapshots
-		if(m_aClients[i].m_State != CClient::STATE_INGAME)
-			continue;
-
-		// don't send snapshots to clients that haven't identified as DDNet-based yet, can crash them.
-		if(!m_aClients[i].m_Sixup && m_aClients[i].m_DDNetVersion < VERSION_DDNET_OLD)
+		if(m_aClients[i].m_State != CClient::STATE_INGAME || m_aClients[i].m_Rejoining)
 			continue;
 
 		// this client is trying to recover, don't spam snapshots
@@ -1209,9 +1211,16 @@ void CServer::DoSnapshot()
 	}
 }
 
-int CServer::ClientRejoinCallback(int ClientId, void *pUser)
+int CServer::ClientRejoinCallback(int ClientId, void *pUser, bool Sixup, bool VanillaAuth)
 {
 	CServer *pThis = (CServer *)pUser;
+
+	if(pThis->m_aClients[ClientId].m_State != CClient::STATE_INGAME)
+	{
+		if(VanillaAuth)
+			return NewClientNoAuthCallback(ClientId, pUser);
+		return NewClientCallback(ClientId, pUser, Sixup);
+	}
 
 	pThis->m_aClients[ClientId].m_AuthKey = -1;
 	pThis->m_aClients[ClientId].m_pRconCmdToSend = nullptr;
@@ -1221,6 +1230,9 @@ int CServer::ClientRejoinCallback(int ClientId, void *pUser)
 	pThis->m_aClients[ClientId].m_DDNetVersionSettled = false;
 
 	pThis->m_aClients[ClientId].Reset();
+	// m_Rejoining guides the client back into the connection without modifying current slot state.
+	pThis->m_aClients[ClientId].m_Rejoining = true;
+	pThis->m_aClients[ClientId].m_Sixup = Sixup;
 
 	pThis->GameServer()->TeehistorianRecordPlayerRejoin(ClientId);
 	pThis->Antibot()->OnEngineClientDrop(ClientId, "rejoin");
@@ -1394,6 +1406,7 @@ int CServer::DelClientCallback(int ClientId, const char *pReason, void *pUser)
 	pThis->m_aClients[ClientId].m_Snapshots.PurgeAll();
 	pThis->m_aClients[ClientId].m_Sixup = false;
 	pThis->m_aClients[ClientId].m_RedirectDropTime = 0;
+	pThis->m_aClients[ClientId].m_Rejoining = false;
 	pThis->m_aClients[ClientId].m_HasPersistentData = false;
 
 	pThis->GameServer()->TeehistorianRecordPlayerDrop(ClientId, pReason);
@@ -1415,7 +1428,13 @@ void CServer::SendCapabilities(int ClientId)
 {
 	CMsgPacker Msg(NETMSG_CAPABILITIES, true);
 	Msg.AddInt(SERVERCAP_CURVERSION); // version
-	Msg.AddInt(SERVERCAPFLAG_DDNET | SERVERCAPFLAG_CHATTIMEOUTCODE | SERVERCAPFLAG_ANYPLAYERFLAG | SERVERCAPFLAG_PINGEX | SERVERCAPFLAG_ALLOWDUMMY | SERVERCAPFLAG_SYNCWEAPONINPUT); // flags
+	Msg.AddInt(
+		SERVERCAPFLAG_DDNET |
+		SERVERCAPFLAG_CHATTIMEOUTCODE |
+		SERVERCAPFLAG_ANYPLAYERFLAG |
+		SERVERCAPFLAG_PINGEX |
+		SERVERCAPFLAG_ALLOWDUMMY |
+		SERVERCAPFLAG_SYNCWEAPONINPUT); // flags
 	SendMsg(&Msg, MSGFLAG_VITAL, ClientId);
 }
 
@@ -1458,6 +1477,7 @@ void CServer::SendMap(int ClientId)
 	}
 
 	m_aClients[ClientId].m_NextMapChunk = 0;
+	m_aClients[ClientId].m_NumMapChunks = 0;
 }
 
 void CServer::SendMapData(int ClientId, int Chunk)
@@ -1475,6 +1495,15 @@ void CServer::SendMapData(int ClientId, int Chunk)
 	// drop faulty map data requests
 	if(Chunk < 0 || Offset > TotalMapSize)
 		return;
+
+	// a client can ask for the same chunk any number of times
+	CClient &Client = m_aClients[ClientId];
+	// --- BLOCK BEGIN: count against the map the client is actually downloading ---
+	const unsigned int NumChunks = (TotalMapSize + ChunkSize - 1) / ChunkSize;
+	// --- BLOCK END ---
+	if(Client.m_NumMapChunks >= (int)(2 * NumChunks))
+		return;
+	Client.m_NumMapChunks++;
 
 	if(Offset + ChunkSize >= TotalMapSize)
 	{
@@ -1737,6 +1766,24 @@ bool CServer::CheckReservedSlotAuth(int ClientId, const char *pPassword)
 	return false;
 }
 
+bool CServer::TakePreInputBudget(int ClientId)
+{
+	// nothing stops a client from sending more than one input per tick
+	CClient &Client = m_aClients[ClientId];
+	if(Client.m_PreInputsTick != Tick())
+	{
+		Client.m_PreInputsTick = Tick();
+		Client.m_NumPreInputs = 0;
+	}
+	if(Config()->m_SvMaxPreInputsPerTick != 0 &&
+		Client.m_NumPreInputs >= Config()->m_SvMaxPreInputsPerTick)
+	{
+		return false;
+	}
+	Client.m_NumPreInputs++;
+	return true;
+}
+
 void CServer::ProcessClientPacket(CNetChunk *pPacket)
 {
 	int ClientId = pPacket->m_ClientId;
@@ -1944,7 +1991,8 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 			}
 
 			if(g_Config.m_SvPreInput &&
-				IntendedTick <= Tick() + 4 * TickSpeed() + 1)
+				IntendedTick <= Tick() + 4 * TickSpeed() + 1 &&
+				TakePreInputBudget(ClientId))
 			{
 				// send preinputs of ClientId to valid clients
 				bool aPreInputClients[MAX_CLIENTS] = {};
@@ -2063,7 +2111,7 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 
 void CServer::OnNetMsgClientVer(int ClientId, CUuid *pConnectionId, int DDNetVersion, const char *pDDNetVersionStr)
 {
-	if(m_aClients[ClientId].m_State != CClient::STATE_PREAUTH)
+	if(m_aClients[ClientId].m_State != CClient::STATE_PREAUTH && !m_aClients[ClientId].m_Rejoining)
 		return;
 	if(DDNetVersion < 0)
 		return;
@@ -2073,12 +2121,16 @@ void CServer::OnNetMsgClientVer(int ClientId, CUuid *pConnectionId, int DDNetVer
 	str_copy(m_aClients[ClientId].m_aDDNetVersionStr, pDDNetVersionStr);
 	m_aClients[ClientId].m_DDNetVersionSettled = true;
 	m_aClients[ClientId].m_GotDDNetVersionPacket = true;
-	m_aClients[ClientId].m_State = CClient::STATE_AUTH;
+
+	if(!m_aClients[ClientId].m_Rejoining)
+	{
+		m_aClients[ClientId].m_State = CClient::STATE_AUTH;
+	}
 }
 
 void CServer::OnNetMsgInfo(int ClientId, const char *pVersion, const char *pPasswordOrNullptr)
 {
-	if((m_aClients[ClientId].m_State != CClient::STATE_PREAUTH && m_aClients[ClientId].m_State != CClient::STATE_AUTH))
+	if(m_aClients[ClientId].m_State != CClient::STATE_PREAUTH && m_aClients[ClientId].m_State != CClient::STATE_AUTH && !m_aClients[ClientId].m_Rejoining)
 		return;
 
 	if(str_comp(pVersion, GameServer()->NetVersion()) != 0 && str_comp(pVersion, "0.7 802f1be60a05665f") != 0)
@@ -2117,10 +2169,14 @@ void CServer::OnNetMsgInfo(int ClientId, const char *pVersion, const char *pPass
 		return;
 	}
 
-	m_aClients[ClientId].m_State = CClient::STATE_CONNECTING;
 	SendRconType(ClientId, m_AuthManager.NumNonDefaultKeys() > 0);
 	SendCapabilities(ClientId);
-	SendMap(ClientId);
+
+	if(!m_aClients[ClientId].m_Rejoining)
+	{
+		m_aClients[ClientId].m_State = CClient::STATE_CONNECTING;
+		SendMap(ClientId);
+	}
 }
 
 void CServer::OnNetMsgReady(int ClientId)
@@ -2147,10 +2203,23 @@ void CServer::OnNetMsgReady(int ClientId)
 	// Make rejoining session possible before timeout protection triggers
 	// https://github.com/ddnet/ddnet/pull/301
 	SendConnectionReady(ClientId);
+
+	if(m_aClients[ClientId].m_Rejoining)
+	{
+		CNetMsg_Sv_ReadyToEnter Msg;
+		SendPackMsg(&Msg, MSGFLAG_VITAL | MSGFLAG_FLUSH, ClientId);
+	}
 }
 
 void CServer::OnNetMsgEnterGame(int ClientId)
 {
+	if(m_aClients[ClientId].m_Rejoining)
+	{
+		m_aClients[ClientId].m_Rejoining = false;
+		GameServer()->OnClientRejoin(ClientId);
+		return;
+	}
+
 	if(m_aClients[ClientId].m_State != CClient::STATE_READY)
 		return;
 	if(!GameServer()->IsClientReady(ClientId))
@@ -2184,6 +2253,7 @@ void CServer::OnNetMsgRconCmd(int ClientId, const char *pCmd)
 		if(GameServer()->PlayerExists(ClientId) && Version < VERSION_DDNET_OLD)
 		{
 			m_aClients[ClientId].m_DDNetVersion = VERSION_DDNET_OLD;
+			GameServer()->ReinitPlayerMap(ClientId, false);
 		}
 	}
 	else if(IsRconAuthed(ClientId))
@@ -2285,6 +2355,11 @@ void CServer::OnNetMsgRconAuth(int ClientId, const char *pName, const char *pPw,
 			}
 			}
 
+			if(!ClientSupportsServerMaxClients(ClientId))
+			{
+				SendRconLine(ClientId, "Your client does not see the real client IDs of this server. Use a more recent DDNet client.");
+			}
+
 			// DDRace
 			GameServer()->OnSetAuthed(ClientId, AuthLevel);
 		}
@@ -2309,31 +2384,25 @@ void CServer::OnNetMsgRconAuth(int ClientId, const char *pName, const char *pPw,
 	}
 }
 
-bool CServer::RateLimitServerInfoConnless()
+std::optional<bool> CServer::RateLimitServerInfoConnless()
 {
-	bool SendClients = true;
-	if(Config()->m_SvServerInfoPerSecond)
+	const int64_t Now = time_get();
+	if(Now > m_ServerInfoFirstRequest + time_freq())
 	{
-		SendClients = m_ServerInfoNumRequests <= Config()->m_SvServerInfoPerSecond;
-		const int64_t Now = Tick();
-
-		if(Now <= m_ServerInfoFirstRequest + TickSpeed())
-		{
-			m_ServerInfoNumRequests++;
-		}
-		else
-		{
-			m_ServerInfoNumRequests = 1;
-			m_ServerInfoFirstRequest = Now;
-		}
+		m_ServerInfoFirstRequest = Now;
+		m_ServerInfoNumRequests = 0;
 	}
+	m_ServerInfoNumRequests++;
 
-	return SendClients;
-}
-
-void CServer::SendServerInfoConnless(const NETADDR *pAddr, int Token, int Type)
-{
-	SendServerInfo(pAddr, Token, Type, RateLimitServerInfoConnless());
+	// In 0.6 the requesting address is not verified, so responses go to whoever the
+	// request claims to be from, and they are larger than the request.
+	if(Config()->m_SvServerInfoRepliesPerSecond != 0 &&
+		m_ServerInfoNumRequests > Config()->m_SvServerInfoRepliesPerSecond)
+	{
+		return std::nullopt;
+	}
+	return Config()->m_SvServerInfoPerSecond == 0 ||
+	       m_ServerInfoNumRequests <= Config()->m_SvServerInfoPerSecond;
 }
 
 static inline int GetCacheIndex(int Type, bool SendClient)
@@ -2403,13 +2472,13 @@ void CServer::CacheServerInfo(CCache *pCache, int Type, bool SendClients)
 	} while(0)
 
 	p.AddString(GameServer()->Version(), 32);
-	if(Type != SERVERINFO_VANILLA)
+	if(Type != SERVERINFO_VANILLA && Type != SERVERINFO_64_LEGACY)
 	{
 		p.AddString(Config()->m_SvName, 256);
 	}
 	else
 	{
-		if(m_NetServer.MaxClients() <= VANILLA_MAX_CLIENTS)
+		if(m_NetServer.MaxClients() <= (Type == SERVERINFO_VANILLA ? VANILLA_MAX_CLIENTS : LEGACY_MAX_CLIENTS))
 		{
 			p.AddString(Config()->m_SvName, 64);
 		}
@@ -2452,6 +2521,25 @@ void CServer::CacheServerInfo(CCache *pCache, int Type, bool SendClients)
 		MaxClientsProtocol = VANILLA_MAX_CLIENTS;
 		if(PlayerCount > ClientCount)
 			PlayerCount = ClientCount;
+	}
+	else if(Type == SERVERINFO_64_LEGACY)
+	{
+		if(ClientCount >= LEGACY_MAX_CLIENTS)
+		{
+			const int MaxIncludedClients = ClientCount < MaxClients ? LEGACY_MAX_CLIENTS - 1 : LEGACY_MAX_CLIENTS;
+			PlayerCount = 0;
+			ClientCount = 0;
+			for(int i = 0; i < MAX_CLIENTS && ClientCount < MaxIncludedClients; i++)
+			{
+				if(m_aClients[i].IncludedInServerInfo())
+				{
+					if(GameServer()->IsClientPlayer(i))
+						PlayerCount++;
+					ClientCount++;
+				}
+			}
+		}
+		MaxClientsProtocol = LEGACY_MAX_CLIENTS;
 	}
 
 	ADD_INT(p, PlayerCount); // num players
@@ -2519,6 +2607,8 @@ void CServer::CacheServerInfo(CCache *pCache, int Type, bool SendClients)
 	{
 		if(m_aClients[i].IncludedInServerInfo())
 		{
+			if(Type == SERVERINFO_64_LEGACY && PlayersStored == ClientCount)
+				break;
 			if(Remaining == 0)
 			{
 				if(Type == SERVERINFO_VANILLA || Type == SERVERINFO_INGAME)
@@ -2616,10 +2706,27 @@ void CServer::CacheServerInfoSixup(CCache *pCache, bool SendClients, int MaxCons
 		}
 	}
 
+	// 0.7 protocol only supports up to LEGACY_MAX_CLIENTS clients.
+	if(ClientCount >= LEGACY_MAX_CLIENTS)
+	{
+		const int MaxIncludedClients = ClientCountAll < m_NetServer.MaxClients() ? LEGACY_MAX_CLIENTS - 1 : LEGACY_MAX_CLIENTS;
+		PlayerCount = 0;
+		ClientCount = 0;
+		for(int i = 0; i < MaxConsideredClients && ClientCount < MaxIncludedClients; i++)
+		{
+			if(m_aClients[i].IncludedInServerInfo())
+			{
+				if(GameServer()->IsClientPlayer(i))
+					PlayerCount++;
+				ClientCount++;
+			}
+		}
+	}
+
 	char aVersion[32];
 	str_format(aVersion, sizeof(aVersion), "0.7↔%s", GameServer()->Version());
 	Packer.AddString(aVersion, 32);
-	if(!SendClients || ClientCountAll == ClientCount)
+	if(!SendClients || (m_NetServer.MaxClients() <= LEGACY_MAX_CLIENTS && ClientCountAll == ClientCount))
 	{
 		Packer.AddString(Config()->m_SvName, 64);
 	}
@@ -2644,16 +2751,18 @@ void CServer::CacheServerInfoSixup(CCache *pCache, bool SendClients, int MaxCons
 	int MaxClients = m_NetServer.MaxClients();
 	Packer.AddInt(Config()->m_SvSkillLevel); // server skill level
 	Packer.AddInt(PlayerCount); // num players
-	Packer.AddInt(std::max(MaxClients - std::max(Config()->m_SvSpectatorSlots, Config()->m_SvReservedSlots), PlayerCount)); // max players
+	Packer.AddInt(std::min<int>(LEGACY_MAX_CLIENTS, std::max(MaxClients - std::max(Config()->m_SvSpectatorSlots, Config()->m_SvReservedSlots), PlayerCount))); // max players
 	Packer.AddInt(ClientCount); // num clients
-	Packer.AddInt(std::max(MaxClients - Config()->m_SvReservedSlots, ClientCount)); // max clients
+	Packer.AddInt(std::min<int>(LEGACY_MAX_CLIENTS, std::max(MaxClients - Config()->m_SvReservedSlots, ClientCount))); // max clients
 
 	if(SendClients)
 	{
-		for(int i = 0; i < MaxConsideredClients; i++)
+		int ClientsIncluded = 0;
+		for(int i = 0; i < MaxConsideredClients && ClientsIncluded < ClientCount; i++)
 		{
 			if(m_aClients[i].IncludedInServerInfo())
 			{
+				ClientsIncluded++;
 				Packer.AddString(ClientName(i), MAX_NAME_LENGTH); // client name
 				// --- BLOCK BEGIN: the Block clan and the account level ---
 				Packer.AddString(BlockServerInfoClan(i), MAX_CLAN_LENGTH); // client clan
@@ -2960,6 +3069,32 @@ void CServer::UpdateServerInfo(bool Resend)
 	m_ServerInfoNeedsUpdate = false;
 }
 
+int CServer::GetMaxClients(int ClientId) const
+{
+	// Shouldn't catch anything currently
+	if(ClientId == SERVER_DEMO_CLIENT)
+		return MAX_CLIENTS;
+
+	if(m_aClients[ClientId].m_Sixup)
+		return LEGACY_MAX_CLIENTS;
+	if(m_aClients[ClientId].m_DDNetVersion >= VERSION_DDNET_128_PLAYERS)
+		return MAX_CLIENTS;
+	if(m_aClients[ClientId].m_DDNetVersion >= VERSION_DDNET_OLD)
+		return LEGACY_MAX_CLIENTS;
+	return VANILLA_MAX_CLIENTS;
+}
+
+bool CServer::ClientSupportsServerMaxClients(int ClientId) const
+{
+	// server demo pseudo clients operate on untranslated ids
+	if(ClientId == SERVER_DEMO_CLIENT)
+		return true;
+
+	// We can use `m_NetServer.MaxClients()` instead of `MAX_CLIENTS` here because it can't be changed ingame.
+	// The playermapping code currently relies on sixup (0.7) clients taking the route through playermapping.
+	return GetMaxClients(ClientId) >= m_NetServer.MaxClients() && !m_aClients[ClientId].m_Sixup;
+}
+
 void CServer::PumpNetwork()
 {
 	CNetChunk Packet;
@@ -3015,18 +3150,30 @@ void CServer::PumpNetwork()
 							continue;
 						}
 
+						const std::optional<bool> SendClients = RateLimitServerInfoConnless();
+						if(!SendClients.has_value())
+						{
+							continue;
+						}
+
 						CPacker Packer;
 						Packer.Reset();
 						Packer.AddRaw(SERVERBROWSE_INFO, sizeof(SERVERBROWSE_INFO));
 						Packer.AddInt(SrvBrwsToken);
-						GetServerInfoSixup(&Packer, RateLimitServerInfoConnless());
+						GetServerInfoSixup(&Packer, SendClients.value());
 						CNetBase::SendPacketConnlessWithToken7(m_NetServer.Socket(), &Packet.m_Address, Packer.Data(), Packer.Size(), ResponseToken, m_NetServer.GetToken(Packet.m_Address));
 					}
 					else if(Type != -1)
 					{
+						const std::optional<bool> SendClients = RateLimitServerInfoConnless();
+						if(!SendClients.has_value())
+						{
+							continue;
+						}
+
 						int Token = ((unsigned char *)Packet.m_pData)[sizeof(SERVERBROWSE_GETINFO)];
 						Token |= ExtraToken << 8;
-						SendServerInfoConnless(&Packet.m_Address, Token, Type);
+						SendServerInfo(&Packet.m_Address, Token, Type, SendClients.value());
 					}
 				}
 			}
@@ -3508,7 +3655,6 @@ int CServer::Run()
 
 					m_GameStartTime = time_get();
 					m_CurrentGameTick = MIN_TICK;
-					m_ServerInfoFirstRequest = 0;
 					Kernel()->ReregisterInterface(GameServer());
 					Console()->StoreCommands(true);
 					GameServer()->OnInit(m_pPersistentData);
@@ -3792,18 +3938,18 @@ void CServer::ConKick(IConsole::IResult *pResult, void *pUser)
 
 	// --- BLOCK BEGIN: the name is gone once the client is dropped ---
 	char aKickedName[64];
-	str_copy(aKickedName, pSelf->BlockExecutorName(pResult->GetVictim()), sizeof(aKickedName));
+	str_copy(aKickedName, pSelf->BlockExecutorName(pResult->GetVictim(0)), sizeof(aKickedName));
 	// --- BLOCK END ---
 
 	if(pResult->NumArguments() > 1)
 	{
 		char aBuf[128];
 		str_format(aBuf, sizeof(aBuf), "Kicked (%s)", pResult->GetString(1));
-		pSelf->Kick(pResult->GetVictim(), aBuf);
+		pSelf->Kick(pResult->GetVictim(0), aBuf);
 	}
 	else
 	{
-		pSelf->Kick(pResult->GetVictim(), "Kicked by console");
+		pSelf->Kick(pResult->GetVictim(0), "Kicked by console");
 	}
 
 	// --- BLOCK BEGIN ---
@@ -3913,6 +4059,9 @@ bool CServer::CanClientUseCommandCallback(int ClientId, const IConsole::ICommand
 
 bool CServer::CanClientUseCommand(int ClientId, const IConsole::ICommandInfo *pCommand) const
 {
+	// make sure we don't affect the wrong client, disallow id targeting commands when a moderator is using id translation
+	if(pCommand->TakesClientId() && !ClientSupportsServerMaxClients(ClientId))
+		return false;
 	if(pCommand->Flags() & CFGFLAG_CHAT)
 		return true;
 	if(pCommand->Flags() & CMDFLAG_PRACTICE)
@@ -5066,13 +5215,13 @@ bool CServer::SetTimedOut(int ClientId, int OrigId)
 
 	DelClientCallback(OrigId, "Timeout Protection used", this);
 
-	// OnSetTimedOut must be called after DelClientCallback to preserve the client id.
+	// ReinitPlayerMap must be called after DelClientCallback to preserve the client id.
 	// The order is important for the player initialization algorithm in CPlayerMapping::CPlayerMap::InitPlayer
 	// because it loops over all players to find others with the same ip address.
 	// IP matching is important for hammerfly/dummy copy to work by guaran-tee-ing dummy and player map have the same ids
 	// Never forget: 0.7 really implemented netmsgs for join/leave, means client ids have to be stable across using timeout protection.
 	// When InitPlayer runs it has to assign the same client id as before since local id cant be changed in 0.7
-	GameServer()->OnSetTimedOut(ClientId);
+	GameServer()->ReinitPlayerMap(ClientId, true);
 	return true;
 }
 

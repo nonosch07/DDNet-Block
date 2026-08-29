@@ -2525,7 +2525,7 @@ void CBlock::SendBroadcast(const char *pText, int ClientId, bool IsImportant) co
 void CBlock::ConChangeName(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
-	int Victim = pResult->GetVictim();
+	int Victim = pResult->GetVictim(0);
 
 	if(Victim < 0 || Victim >= MAX_CLIENTS || !pSelf->m_apPlayers[Victim])
 	{

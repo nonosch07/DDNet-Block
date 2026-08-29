@@ -3423,7 +3423,7 @@ void CBlock::ConPassive(IConsole::IResult *pResult, void *pUserData)
 void CBlock::ConSetGunDesignCosmetic(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
-	int Victim = pResult->NumArguments() > 1 ? pResult->GetVictim() : pResult->m_ClientId;
+	int Victim = pResult->NumArguments() > 1 ? pResult->GetVictim(0) : pResult->m_ClientId;
 	const int Index = pResult->GetInteger(0);
 	if(!CheckClientId(Victim))
 		return;
@@ -3436,7 +3436,7 @@ void CBlock::ConSetGunDesignCosmetic(IConsole::IResult *pResult, void *pUserData
 void CBlock::ConSetKnockoutCosmetic(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
-	int Victim = pResult->NumArguments() > 1 ? pResult->GetVictim() : pResult->m_ClientId;
+	int Victim = pResult->NumArguments() > 1 ? pResult->GetVictim(0) : pResult->m_ClientId;
 	const int Index = pResult->GetInteger(0);
 	if(!CheckClientId(Victim))
 		return;
@@ -3449,7 +3449,7 @@ void CBlock::ConSetKnockoutCosmetic(IConsole::IResult *pResult, void *pUserData)
 void CBlock::ConSetSkinManiCosmetic(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
-	int Victim = pResult->NumArguments() > 1 ? pResult->GetVictim() : pResult->m_ClientId;
+	int Victim = pResult->NumArguments() > 1 ? pResult->GetVictim(0) : pResult->m_ClientId;
 	const int Index = pResult->GetInteger(0);
 	if(!CheckClientId(Victim))
 		return;
@@ -3462,7 +3462,7 @@ void CBlock::ConSetSkinManiCosmetic(IConsole::IResult *pResult, void *pUserData)
 void CBlock::ConSetSpecialCosmetic(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
-	int Victim = pResult->NumArguments() > 1 ? pResult->GetVictim() : pResult->m_ClientId;
+	int Victim = pResult->NumArguments() > 1 ? pResult->GetVictim(0) : pResult->m_ClientId;
 	const int Index = pResult->GetInteger(0);
 	if(!CheckClientId(Victim))
 		return;
@@ -3475,7 +3475,7 @@ void CBlock::ConSetSpecialCosmetic(IConsole::IResult *pResult, void *pUserData)
 void CBlock::ConBanhammer(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
-	int Victim = pResult->GetVictim();
+	int Victim = pResult->GetVictim(0);
 	if(!CheckClientId(Victim))
 		return;
 	CPlayer *pPlayer = pSelf->m_apPlayers[Victim];

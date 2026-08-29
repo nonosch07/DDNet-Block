@@ -139,7 +139,7 @@ typedef int (*NETFUNC_DELCLIENT)(int ClientId, const char *pReason, void *pUser)
 typedef int (*NETFUNC_NEWCLIENT_CON)(int ClientId, void *pUser);
 typedef int (*NETFUNC_NEWCLIENT)(int ClientId, void *pUser, bool Sixup);
 typedef int (*NETFUNC_NEWCLIENT_NOAUTH)(int ClientId, void *pUser);
-typedef int (*NETFUNC_CLIENTREJOIN)(int ClientId, void *pUser);
+typedef int (*NETFUNC_CLIENTREJOIN)(int ClientId, void *pUser, bool Sixup, bool VanillaAuth);
 
 struct CNetChunk
 {
@@ -267,6 +267,8 @@ private:
 	int64_t m_LastUpdateTime;
 	int64_t m_LastRecvTime;
 	int64_t m_LastSendTime;
+	int64_t m_LastResendTime;
+	bool m_ResendRequested;
 
 	char m_aErrorString[256];
 
@@ -299,6 +301,7 @@ private:
 	void SendControlWithToken7(int ControlMsg, SECURITY_TOKEN ResponseToken);
 	void ResendChunk(CNetChunkResend *pResend);
 	void Resend();
+	void AnswerResendRequest(int64_t Now);
 
 public:
 	bool m_TimeoutProtected;
@@ -306,7 +309,7 @@ public:
 
 	void SetToken7(TOKEN Token);
 
-	void Reset(bool Rejoin = false);
+	void Reset();
 	void Init(NETSOCKET Socket, bool BlockCloseMsg);
 	int Connect(const NETADDR *pAddr, int NumAddrs);
 	int Connect7(const NETADDR *pAddr, int NumAddrs);
@@ -416,6 +419,8 @@ private:
 	NETADDR m_Addr;
 	CNetConnection *m_pConnection;
 	int m_CurrentChunk;
+	// offset of the next chunk header in m_Data.m_aChunkData
+	int m_CurrentOffset;
 	int m_ClientId;
 	CNetPacketConstruct m_Data;
 };
@@ -478,15 +483,14 @@ class CNetServer
 	CPacketChunkUnpacker m_PacketChunkUnpacker;
 	CNetPacketConstruct m_RecvBuffer;
 
-	void OnTokenCtrlMsg(NETADDR &Addr, int ControlMsg, const CNetPacketConstruct &Packet);
-	int OnSixupCtrlMsg(NETADDR &Addr, CNetChunk *pChunk, int ControlMsg, const CNetPacketConstruct &Packet, SECURITY_TOKEN &ResponseToken, SECURITY_TOKEN Token);
-	void OnPreConnMsg(NETADDR &Addr, CNetPacketConstruct &Packet);
-	void OnConnCtrlMsg(NETADDR &Addr, int ClientId, int ControlMsg, const CNetPacketConstruct &Packet);
+	void OnTokenCtrlMsg(NETADDR &Addr, int ControlMsg, const CNetPacketConstruct &Packet, int Slot);
+	int OnSixupCtrlMsg(NETADDR &Addr, CNetChunk *pChunk, int ControlMsg, const CNetPacketConstruct &Packet, SECURITY_TOKEN &ResponseToken, SECURITY_TOKEN Token, int Slot);
+	void OnPreConnMsg(NETADDR &Addr, CNetPacketConstruct &Packet, int Slot);
 	bool ClientExists(const NETADDR &Addr) { return GetClientSlot(Addr) != -1; }
 	int GetClientSlot(const NETADDR &Addr);
 	void SendControl(NETADDR &Addr, int ControlMsg, const void *pExtra, int ExtraSize, SECURITY_TOKEN SecurityToken);
 
-	int TryAcceptClient(NETADDR &Addr, SECURITY_TOKEN SecurityToken, bool VanillaAuth = false, bool Sixup = false, SECURITY_TOKEN Token = 0);
+	int TryAcceptClient(NETADDR &Addr, SECURITY_TOKEN SecurityToken, int Slot, bool VanillaAuth = false, bool Sixup = false, SECURITY_TOKEN Token = 0);
 	int NumClientsWithAddr(NETADDR Addr);
 	bool Connlimit(NETADDR Addr);
 	void SendMsgs(NETADDR &Addr, const CPacker **ppMsgs, int Num);
@@ -650,6 +654,7 @@ public:
 
 	// error and state
 	int NetType() const { return net_socket_type(m_Socket); }
+	bool SocketIsBroken() const { return m_Socket != nullptr && net_udp_is_broken(m_Socket); }
 	int State();
 	const NETADDR *ServerAddress() const { return m_Connection.PeerAddress(); }
 	void ConnectAddresses(const NETADDR **ppAddrs, int *pNumAddrs) const { m_Connection.ConnectAddresses(ppAddrs, pNumAddrs); }
