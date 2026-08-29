@@ -242,6 +242,11 @@ void CZoneManager::Init(CGameContext *pGameServer)
 									Category = CShop::CATEGORY_UTILITY;
 									Item = CCosmeticsHandler::UTILITY_DEATHNOTE_PAGE;
 								}
+								else if(str_comp_nocase(Tokens[1], "pasrem") == 0)
+								{
+									Category = CShop::CATEGORY_UTILITY;
+									Item = CCosmeticsHandler::UTILITY_PASSIVE_REMOVER;
+								}
 								else if(str_comp_nocase(Tokens[1], "vip") == 0)
 								{
 									Category = CShop::CATEGORY_UTILITY;
