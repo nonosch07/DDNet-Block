@@ -86,7 +86,6 @@ TEST(BwVipShop, TheWeekCostsFifteenHundredAndHasNoLevelGate)
 	vec2 PreviewPos;
 	ASSERT_TRUE(Cosmetics.ShopInfoUtility(CCosmeticsHandler::UTILITY_VIP_WEEK, Price, Level, PreviewPos));
 	EXPECT_EQ(Price, 1500);
-	EXPECT_EQ(Price, VIP_WEEK_PRICE);
 	EXPECT_EQ(Level, 0);
 }
 

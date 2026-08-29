@@ -5,7 +5,7 @@
 # game-server-without-main, which contains every BW source, so only the test
 # files themselves have to be added here.
 
-file(GLOB BLOCKWORLDS_TESTS "${PROJECT_SOURCE_DIR}/src/blockworlds/tests/*.cpp")
+file(GLOB BLOCKWORLDS_TESTS CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/src/blockworlds/tests/*.cpp")
 list(APPEND TESTS ${BLOCKWORLDS_TESTS})
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")

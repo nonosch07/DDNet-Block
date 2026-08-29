@@ -84,7 +84,7 @@ def configure_and_build(build_dir):
 			return False
 
 	print("building once so the generated sources exist ...")
-	return subprocess.run(["ninja", "-C", build_dir], check=False).returncode == 0
+	return subprocess.run(["ninja", "-C", build_dir, "all", "testrunner"], check=False).returncode == 0
 
 
 def main():
@@ -135,7 +135,7 @@ def main():
 	subprocess.run([sys.executable, "scripts/fix_style.py"], check=False)
 
 	print("rebuilding to make sure the fixes compile ...")
-	if subprocess.run(["ninja", "-C", args.build_dir], check=False).returncode != 0:
+	if subprocess.run(["ninja", "-C", args.build_dir, "all", "testrunner"], check=False).returncode != 0:
 		print(
 			"\nThe tree no longer builds. This is usually clang-tidy renaming a local\nonto the parameter it shadows; fix those by hand, then run this again.",
 			file=sys.stderr,
