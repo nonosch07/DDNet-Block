@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # --- BW BEGIN: Blockworlds only supports linux ---
+        # --- BLOCK BEGIN: Block only supports linux ---
         name: [ubuntu-latest-fancy]
         include:
         - name: ubuntu-latest-fancy
@@ -27,7 +27,7 @@ jobs:
           cmake-args: -G Ninja -DCLIENT=OFF
           cmake-init-env: CXXFLAGS=-Werror
           package-file: "*-linux_x86_64.tar.xz"
-        # --- BW END ---
+        # --- BLOCK END ---
 
     steps:
     - uses: actions/checkout@v4
@@ -40,7 +40,7 @@ jobs:
         sudo apt-get update -y
         # mount: /var/lib/grub/esp: special device /dev/disk/by-id/scsi-... does not exist.
         # sudo apt-get upgrade -y
-        # --- BW BEGIN: server side libs only ---
+        # --- BLOCK BEGIN: server side libs only ---
         packages=(
           # tidy-alphabetical-start
           libpng-dev
@@ -49,7 +49,7 @@ jobs:
           pkg-config
           # tidy-alphabetical-end
         )
-        # --- BW END ---
+        # --- BLOCK END ---
         sudo apt-get install -y "${packages[@]}"
 
     - name: Prepare Linux (fancy)

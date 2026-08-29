@@ -15,9 +15,9 @@
 #include <game/server/save.h>
 #include <game/server/teams.h>
 
-// --- BW BEGIN ---
-#include <blockworlds/bw_context.h>
-// --- BW END ---
+// --- BLOCK BEGIN ---
+#include <block/context.h>
+// --- BLOCK END ---
 
 void CGameContext::ConGoLeft(IConsole::IResult *pResult, void *pUserData)
 {
@@ -505,13 +505,13 @@ void CGameContext::ConKill(IConsole::IResult *pResult, void *pUserData)
 	if(!pPlayer || (pPlayer->m_LastKill && pPlayer->m_LastKill + pSelf->Server()->TickSpeed() * g_Config.m_SvKillDelay > pSelf->Server()->Tick()))
 		return;
 
-	// --- BW BEGIN: no killing your way out of an event ---
-	if(pSelf->Bw().BlocksSelfKill(pResult->m_ClientId))
+	// --- BLOCK BEGIN: no killing your way out of an event ---
+	if(pSelf->Block().BlocksSelfKill(pResult->m_ClientId))
 	{
-		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't /kill while participating in an event. Use /leave first.");
+		pSelf->Block().SendChatTarget(pResult->m_ClientId, "You can't /kill while participating in an event. Use /leave first.");
 		return;
 	}
-	// --- BW END ---
+	// --- BLOCK END ---
 
 	pPlayer->m_LastKill = pSelf->Server()->Tick();
 	pPlayer->KillCharacter(WEAPON_SELF);

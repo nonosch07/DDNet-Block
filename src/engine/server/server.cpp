@@ -50,14 +50,15 @@
 #include <chrono>
 #include <vector>
 
-// --- BW BEGIN ---
+// --- BLOCK BEGIN ---
 #include <game/server/gamecontext.h>
 
-#include <blockworlds/bw_context.h>
-#include <blockworlds/components/core/component_registry.h>
-#include <blockworlds/components/port_proxy/port_proxy.h>
-#include <blockworlds/discord/webhook.h>
-// --- BW END ---
+#include <block/components/core/component_registry.h>
+#include <block/components/port_proxy/port_proxy.h>
+#include <block/context.h>
+#include <block/discord/webhook.h>
+#include <block/sql/mysql_config.h>
+// --- BLOCK END ---
 
 using namespace std::chrono_literals;
 
@@ -178,15 +179,15 @@ void CServerBan::ConBanExt(IConsole::IResult *pResult, void *pUser)
 			pThis->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "net_ban", "ban error (invalid network address)");
 	}
 
-	// --- BW BEGIN: bans go to the Discord rcon log ---
+	// --- BLOCK BEGIN: bans go to the Discord rcon log ---
 	CDiscordWebhook::SendRconLog(pThis->Server()->Engine(), pThis->Server()->Http(),
 		"**%s** banned **%s** for %d minutes - Reason: %s",
-		pThis->Server()->BwExecutorName(pResult->m_ClientId), pStr, Minutes, pReason);
-	// --- BW END ---
+		pThis->Server()->BlockExecutorName(pResult->m_ClientId), pStr, Minutes, pReason);
+	// --- BLOCK END ---
 }
 
-// --- BW BEGIN ---
-const char *CServer::BwExecutorName(int ExecutorId) const
+// --- BLOCK BEGIN ---
+const char *CServer::BlockExecutorName(int ExecutorId) const
 {
 	if(ExecutorId < 0 || ExecutorId >= MAX_CLIENTS)
 		return "Console";
@@ -194,12 +195,12 @@ const char *CServer::BwExecutorName(int ExecutorId) const
 	return (pName && pName[0]) ? pName : "Console";
 }
 
-void CServerBan::BwOnUnban(int ExecutorId, const char *pWhat)
+void CServerBan::BlockOnUnban(int ExecutorId, const char *pWhat)
 {
 	CDiscordWebhook::SendRconLog(Server()->Engine(), Server()->Http(),
-		"**%s** unbanned **%s**", Server()->BwExecutorName(ExecutorId), pWhat);
+		"**%s** unbanned **%s**", Server()->BlockExecutorName(ExecutorId), pWhat);
 }
-// --- BW END ---
+// --- BLOCK END ---
 
 void CServerBan::ConBanRegion(IConsole::IResult *pResult, void *pUser)
 {
@@ -557,13 +558,13 @@ void CServer::Kick(int ClientId, const char *pReason)
 		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "kick command denied");
 		return;
 	}
-	// --- BW BEGIN: a shop NPC or AI bot is not a client to kick ---
+	// --- BLOCK BEGIN: a shop NPC or AI bot is not a client to kick ---
 	else if(m_aClients[ClientId].m_DebugDummy)
 	{
 		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "that client is a bot, not a player");
 		return;
 	}
-	// --- BW END ---
+	// --- BLOCK END ---
 
 	m_NetServer.Drop(ClientId, pReason);
 }
@@ -1234,10 +1235,10 @@ int CServer::NewClientNoAuthCallback(int ClientId, void *pUser)
 {
 	CServer *pThis = (CServer *)pUser;
 
-	// --- BW BEGIN: a component (VPN detection, port proxy) may refuse the join ---
-	if(pThis->BwComponentsRejectJoin(ClientId))
+	// --- BLOCK BEGIN: a component (VPN detection, port proxy) may refuse the join ---
+	if(pThis->BlockComponentsRejectJoin(ClientId))
 		return 0;
-	// --- BW END ---
+	// --- BLOCK END ---
 
 	pThis->m_aClients[ClientId].m_DnsblState = EDnsblState::NONE;
 
@@ -1273,10 +1274,10 @@ int CServer::NewClientCallback(int ClientId, void *pUser, bool Sixup)
 {
 	CServer *pThis = (CServer *)pUser;
 
-	// --- BW BEGIN ---
-	if(pThis->BwComponentsRejectJoin(ClientId))
+	// --- BLOCK BEGIN ---
+	if(pThis->BlockComponentsRejectJoin(ClientId))
 		return 0;
-	// --- BW END ---
+	// --- BLOCK END ---
 
 	pThis->m_aClients[ClientId].m_State = CClient::STATE_PREAUTH;
 	pThis->m_aClients[ClientId].m_DnsblState = EDnsblState::NONE;
@@ -1367,12 +1368,12 @@ int CServer::DelClientCallback(int ClientId, const char *pReason, void *pUser)
 	// notify the mod about the drop
 	if(pThis->m_aClients[ClientId].m_State >= CClient::STATE_READY)
 	{
-		// --- BW BEGIN: a redirected client left for another port, it did not quit ---
+		// --- BLOCK BEGIN: a redirected client left for another port, it did not quit ---
 		const char *pDropReason = pReason;
 		if(pThis->m_aClients[ClientId].m_State == CClient::STATE_REDIRECTED)
 			pDropReason = "changed server";
 		pThis->GameServer()->OnClientDrop(ClientId, pDropReason);
-		// --- BW END ---
+		// --- BLOCK END ---
 	}
 
 	pThis->m_aClients[ClientId].m_State = CClient::STATE_EMPTY;
@@ -1421,11 +1422,11 @@ void CServer::SendCapabilities(int ClientId)
 void CServer::SendMap(int ClientId)
 {
 	int MapType = IsSixup(ClientId) ? MAP_TYPE_SIXUP : MAP_TYPE_SIX;
-	// --- BW BEGIN: clients are told about the public map when there is one ---
-	const SHA256_DIGEST &MapSha256 = BwMapSha256(MapType);
-	const unsigned MapCrc = BwMapCrc(MapType);
-	const unsigned int MapSize = BwMapSize(MapType);
-	// --- BW END ---
+	// --- BLOCK BEGIN: clients are told about the public map when there is one ---
+	const SHA256_DIGEST &MapSha256 = BlockMapSha256(MapType);
+	const unsigned MapCrc = BlockMapCrc(MapType);
+	const unsigned int MapSize = BlockMapSize(MapType);
+	// --- BLOCK END ---
 	{
 		CMsgPacker Msg(NETMSG_MAP_DETAILS, true);
 		Msg.AddString(GameServer()->Map()->BaseName(), 0);
@@ -1466,10 +1467,10 @@ void CServer::SendMapData(int ClientId, int Chunk)
 	unsigned int Offset = Chunk * ChunkSize;
 	int Last = 0;
 
-	// --- BW BEGIN: serve the public map when there is one ---
-	const unsigned char *pMapData = BwMapData(MapType);
-	const unsigned int TotalMapSize = BwMapSize(MapType);
-	// --- BW END ---
+	// --- BLOCK BEGIN: serve the public map when there is one ---
+	const unsigned char *pMapData = BlockMapData(MapType);
+	const unsigned int TotalMapSize = BlockMapSize(MapType);
+	// --- BLOCK END ---
 
 	// drop faulty map data requests
 	if(Chunk < 0 || Offset > TotalMapSize)
@@ -1485,7 +1486,7 @@ void CServer::SendMapData(int ClientId, int Chunk)
 	if(MapType == MAP_TYPE_SIX)
 	{
 		Msg.AddInt(Last);
-		Msg.AddInt(BwMapCrc(MAP_TYPE_SIX));
+		Msg.AddInt(BlockMapCrc(MAP_TYPE_SIX));
 		Msg.AddInt(Chunk);
 		Msg.AddInt(ChunkSize);
 	}
@@ -1590,10 +1591,10 @@ void CServer::UpdateClientRconCommands(int ClientId)
 		return;
 	}
 
-	// --- BW BEGIN: sv_send_rcon_cmds_per_tick instead of the fixed batch ---
+	// --- BLOCK BEGIN: sv_send_rcon_cmds_per_tick instead of the fixed batch ---
 	const int PerClient = std::clamp(Config()->m_SvSendRconCmdsPerTick, 1, 256);
 	for(int i = 0; i < PerClient && Client.m_pRconCmdToSend; ++i)
-	// --- BW END ---
+	// --- BLOCK END ---
 	{
 		SendRconCmdAdd(Client.m_pRconCmdToSend, ClientId);
 		Client.m_pRconCmdToSend = Console()->NextCommandInfo(Client.m_pRconCmdToSend, ClientId, CFGFLAG_SERVER);
@@ -2190,15 +2191,15 @@ void CServer::OnNetMsgRconCmd(int ClientId, const char *pCmd)
 		if(GameServer()->PlayerExists(ClientId))
 		{
 			log_info("server", "ClientId=%d key='%s' rcon='%s'", ClientId, GetAuthName(ClientId), pCmd);
-			// --- BW BEGIN: every moderator command goes to the Discord rcon log ---
+			// --- BLOCK BEGIN: every moderator command goes to the Discord rcon log ---
 			// Admins are trusted and their commands are noisy; moderators are the
 			// ones the log exists to keep an eye on.
 			if(GetAuthedState(ClientId) == AUTHED_MOD)
 			{
 				CDiscordWebhook::SendRconLog(Engine(), Http(),
-					"**[MOD]** **%s** executed: `%s`", BwExecutorName(ClientId), pCmd);
+					"**[MOD]** **%s** executed: `%s`", BlockExecutorName(ClientId), pCmd);
 			}
-			// --- BW END ---
+			// --- BLOCK END ---
 			m_RconClientId = ClientId;
 			m_RconAuthLevel = GetAuthedState(ClientId);
 			{
@@ -2423,10 +2424,10 @@ void CServer::CacheServerInfo(CCache *pCache, int Type, bool SendClients)
 
 	if(Type == SERVERINFO_EXTENDED)
 	{
-		// --- BW BEGIN: advertise the map clients actually download ---
-		ADD_INT(p, BwMapCrc(MAP_TYPE_SIX));
-		ADD_INT(p, BwMapSize(MAP_TYPE_SIX));
-		// --- BW END ---
+		// --- BLOCK BEGIN: advertise the map clients actually download ---
+		ADD_INT(p, BlockMapCrc(MAP_TYPE_SIX));
+		ADD_INT(p, BlockMapSize(MAP_TYPE_SIX));
+		// --- BLOCK END ---
 	}
 
 	// gametype
@@ -2537,9 +2538,9 @@ void CServer::CacheServerInfo(CCache *pCache, int Type, bool SendClients)
 			int PreviousSize = q.Size();
 
 			q.AddString(ClientName(i), MAX_NAME_LENGTH); // client name
-			// --- BW BEGIN: the browser shows the Blockworlds clan ---
-			q.AddString(BwServerInfoClan(i), MAX_CLAN_LENGTH); // client clan
-			// --- BW END ---
+			// --- BLOCK BEGIN: the browser shows the Block clan ---
+			q.AddString(BlockServerInfoClan(i), MAX_CLAN_LENGTH); // client clan
+			// --- BLOCK END ---
 
 			ADD_INT(q, m_aClients[i].m_Country); // client country (ISO 3166-1 numeric)
 
@@ -2559,9 +2560,9 @@ void CServer::CacheServerInfo(CCache *pCache, int Type, bool SendClients)
 				Score = FinishTime::NOT_FINISHED_TIMESCORE;
 			}
 
-			// --- BW BEGIN: and the account level as the score ---
-			ADD_INT(q, BwServerInfoScore(i, Score)); // client score
-			// --- BW END ---
+			// --- BLOCK BEGIN: and the account level as the score ---
+			ADD_INT(q, BlockServerInfoScore(i, Score)); // client score
+			// --- BLOCK END ---
 			ADD_INT(q, GameServer()->IsClientPlayer(i) ? 1 : 0); // is player?
 			if(Type == SERVERINFO_EXTENDED)
 				q.AddString("", 0); // extra info, reserved
@@ -2654,11 +2655,11 @@ void CServer::CacheServerInfoSixup(CCache *pCache, bool SendClients, int MaxCons
 			if(m_aClients[i].IncludedInServerInfo())
 			{
 				Packer.AddString(ClientName(i), MAX_NAME_LENGTH); // client name
-				// --- BW BEGIN: the Blockworlds clan and the account level ---
-				Packer.AddString(BwServerInfoClan(i), MAX_CLAN_LENGTH); // client clan
+				// --- BLOCK BEGIN: the Block clan and the account level ---
+				Packer.AddString(BlockServerInfoClan(i), MAX_CLAN_LENGTH); // client clan
 				Packer.AddInt(m_aClients[i].m_Country); // client country (ISO 3166-1 numeric)
-				Packer.AddInt(BwServerInfoScore(i, m_aClients[i].m_Score.value_or(-1))); // client score
-				// --- BW END ---
+				Packer.AddInt(BlockServerInfoScore(i, m_aClients[i].m_Score.value_or(-1))); // client score
+				// --- BLOCK END ---
 				Packer.AddInt(GameServer()->IsClientPlayer(i) ? 0 : 1); // flag spectator=1, bot=2 (player=0)
 
 				const int MaxPacketSize = NET_MAX_CONNLESS_PAYLOAD - 128;
@@ -2799,9 +2800,9 @@ void CServer::UpdateRegisterServerInfo()
 	int MaxClients = std::max(m_NetServer.MaxClients() - g_Config.m_SvReservedSlots, ClientCount);
 	char aMapSha256[SHA256_MAXSTRSIZE];
 
-	// --- BW BEGIN ---
-	sha256_str(BwMapSha256(MAP_TYPE_SIX), aMapSha256, sizeof(aMapSha256));
-	// --- BW END ---
+	// --- BLOCK BEGIN ---
+	sha256_str(BlockMapSha256(MAP_TYPE_SIX), aMapSha256, sizeof(aMapSha256));
+	// --- BLOCK END ---
 
 	CJsonStringWriter JsonWriter;
 
@@ -2837,9 +2838,9 @@ void CServer::UpdateRegisterServerInfo()
 	JsonWriter.WriteAttribute("sha256");
 	JsonWriter.WriteStrValue(aMapSha256);
 	JsonWriter.WriteAttribute("size");
-	// --- BW BEGIN ---
-	JsonWriter.WriteIntValue(BwMapSize(MAP_TYPE_SIX));
-	// --- BW END ---
+	// --- BLOCK BEGIN ---
+	JsonWriter.WriteIntValue(BlockMapSize(MAP_TYPE_SIX));
+	// --- BLOCK END ---
 	if(m_aMapDownloadUrl[0])
 	{
 		JsonWriter.WriteAttribute("url");
@@ -3167,9 +3168,9 @@ int CServer::LoadMap(const char *pMapName)
 		m_apCurrentMapData[MAP_TYPE_SIXUP] = nullptr;
 	}
 
-	// --- BW BEGIN ---
-	BwLoadPubMap(pMapName);
-	// --- BW END ---
+	// --- BLOCK BEGIN ---
+	BlockLoadPubMap(pMapName);
+	// --- BLOCK END ---
 
 	for(int i = 0; i < MAX_CLIENTS; i++)
 		m_aPrevStates[i] = m_aClients[i].m_State;
@@ -3177,8 +3178,8 @@ int CServer::LoadMap(const char *pMapName)
 	return 1;
 }
 
-// --- BW BEGIN: the public map ---
-void CServer::BwLoadPubMap(const char *pMapName)
+// --- BLOCK BEGIN: the public map ---
+void CServer::BlockLoadPubMap(const char *pMapName)
 {
 	const auto Clear = [&](int MapType) {
 		free(m_apBwPubMapData[MapType]);
@@ -3193,13 +3194,13 @@ void CServer::BwLoadPubMap(const char *pMapName)
 	if(!Storage()->ReadFile(aPath, IStorage::TYPE_ALL, &pData, &Size))
 	{
 		// no public variant: clients get the real map, as upstream does
-		m_BwHasPubMap = false;
+		m_BlockHasPubMap = false;
 		Clear(MAP_TYPE_SIX);
 		Clear(MAP_TYPE_SIXUP);
 		return;
 	}
 
-	m_BwHasPubMap = true;
+	m_BlockHasPubMap = true;
 	free(m_apBwPubMapData[MAP_TYPE_SIX]);
 	m_apBwPubMapData[MAP_TYPE_SIX] = (unsigned char *)pData;
 	m_aBwPubMapSize[MAP_TYPE_SIX] = Size;
@@ -3228,19 +3229,19 @@ void CServer::BwLoadPubMap(const char *pMapName)
 	}
 }
 
-const char *CServer::BwServerInfoClan(int ClientId)
+const char *CServer::BlockServerInfoClan(int ClientId)
 {
 	CGameContext *pContext = dynamic_cast<CGameContext *>(GameServer());
-	return pContext ? pContext->Bw().ServerInfoClan(ClientId) : ClientClan(ClientId);
+	return pContext ? pContext->Block().ServerInfoClan(ClientId) : ClientClan(ClientId);
 }
 
-int CServer::BwServerInfoScore(int ClientId, int Fallback)
+int CServer::BlockServerInfoScore(int ClientId, int Fallback)
 {
 	CGameContext *pContext = dynamic_cast<CGameContext *>(GameServer());
-	return pContext ? pContext->Bw().ServerInfoScore(ClientId) : Fallback;
+	return pContext ? pContext->Block().ServerInfoScore(ClientId) : Fallback;
 }
 
-bool CServer::BwComponentsRejectJoin(int ClientId)
+bool CServer::BlockComponentsRejectJoin(int ClientId)
 {
 	bool Reject = false;
 	for(const auto &Component : g_ComponentRegistry.Active())
@@ -3248,19 +3249,19 @@ bool CServer::BwComponentsRejectJoin(int ClientId)
 	return Reject;
 }
 
-void CServer::BwPreShutdownFlush(const char *pWhen)
+void CServer::BlockPreShutdownFlush(const char *pWhen)
 {
 	CGameContext *pContext = dynamic_cast<CGameContext *>(GameServer());
 	if(!pContext)
 		return;
 	const int64_t Start = time_get();
-	pContext->Bw().PreShutdownFlush();
+	pContext->Block().PreShutdownFlush();
 	const int64_t ElapsedMs = (time_get() - Start) * 1000 / time_freq();
 	char aBuf[128];
 	str_format(aBuf, sizeof(aBuf), "shutdown %s flush completed in %d ms", pWhen, (int)ElapsedMs);
 	Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "shutdown", aBuf);
 }
-// --- BW END ---
+// --- BLOCK END ---
 
 void CServer::UpdateDebugDummies(bool ForceDisconnect)
 {
@@ -3603,7 +3604,7 @@ int CServer::Run()
 			{
 				DoSnapshot();
 
-				// --- BW BEGIN: Blockworlds registers a lot of chat commands, and one
+				// --- BLOCK BEGIN: Block registers a lot of chat commands, and one
 				// client per tick makes the rcon list take minutes to arrive ---
 				const int ClientsPerTick = std::clamp(Config()->m_SvSendRconCmdsClientsPerTick, 1, (int)MAX_CLIENTS);
 				for(int n = 0; n < ClientsPerTick; ++n)
@@ -3612,7 +3613,7 @@ int CServer::Run()
 					UpdateClientRconCommands(CommandSendingClientId);
 					UpdateClientMaplistEntries(CommandSendingClientId);
 				}
-				// --- BW END ---
+				// --- BLOCK END ---
 
 				m_Fifo.Update();
 
@@ -3739,9 +3740,9 @@ int CServer::Run()
 			if(IsInterrupted())
 			{
 				Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", "interrupted");
-				// --- BW BEGIN: get the accounts written while the players are still here ---
-				BwPreShutdownFlush("interrupt");
-				// --- BW END ---
+				// --- BLOCK BEGIN: get the accounts written while the players are still here ---
+				BlockPreShutdownFlush("interrupt");
+				// --- BLOCK END ---
 				break;
 			}
 		}
@@ -3755,9 +3756,9 @@ int CServer::Run()
 		log_info("server", "shutdown from game server (%s)", m_aErrorShutdownReason);
 		pDisconnectReason = m_aErrorShutdownReason;
 	}
-	// --- BW BEGIN: queue every account and clan write before the players go ---
-	BwPreShutdownFlush("pre-drop");
-	// --- BW END ---
+	// --- BLOCK BEGIN: queue every account and clan write before the players go ---
+	BlockPreShutdownFlush("pre-drop");
+	// --- BLOCK END ---
 
 	// disconnect all clients on shutdown
 	for(int i = 0; i < MAX_CLIENTS; ++i)
@@ -3789,10 +3790,10 @@ void CServer::ConKick(IConsole::IResult *pResult, void *pUser)
 	CServer *pSelf = (CServer *)pUser;
 	const char *pReason = pResult->NumArguments() > 1 ? pResult->GetString(1) : "Kicked by console";
 
-	// --- BW BEGIN: the name is gone once the client is dropped ---
+	// --- BLOCK BEGIN: the name is gone once the client is dropped ---
 	char aKickedName[64];
-	str_copy(aKickedName, pSelf->BwExecutorName(pResult->GetVictim()), sizeof(aKickedName));
-	// --- BW END ---
+	str_copy(aKickedName, pSelf->BlockExecutorName(pResult->GetVictim()), sizeof(aKickedName));
+	// --- BLOCK END ---
 
 	if(pResult->NumArguments() > 1)
 	{
@@ -3805,11 +3806,11 @@ void CServer::ConKick(IConsole::IResult *pResult, void *pUser)
 		pSelf->Kick(pResult->GetVictim(), "Kicked by console");
 	}
 
-	// --- BW BEGIN ---
+	// --- BLOCK BEGIN ---
 	CDiscordWebhook::SendRconLog(pSelf->Engine(), pSelf->Http(),
 		"**[KICK]** **%s** kicked **%s** - Reason: %s",
-		pSelf->BwExecutorName(pResult->m_ClientId), aKickedName, pReason);
-	// --- BW END ---
+		pSelf->BlockExecutorName(pResult->m_ClientId), aKickedName, pReason);
+	// --- BLOCK END ---
 }
 
 void CServer::ConStatus(IConsole::IResult *pResult, void *pUser)
@@ -3863,7 +3864,7 @@ void CServer::ConStatus(IConsole::IResult *pResult, void *pUser)
 			{
 				pClientPrefix = "0.7:";
 			}
-			// --- BW BEGIN: an admin's address is not shown to lesser ranks, and
+			// --- BLOCK BEGIN: an admin's address is not shown to lesser ranks, and
 			// the proxied port is worth seeing when the port proxy is running ---
 			const int RequesterAuth = (pResult->m_ClientId >= 0 && pResult->m_ClientId < MAX_CLIENTS) ?
 							  pThis->GetAuthedState(pResult->m_ClientId) :
@@ -3882,7 +3883,7 @@ void CServer::ConStatus(IConsole::IResult *pResult, void *pUser)
 			str_format(aBuf, sizeof(aBuf), "id=%d addr=<{%s}>%s name='%s' client=%s%d secure=%s flags=%d%s%s",
 				i, aAddrStr, aPortStr, pThis->m_aClients[i].m_aName, pClientPrefix, pThis->m_aClients[i].m_DDNetVersion,
 				pThis->m_NetServer.HasSecurityToken(i) ? "yes" : "no", pThis->m_aClients[i].m_Flags, aDnsblStr, aAuthStr);
-			// --- BW END ---
+			// --- BLOCK END ---
 		}
 		else
 		{
@@ -4415,6 +4416,10 @@ void CServer::ConAddSqlServer(IConsole::IResult *pResult, void *pUserData)
 		Write ? "Write" : "Read",
 		Config.m_aDatabase, Config.m_aPrefix, Config.m_aUser, Config.m_aIp, Config.m_Port);
 	pSelf->DbPool()->RegisterMysqlDatabase(Write ? CDbConnectionPool::WRITE : CDbConnectionPool::READ, &Config);
+	// --- BLOCK BEGIN: whois keeps its own connection, so it needs the credentials ---
+	if(Write)
+		RememberMysqlWriteConfig(Config);
+	// --- BLOCK END ---
 }
 
 void CServer::ConDumpSqlServers(IConsole::IResult *pResult, void *pUserData)
@@ -4460,7 +4465,7 @@ void CServer::ConchainSpecialInfoupdate(IConsole::IResult *pResult, void *pUserD
 	}
 }
 
-// --- BW BEGIN: per-IP whitelist, persisted next to the other server data ---
+// --- BLOCK BEGIN: per-IP whitelist, persisted next to the other server data ---
 static const char *IP_WHITELIST_FILE = "ip_whitelist.txt";
 
 void CServer::ConIpWhitelistAdd(IConsole::IResult *pResult, void *pUserData)
@@ -4543,7 +4548,7 @@ void CServer::LoadIpWhitelist()
 		Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
 	}
 }
-// --- BW END ---
+// --- BLOCK END ---
 
 void CServer::ConchainMaxclientsperipUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData)
 {
@@ -4841,12 +4846,12 @@ void CServer::RegisterCommands()
 
 	Console()->Chain("sv_max_clients_per_ip", ConchainMaxclientsperipUpdate, this);
 
-	// --- BW BEGIN ---
+	// --- BLOCK BEGIN ---
 	Console()->Register("ip_whitelist_add", "s[ip]", CFGFLAG_SERVER, ConIpWhitelistAdd, this, "Exempt an IP from sv_max_clients_per_ip");
 	Console()->Register("ip_whitelist_remove", "s[ip]", CFGFLAG_SERVER, ConIpWhitelistRemove, this, "Remove an IP from the per-IP whitelist");
 	Console()->Register("ip_whitelist_list", "", CFGFLAG_SERVER, ConIpWhitelistList, this, "List the per-IP whitelist");
 	LoadIpWhitelist();
-	// --- BW END ---
+	// --- BLOCK END ---
 	Console()->Chain("access_level", ConchainCommandAccessUpdate, this);
 
 	Console()->Chain("sv_rcon_password", ConchainRconPasswordChange, this);

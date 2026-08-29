@@ -119,11 +119,11 @@ public:
 
 	virtual void Register(const char *pName, const char *pParams, int Flags, FCommandCallback pfnFunc, void *pUser, const char *pHelp) = 0;
 	virtual void RegisterTemp(const char *pName, const char *pParams, int Flags, const char *pHelp) = 0;
-	// --- BW BEGIN: needed by the Blockworlds component_plug/unplug commands,
+	// --- BLOCK BEGIN: needed by the Block component_plug/unplug commands,
 	// which add and remove console commands at runtime ---
 	virtual void Deregister(const char *pName) = 0;
 	virtual void UnChain(const char *pName, FChainCommandCallback pfnChainFunc) = 0;
-	// --- BW END ---
+	// --- BLOCK END ---
 	virtual void DeregisterTemp(const char *pName) = 0;
 	virtual void DeregisterTempAll() = 0;
 	virtual void Chain(const char *pName, FChainCommandCallback pfnChainFunc, void *pUser) = 0;

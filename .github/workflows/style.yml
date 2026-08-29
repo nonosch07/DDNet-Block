@@ -162,7 +162,7 @@ jobs:
 
     - name: Check maps
       run: |
-        # --- BW BEGIN: don't flag bw maps ---
+        # --- BLOCK BEGIN: don't flag block maps ---
         findings=$(find data -type f -name '*.map' ! -wholename 'data/maps/coverage.map' -print0 | xargs -0 ~/.cargo/bin/twmap-check-ddnet 2>&1 | \
           grep -v -E "\"data/maps/(ctf|dm).*\.map\": Time cps are missing on the map" | \
           grep -v -E "\"data/themes/.*\.map\": Time cps are missing on the map" | \

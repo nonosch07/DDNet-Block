@@ -7,7 +7,7 @@ anywhere fails the build. This reproduces that build locally and can auto-apply
 every fix clang-tidy knows how to make.
 
 	scripts/fix_clang_tidy.py --check      # report only, like CI
-	scripts/fix_clang_tidy.py              # apply fixes to src/blockworlds
+	scripts/fix_clang_tidy.py              # apply fixes to src/block
 	scripts/fix_clang_tidy.py 'src/game/.*'
 
 Read the warning under --help before trusting the output: clang-tidy's renames
@@ -39,7 +39,7 @@ CMAKE_ARGS = [
 	"-DWEBSOCKETS=ON",
 ]
 
-DEFAULT_FILTER = "src/blockworlds/.*"
+DEFAULT_FILTER = "src/block/.*"
 
 
 def find_binary(name):
@@ -77,10 +77,7 @@ def configure_and_build(build_dir):
 			*CMAKE_ARGS,
 		]
 		if subprocess.run(cmd, check=False).returncode != 0:
-			print(
-				"\ncmake failed. If it complained that 'DATA does not contain every file\nfrom directory data', delete the map the integration tests generate:\n    rm -f data/maps/bw_zones.map",
-				file=sys.stderr,
-			)
+			print("\ncmake failed.", file=sys.stderr)
 			return False
 
 	print("building once so the generated sources exist ...")

@@ -31,12 +31,12 @@ class CGameTeams
 
 	ETeamState m_aTeamState[NUM_DDRACE_TEAMS];
 
-	// --- BW BEGIN: Blockworlds team state ---
+	// --- BLOCK BEGIN: Block team state ---
 	// Teams reserved by an event (TDM, 1on1, LMB) must not be killed as a unit,
 	// and events close their team to /invite while they run.
 	bool m_aTeamInvitesOpen[NUM_DDRACE_TEAMS] = {};
 	bool m_aTeamEvent[NUM_DDRACE_TEAMS] = {};
-	// --- BW END ---
+	// --- BLOCK END ---
 	bool m_aTeamLocked[NUM_DDRACE_TEAMS];
 	bool m_aTeamFlock[NUM_DDRACE_TEAMS];
 	CClientMask m_aInvited[NUM_DDRACE_TEAMS];
@@ -102,12 +102,12 @@ public:
 	void CheckTeamFinished(int Team);
 
 	void ChangeTeamState(int Team, ETeamState State);
-	// --- BW BEGIN ---
+	// --- BLOCK BEGIN ---
 	void SetTeamInvitesOpen(int Team, bool Open);
 	bool AreTeamInvitesOpen(int Team) const;
 	void SetTeamEvent(int Team, bool IsEvent);
 	bool IsTeamEvent(int Team) const;
-	// --- BW END ---
+	// --- BLOCK END ---
 
 	CClientMask TeamMask(int Team, int ExceptId = -1, int Asker = -1, int VersionFlags = CGameContext::FLAG_SIX | CGameContext::FLAG_SIXUP);
 
@@ -124,10 +124,10 @@ public:
 	void SetTeamLock(int Team, bool Lock);
 	void SetTeamFlock(int Team, bool Mode);
 	void ResetInvited(int Team);
-	// --- BW BEGIN: a team reserved for an event refuses invites, so this reports
+	// --- BLOCK BEGIN: a team reserved for an event refuses invites, so this reports
 	// whether the invite was actually made ---
 	bool SetClientInvited(int Team, int ClientId, bool Invited);
-	// --- BW END ---
+	// --- BLOCK END ---
 
 	ERaceState GetDDRaceState(const CPlayer *Player) const;
 	int GetStartTime(CPlayer *Player);

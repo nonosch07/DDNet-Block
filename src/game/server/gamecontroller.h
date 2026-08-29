@@ -127,9 +127,9 @@ public:
 
 	virtual void OnPlayerConnect(class CPlayer *pPlayer);
 	virtual void OnPlayerDisconnect(class CPlayer *pPlayer, const char *pReason);
-	// --- BW BEGIN: the leave broadcast is its own hook so gamemodes can replace it ---
+	// --- BLOCK BEGIN: the leave broadcast is its own hook so gamemodes can replace it ---
 	virtual void SendLeaveMessage(class CPlayer *pPlayer, const char *pReason);
-	// --- BW END ---
+	// --- BLOCK END ---
 
 	virtual void OnReset();
 
@@ -148,10 +148,10 @@ public:
 	virtual void Tick();
 
 	virtual void Snap(int SnappingClient);
-	// --- BW BEGIN: hooks so a gamemode can adjust the snapped game info ---
+	// --- BLOCK BEGIN: hooks so a gamemode can adjust the snapped game info ---
 	virtual void OnSnapGameInfo(int SnappingClient, CNetObj_GameInfo *pGameInfo) {}
 	virtual void OnSnapGameInfoEx(int SnappingClient, CNetObj_GameInfoEx *pGameInfoEx) {}
-	// --- BW END ---
+	// --- BLOCK END ---
 
 	/**
 	 * Sets the score value that will be shown in the scoreboard.

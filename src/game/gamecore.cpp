@@ -169,10 +169,10 @@ void CCharacterCore::Reset()
 	m_Solo = false;
 	m_Jetpack = false;
 	m_CollisionDisabled = false;
-	// --- BW BEGIN ---
+	// --- BLOCK BEGIN ---
 	m_Protected = false;
 	m_Passive = false;
-	// --- BW END ---
+	// --- BLOCK END ---
 	m_EndlessHook = false;
 	m_EndlessJump = false;
 	m_HammerHitDisabled = false;
@@ -359,10 +359,10 @@ void CCharacterCore::Tick(bool UseInput, bool DoDeferredTick)
 			for(int i = 0; i < MAX_CLIENTS; i++)
 			{
 				CCharacterCore *pCharCore = m_pWorld->m_apCharacters[i];
-				// --- BW BEGIN ---
-				if(BwNoContact() || (pCharCore && pCharCore->BwNoContact()))
+				// --- BLOCK BEGIN ---
+				if(BlockNoContact() || (pCharCore && pCharCore->BlockNoContact()))
 					continue;
-				// --- BW END ---
+				// --- BLOCK END ---
 				if(!pCharCore || pCharCore == this || (!(m_Super || pCharCore->m_Super) && ((m_Id != -1 && !m_pTeams->CanCollide(i, m_Id)) || pCharCore->m_Solo || m_Solo)))
 					continue;
 
@@ -492,10 +492,10 @@ void CCharacterCore::TickDeferred()
 			{
 				vec2 Dir = normalize(m_Pos - pCharCore->m_Pos);
 
-				// --- BW BEGIN ---
-				if(BwNoContact() || pCharCore->BwNoContact())
+				// --- BLOCK BEGIN ---
+				if(BlockNoContact() || pCharCore->BlockNoContact())
 					continue;
-				// --- BW END ---
+				// --- BLOCK END ---
 				bool CanCollide = (m_Super || pCharCore->m_Super) || (!m_CollisionDisabled && !pCharCore->m_CollisionDisabled && m_Tuning.m_PlayerCollision);
 
 				if(CanCollide && Distance < PhysicalSize() * 1.25f)
@@ -515,7 +515,7 @@ void CCharacterCore::TickDeferred()
 				}
 
 				// handle hook influence
-				if(!m_HookHitDisabled && m_HookedPlayer == i && m_Tuning.m_PlayerHooking && !BwNoContact() && !pCharCore->BwNoContact())
+				if(!m_HookHitDisabled && m_HookedPlayer == i && m_Tuning.m_PlayerHooking && !BlockNoContact() && !pCharCore->BlockNoContact())
 				{
 					if(Distance > PhysicalSize() * 1.50f)
 					{
@@ -581,9 +581,9 @@ void CCharacterCore::Move()
 
 	m_Vel.x = m_Vel.x * (1.0f / RampValue);
 
-	// --- BW BEGIN: passive and protected tees neither push nor are pushed ---
-	if(m_pWorld && !BwNoContact() && (m_Super || (m_Tuning.m_PlayerCollision && !m_CollisionDisabled && !m_Solo)))
-	// --- BW END ---
+	// --- BLOCK BEGIN: passive and protected tees neither push nor are pushed ---
+	if(m_pWorld && !BlockNoContact() && (m_Super || (m_Tuning.m_PlayerCollision && !m_CollisionDisabled && !m_Solo)))
+	// --- BLOCK END ---
 	{
 		// check player collision
 		float Distance = distance(m_Pos, NewPos);
@@ -600,10 +600,10 @@ void CCharacterCore::Move()
 					CCharacterCore *pCharCore = m_pWorld->m_apCharacters[p];
 					if(!pCharCore || pCharCore == this)
 						continue;
-					// --- BW BEGIN ---
-					if(pCharCore->BwNoContact())
+					// --- BLOCK BEGIN ---
+					if(pCharCore->BlockNoContact())
 						continue;
-					// --- BW END ---
+					// --- BLOCK END ---
 					if((!(pCharCore->m_Super || m_Super) && (m_Solo || pCharCore->m_Solo || pCharCore->m_CollisionDisabled || (m_Id != -1 && !m_pTeams->CanCollide(m_Id, p)))))
 						continue;
 					float D = distance(Pos, pCharCore->m_Pos);

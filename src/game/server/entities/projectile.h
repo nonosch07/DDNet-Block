@@ -23,9 +23,9 @@ public:
 		int Number = 0);
 
 	vec2 GetPos(float Time);
-	// --- BW BEGIN: the moving-effect zone needs the projectile age ---
+	// --- BLOCK BEGIN: the moving-effect zone needs the projectile age ---
 	int StartTick() const { return m_StartTick; }
-	// --- BW END ---
+	// --- BLOCK END ---
 
 	CNetObj_Projectile NetInfoVanilla() const;
 	bool NetIsInfoLegacyCompatible() const;

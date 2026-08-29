@@ -11,9 +11,9 @@ fi
 sleep 2
 
 if [ -n "${DEBUG+x}" ]; then
-	echo "Starting blockworlds in debug mode..."
-	gdb -ex run -ex bt --batch --args ./blockworlds_d -f autoexec_server.cfg
+	echo "Starting block in debug mode..."
+	gdb -ex run -ex bt --batch --args ./block_d -f autoexec_server.cfg
 else
-	echo "Starting blockworlds in release mode..."
-	./blockworlds -f autoexec_server.cfg
+	echo "Starting block in release mode..."
+	./block -f autoexec_server.cfg
 fi

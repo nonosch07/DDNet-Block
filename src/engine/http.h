@@ -78,10 +78,10 @@ public:
 	void Head();
 	void Post(const unsigned char *pData, size_t DataLength);
 	void PostJson(const char *pJson);
-	// --- BW BEGIN: PUT support (used by the Agones integration) ---
+	// --- BLOCK BEGIN: PUT support (used by the Agones integration) ---
 	void Put(const unsigned char *pData, size_t DataLength);
 	void PutJson(const char *pJson);
-	// --- BW END ---
+	// --- BLOCK END ---
 
 	virtual void Header(const char *pNameColonValue) = 0;
 	void HeaderString(const char *pName, const char *pValue);
@@ -131,12 +131,12 @@ public:
 	int StatusCode() const;
 	std::optional<int64_t> ResultAgeSeconds() const;
 	std::optional<int64_t> ResultLastModified() const;
-	// --- BW BEGIN: opt-in raw response headers ---
+	// --- BLOCK BEGIN: opt-in raw response headers ---
 	// Off by default: only a caller that needs to read a header the engine does
-	// not already parse (rate-limit backoff, in BW's case) pays for it.
+	// not already parse (rate-limit backoff, in Block's case) pays for it.
 	void CaptureResponseHeaders(bool Capture) { m_CaptureResponseHeaders = Capture; }
 	const std::string &ResponseHeaders() const { return m_ResponseHeaders; }
-	// --- BW END ---
+	// --- BLOCK END ---
 
 protected:
 	static const char *const USER_AGENT_STRING;
@@ -146,10 +146,10 @@ protected:
 		HEAD,
 		POST,
 		POST_JSON,
-		// --- BW BEGIN ---
+		// --- BLOCK BEGIN ---
 		PUT,
 		PUT_JSON,
-		// --- BW END ---
+		// --- BLOCK END ---
 	};
 	static const char *GetRequestType(REQUEST Type);
 
@@ -177,10 +177,10 @@ protected:
 	int m_StatusCode = 0;
 	std::optional<int64_t> m_ResultDate = std::nullopt;
 	std::optional<int64_t> m_ResultLastModified = std::nullopt;
-	// --- BW BEGIN ---
+	// --- BLOCK BEGIN ---
 	bool m_CaptureResponseHeaders = false;
 	std::string m_ResponseHeaders;
-	// --- BW END ---
+	// --- BLOCK END ---
 
 	bool m_WriteToMemory = true;
 	bool m_WriteToFile = false;
@@ -291,7 +291,7 @@ public:
 
 IEngineHttp *CreateEngineHttp();
 
-// --- BW BEGIN: PUT helpers, mirroring HttpPost/HttpPostJson ---
+// --- BLOCK BEGIN: PUT helpers, mirroring HttpPost/HttpPostJson ---
 inline std::unique_ptr<IHttpRequest> HttpPut(const char *pUrl, const unsigned char *pData, size_t DataLength)
 {
 	std::unique_ptr<IHttpRequest> pResult = CreateHttpRequest(pUrl);
@@ -307,6 +307,6 @@ inline std::unique_ptr<IHttpRequest> HttpPutJson(const char *pUrl, const char *p
 	pResult->Timeout(CTimeout{4000, 15000, 500, 5});
 	return pResult;
 }
-// --- BW END ---
+// --- BLOCK END ---
 
 #endif

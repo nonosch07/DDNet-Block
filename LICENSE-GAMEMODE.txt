@@ -8,8 +8,8 @@ This work is a modification of Teeworlds/DDRace/DDNet, originally
 distributed under the zlib license reproduced in full at the end of
 this file. That license permits modification and redistribution
 under additional terms, provided the original notice is preserved.
-The following ADDITIONAL TERMS apply to this repository (Blockworlds)
-as a whole, including all code contributed by nouaa and contributors,
+The following ADDITIONAL TERMS apply to this repository (nonosch07/DDNet-Block)
+as a whole, including all code contributed by Nouaa and contributors,
 and take precedence over the zlib license below wherever the two
 conflict.
 

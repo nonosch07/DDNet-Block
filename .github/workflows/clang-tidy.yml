@@ -25,7 +25,7 @@ jobs:
     - name: Prepare Linux
       run: |
         sudo apt-get update -y
-        # --- BW BEGIN: server-only ---
+        # --- BLOCK BEGIN: server-only ---
         sudo apt-get install \
           cmake \
           libmariadb-dev \
@@ -35,7 +35,7 @@ jobs:
           ninja-build \
           pkg-config \
           -y
-        # --- BW END ---
+        # --- BLOCK END ---
 
     - name: Cache Rust dependencies
       uses: Swatinem/rust-cache@v2

@@ -2,10 +2,10 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "character.h"
 
-// --- BW BEGIN ---
-#include <blockworlds/bw_context.h>
-#include <blockworlds/bw_player.h>
-// --- BW END ---
+// --- BLOCK BEGIN ---
+#include <block/context.h>
+#include <block/player.h>
+// --- BLOCK END ---
 
 #include "laser.h"
 #include "pickup.h"
@@ -36,9 +36,9 @@ MACRO_ALLOC_POOL_ID_IMPL(CCharacter, MAX_CLIENTS)
 CCharacter::CCharacter(CGameWorld *pWorld, CNetObj_PlayerInput LastInput) :
 	CEntity(pWorld, CGameWorld::ENTTYPE_CHARACTER, false, vec2(0, 0), CCharacterCore::PhysicalSize())
 {
-	// --- BW BEGIN ---
-	m_Bw.Init(this);
-	// --- BW END ---
+	// --- BLOCK BEGIN ---
+	m_Block.Init(this);
+	// --- BLOCK END ---
 	m_Health = 0;
 	m_Armor = 0;
 	m_TriggeredEvents7 = 0;
@@ -70,9 +70,9 @@ CCharacter::~CCharacter()
 
 void CCharacter::Reset()
 {
-	// --- BW BEGIN ---
-	m_Bw.Reset();
-	// --- BW END ---
+	// --- BLOCK BEGIN ---
+	m_Block.Reset();
+	// --- BLOCK END ---
 	StopRecording();
 	Destroy();
 }
@@ -156,9 +156,9 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 
 void CCharacter::Destroy()
 {
-	// --- BW BEGIN ---
-	Bw().OnDestroy();
-	// --- BW END ---
+	// --- BLOCK BEGIN ---
+	Block().OnDestroy();
+	// --- BLOCK END ---
 	GameServer()->m_World.m_Core.m_apCharacters[m_pPlayer->GetCid()] = nullptr;
 	m_Alive = false;
 	SetSolo(false);
@@ -177,9 +177,9 @@ void CCharacter::SetWeapon(int W)
 	if(m_Core.m_ActiveWeapon < 0 || m_Core.m_ActiveWeapon >= NUM_WEAPONS)
 		m_Core.m_ActiveWeapon = 0;
 
-	// --- BW BEGIN: switching weapons restarts the ammo regen timer ---
+	// --- BLOCK BEGIN: switching weapons restarts the ammo regen timer ---
 	m_Core.m_aWeapons[m_Core.m_ActiveWeapon].m_AmmoRegenStart = -1;
-	// --- BW END ---
+	// --- BLOCK END ---
 }
 
 void CCharacter::SetJetpack(bool Active)
@@ -506,10 +506,10 @@ void CCharacter::FireWeapon()
 	if(FullAuto && (m_LatestInput.m_Fire & 1) && m_Core.m_ActiveWeapon >= 0 && m_Core.m_aWeapons[m_Core.m_ActiveWeapon].m_Ammo)
 		WillFire = true;
 
-	// --- BW BEGIN: no instant hammer on the tick you leave freeze ---
-	if(Bw().BlocksFire(m_FrozenLastTick))
+	// --- BLOCK BEGIN: no instant hammer on the tick you leave freeze ---
+	if(Block().BlocksFire(m_FrozenLastTick))
 		WillFire = false;
-	// --- BW END ---
+	// --- BLOCK END ---
 
 	if(!WillFire)
 		return;
@@ -528,10 +528,10 @@ void CCharacter::FireWeapon()
 	// check for ammo
 	if(m_Core.m_ActiveWeapon < 0 || !m_Core.m_aWeapons[m_Core.m_ActiveWeapon].m_Ammo)
 	{
-		// --- BW BEGIN: rate-limit clicking an empty weapon ---
+		// --- BLOCK BEGIN: rate-limit clicking an empty weapon ---
 		// 125ms is roughly as fast as a human can click.
 		m_ReloadTimer = 125 * Server()->TickSpeed() / 1000;
-		// --- BW END ---
+		// --- BLOCK END ---
 		return;
 	}
 
@@ -560,13 +560,13 @@ void CCharacter::FireWeapon()
 			if((pTarget == this || (pTarget->IsAlive() && !CanCollide(pTarget->GetPlayer()->GetCid()))))
 				continue;
 
-			// --- BW BEGIN: banhammer, block credit, and passive targets ---
-			if(!Bw().OnHammerHit(pTarget))
+			// --- BLOCK BEGIN: banhammer, block credit, and passive targets ---
+			if(!Block().OnHammerHit(pTarget))
 			{
 				Hits++;
 				continue;
 			}
-			// --- BW END ---
+			// --- BLOCK END ---
 
 			// set their velocity to fast upward (for now)
 			if(length(pTarget->m_Pos - ProjStartPos) > 0.0f)
@@ -587,9 +587,9 @@ void CCharacter::FireWeapon()
 			Temp -= pTarget->m_Core.m_Vel;
 			pTarget->TakeDamage((vec2(0.f, -1.0f) + Temp) * Strength, g_pData->m_Weapons.m_Hammer.m_pBase->m_Damage,
 				m_pPlayer->GetCid(), m_Core.m_ActiveWeapon);
-			// --- BW BEGIN: a BombTag hammer passes the bomb, it does not free the tee ---
-			if(Bw().HammerUnfreezes())
-				// --- BW END ---
+			// --- BLOCK BEGIN: a BombTag hammer passes the bomb, it does not free the tee ---
+			if(Block().HammerUnfreezes())
+				// --- BLOCK END ---
 				pTarget->Unfreeze();
 
 			Antibot()->OnHammerHit(m_pPlayer->GetCid(), pTarget->GetPlayer()->GetCid());
@@ -713,9 +713,9 @@ void CCharacter::HandleWeapons()
 	// fire Weapon, if wanted
 	FireWeapon();
 
-	// --- BW BEGIN: zCatch-grenade regenerates grenade ammo ---
-	Bw().HandleGrenadeAmmoRegen();
-	// --- BW END ---
+	// --- BLOCK BEGIN: zCatch-grenade regenerates grenade ammo ---
+	Block().HandleGrenadeAmmoRegen();
+	// --- BLOCK END ---
 }
 
 void CCharacter::GiveNinja()
@@ -755,9 +755,9 @@ int CCharacter::DetermineEyeEmote()
 	const bool IsFrozen = m_Core.m_DeepFrozen || m_FreezeTime > 0 || m_Core.m_LiveFrozen;
 	const bool HasNinjajetpack = m_pPlayer->m_NinjaJetpack && m_Core.m_Jetpack && m_Core.m_ActiveWeapon == WEAPON_GUN;
 
-	// --- BW BEGIN: an NPC stands still on purpose and must not look afk ---
-	if((GetPlayer()->IsAfk() || GetPlayer()->IsPaused()) && !GetPlayer()->Bw().m_IsNpc)
-		// --- BW END ---
+	// --- BLOCK BEGIN: an NPC stands still on purpose and must not look afk ---
+	if((GetPlayer()->IsAfk() || GetPlayer()->IsPaused()) && !GetPlayer()->Block().m_IsNpc)
+		// --- BLOCK END ---
 		return (m_Core.m_DeepFrozen || m_FreezeTime > 0) ? EMOTE_NORMAL : EMOTE_BLINK;
 	if(m_EmoteType != EMOTE_NORMAL) // user manually set an eye emote using /emote
 		return m_EmoteType;
@@ -810,9 +810,9 @@ void CCharacter::OnDirectInput(const CNetObj_PlayerInput *pNewInput)
 
 void CCharacter::ReleaseHook()
 {
-	// --- BW BEGIN: letting go also drops the hook rainbow ---
-	Bw().OnReleaseHook();
-	// --- BW END ---
+	// --- BLOCK BEGIN: letting go also drops the hook rainbow ---
+	Block().OnReleaseHook();
+	// --- BLOCK END ---
 	m_Core.SetHookedPlayer(-1);
 	m_Core.m_HookState = HOOK_RETRACTED;
 	m_Core.m_TriggeredEvents |= COREEVENT_HOOK_RETRACT;
@@ -893,15 +893,15 @@ void CCharacter::Tick()
 		if(HookedPlayer != -1 && GameServer()->m_apPlayers[HookedPlayer]->GetTeam() != TEAM_SPECTATORS)
 		{
 			Antibot()->OnHookAttach(m_pPlayer->GetCid(), true);
-			// --- BW BEGIN: a hook is an impact, and VIP hooks paint their catch ---
-			Bw().OnHookAttach(HookedPlayer);
-			// --- BW END ---
+			// --- BLOCK BEGIN: a hook is an impact, and VIP hooks paint their catch ---
+			Block().OnHookAttach(HookedPlayer);
+			// --- BLOCK END ---
 		}
 	}
 
-	// --- BW BEGIN ---
-	Bw().OnTick();
-	// --- BW END ---
+	// --- BLOCK BEGIN ---
+	Block().OnTick();
+	// --- BLOCK END ---
 
 	// Previnput
 	m_PrevInput = m_Input;
@@ -1005,9 +1005,9 @@ void CCharacter::TickDeferred()
 		m_Pos.y = m_Input.m_TargetY;
 	}
 
-	// --- BW BEGIN: telekinesis teleports before the send core is recomputed ---
-	Bw().ApplyTelekinesisMove();
-	// --- BW END ---
+	// --- BLOCK BEGIN: telekinesis teleports before the send core is recomputed ---
+	Block().ApplyTelekinesisMove();
+	// --- BLOCK END ---
 
 	// update the m_SendCore if needed
 	{
@@ -1080,10 +1080,10 @@ void CCharacter::Die(int Killer, int Weapon, bool SendKillMsg)
 		GetPlayer()->m_LastDeath = m_RescueTee[RESCUEMODE_AUTO];
 	StopRecording();
 
-	// --- BW BEGIN: a block or an event death is announced by Blockworlds ---
-	if(GameServer()->Bw().OnCharacterDie(this, Killer))
+	// --- BLOCK BEGIN: a block or an event death is announced by Block ---
+	if(GameServer()->Block().OnCharacterDie(this, Killer))
 		SendKillMsg = false;
-	// --- BW END ---
+	// --- BLOCK END ---
 
 	int ModeSpecial = GameServer()->m_pController->OnCharacterDeath(this, GameServer()->m_apPlayers[Killer], Weapon);
 
@@ -1112,9 +1112,9 @@ void CCharacter::Die(int Killer, int Weapon, bool SendKillMsg)
 	Teams()->OnCharacterDeath(GetPlayer()->GetCid(), Weapon);
 	CancelSwapRequests();
 
-	// --- BW BEGIN ---
-	GameServer()->Bw().OnCharacterDied(this, Killer, Weapon);
-	// --- BW END ---
+	// --- BLOCK BEGIN ---
+	GameServer()->Block().OnCharacterDied(this, Killer, Weapon);
+	// --- BLOCK END ---
 }
 
 bool CCharacter::TakeDamage(vec2 Force, int Dmg, int From, int Weapon)
@@ -1127,9 +1127,9 @@ bool CCharacter::TakeDamage(vec2 Force, int Dmg, int From, int Weapon)
 	vec2 Temp = m_Core.m_Vel + Force;
 	m_Core.m_Vel = ClampVel(m_MoveRestrictions, Temp);
 
-	// --- BW BEGIN ---
-	GameServer()->Bw().OnCharacterTakeDamage(this, Force, Dmg, From, Weapon);
-	// --- BW END ---
+	// --- BLOCK BEGIN ---
+	GameServer()->Block().OnCharacterTakeDamage(this, Force, Dmg, From, Weapon);
+	// --- BLOCK END ---
 
 	return true;
 }
@@ -1397,9 +1397,9 @@ void CCharacter::Snap(int SnappingClient)
 		DDNetCharacter.m_Flags |= CHARACTERFLAG_TELEGUN_GRENADE;
 	if(m_Core.m_HasTelegunLaser)
 		DDNetCharacter.m_Flags |= CHARACTERFLAG_TELEGUN_LASER;
-	// --- BW BEGIN: passive looks solo, protected looks untouchable ---
-	Bw().OnSnapDDNetCharacter(&DDNetCharacter);
-	// --- BW END ---
+	// --- BLOCK BEGIN: passive looks solo, protected looks untouchable ---
+	Block().OnSnapDDNetCharacter(&DDNetCharacter);
+	// --- BLOCK END ---
 	if(m_Core.m_aWeapons[WEAPON_HAMMER].m_Got)
 		DDNetCharacter.m_Flags |= CHARACTERFLAG_WEAPON_HAMMER;
 	if(m_Core.m_aWeapons[WEAPON_GUN].m_Got)
@@ -1732,11 +1732,11 @@ void CCharacter::HandleTiles(int Index)
 	if(!m_Alive)
 		return;
 
-	// --- BW BEGIN: the Blockworlds tiles (VIP gate, wayblock, random cosmetics) ---
-	Bw().OnHandleTiles(m_TileIndex, m_TileFIndex);
+	// --- BLOCK BEGIN: the Block tiles (VIP gate, wayblock, random cosmetics) ---
+	Block().OnHandleTiles(m_TileIndex, m_TileFIndex);
 	if(!m_Alive)
 		return;
-	// --- BW END ---
+	// --- BLOCK END ---
 
 	// freeze
 	if(((m_TileIndex == TILE_FREEZE) || (m_TileFIndex == TILE_FREEZE)) && !m_Core.m_Super && !m_Core.m_Invincible && !m_Core.m_DeepFrozen)
@@ -2320,9 +2320,9 @@ void CCharacter::DDRaceTick()
 		// Hook is possible in live freeze
 	}
 
-	// --- BW BEGIN: a tee held by telekinesis has no gravity and no input ---
-	Bw().ApplyTelekinesisInput();
-	// --- BW END ---
+	// --- BLOCK BEGIN: a tee held by telekinesis has no gravity and no input ---
+	Block().ApplyTelekinesisInput();
+	// --- BLOCK END ---
 	if(m_FreezeTime > 0)
 	{
 		if(m_FreezeTime % Server()->TickSpeed() == Server()->TickSpeed() - 1)
@@ -2458,9 +2458,9 @@ bool CCharacter::Freeze(int Seconds)
 		m_Armor = 0;
 		m_FreezeTime = Seconds * Server()->TickSpeed();
 		m_Core.m_FreezeStart = Server()->Tick();
-		// --- BW BEGIN: the block tracker times freezes ---
-		GameServer()->Bw().BlockTracker().OnPlayerFreeze(m_pPlayer->GetCid());
-		// --- BW END ---
+		// --- BLOCK BEGIN: the block tracker times freezes ---
+		GameServer()->Block().BlockTracker().OnPlayerFreeze(m_pPlayer->GetCid());
+		// --- BLOCK END ---
 		return true;
 	}
 	return false;
@@ -2481,9 +2481,9 @@ bool CCharacter::Unfreeze()
 		m_FreezeTime = 0;
 		m_Core.m_FreezeStart = 0;
 		m_FrozenLastTick = true;
-		// --- BW BEGIN ---
-		GameServer()->Bw().BlockTracker().OnPlayerUnfreeze(m_pPlayer->GetCid());
-		// --- BW END ---
+		// --- BLOCK BEGIN ---
+		GameServer()->Block().BlockTracker().OnPlayerUnfreeze(m_pPlayer->GetCid());
+		// --- BLOCK END ---
 		return true;
 	}
 	return false;

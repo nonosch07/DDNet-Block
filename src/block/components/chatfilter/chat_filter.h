@@ -1,0 +1,36 @@
+#ifndef BLOCK_COMPONENTS_CHATFILTER_CHAT_FILTER_H
+#define BLOCK_COMPONENTS_CHATFILTER_CHAT_FILTER_H
+
+#include <engine/console.h>
+
+#include <block/components/core/component.h>
+
+#include <mutex>
+#include <regex>
+#include <string>
+#include <unordered_set>
+#include <vector>
+
+// chat filter component: loads a local word list and mutes players using banned words
+class CChatFilterComponent final : public CComponent
+{
+	DECLARE_COMPONENT(CChatFilterComponent, "chatfilter")
+
+	bool CheckAndMaybeMute(int ClientId, const char *pMessage);
+
+private:
+	bool Load();
+	bool Save();
+
+	static void ConChatFilterAdd(IConsole::IResult *pResult, void *pUserData);
+	static void ConChatFilterRemove(IConsole::IResult *pResult, void *pUserData);
+	static void ConChatFilterList(IConsole::IResult *pResult, void *pUserData);
+	static void ConChatFilterReload(IConsole::IResult *pResult, void *pUserData);
+	static void ConChatFilterSave(IConsole::IResult *pResult, void *pUserData);
+
+	std::unordered_set<std::string> m_Words; // stored as-is, case-insensitive search is used at runtime
+	std::regex m_NWordRegex;
+	std::mutex m_Mutex;
+};
+
+#endif // BLOCK_COMPONENTS_CHATFILTER_CHAT_FILTER_H

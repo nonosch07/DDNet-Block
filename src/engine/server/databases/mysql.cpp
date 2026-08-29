@@ -531,10 +531,10 @@ bool CMysqlConnection::ExecuteUpdate(int *pNumUpdated, char *pError, int ErrorSi
 			str_copy(pError, m_aErrorDetail, ErrorSize);
 			return false;
 		}
-		// --- BW BEGIN: BW runs BEGIN/COMMIT/ROLLBACK with pNumUpdated == nullptr ---
+		// --- BLOCK BEGIN: Block runs BEGIN/COMMIT/ROLLBACK with pNumUpdated == nullptr ---
 		if(pNumUpdated)
 			*pNumUpdated = mysql_stmt_affected_rows(m_pStmt.get());
-		// --- BW END ---
+		// --- BLOCK END ---
 		return true;
 	}
 	str_copy(pError, "tried to execute update without query", ErrorSize);

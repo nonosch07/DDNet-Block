@@ -183,9 +183,9 @@ public:
 
 	virtual int BanAddr(const NETADDR *pAddr, int Seconds, const char *pReason, bool VerbatimReason);
 	virtual int BanRange(const CNetRange *pRange, int Seconds, const char *pReason);
-	// --- BW BEGIN: the server reports unbans to Discord; the client does not ---
-	virtual void BwOnUnban(int /*ExecutorId*/, const char * /*pWhat*/) {}
-	// --- BW END ---
+	// --- BLOCK BEGIN: the server reports unbans to Discord; the client does not ---
+	virtual void BlockOnUnban(int /*ExecutorId*/, const char * /*pWhat*/) {}
+	// --- BLOCK END ---
 	int UnbanByAddr(const NETADDR *pAddr);
 	int UnbanByRange(const CNetRange *pRange);
 	int UnbanByIndex(int Index);

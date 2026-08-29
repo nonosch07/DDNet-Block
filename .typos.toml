@@ -10,9 +10,9 @@ extend-exclude = [
 	"memcheck.supp",
 	"scripts/android/files/res",
 	"src/engine/external",
-	# --- BW BEGIN: vendored nlohmann/json, same treatment as engine/external ---
-	"src/blockworlds/external",
-	# --- BW END ---
+	# --- BLOCK BEGIN: vendored nlohmann/json, same treatment as engine/external ---
+	"src/block/external",
+	# --- BLOCK END ---
 
 	# tests with invalid words
 	"src/test/windows_test.cpp",
@@ -32,12 +32,12 @@ extend-ignore-re = [
 	'datas',
 	'iy',
 	'cl_nameplates_ids_seperate_line',
-	# --- BW BEGIN: config variable names are public API. These two are
+	# --- BLOCK BEGIN: config variable names are public API. These two are
 	# misspelled, but renaming them silently breaks every existing server
 	# config, so they stay as they are -- same call upstream made just above.
 	'sv_block_expirience_multiplier_stacking',
 	'sv_agones_health_requency',
-	# --- BW END ---
+	# --- BLOCK END ---
 	'LWS_.*_WRITEABLE',
 	'0x510E527FUL',
 	'I\*\*nteger',

@@ -28,10 +28,10 @@ jobs:
     - name: Prepare Linux
       run: |
         sudo apt-get update -y
-        # --- BW BEGIN: server-only deps; libpng is kept because the tools and
+        # --- BLOCK BEGIN: server-only deps; libpng is kept because the tools and
         # testrunner link it ---
         sudo apt-get install pkg-config cmake ninja-build libpng-dev libsqlite3-dev -y
-        # --- BW END ---
+        # --- BLOCK END ---
 
     - name: Cache Rust dependencies
       uses: Swatinem/rust-cache@v2

@@ -169,7 +169,7 @@ bool CHttpRequestCurl::ConfigureHandle(CURL *pHandle)
 		curl_easy_setopt(pHandle, CURLOPT_POSTFIELDS, m_pBody);
 		curl_easy_setopt(pHandle, CURLOPT_POSTFIELDSIZE, m_BodyLength);
 		break;
-	// --- BW BEGIN ---
+	// --- BLOCK BEGIN ---
 	case REQUEST::PUT:
 	case REQUEST::PUT_JSON:
 		if(m_Type == REQUEST::PUT_JSON)
@@ -184,7 +184,7 @@ bool CHttpRequestCurl::ConfigureHandle(CURL *pHandle)
 		curl_easy_setopt(pHandle, CURLOPT_POSTFIELDS, m_pBody);
 		curl_easy_setopt(pHandle, CURLOPT_POSTFIELDSIZE, m_BodyLength);
 		break;
-		// --- BW END ---
+		// --- BLOCK END ---
 	}
 
 	curl_easy_setopt(pHandle, CURLOPT_HTTPHEADER, m_pRequestHeaders);
@@ -208,9 +208,9 @@ size_t CHttpRequestCurl::OnHeader(char *pHeader, size_t HeaderSize)
 		m_ResponseHeadersEnded = false;
 		m_ResultDate = {};
 		m_ResultLastModified = {};
-		// --- BW BEGIN ---
+		// --- BLOCK BEGIN ---
 		m_ResponseHeaders.clear();
-		// --- BW END ---
+		// --- BLOCK END ---
 	}
 
 	static const char DATE[] = "Date: ";
@@ -238,10 +238,10 @@ size_t CHttpRequestCurl::OnHeader(char *pHeader, size_t HeaderSize)
 		}
 	}
 
-	// --- BW BEGIN ---
+	// --- BLOCK BEGIN ---
 	if(m_CaptureResponseHeaders)
 		m_ResponseHeaders.append(pHeader, HeaderSize);
-	// --- BW END ---
+	// --- BLOCK END ---
 
 	return HeaderSize;
 }

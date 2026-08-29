@@ -1959,9 +1959,9 @@ set(EXPECTED_DATA
   # tidy-alphabetical-end
 )
 
-# --- BW BEGIN: Blockworlds ships its own maps and data files ---
-include(cmake/blockworlds_data.cmake)
-# --- BW END ---
+# --- BLOCK BEGIN: Block ships its own maps and data files ---
+include(cmake/block_data.cmake)
+# --- BLOCK END ---
 set_glob(DATA GLOB_RECURSE "cfg;frag;json;map;otf;png;rules;ttc;ttf;txt;vert;wv" data ${EXPECTED_DATA})
 
 ########################################################################
@@ -3069,9 +3069,9 @@ if(SERVER)
     # tidy-alphabetical-end
   )
   set(SERVER_SRC ${ENGINE_SERVER_WITHOUT_MAIN} ${GAME_SERVER} ${GAME_GENERATED_SERVER})
-  # --- BW BEGIN: pull in src/blockworlds/ (see cmake/blockworlds.cmake) ---
-  include(cmake/blockworlds.cmake)
-  # --- BW END ---
+  # --- BLOCK BEGIN: pull in src/block/ (see cmake/block.cmake) ---
+  include(cmake/block.cmake)
+  # --- BLOCK END ---
   if(TARGET_OS STREQUAL "windows")
     set(VERSION_EXECUTABLE "${SERVER_EXECUTABLE}")
     set(VERSION_COMPANY "${CLIENT_EXECUTABLE} Team")
@@ -3356,9 +3356,9 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
     # tidy-alphabetical-end
   )
 
-  # --- BW BEGIN: Blockworlds unit tests ---
-  include(cmake/blockworlds_tests.cmake)
-  # --- BW END ---
+  # --- BLOCK BEGIN: Block unit tests ---
+  include(cmake/block_tests.cmake)
+  # --- BLOCK END ---
 
   set(TARGET_TESTRUNNER testrunner)
   add_executable(${TARGET_TESTRUNNER} EXCLUDE_FROM_ALL

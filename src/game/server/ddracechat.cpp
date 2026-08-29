@@ -17,18 +17,17 @@
 #include <game/teamscore.h>
 #include <game/version.h>
 
-// --- BW BEGIN ---
-#include <blockworlds/bw_context.h>
-#include <blockworlds/bw_version.h>
-// --- BW END ---
+// --- BLOCK BEGIN ---
+#include <block/context.h>
+#include <block/version.h>
+// --- BLOCK END ---
 
 void CGameContext::ConInfo(IConsole::IResult *pResult, void *pUserData)
 {
-	// --- BW BEGIN: /info identifies Blockworlds first ---
-	log_info("chatresp", "Blockworlds Modification by Nouaa, based on DDRace");
-	log_info("chatresp", "Version: " BLOCKWORLDS_VERSION);
-	log_info("chatresp", "Official website: blockworlds.tw");
-	// --- BW END ---
+	// --- BLOCK BEGIN: /info identifies Block first ---
+	log_info("chatresp", "Block modification made by Nouaa, based on DDRace");
+	log_info("chatresp", "Version: " BLOCK_VERSION);
+	// --- BLOCK END ---
 	log_info("chatresp", "DDraceNetwork Mod. Version: " GAME_VERSION);
 	if(GIT_SHORTREV_HASH)
 	{
@@ -1158,13 +1157,13 @@ void CGameContext::ConInvite(IConsole::IResult *pResult, void *pUserData)
 			return;
 		}
 
-		// --- BW BEGIN: an event team refuses invites, and the player is told ---
+		// --- BLOCK BEGIN: an event team refuses invites, and the player is told ---
 		if(!pController->Teams().SetClientInvited(Team, Target, true))
 		{
 			pSelf->SendChatTarget(pResult->m_ClientId, "You can't invite into this team.");
 			return;
 		}
-		// --- BW END ---
+		// --- BLOCK END ---
 		pSelf->m_apPlayers[pResult->m_ClientId]->m_LastInvited = pSelf->Server()->Tick();
 
 		char aBuf[512];
@@ -1876,13 +1875,13 @@ void CGameContext::ConTeleCursor(IConsole::IResult *pResult, void *pUserData)
 	if(!pChr)
 		return;
 
-	// --- BW BEGIN: teleporting to the cursor is a moderator tool here ---
+	// --- BLOCK BEGIN: teleporting to the cursor is a moderator tool here ---
 	if(pSelf->Server()->GetAuthedState(pResult->m_ClientId) < AUTHED_MOD)
 	{
 		pSelf->SendChatTarget(pPlayer->GetCid(), "You need moderator access or higher to use this command.");
 		return;
 	}
-	// --- BW END ---
+	// --- BLOCK END ---
 
 	CGameTeams &Teams = pSelf->m_pController->Teams();
 	int Team = pSelf->GetDDRaceTeam(pResult->m_ClientId);
@@ -2312,13 +2311,13 @@ void CGameContext::ConProtectedKill(IConsole::IResult *pResult, void *pUserData)
 	if(!pChr)
 		return;
 
-	// --- BW BEGIN: the chat /kill is gated the same way the F1 kill is ---
-	if(pSelf->Bw().BlocksSelfKill(pResult->m_ClientId))
+	// --- BLOCK BEGIN: the chat /kill is gated the same way the F1 kill is ---
+	if(pSelf->Block().BlocksSelfKill(pResult->m_ClientId))
 	{
-		pSelf->Bw().SendChatTarget(pResult->m_ClientId, "You can't /kill while participating in an event. Use /leave first.");
+		pSelf->Block().SendChatTarget(pResult->m_ClientId, "You can't /kill while participating in an event. Use /leave first.");
 		return;
 	}
-	// --- BW END ---
+	// --- BLOCK END ---
 
 	int CurrTime = (pSelf->Server()->Tick() - pChr->m_StartTime) / pSelf->Server()->TickSpeed();
 	if(g_Config.m_SvKillProtection != 0 && CurrTime >= (60 * g_Config.m_SvKillProtection) && pChr->m_DDRaceState == ERaceState::STARTED)

@@ -24,15 +24,15 @@ enum
 	FAKETUNE_NOHAMMER = 1 << 6,
 };
 
-// --- BW BEGIN: Blockworlds per-character state ---
-#include <blockworlds/bw_character.h>
-// --- BW END ---
+// --- BLOCK BEGIN: Block per-character state ---
+#include <block/character.h>
+// --- BLOCK END ---
 
 class CCharacter : public CEntity
 {
-	// --- BW BEGIN: CBwCharacter holds code that used to live inside CCharacter ---
-	friend class CBwCharacter;
-	// --- BW END ---
+	// --- BLOCK BEGIN: CBlockCharacter holds code that used to live inside CCharacter ---
+	friend class CBlockCharacter;
+	// --- BLOCK END ---
 	MACRO_ALLOC_POOL_ID()
 
 	// need to use core
@@ -40,11 +40,11 @@ class CCharacter : public CEntity
 	friend class CSaveHotReloadTee;
 
 public:
-	// --- BW BEGIN: all Blockworlds per-character state lives in CBwCharacter ---
-	CBwCharacter m_Bw;
-	CBwCharacter &Bw() { return m_Bw; }
-	const CBwCharacter &Bw() const { return m_Bw; }
-	// --- BW END ---
+	// --- BLOCK BEGIN: all Block per-character state lives in CBlockCharacter ---
+	CBlockCharacter m_Block;
+	CBlockCharacter &Block() { return m_Block; }
+	const CBlockCharacter &Block() const { return m_Block; }
+	// --- BLOCK END ---
 
 	CCharacter(CGameWorld *pWorld, CNetObj_PlayerInput LastInput);
 	~CCharacter() override;

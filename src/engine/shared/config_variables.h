@@ -794,6 +794,6 @@ MACRO_CONFIG_INT(ClVideoRecorderFPS, cl_video_recorder_fps, 60, 1, 1000, CFGFLAG
  * Add config variables for mods below this comment to avoid merge conflicts.
  */
 
-// --- BW BEGIN: Blockworlds config variables ---
-#include <blockworlds/config_variables_blockworlds.h>
-// --- BW END ---
+// --- BLOCK BEGIN: Block config variables ---
+#include <block/config_variables.h>
+// --- BLOCK END ---

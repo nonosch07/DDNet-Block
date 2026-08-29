@@ -48,10 +48,10 @@ jobs:
       if: matrix.language == 'cpp'
       run: |
        sudo apt-get update -y
-       # --- BW BEGIN: server-only. Dropped the client deps (SDL, GLEW, freetype,
+       # --- BLOCK BEGIN: server-only. Dropped the client deps (SDL, GLEW, freetype,
        # notify), the video recorder's ffmpeg/x264 and the vulkan/shader tooling. ---
        sudo apt-get install pkg-config cmake ninja-build libpng-dev libsqlite3-dev libmariadb-dev libwebsockets-dev -y
-       # --- BW END ---
+       # --- BLOCK END ---
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL

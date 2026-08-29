@@ -453,12 +453,12 @@ void CNetBan::ConUnban(IConsole::IResult *pResult, void *pUser)
 			pThis->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "net_ban", "unban error (invalid network address)");
 	}
 
-	// --- BW BEGIN: unbans go to the Discord rcon log ---
+	// --- BLOCK BEGIN: unbans go to the Discord rcon log ---
 	// This runs on the client too, where there is no CServerBan and nothing to
 	// report, hence the hook rather than a direct call.
 	if(Unbanned)
-		pThis->BwOnUnban(pResult->m_ClientId, pStr);
-	// --- BW END ---
+		pThis->BlockOnUnban(pResult->m_ClientId, pStr);
+	// --- BLOCK END ---
 }
 
 void CNetBan::ConUnbanRange(IConsole::IResult *pResult, void *pUser)

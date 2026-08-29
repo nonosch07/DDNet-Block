@@ -303,22 +303,22 @@ void CWorker::ProcessQueries()
 			return;
 		}
 		bool Success = false;
-		// --- BW BEGIN: critical queries (account/clan saves) must still run while
+		// --- BLOCK BEGIN: critical queries (account/clan saves) must still run while
 		// the server is shutting down or the pool is in fail mode ---
 		const bool Critical = pThreadData->m_pThreadData && pThreadData->m_pThreadData->m_Critical;
-		// --- BW END ---
+		// --- BLOCK END ---
 		switch(pThreadData->m_Mode)
 		{
 		case CSqlExecData::READ_ACCESS:
 		{
 			for(size_t i = 0; i < m_vpReadConnections.size(); i++)
 			{
-				if(m_pShared->m_Shutdown && !Critical) // BW: critical queries are not dismissed
+				if(m_pShared->m_Shutdown && !Critical) // Block: critical queries are not dismissed
 				{
 					dbg_msg("sql", "[%i] %s dismissed read request during shutdown", JobNum, pThreadData->m_pName);
 					break;
 				}
-				if(FailMode && !Critical) // BW: critical queries are not dismissed
+				if(FailMode && !Critical) // Block: critical queries are not dismissed
 				{
 					dbg_msg("sql", "[%i] %s dismissed read request during FailMode", JobNum, pThreadData->m_pName);
 					break;
@@ -341,7 +341,7 @@ void CWorker::ProcessQueries()
 		break;
 		case CSqlExecData::WRITE_ACCESS:
 		{
-			// BW: a critical write always goes to the primary connection, never to
+			// Block: a critical write always goes to the primary connection, never to
 			// the backup table, so account and clan state is not lost on shutdown.
 			if(m_pShared->m_Shutdown && m_pWriteBackup != nullptr && !Critical)
 			{

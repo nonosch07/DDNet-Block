@@ -999,14 +999,14 @@ void CConsole::Register(const char *pName, const char *pParams,
 	if(pCommand->m_Flags & CFGFLAG_CHAT)
 		pCommand->SetAccessLevel(EAccessLevel::USER);
 
-	// --- BW BEGIN: component_plug announces the commands it brings ---
+	// --- BLOCK BEGIN: component_plug announces the commands it brings ---
 	if(pCommand->m_Flags & CFGFLAG_ANNOUNCE)
 	{
 		char aBuf[CMDLINE_LENGTH];
 		str_format(aBuf, sizeof(aBuf), "Command registered: %s", pCommand->m_pName);
 		Print(OUTPUT_LEVEL_STANDARD, "console", aBuf);
 	}
-	// --- BW END ---
+	// --- BLOCK END ---
 }
 
 void CConsole::RegisterTemp(const char *pName, const char *pParams, int Flags, const char *pHelp)
@@ -1043,7 +1043,7 @@ void CConsole::RegisterTemp(const char *pName, const char *pParams, int Flags, c
 	AddCommandSorted(pCommand);
 }
 
-// --- BW BEGIN: runtime command removal for component_plug/unplug ---
+// --- BLOCK BEGIN: runtime command removal for component_plug/unplug ---
 void CConsole::Deregister(const char *pName)
 {
 	if(!m_pFirstCommand)
@@ -1121,7 +1121,7 @@ void CConsole::UnChain(const char *pName, FChainCommandCallback pfnChainFunc)
 		pCurrent = (CChain *)pCurrent->m_pCallbackUserData;
 	}
 }
-// --- BW END ---
+// --- BLOCK END ---
 
 void CConsole::DeregisterTemp(const char *pName)
 {

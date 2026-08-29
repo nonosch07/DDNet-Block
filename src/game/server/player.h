@@ -17,9 +17,9 @@
 #include <memory>
 #include <optional>
 
-// --- BW BEGIN: Blockworlds per-player state ---
-#include <blockworlds/bw_player.h>
-// --- BW END ---
+// --- BLOCK BEGIN: Block per-player state ---
+#include <block/player.h>
+// --- BLOCK END ---
 
 class CCharacter;
 class CGameContext;
@@ -30,10 +30,10 @@ struct CScorePlayerResult;
 // player object
 class CPlayer
 {
-	// --- BW BEGIN: these hold code that used to live inside CPlayer ---
-	friend class CBwPlayer;
-	friend class CBlockworlds;
-	// --- BW END ---
+	// --- BLOCK BEGIN: these hold code that used to live inside CPlayer ---
+	friend class CBlockPlayer;
+	friend class CBlock;
+	// --- BLOCK END ---
 	MACRO_ALLOC_POOL_ID()
 
 public:
@@ -51,11 +51,11 @@ public:
 	int GetTeam() const { return m_Team; }
 	int GetCid() const { return m_ClientId; }
 
-	// --- BW BEGIN: all Blockworlds per-player state lives in CBwPlayer ---
-	CBwPlayer m_Bw;
-	CBwPlayer &Bw() { return m_Bw; }
-	const CBwPlayer &Bw() const { return m_Bw; }
-	// --- BW END ---
+	// --- BLOCK BEGIN: all Block per-player state lives in CBlockPlayer ---
+	CBlockPlayer m_Block;
+	CBlockPlayer &Block() { return m_Block; }
+	const CBlockPlayer &Block() const { return m_Block; }
+	// --- BLOCK END ---
 	uint32_t GetUniqueCid() const { return m_UniqueClientId; }
 	int GetClientVersion() const;
 	bool SetTimerType(int TimerType);
