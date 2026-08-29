@@ -1,4 +1,4 @@
-Blockworlds Copyright (C) 2024-2026 Nouaa
+Gamemode Copyright (C) 2024-2026 Nouaa
 
 This software is provided 'as-is', without any express or implied
 warranty. In no event will the authors be held liable for any damages
@@ -49,6 +49,14 @@ conflict.
    This entire license — these additional terms together with the
    original notice below — must be included, unaltered, with every
    copy or distribution of this software or any derivative of it.
+
+6. Excluded parties
+   No license or permission of any kind is granted under these terms
+   to Blockworlds, to any entity they control, or to any
+   person operating a game server or service on their behalf. Any use
+   of this software by such parties, including running it for game
+   instances, is unauthorized. This clause applies to all versions
+   released on or after 29 August 2026.
 
 Any use that does not comply with all of the above terms is not
 authorized by this license.
