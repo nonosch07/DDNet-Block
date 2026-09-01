@@ -28,6 +28,23 @@ CCharacterCore &CBlockCharacter::Core() const { return m_pCharacter->m_Core; }
 const CNetObj_PlayerInput &CBlockCharacter::GetInput() const { return m_pCharacter->m_Input; }
 const CNetObj_PlayerInput &CBlockCharacter::GetLatestInput() const { return m_pCharacter->m_LatestInput; }
 
+int CBlockCharacter::SnapWeapon(int Weapon, bool Sixup) const
+{
+	// 0.7 has no rule for a negative index, so those clients keep the plain one.
+	if(Sixup)
+		return Weapon;
+
+	// Derived from what the tee actually owns rather than from a flag, so it
+	// needs no state to go stale: strip a player and the hands empty, hand a
+	// weapon back and it reappears.
+	for(int W = 0; W < NUM_WEAPONS; W++)
+	{
+		if(m_pCharacter->GetWeaponGot(W))
+			return Weapon;
+	}
+	return -1;
+}
+
 void CBlockCharacter::Reset()
 {
 	m_FrozenSinceTick = 0;

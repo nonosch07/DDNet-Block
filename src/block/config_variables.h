@@ -89,6 +89,7 @@ MACRO_CONFIG_INT(SvPassiveRemoverEnabled, sv_passive_remover_enabled, 1, 0, 1, C
 
 // Shop server setting:
 MACRO_CONFIG_INT(SvShopServer, sv_shop_server, 0, 0, 1, CFGFLAG_SERVER, "Set to 1 if this is a shop server; otherwise, set to 0.")
+MACRO_CONFIG_INT(SvShopReservedSlots, sv_shop_reserved_slots, 20, 1, 64, CFGFLAG_SERVER, "Player slots a shop server keeps free from preview NPCs")
 
 // Clans settings:
 MACRO_CONFIG_INT(SvClanMinLevel, sv_clan_min_level, 25, 0, 100, CFGFLAG_SERVER, "Minimum player level required to create a clan.")

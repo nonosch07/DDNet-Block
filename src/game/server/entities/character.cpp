@@ -1214,6 +1214,10 @@ void CCharacter::SnapCharacter(int SnappingClient, int MapId)
 		AmmoCount = 10;
 	}
 
+	// --- BLOCK BEGIN: a tee can be shown holding nothing ---
+	Weapon = Block().SnapWeapon(Weapon, Server()->IsSixup(SnappingClient));
+	// --- BLOCK END ---
+
 	if(m_pPlayer->GetCid() == SnappingClient || SnappingClient == SERVER_DEMO_CLIENT ||
 		(!g_Config.m_SvStrictSpectateMode && m_pPlayer->GetCid() == GameServer()->m_apPlayers[SnappingClient]->SpectatorId()))
 	{

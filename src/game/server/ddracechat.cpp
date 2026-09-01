@@ -120,9 +120,12 @@ void CGameContext::ConSettings(IConsole::IResult *pResult, void *pUserData)
 		}
 		else if(str_comp_nocase(pArg, "cheats") == 0)
 		{
-			log_info("chatresp", g_Config.m_SvTestingCommands ?
-						     "Cheats are enabled on this server" :
-						     "Cheats are disabled on this server");
+			// --- BLOCK BEGIN: the test commands are always available to rcon ---
+			// Reporting them as disabled would be untrue now that sv_test_cmds
+			// gates nothing, but they are still admin-only, so say that rather
+			// than "cheats are enabled", which reads as open to everyone.
+			log_info("chatresp", "Cheat commands are available to server admins only");
+			// --- BLOCK END ---
 		}
 		else if(str_comp_nocase(pArg, "collision") == 0)
 		{

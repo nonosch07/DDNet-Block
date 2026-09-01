@@ -769,7 +769,8 @@ void CBlock::RegisterBlockChatCommands() const
 	Console()->Register("password", "s[oldpassword] s[newpassword]", CFGFLAG_CHAT, ConChangePassword, GameServer(), "Change your account password.");
 	Console()->Register("exp", "", CFGFLAG_CHAT, ConExp, GameServer(), "Display your current experience progress.");
 
-	Console()->Register("block_bots", "i[count]", CFGFLAG_SERVER, ConBots, GameServer(), "Load testing: fill the server with that many bots (needs sv_testing_commands 1).");
+	Console()->Register("block_bots", "i[count]", CFGFLAG_SERVER, ConBots, GameServer(), "Load testing: fill the server with that many bots.");
+	Console()->Register("remove_all_weapons", "v[id]", CFGFLAG_SERVER | CMDFLAG_TEST, ConRemoveAllWeapons, GameServer(), "Leave a player holding nothing at all");
 	Console()->Register("blockpoints", "", CFGFLAG_CHAT, ConDisplayBlockpoints, GameServer(), "Show your current blockpoints.");
 	Console()->Register("bp", "", CFGFLAG_CHAT, ConDisplayBlockpoints, GameServer(), "Show your current blockpoints.");
 	Console()->Register("give_bp", "s[player name] i[amount]", CFGFLAG_CHAT, ConGiveBlockpointsRequest, GameServer(), "Offer to transfer blockpoints to another player (requires their acceptance).");
@@ -1089,17 +1090,20 @@ int CBlock::GetSwitchTilePositions(int Type, int Delay, int Number, CGameContext
 
 int CBlock::GetNextClientID() const
 {
-	int ClientID = -1;
-	for(int i = 0; i < g_Config.m_SvMaxClients; i++)
+	const int Reserved = std::clamp(g_Config.m_SvShopReservedSlots, 1, g_Config.m_SvMaxClients);
+	for(int i = g_Config.m_SvMaxClients - 1; i >= Reserved; i--)
 	{
 		if(GameServer()->m_apPlayers[i])
 			continue;
+		// a client still shaking hands has no CPlayer yet, but its slot is
+		// taken; handing it to an NPC would drop the player being let in.
+		if(!Server()->ClientSlotEmpty(i))
+			continue;
 
-		ClientID = i;
-		break;
+		return i;
 	}
 
-	return ClientID;
+	return -1;
 }
 
 // ---------------------------------------------------------------------------
@@ -1798,6 +1802,18 @@ void CBlock::OnCharacterSpawn(CCharacter *pChr) const
 	if(!pPlayer)
 		return;
 
+	// A shop NPC is scenery: it holds nothing and can fire nothing. Possession
+	// alone is not enough -- CCharacter::FireWeapon gates on ammo, not on
+	// m_Got, and the hammer ships with -1 (endless) ammo.
+	if(pPlayer->Block().m_IsNpc)
+	{
+		for(int Weapon = 0; Weapon < NUM_WEAPONS; Weapon++)
+		{
+			pChr->SetWeaponGot(Weapon, false);
+			pChr->SetWeaponAmmo(Weapon, 0);
+		}
+	}
+
 	// Prefer component-based events
 	if(auto Events = g_ComponentRegistry.Get<CEvents>(); Events)
 	{
@@ -1973,14 +1989,10 @@ void CBlock::OnSnapGameInfoEx(int SnappingClient, CNetObj_GameInfoEx *pGameInfoE
 	// about (zoom, eye wheel, prediction, entities) is then overridden by the
 	// explicit flags the base controller already sends, so claiming to be one of
 	// upstream's gametypes buys nothing and would drag its quirks along.
-	pGameInfoEx->m_Flags &= ~(GAMEINFOFLAG_TIMESCORE |
-				  GAMEINFOFLAG_GAMETYPE_RACE |
-				  GAMEINFOFLAG_GAMETYPE_DDRACE |
-				  GAMEINFOFLAG_GAMETYPE_DDNET |
-				  GAMEINFOFLAG_GAMETYPE_BLOCK_WORLDS);
+	pGameInfoEx->m_Flags &= ~(GAMEINFOFLAG_TIMESCORE);
 	// Stated outright rather than inherited, so dropping the gametype flags above
 	// cannot quietly take zoom or the eye wheel away from players.
-	pGameInfoEx->m_Flags |= GAMEINFOFLAG_ALLOW_ZOOM | GAMEINFOFLAG_ALLOW_EYE_WHEEL;
+	pGameInfoEx->m_Flags |= GAMEINFOFLAG_ALLOW_ZOOM | GAMEINFOFLAG_ALLOW_EYE_WHEEL | GAMEINFOFLAG_GAMETYPE_BLOCK_WORLDS;
 
 	if(SnappingClient < 0)
 		return;
@@ -2110,6 +2122,9 @@ void CBlock::BotJoin(int BotId, const char *pName) const
 	// Mirrors CServer::UpdateDebugDummies' add path.
 	CServer::NewClientCallback(BotId, pServer, false);
 	Client.m_DebugDummy = true;
+	// a bot never opens a network connection, so without this the slot still
+	// looks free to CNetServer and the next player to join lands on top of it
+	pServer->m_NetServer.SetSlotTakenByServer(BotId, true);
 
 	// Synthetic unique-local address, same scheme upstream uses for dummies.
 	Client.m_DebugDummyAddr.type = NETTYPE_IPV6;
@@ -2131,7 +2146,22 @@ void CBlock::BotJoin(int BotId, const char *pName) const
 	Client.m_DDNetVersion = DDNET_VERSION_NUMBER;
 	Client.m_GotDDNetVersionPacket = true;
 	Client.m_DDNetVersionSettled = true;
-	pServer->SetClientName(BotId, pName);
+	if(pName && pName[0])
+	{
+		pServer->SetClientName(BotId, pName);
+	}
+	else
+	{
+		// A nameless bot is written straight in, and the name is a single space
+		// rather than nothing at all. SetClientName would refuse either as
+		// unavailable and auto-rename to "(1)", "(2)" and so on, which is what
+		// the shop NPCs must not show; a space renders as blank all the same,
+		// and unlike an empty string it does not trip up the engine's
+		// name-matching, which finds nothing whatsoever in an empty name.
+		str_copy(pServer->m_aClients[BotId].m_aName, " ");
+		GameServer()->TeehistorianRecordPlayerName(BotId, " ");
+		GameServer()->OnClientInfoChange(BotId);
+	}
 
 	if(GameServer()->m_apPlayers[BotId])
 		GameServer()->m_apPlayers[BotId]->Block().m_IsNpc = true;
@@ -2146,18 +2176,10 @@ void CBlock::BotJoin(int BotId, const char *pName) const
 /// what a full server costs. They send no input, so they measure the per-player
 /// floor rather than a busy match.
 ///
-/// Refused unless sv_testing_commands is on: an operator who has not declared
-/// the server a test server should not be able to fill it by typo.
 void CBlock::ConBots(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
 	CBlock &Block = pSelf->Block();
-
-	if(!g_Config.m_SvTestingCommands)
-	{
-		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "bots", "refused: set sv_testing_commands 1 first");
-		return;
-	}
 
 	const int Wanted = std::clamp(pResult->GetInteger(0), 0, pSelf->Server()->MaxClients());
 
@@ -2171,9 +2193,8 @@ void CBlock::ConBots(IConsole::IResult *pResult, void *pUserData)
 	{
 		if(pSelf->m_apPlayers[i])
 			continue;
-		char aName[MAX_NAME_LENGTH];
-		str_format(aName, sizeof(aName), "bot%d", i);
-		Block.BotJoin(i, aName);
+		// nameless, like the shop NPCs: BotJoin writes the blank name straight in
+		Block.BotJoin(i, "");
 		if(pSelf->m_apPlayers[i])
 			Current++;
 	}
@@ -2190,6 +2211,38 @@ void CBlock::ConBots(IConsole::IResult *pResult, void *pUserData)
 	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "bots", aBuf);
 }
 
+/// Strips every weapon from a player, so the tee holds nothing at all.
+///
+/// Upstream's `removeweapon -1` only covers shotgun, grenade and laser -- never
+/// the hammer, the gun or the ninja -- and it clears possession without clearing
+/// ammo, which is what CCharacter::FireWeapon actually gates on. So a player
+/// "stripped" that way keeps a weapon in hand and can still shoot.
+void CBlock::ConRemoveAllWeapons(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	const int Victim = pResult->GetVictim(0);
+
+	CCharacter *pChr = pSelf->GetPlayerChar(Victim);
+	if(!pChr)
+	{
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapons", "that player is not alive");
+		return;
+	}
+
+	for(int Weapon = 0; Weapon < NUM_WEAPONS; Weapon++)
+	{
+		// GiveWeapon knows how to put the ninja away and how to move the active
+		// weapon off the one being taken; the ammo it leaves behind does not.
+		pChr->GiveWeapon(Weapon, true);
+		pChr->SetWeaponAmmo(Weapon, 0);
+	}
+	pChr->m_DDRaceState = ERaceState::CHEATED;
+
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "'%s' is now holding nothing", pSelf->Server()->ClientName(Victim));
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "weapons", aBuf);
+}
+
 void CBlock::BotLeave(int BotId, bool Silent) const
 {
 	CServer *pServer = static_cast<CServer *>(Server());
@@ -2198,6 +2251,7 @@ void CBlock::BotLeave(int BotId, bool Silent) const
 	if(!pServer->m_aClients[BotId].m_DebugDummy)
 		return;
 	CServer::DelClientCallback(BotId, Silent ? "" : "Bot left", pServer);
+	pServer->m_NetServer.SetSlotTakenByServer(BotId, false);
 }
 
 void CBlock::RedirectClient(int ClientId, int Port, bool Force) const
@@ -2657,8 +2711,19 @@ void CBlock::OnSnapClientInfo(int ClientId, int SnappingClient, CNetObj_ClientIn
 		Component->OnSnapClientInfo(ClientId, SnappingClient, pClientInfo);
 }
 
-void CBlock::OnSnapPlayerInfo(int ClientId, int SnappingClient, CNetObj_PlayerInfo *pPlayerInfo)
+void CBlock::OnSnapPlayerInfo(int ClientId, int SnappingClient, CNetObj_PlayerInfo *pPlayerInfo) const
 {
+	// Shop NPCs are decoration and have no business in the scoreboard. The
+	// client builds its two lists by team -- the board takes TEAM_RED and
+	// TEAM_BLUE, the spectator line takes TEAM_SPECTATORS -- so a team that is
+	// none of the three lands in neither. The tee still renders: that only needs
+	// a player info to exist, whatever team it claims.
+	if(CPlayer *pPlayer = GameServer()->m_apPlayers[ClientId]; pPlayer && pPlayer->Block().m_IsNpc)
+	{
+		pPlayerInfo->m_Team = TEAM_NPC_HIDDEN;
+		return;
+	}
+
 	// TDM participants see each other in the vanilla red/blue teams
 	const auto &Events = g_SnapCache.m_Events;
 	if(!Events)

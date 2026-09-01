@@ -112,7 +112,10 @@ void CBall::Snap(int SnappingClient)
 	const int SnapVer = Server()->GetClientVersion(SnappingClient);
 	const bool SixUp = Server()->IsSixup(SnappingClient);
 
-	GameServer()->Block().SnapLaserObject(CSnapContext(SnapVer, SixUp, SnappingClient), m_aIds[0], m_Pos, m_Pos, Server()->Tick(), m_Owner, LASERTYPE_GUN, -1, -1, LASERFLAG_NO_PREDICT);
+	// the id pool can run dry; a piece without one is skipped rather than
+	// snapped with -1, which the snapshot builder asserts on
+	if(m_aIds[0] >= 0)
+		GameServer()->Block().SnapLaserObject(CSnapContext(SnapVer, SixUp, SnappingClient), m_aIds[0], m_Pos, m_Pos, Server()->Tick(), m_Owner, LASERTYPE_GUN, -1, -1, LASERFLAG_NO_PREDICT);
 
 	CNetObj_DDNetProjectile Proj = {};
 	Proj.m_X = round_to_int(m_Pos2.x * 100.0f);
@@ -122,5 +125,6 @@ void CBall::Snap(int SnappingClient)
 	Proj.m_StartTick = 0;
 	Proj.m_VelX = 0;
 	Proj.m_VelY = 0;
-	Server()->SnapNewItem(m_aIds[1], Proj);
+	if(m_aIds[1] >= 0)
+		Server()->SnapNewItem(m_aIds[1], Proj);
 }

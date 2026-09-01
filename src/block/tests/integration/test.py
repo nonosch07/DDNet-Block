@@ -78,6 +78,19 @@ def whois_lines(log_lines):
     return [l.split(" I whois: ", 1)[-1] for l in log_lines if " I whois: " in l]
 
 
+def status_ids(log_lines):
+    """The client ids an rcon `status` reported."""
+    ids = []
+    for line in log_lines:
+        if "id=" not in line or "econ" in line:
+            continue
+        try:
+            ids.append(int(line.split("id=")[1].split()[0]))
+        except (IndexError, ValueError):
+            continue
+    return ids
+
+
 def login_fresh(env, server, client, user="itest1", password="itestpw123"):
     """Register (if needed) and log in; returns the account id."""
     client.chat_command(f"/register {user} {password}", settle=2.5)
@@ -660,6 +673,169 @@ def shop_vip_week(env):
         f"the shop does not show VIP as owned: {chat}",
     )
     expect(s.alive(), "server died during the VIP purchase flow")
+
+
+@test
+def shop_npcs_do_not_take_player_slots(env):
+    """A shop server's preview NPCs must not sit where a player is about to land.
+
+    NPCs hold a client slot without ever opening a network connection, so the
+    slot looked free to the network layer and the next player to join was put on
+    top of one -- taking over the NPC's frozen, AFK state and unable to do
+    anything.
+    """
+    reset_database()
+    s = env.server(map_name="store", extra_config=["sv_shop_server 1", "sv_max_clients 64", "sv_shop_reserved_slots 8"])
+    time.sleep(3.5)
+
+    npc_ids = status_ids(s.rcon("status", settle=2.0))
+    expect(npc_ids, "the shop server created no preview NPCs")
+    # NPCs count down from the top, leaving the low ids to players
+    expect(min(npc_ids) > 8, f"NPCs took low slots, players will collide with them: {sorted(npc_ids)}")
+
+    c = env.client("realplayer", s)
+    time.sleep(2.5)
+    lines = s.rcon("status", settle=2.0)
+    mine = [l for l in lines if "realplayer" in l and "id=" in l]
+    expect(mine, f"the player did not get in at all: {lines[-6:]}")
+    player_id = int(mine[0].split("id=")[1].split()[0])
+    expect(player_id not in npc_ids, f"the player was put on NPC slot {player_id}")
+
+    # and is a real player, not a leftover NPC: it can log in and be paid
+    c.chat_command("/register shoptest shoptestpw1", settle=2.5)
+    expect_chat(c.chat_command("/login shoptest shoptestpw1", settle=2.5), "login successfully", "on a shop server")
+    s.rcon(f"give_blockpoints {player_id} 77", settle=1.0)
+    expect_chat(c.chat_command("/bp", settle=1.5), "blockpoint", "after being paid on a shop server")
+    expect(s.alive(), "server died with shop NPCs and a player")
+
+
+@test
+def shop_npcs_leave_room_on_a_small_server(env):
+    """NPCs must never fill a shop server: a preview that does not fit is dropped."""
+    reset_database()
+    s = env.server(map_name="store", extra_config=["sv_shop_server 1", "sv_max_clients 16", "sv_shop_reserved_slots 8"])
+    time.sleep(3.5)
+
+    npc_ids = status_ids(s.rcon("status", settle=2.0))
+    expect(len(npc_ids) < 16, f"NPCs filled every slot on a 16 slot server: {sorted(npc_ids)}")
+
+    c = env.client("realplayer", s)
+    time.sleep(2.5)
+    chat = c.chat()
+    expect(
+        not any("server is full" in l.lower() for l in c.snapshot()),
+        f"a player could not join a small shop server: {c.snapshot()[-5:]}",
+    )
+    expect_chat(chat, "entered and joined", "on a small shop server")
+    expect(s.alive(), "server died on a small shop server")
+
+
+@test
+def shop_npcs_survive_a_full_server(env):
+    """Filling every player slot must not push a joining client onto an NPC.
+
+    This is the case the network-level reservation exists for: NPCs never open a
+    connection, so without it CNetServer sees their slots as free and hands one
+    out once the real ones run out.
+    """
+    reset_database()
+    s = env.server(
+        map_name="store",
+        extra_config=["sv_shop_server 1", "sv_max_clients 16", "sv_shop_reserved_slots 8", "sv_connlimit 200", "sv_max_clients_per_ip 32"],
+    )
+    time.sleep(3.5)
+    npc_ids = set(status_ids(s.rcon("status", settle=2.0)))
+    expect(npc_ids, "the shop server created no preview NPCs")
+
+    # one more client than there are free slots, so the last one has nowhere to go
+    clients = [env.client(f"p{i}", s, connect=False) for i in range(9)]
+    for c in clients:
+        try:
+            c.connect(s, timeout=8)
+        except TestFailure:
+            pass  # the server being full is the expected outcome for the last one
+    time.sleep(2.0)
+
+    lines = s.rcon("status", settle=2.0)
+    stolen = [i for i in npc_ids if any(f"id={i} " in l and "name='p" in l for l in lines)]
+    expect(not stolen, f"players were put on NPC slots {stolen}")
+    expect(s.alive(), "server died filling a shop server")
+
+
+@test
+def shop_reloads_do_not_leak_snapshot_ids(env):
+    """Reloading a shop map must give its snapshot ids back.
+
+    The preview animations hold ids that only their destructors return, and the
+    animation handler dies with the game context on every map change. Leaving
+    them behind leaked a few thousand ids per reload until the pool of 32768 ran
+    dry, at which point the server asserted on the first snap it could not get an
+    id for -- a crash after roughly eight reloads.
+    """
+    reset_database()
+    s = env.server(map_name="store", extra_config=["sv_shop_server 1", "sv_max_clients 128", "sv_shop_reserved_slots 8"])
+    env.client("realplayer", s)
+    time.sleep(4.0)
+
+    for _ in range(10):
+        s.rcon("reload", settle=3.0)
+        time.sleep(1.5)
+        expect(s.alive(), "the server died while reloading a shop map")
+
+    log = s.snapshot()
+    expect(
+        not any("invalid id" in l for l in log),
+        "the snapshot id pool ran out, so reloading still leaks ids",
+    )
+    expect(not any("assert" in l.lower() for l in log), f"an assert fired: {[l for l in log if 'assert' in l.lower()][:2]}")
+    expect(s.alive(), "server died after repeated shop reloads")
+
+
+@test
+def remove_all_weapons_leaves_nothing(env):
+    """remove_all_weapons must leave the player with no weapon at all.
+
+    Upstream's `removeweapon -1` only covers shotgun, grenade and laser, and it
+    clears possession without clearing ammo -- which is what FireWeapon gates on
+    -- so a player stripped that way keeps a weapon in hand.
+    """
+    reset_database()
+    s = env.server(extra_config=["sv_max_clients 64"])
+    c = env.client("blocktester", s)
+    time.sleep(2.0)
+
+    out = s.rcon("remove_all_weapons 0", settle=2.0)
+    lines = [l.split(" I weapons: ", 1)[-1] for l in out if " I weapons: " in l]
+    expect(any("holding nothing" in l for l in lines), f"the command did not report success: {lines}")
+
+    # handing one back must work, so the empty hands are not a stuck state
+    s.rcon("addweapon 2", settle=1.5)
+    time.sleep(1.0)
+    expect(s.alive(), "server died giving a weapon back")
+    expect(c.alive(), "client dropped after being stripped")
+
+    # and it survives a respawn
+    s.rcon("kill_pl 0", settle=2.0)
+    time.sleep(1.5)
+    expect(s.alive(), "server died respawning a stripped player")
+
+
+@test
+def block_bots_have_no_names(env):
+    """Load-test bots join nameless, like the shop NPCs."""
+    reset_database()
+    s = env.server(extra_config=["sv_max_clients 64"])
+    env.client("blocktester", s)
+    time.sleep(2.0)
+    s.rcon("block_bots 4", settle=4.0)
+    time.sleep(1.5)
+
+    lines = [l for l in s.rcon("status", settle=2.0) if "id=" in l and "econ" not in l]
+    expect(not any("name='bot" in l for l in lines), f"a bot still carries a generated name: {lines[:4]}")
+    blank = sum(1 for l in lines if "name=' '" in l)
+    expect(blank == 4, f"expected 4 nameless bots, found {blank}")
+    expect(not any("name='(" in l for l in lines), f"a bot was auto-renamed: {lines[:4]}")
+    expect(s.alive(), "server died spawning nameless bots")
 
 
 @test

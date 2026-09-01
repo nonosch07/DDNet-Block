@@ -456,6 +456,13 @@ class CNetServer
 	std::set<std::string> m_IpWhitelist;
 	// --- BLOCK END ---
 
+	// --- BLOCK BEGIN: slots held by players the server made up ---
+	// Shop NPCs and bots occupy a client slot without ever opening a network
+	// connection, so the free-slot scan below cannot see them: it would hand
+	// their slot to the next real client, who then lands on top of an NPC.
+	bool m_aSlotTakenByServer[NET_MAX_CLIENTS] = {};
+	// --- BLOCK END ---
+
 	bool m_FlushBatch = false;
 	bool m_aFlushPending[NET_MAX_CLIENTS] = {};
 
@@ -496,6 +503,15 @@ class CNetServer
 	void SendMsgs(NETADDR &Addr, const CPacker **ppMsgs, int Num);
 
 public:
+	// --- BLOCK BEGIN: see m_aSlotTakenByServer ---
+	/// Keeps an incoming connection from being given this slot, or gives it back.
+	void SetSlotTakenByServer(int Slot, bool Taken)
+	{
+		if(Slot >= 0 && Slot < NET_MAX_CLIENTS)
+			m_aSlotTakenByServer[Slot] = Taken;
+	}
+	// --- BLOCK END ---
+
 	int SetCallbacks(NETFUNC_NEWCLIENT pfnNewClient, NETFUNC_DELCLIENT pfnDelClient, void *pUser);
 	int SetCallbacks(NETFUNC_NEWCLIENT pfnNewClient, NETFUNC_NEWCLIENT_NOAUTH pfnNewClientNoAuth, NETFUNC_CLIENTREJOIN pfnClientRejoin, NETFUNC_DELCLIENT pfnDelClient, void *pUser);
 

@@ -3981,7 +3981,9 @@ void CGameContext::ConchainPracticeByDefaultUpdate(IConsole::IResult *pResult, v
 	const int OldValue = g_Config.m_SvPracticeByDefault;
 	pfnCallback(pResult, pCallbackUserData);
 
-	if(pResult->NumArguments() && g_Config.m_SvTestingCommands)
+	// --- BLOCK BEGIN: sv_practice_by_default stands on its own, see PracticeByDefault ---
+	if(pResult->NumArguments())
+	// --- BLOCK END ---
 	{
 		CGameContext *pSelf = (CGameContext *)pUserData;
 
@@ -5565,7 +5567,10 @@ void CGameContext::ReadCensorList()
 
 bool CGameContext::PracticeByDefault() const
 {
-	return g_Config.m_SvPracticeByDefault && g_Config.m_SvTestingCommands;
+	// --- BLOCK BEGIN: sv_practice_by_default stands on its own ---
+	// It used to need sv_test_cmds as well, which no longer gates anything.
+	// --- BLOCK END ---
+	return g_Config.m_SvPracticeByDefault;
 }
 
 void CGameContext::SendStartMessages(int ClientId)

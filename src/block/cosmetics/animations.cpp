@@ -135,6 +135,18 @@ CAnimationHandler::CAnimationHandler()
 	mem_copy(gs_LetterBits[SpaceIdx], gs_LetterSP, sizeof(gs_LetterBits[0]));
 }
 
+CAnimationHandler::~CAnimationHandler()
+{
+	Clear();
+}
+
+void CAnimationHandler::Clear()
+{
+	for(CMapAnimation *pAnimation : m_LpAnimations)
+		delete pAnimation;
+	m_LpAnimations.clear();
+}
+
 void CAnimationHandler::Init(CGameContext *pGameServer)
 {
 	m_pGameServer = pGameServer;

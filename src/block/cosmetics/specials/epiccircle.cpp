@@ -96,6 +96,8 @@ void CEpicCircle::Snap(int SnappingClient)
 		Particle.m_VelX = 4;
 		Particle.m_VelY = 4;
 		Particle.m_StartTick = Server()->Tick() - 4;
+		if(m_aIDs[i] < 0)
+			continue;
 		Server()->SnapNewItem(m_aIDs[i], Particle);
 	}
 }

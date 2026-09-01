@@ -28,6 +28,13 @@ enum
 static constexpr int PASSIVE_TILE_DURATION = 2 * 60 * 60;
 static constexpr int RANDOM_COSMETIC_DURATION = 10 * 60;
 
+/// Team put in a shop NPC's snapped player info.
+///
+/// Deliberately none of TEAM_RED, TEAM_BLUE or TEAM_SPECTATORS: the client sorts
+/// its scoreboard and its spectator line by those three, so anything else is
+/// listed nowhere. It never reaches the server-side team logic, only the wire.
+static constexpr int TEAM_NPC_HIDDEN = 2;
+
 static constexpr long long VIP_WEEK_SECONDS = 7LL * 24 * 60 * 60;
 
 #endif // BLOCK_COMMON_H

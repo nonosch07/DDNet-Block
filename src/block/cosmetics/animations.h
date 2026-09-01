@@ -41,8 +41,17 @@ private:
 	IServer *m_pServer;
 
 public:
-	virtual ~CAnimationHandler() = default;
+	// Deletes the animations still running.
+	//
+	// Each one holds snapshot ids that only its destructor gives back, and the
+	// handler is destroyed with the game context on every map change: leaving
+	// them behind leaked a few thousand ids per reload, until the pool ran dry
+	// and the server asserted on the first snap it could not get an id for.
+	virtual ~CAnimationHandler();
 	CAnimationHandler();
+
+	// Ends every running animation and returns their ids.
+	void Clear();
 
 	void Laserwrite(const char *pText, vec2 StartPos, float Size, int Ticks, bool Shotgun = false);
 	void RemoveAnimationsNear(vec2 Pos, float Radius);

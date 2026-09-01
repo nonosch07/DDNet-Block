@@ -1537,12 +1537,10 @@ void CGameTeams::SetPractice(int Team, bool Enabled)
 {
 	if(!IsValidTeamNumber(Team))
 		return;
-	if(g_Config.m_SvTeam != SV_TEAM_FORCED_SOLO && Team == TEAM_FLOCK)
-	{
-		// allow to enable practice in team 0, for practice by default
-		if(!g_Config.m_SvTestingCommands)
-			return;
-	}
+	// --- BLOCK BEGIN: practice in team 0 no longer needs sv_test_cmds ---
+	// It was the same switch that gated the test commands, and that switch no
+	// longer decides anything; see the note in CConsole::ExecuteLineStroked.
+	// --- BLOCK END ---
 
 	m_aPractice[Team] = Enabled;
 }

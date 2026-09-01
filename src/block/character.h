@@ -28,6 +28,15 @@ public:
 	// Called from CCharacter::Reset(), so a respawning tee starts clean.
 	void Reset();
 
+	/// The weapon index that goes into the snapshot.
+	///
+	/// A tee that owns no weapon at all is shown holding nothing: DDNet clients
+	/// skip drawing the gun when the index is negative. Clients older than
+	/// November 2024 clamp it back into range and 0.7 has no such rule, so both
+	/// keep seeing a hammer -- hence the plain index for sixup rather than a
+	/// value it cannot read.
+	int SnapWeapon(int Weapon, bool Sixup) const;
+
 	// Upstream keeps the inputs private; Block reads them for the AI bot and the
 	// telekinesis command.
 	const CNetObj_PlayerInput &GetInput() const;

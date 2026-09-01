@@ -103,6 +103,8 @@ void CCrown::Snap(int SnappingClient)
 			break;
 		}
 
+		if(m_aIds[i] < 0)
+			continue;
 		GameServer()->Block().SnapLaserObject(CSnapContext(SnapVer, SixUp, SnappingClient), m_aIds[i], m_Pos + To, m_Pos + From, Server()->Tick(), m_Owner, 0, -1, -1, LASERFLAG_NO_PREDICT);
 	}
 }

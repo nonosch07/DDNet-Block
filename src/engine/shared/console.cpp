@@ -604,11 +604,13 @@ void CConsole::ExecuteLineStroked(int Stroke, const char *pStr, int ClientId, bo
 					}
 					else
 					{
-						if(pCommand->m_Flags & CMDFLAG_TEST && !g_Config.m_SvTestingCommands)
-						{
-							Print(OUTPUT_LEVEL_STANDARD, "console", "Test commands aren't allowed, enable them with 'sv_test_cmds 1' in your initial config.");
-							return;
-						}
+						// --- BLOCK BEGIN: sv_test_cmds no longer gates the test commands ---
+						// They are all CFGFLAG_SERVER and keep the admin access
+						// level, so rcon already decides who may run them; the
+						// extra switch only meant an admin had to restart with a
+						// different initial config to use one. sv_test_cmds is
+						// still read for the gametype name.
+						// --- BLOCK END ---
 
 						if(m_pfnTeeHistorianCommandCallback && !(pCommand->m_Flags & CFGFLAG_NONTEEHISTORIC))
 						{

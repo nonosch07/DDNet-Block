@@ -73,6 +73,8 @@ void CHalo::Snap(int SnappingClient)
 		int dy = -60 + (int)(8 * sinf(Server()->Tick() / 10.0f + i));
 
 		vec2 Pos = m_Pos + vec2(dx, dy);
+		if(m_aIds[i] < 0)
+			continue;
 		GameServer()->Block().SnapLaserObject(CSnapContext(SnapVer, SixUp, SnappingClient), m_aIds[i], Pos, Pos, Server()->Tick(), m_Owner, 0, -1, -1);
 	}
 }

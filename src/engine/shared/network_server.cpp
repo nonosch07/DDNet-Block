@@ -273,6 +273,10 @@ int CNetServer::TryAcceptClient(NETADDR &Addr, SECURITY_TOKEN SecurityToken, int
 		Slot = -1;
 		for(int i = 0; i < MaxClients(); i++)
 		{
+			// --- BLOCK BEGIN: skip slots a shop NPC or bot already sits in ---
+			if(m_aSlotTakenByServer[i])
+				continue;
+			// --- BLOCK END ---
 			if(m_aSlots[i].m_Connection.State() == CNetConnection::EState::OFFLINE)
 			{
 				Slot = i;

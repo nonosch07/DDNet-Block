@@ -70,6 +70,8 @@ public:
 			if(m_aSpawned[i] == false)
 				continue;
 
+			if(m_aIds[i] < 0)
+				continue;
 			GameServer()->SnapPickup(CSnapContext(SnappingClientVersion, Sixup, SnappingClient), m_aIds[i], m_aPos[i], POWERUP_HEALTH, 0, 0, PICKUPFLAG_NO_PREDICT);
 		}
 	}
@@ -133,6 +135,8 @@ public:
 			const bool SixUp = Server()->IsSixup(SnappingClient);
 			vec2 Pos = m_Pos + m_aRotatePos[i];
 
+			if(m_aIds[i] < 0)
+				continue;
 			GameServer()->Block().SnapLaserObject(CSnapContext(SnapVer, SixUp, SnappingClient), m_aIds[i], Pos, Pos, Server()->Tick(), -1, LASERTYPE_GUN, -1, -1, LASERFLAG_NO_PREDICT);
 		}
 	}

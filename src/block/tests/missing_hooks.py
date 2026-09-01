@@ -17,8 +17,15 @@ import re
 import subprocess
 import sys
 
-# Base the old fork was cut from, and the old fork's tip.
-BASE = "8a99a7d599"
+# What to diff: pristine upstream against the branch Block lives on, so the
+# difference is Block's own work and nothing else.
+#
+# BASE used to be the commit the old fork was cut from. That worked only while
+# the fork stayed on that upstream: once upstream is merged in, every function
+# upstream touched since then also shows up as "added", and the report drowns in
+# changes that were never Block's. vanilla-ddnet is moved to upstream by the
+# merge itself, so pointing at it keeps this honest with no commit to bump.
+BASE = "vanilla-ddnet"
 OLD = "master"
 
 # upstream file -> class whose methods we split on

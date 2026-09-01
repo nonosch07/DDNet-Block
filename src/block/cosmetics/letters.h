@@ -64,6 +64,14 @@ public:
 				// catch read-out-of-bounds
 				dbg_assert(IdIndex < m_NumIds, "something weird happened!! (IDIndex out of range)");
 
+				// the id pool can run dry; a piece without one is skipped rather
+				// than snapped with -1, which the snapshot builder asserts on
+				if(m_aIds[IdIndex] < 0)
+				{
+					IdIndex++;
+					continue;
+				}
+
 				if(m_Shotgun == false)
 				{
 					const int SnapVer = Server()->GetClientVersion(SnappingClient);

@@ -88,7 +88,7 @@ public:
 	// applied to a copy of upstream's cached client info rather than to the
 	// cache itself.
 	void OnSnapClientInfo(int ClientId, int SnappingClient, CNetObj_ClientInfo *pClientInfo);
-	void OnSnapPlayerInfo(int ClientId, int SnappingClient, CNetObj_PlayerInfo *pPlayerInfo);
+	void OnSnapPlayerInfo(int ClientId, int SnappingClient, CNetObj_PlayerInfo *pPlayerInfo) const;
 	void OnSnapDDNetPlayer(int ClientId, CNetObj_DDNetPlayer *pDDNetPlayer) const;
 
 	// --- net message hooks, return true when Block consumed the message ---
@@ -268,6 +268,7 @@ public:
 	// already keeps it out of the server info and gives it a synthetic address.
 	void BotJoin(int BotId, const char *pName) const;
 	static void ConBots(IConsole::IResult *pResult, void *pUserData);
+	static void ConRemoveAllWeapons(IConsole::IResult *pResult, void *pUserData);
 	void BotLeave(int BotId, bool Silent = false) const;
 
 	// Upstream's IServer::RedirectClient(id, port) refuses clients that are too
