@@ -18,8 +18,8 @@
 
 #include <algorithm>
 
-#define BLOCK_GAME_TYPE_NAME "Block			BW"
-#define BLOCK_TEST_TYPE_NAME "TestBlock		BW"
+#define BLOCK_GAME_TYPE_NAME "Block   BW"
+#define BLOCK_TEST_TYPE_NAME "TestBlock   BW"
 
 CGameControllerBlock::CGameControllerBlock(CGameContext *pGameServer) :
 	CGameControllerDDNet(pGameServer)
