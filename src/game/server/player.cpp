@@ -43,6 +43,9 @@ CPlayer::CPlayer(CGameContext *pGameServer, uint32_t UniqueClientId, int ClientI
 	m_NumInputs = 0;
 	Reset();
 	GameServer()->Antibot()->OnPlayerInit(m_ClientId);
+	// --- BLOCK BEGIN: no wonder it wasn't working :(
+	GameServer()->Block().BlockTracker().StartTrackPlayer(ClientId);
+	// --- BLOCK END ---
 }
 
 CPlayer::~CPlayer()
